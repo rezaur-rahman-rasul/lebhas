@@ -1,0 +1,21 @@
+spring:
+  application:
+    name: creative-service
+  profiles:
+    active: ${SPRING_PROFILES_ACTIVE:local}
+  config:
+    import: optional:classpath:application-common.yaml
+
+server:
+  port: ${SERVER_PORT:8084}
+
+platform:
+  asset:
+    kafka:
+      consumer-enabled: ${ASSET_KAFKA_CONSUMER_ENABLED:true}
+  approval:
+    kafka:
+      status-consumer-enabled: ${APPROVAL_STATUS_KAFKA_CONSUMER_ENABLED:true}
+  generation:
+    queue:
+      worker-enabled: ${GENERATION_WORKER_ENABLED:false}

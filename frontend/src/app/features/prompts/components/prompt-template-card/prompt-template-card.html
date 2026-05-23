@@ -1,0 +1,60 @@
+<app-card [interactive]="true">
+  <div class="space-y-4">
+    <div class="flex items-start justify-between gap-3">
+      <div class="min-w-0">
+        <div class="flex flex-wrap gap-2">
+          <app-badge [tone]="promptTemplateStatusTone(template().status)">
+            {{ promptTemplateStatusLabel(template().status) }}
+          </app-badge>
+          @if (template().isDefault) {
+            <app-badge tone="blue">System default</app-badge>
+          }
+        </div>
+        <h3 class="mt-3 truncate text-base font-semibold text-ink">{{ template().name }}</h3>
+        @if (template().description) {
+          <p class="mt-1 text-sm leading-6 text-muted">{{ template().description }}</p>
+        }
+      </div>
+    </div>
+
+    <dl class="grid gap-3 text-sm sm:grid-cols-2">
+      <div>
+        <dt class="text-xs uppercase tracking-[0.12em] text-muted">Platform</dt>
+        <dd class="mt-1 font-medium text-ink">{{ promptPlatformLabel(template().platform) }}</dd>
+      </div>
+      <div>
+        <dt class="text-xs uppercase tracking-[0.12em] text-muted">Objective</dt>
+        <dd class="mt-1 font-medium text-ink">
+          {{ campaignObjectiveLabel(template().campaignObjective) }}
+        </dd>
+      </div>
+      <div>
+        <dt class="text-xs uppercase tracking-[0.12em] text-muted">Category</dt>
+        <dd class="mt-1 font-medium text-ink">{{ template().category || 'General' }}</dd>
+      </div>
+      <div>
+        <dt class="text-xs uppercase tracking-[0.12em] text-muted">Language</dt>
+        <dd class="mt-1 font-medium text-ink">{{ promptLanguageLabel(template().language) }}</dd>
+      </div>
+      <div class="sm:col-span-2">
+        <dt class="text-xs uppercase tracking-[0.12em] text-muted">Created</dt>
+        <dd class="mt-1 font-medium text-ink">{{ template().createdAt | date: 'medium' }}</dd>
+      </div>
+    </dl>
+
+    <div class="line-clamp-4 rounded-md border border-slate-200 bg-slate-50 px-3 py-3 text-sm leading-6 text-slate-700">
+      {{ template().promptBody }}
+    </div>
+
+    @if (canManage()) {
+      <div class="flex flex-wrap gap-2">
+        <app-button size="sm" variant="secondary" icon="pencil" (click)="editRequested.emit(template())">
+          Edit
+        </app-button>
+        <app-button size="sm" variant="danger" icon="trash-2" (click)="deleteRequested.emit(template())">
+          Delete
+        </app-button>
+      </div>
+    }
+  </div>
+</app-card>

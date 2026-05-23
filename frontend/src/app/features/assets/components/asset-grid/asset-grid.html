@@ -1,0 +1,14 @@
+<section class="grid gap-4 md:grid-cols-2 2xl:grid-cols-3">
+  @for (asset of assets(); track asset.id) {
+    <app-asset-card
+      [asset]="asset"
+      [canDownload]="canDownload()"
+      [canDelete]="canDelete()"
+      [deleting]="deletingAssetId() === asset.id"
+      (previewRequested)="previewRequested.emit($event)"
+      (downloadRequested)="downloadRequested.emit($event)"
+      (deleteRequested)="deleteRequested.emit($event)"
+      (detailRequested)="detailRequested.emit($event)"
+    />
+  }
+</section>

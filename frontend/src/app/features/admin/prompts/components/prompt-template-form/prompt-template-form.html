@@ -1,0 +1,152 @@
+<form class="space-y-4" [formGroup]="form" (ngSubmit)="submit()">
+  <div class="space-y-2">
+    <label class="text-sm font-medium text-ink" for="name">Template name</label>
+    <input
+      id="name"
+      type="text"
+      formControlName="name"
+      class="h-11 w-full rounded-md border border-border bg-white px-3 text-sm text-ink outline-none transition placeholder:text-slate-400 focus:border-brand-500 focus:ring-2 focus:ring-brand-100"
+      placeholder="Retargeting fashion sale"
+    />
+    @if (form.get('name')?.touched && form.get('name')?.hasError('required')) {
+      <p class="text-sm text-red-600">Template name is required.</p>
+    }
+    @if (fieldErrors()['name']) {
+      <p class="text-sm text-red-600">{{ fieldErrors()['name'] }}</p>
+    }
+  </div>
+
+  <div class="space-y-2">
+    <label class="text-sm font-medium text-ink" for="description">Description</label>
+    <textarea
+      id="description"
+      rows="3"
+      formControlName="description"
+      class="w-full rounded-md border border-border bg-white px-3 py-3 text-sm leading-6 text-ink outline-none transition placeholder:text-slate-400 focus:border-brand-500 focus:ring-2 focus:ring-brand-100"
+      placeholder="When this template should be used and what kind of campaign brief it targets."
+    ></textarea>
+  </div>
+
+  <div class="grid gap-4 md:grid-cols-2">
+    <div class="space-y-2">
+      <label class="text-sm font-medium text-ink" for="platform">Platform</label>
+      <select
+        id="platform"
+        formControlName="platform"
+        class="h-11 w-full rounded-md border border-border bg-white px-3 text-sm text-ink outline-none transition focus:border-brand-500 focus:ring-2 focus:ring-brand-100"
+      >
+        <option value="">Select platform</option>
+        @for (option of platformOptions; track option.value) {
+          <option [value]="option.value">{{ option.label }}</option>
+        }
+      </select>
+      @if (form.get('platform')?.touched && form.get('platform')?.hasError('required')) {
+        <p class="text-sm text-red-600">Platform is required.</p>
+      }
+      @if (form.get('platform')?.touched && form.get('platform')?.hasError('unsupportedSelection')) {
+        <p class="text-sm text-red-600">Select a supported platform.</p>
+      }
+    </div>
+
+    <div class="space-y-2">
+      <label class="text-sm font-medium text-ink" for="campaignObjective">Objective</label>
+      <select
+        id="campaignObjective"
+        formControlName="campaignObjective"
+        class="h-11 w-full rounded-md border border-border bg-white px-3 text-sm text-ink outline-none transition focus:border-brand-500 focus:ring-2 focus:ring-brand-100"
+      >
+        <option value="">Select objective</option>
+        @for (option of campaignObjectiveOptions; track option.value) {
+          <option [value]="option.value">{{ option.label }}</option>
+        }
+      </select>
+      @if (form.get('campaignObjective')?.touched && form.get('campaignObjective')?.hasError('required')) {
+        <p class="text-sm text-red-600">Campaign objective is required.</p>
+      }
+      @if (form.get('campaignObjective')?.touched && form.get('campaignObjective')?.hasError('unsupportedSelection')) {
+        <p class="text-sm text-red-600">Select a supported campaign objective.</p>
+      }
+    </div>
+
+    <div class="space-y-2">
+      <label class="text-sm font-medium text-ink" for="businessType">Business type</label>
+      <input
+        id="businessType"
+        type="text"
+        formControlName="businessType"
+        class="h-11 w-full rounded-md border border-border bg-white px-3 text-sm text-ink outline-none transition placeholder:text-slate-400 focus:border-brand-500 focus:ring-2 focus:ring-brand-100"
+        placeholder="Boutique, apparel, retail"
+      />
+    </div>
+
+    <div class="space-y-2">
+      <label class="text-sm font-medium text-ink" for="language">Language</label>
+      <select
+        id="language"
+        formControlName="language"
+        class="h-11 w-full rounded-md border border-border bg-white px-3 text-sm text-ink outline-none transition focus:border-brand-500 focus:ring-2 focus:ring-brand-100"
+      >
+        <option value="">Select language</option>
+        @for (option of languageOptions; track option.value) {
+          <option [value]="option.value">{{ option.label }}</option>
+        }
+      </select>
+      @if (form.get('language')?.touched && form.get('language')?.hasError('required')) {
+        <p class="text-sm text-red-600">Language is required.</p>
+      }
+      @if (form.get('language')?.touched && form.get('language')?.hasError('unsupportedSelection')) {
+        <p class="text-sm text-red-600">Select a supported language.</p>
+      }
+    </div>
+  </div>
+
+  <div class="space-y-2">
+    <label class="text-sm font-medium text-ink" for="templateText">Template text</label>
+    <textarea
+      id="templateText"
+      rows="8"
+      formControlName="templateText"
+      class="w-full rounded-md border border-border bg-white px-3 py-3 text-sm leading-6 text-ink outline-none transition placeholder:text-slate-400 focus:border-brand-500 focus:ring-2 focus:ring-brand-100"
+      placeholder="Write the reusable prompt structure that should be loaded into the builder."
+    ></textarea>
+    @if (form.get('templateText')?.touched && form.get('templateText')?.hasError('required')) {
+      <p class="text-sm text-red-600">Template text is required.</p>
+    }
+    @if (form.get('templateText')?.touched && form.get('templateText')?.hasError('minlength')) {
+      <p class="text-sm text-red-600">Template text must be at least 5 characters.</p>
+    }
+    @if (fieldErrors()['templateText']) {
+      <p class="text-sm text-red-600">{{ fieldErrors()['templateText'] }}</p>
+    }
+  </div>
+
+  <div class="grid gap-4 md:grid-cols-2">
+    <label class="flex items-center gap-3 rounded-md border border-border px-3 py-3 text-sm text-ink">
+      <input type="checkbox" formControlName="isSystemDefault" class="h-4 w-4 rounded border-border text-brand-600 focus:ring-brand-500" />
+      <span>System default foundation</span>
+    </label>
+
+    <div class="space-y-2">
+      <label class="text-sm font-medium text-ink" for="status">Status</label>
+      <select
+        id="status"
+        formControlName="status"
+        class="h-11 w-full rounded-md border border-border bg-white px-3 text-sm text-ink outline-none transition focus:border-brand-500 focus:ring-2 focus:ring-brand-100"
+      >
+        @for (option of statusOptions; track option.value) {
+          <option [value]="option.value">{{ option.label }}</option>
+        }
+      </select>
+      @if (form.get('status')?.touched && form.get('status')?.hasError('unsupportedSelection')) {
+        <p class="text-sm text-red-600">Select a supported status.</p>
+      }
+    </div>
+  </div>
+
+  <div class="flex justify-end gap-3">
+    <app-button type="button" variant="ghost" (click)="cancelled.emit()">Cancel</app-button>
+    <app-button type="submit" icon="save" [loading]="loading()">
+      Save template
+    </app-button>
+  </div>
+</form>

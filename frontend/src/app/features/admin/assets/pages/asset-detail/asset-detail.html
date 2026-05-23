@@ -1,0 +1,243 @@
+<div class="mb-4">
+  <a
+    [routerLink]="['../']"
+    class="inline-flex items-center gap-2 text-sm font-medium text-muted transition hover:text-ink"
+  >
+    <span class="rounded-full border border-border px-2 py-1">Back</span>
+    Asset library
+  </a>
+</div>
+
+@if (!hasWorkspaceContext()) {
+  <app-empty-state
+    icon="folder-kanban"
+    title="Workspace context required"
+    description="Select or switch into a workspace before reviewing asset details."
+  />
+} @else if (!store.canViewAssets()) {
+  <app-empty-state
+    icon="circle-alert"
+    title="Asset access is not available"
+    description="This session does not currently have permission to review asset details."
+  />
+} @else {
+  <app-page-header
+    eyebrow="Workspace"
+    [title]="asset()?.originalFileName || 'Asset detail'"
+    description="Review media metadata, signed preview access, storage details, and tags."
+  >
+    <app-badge [tone]="roleTone()">{{ roleLabel() }}</app-badge>
+    @if (asset()) {
+      <app-badge [tone]="assetStatusTone(asset()!.status)">
+        {{ assetStatusLabel(asset()!.status) }}
+      </app-badge>
+    }
+  </app-page-header>
+
+  @if (store.assetError()) {
+    <div class="mt-6 rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
+      {{ store.assetError() }}
+    </div>
+  }
+
+  @if (store.assetLoading() && !asset()) {
+    <div class="mt-6 grid gap-4 xl:grid-cols-[1.15fr_0.85fr]">
+      <div class="h-[32rem] animate-pulse rounded-2xl border border-border bg-white"></div>
+      <div class="space-y-4">
+        <div class="h-40 animate-pulse rounded-2xl border border-border bg-white"></div>
+        <div class="h-56 animate-pulse rounded-2xl border border-border bg-white"></div>
+      </div>
+    </div>
+  } @else if (asset()) {
+    <section class="mt-6 grid gap-6 xl:grid-cols-[1.15fr_0.85fr]">
+      <app-card [padded]="false">
+        <div class="overflow-hidden rounded-2xl border border-border bg-slate-50">
+          <div class="aspect-[16/10]">
+            @switch (asset()!.fileType) {
+              @case ('VIDEO') {
+                @if (previewUrl()) {
+                  <video [src]="previewUrl()!" controls class="h-full w-full bg-slate-950 object-contain"></video>
+                } @else {
+                  <div class="grid h-full place-items-center bg-slate-950 text-white">
+                    <div class="text-center">
+                      <p class="text-base font-semibold">Signed video preview</p>
+                      <p class="mt-2 text-sm text-slate-300">Generate a preview URL to inspect this video.</p>
+                    </div>
+                  </div>
+                }
+              }
+              @default {
+                @if (previewUrl() || asset()!.thumbnailUrl || asset()!.previewUrl || asset()!.publicUrl) {
+                  <img
+                    [src]="previewUrl() || asset()!.thumbnailUrl || asset()!.previewUrl || asset()!.publicUrl || ''"
+                    [alt]="asset()!.originalFileName"
+                    class="h-full w-full object-contain"
+                  />
+                } @else {
+                  <div class="grid h-full place-items-center bg-slate-100 text-slate-500">
+                    No preview available
+                  </div>
+                }
+              }
+            }
+          </div>
+        </div>
+
+        <div class="flex flex-wrap gap-2 px-5 py-5">
+          <app-button
+            size="sm"
+            variant="secondary"
+            icon="external-link"
+            [loading]="previewLoading()"
+            (click)="refreshPreview()"
+          >
+            Refresh preview URL
+          </app-button>
+
+          @if (store.canDownloadAssets()) {
+            <app-button
+              size="sm"
+              variant="secondary"
+              icon="download"
+              [loading]="downloadLoading()"
+              (click)="downloadAsset()"
+            >
+              Download
+            </app-button>
+          }
+
+          @if (store.canDeleteAssets()) {
+            <app-button
+              size="sm"
+              variant="danger"
+              icon="trash-2"
+              [loading]="store.assetLoading()"
+              (click)="openDeleteDialog()"
+            >
+              Delete asset
+            </app-button>
+          }
+        </div>
+      </app-card>
+
+      <div class="space-y-4">
+        <app-card>
+          <div class="flex flex-wrap items-center gap-2">
+            <app-badge tone="neutral">{{ assetCategoryLabel(asset()!.assetCategory) }}</app-badge>
+            <app-badge tone="neutral">{{ assetFileTypeLabel(asset()!.fileType) }}</app-badge>
+            <app-badge tone="neutral">{{ asset()!.fileExtension }}</app-badge>
+          </div>
+
+          <dl class="mt-5 grid gap-4 sm:grid-cols-2">
+            <div>
+              <dt class="text-xs uppercase tracking-[0.14em] text-slate-500">File size</dt>
+              <dd class="mt-1 text-sm font-medium text-ink">{{ formatFileSize(asset()!.fileSize) }}</dd>
+            </div>
+            <div>
+              <dt class="text-xs uppercase tracking-[0.14em] text-slate-500">Uploaded</dt>
+              <dd class="mt-1 text-sm font-medium text-ink">{{ asset()!.createdAt | date: 'd MMM y, h:mm a' }}</dd>
+            </div>
+            <div>
+              <dt class="text-xs uppercase tracking-[0.14em] text-slate-500">Dimensions</dt>
+              <dd class="mt-1 text-sm font-medium text-ink">
+                {{ asset()!.width || '-' }} x {{ asset()!.height || '-' }}
+              </dd>
+            </div>
+            <div>
+              <dt class="text-xs uppercase tracking-[0.14em] text-slate-500">Duration</dt>
+              <dd class="mt-1 text-sm font-medium text-ink">{{ asset()!.duration || '-' }}</dd>
+            </div>
+            <div class="sm:col-span-2">
+              <dt class="text-xs uppercase tracking-[0.14em] text-slate-500">Storage key</dt>
+              <dd class="mt-1 break-all text-sm font-medium text-ink">{{ asset()!.storageKey }}</dd>
+            </div>
+          </dl>
+        </app-card>
+
+        <app-card>
+          <h2 class="text-base font-semibold text-ink">Storage summary</h2>
+          <dl class="mt-4 space-y-3 text-sm">
+            <div class="flex items-start justify-between gap-4">
+              <dt class="text-muted">Provider</dt>
+              <dd class="text-right font-medium text-ink">{{ asset()!.storageProvider }}</dd>
+            </div>
+            <div class="flex items-start justify-between gap-4">
+              <dt class="text-muted">Bucket</dt>
+              <dd class="text-right font-medium text-ink">{{ asset()!.storageBucket || 'Private storage' }}</dd>
+            </div>
+            <div class="flex items-start justify-between gap-4">
+              <dt class="text-muted">Stored file</dt>
+              <dd class="max-w-[18rem] break-all text-right font-medium text-ink">
+                {{ asset()!.storedFileName || 'Generated by storage provider' }}
+              </dd>
+            </div>
+          </dl>
+        </app-card>
+      </div>
+    </section>
+
+    <section class="mt-6 grid gap-6 xl:grid-cols-[1fr_1fr]">
+      <app-asset-tag-editor
+        [tags]="asset()!.tags"
+        [readonly]="!store.canEditAssets()"
+        [saving]="store.assetLoading()"
+        (saved)="saveTags($event)"
+      />
+
+      <app-card>
+        <h2 class="text-base font-semibold text-ink">Metadata</h2>
+        @if ((asset()!.metadata | keyvalue).length) {
+          <dl class="mt-4 space-y-3 text-sm">
+            @for (entry of asset()!.metadata | keyvalue; track entry.key) {
+              <div class="flex items-start justify-between gap-4">
+                <dt class="text-muted">{{ entry.key }}</dt>
+                <dd class="max-w-[18rem] break-all text-right font-medium text-ink">
+                  {{ entry.value }}
+                </dd>
+              </div>
+            }
+          </dl>
+        } @else {
+          <p class="mt-4 text-sm leading-6 text-muted">
+            No additional metadata is stored yet. Future asset enrichment can extend this record without changing the view surface.
+          </p>
+        }
+      </app-card>
+    </section>
+  } @else {
+    <div class="mt-6">
+      <app-empty-state
+        icon="image"
+        title="Asset not found"
+        description="The selected asset could not be loaded for this workspace."
+      />
+    </div>
+  }
+}
+
+<app-modal-shell
+  [open]="deleteDialogOpen()"
+  title="Delete asset"
+  description="This removes the asset from the current workspace library."
+  (closed)="closeDeleteDialog()"
+>
+  <div class="space-y-5">
+    <p class="text-sm leading-6 text-muted">
+      <span class="font-medium text-ink">{{ asset()?.originalFileName }}</span>
+      will no longer appear in folders, search results, or preview flows.
+    </p>
+
+    <div class="flex justify-end gap-3">
+      <app-button type="button" variant="ghost" (click)="closeDeleteDialog()">Cancel</app-button>
+      <app-button
+        type="button"
+        variant="danger"
+        icon="trash-2"
+        [loading]="store.assetLoading()"
+        (click)="deleteAsset()"
+      >
+        Delete asset
+      </app-button>
+    </div>
+  </div>
+</app-modal-shell>

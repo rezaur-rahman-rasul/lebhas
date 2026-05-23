@@ -1,0 +1,29 @@
+<app-page-header
+  eyebrow="Prompt intelligence"
+  title="Project prompt builder"
+  description="Project-scoped prompt builder route. Full builder UI will load here in the next milestone."
+>
+  <a routerLink="/projects" class="text-sm font-medium text-brand-600 hover:text-brand-700">Projects</a>
+  <app-badge tone="neutral">Project {{ projectId() }}</app-badge>
+</app-page-header>
+
+@if (!canUsePromptBuilder()) {
+  <app-empty-state
+    class="mt-6 block"
+    icon="circle-alert"
+    title="Prompt builder access required"
+    description="This account does not have permission to use prompt intelligence for this workspace."
+  />
+} @else {
+  <section class="mt-6 rounded-2xl border border-border bg-panel p-6 shadow-sm">
+    <p class="text-sm text-muted">
+      Builder shell is wired. Enhancement actions are
+      @if (canEnhancePrompt()) {
+        <span class="font-medium text-ink">enabled</span>
+      } @else {
+        <span class="font-medium text-ink">disabled</span>
+      }
+      for your role.
+    </p>
+  </section>
+}

@@ -1,0 +1,46 @@
+
+    <label class="block">
+      @if (label()) {
+        <span class="mb-2 block text-sm font-medium text-ink">{{ label() }}</span>
+      }
+
+    <span class="relative block">
+      @if (icon()) {
+        <app-icon
+            [name]="icon()!"
+            className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-slate-400"
+            [size]="17"
+          />
+        }
+
+        @if (control()) {
+          <input
+            [type]="type()"
+            [formControl]="controlRef()"
+            [placeholder]="placeholder()"
+            [autocomplete]="autocomplete()"
+            [disabled]="disabled()"
+            [class]="inputClasses()"
+            [attr.data-testid]="testId()"
+            [attr.data-modal-primary]="modalPrimary() ? '' : null"
+          />
+        } @else {
+          <input
+            [type]="type()"
+            [value]="value()"
+            [placeholder]="placeholder()"
+            [autocomplete]="autocomplete()"
+            [disabled]="disabled()"
+            [class]="inputClasses()"
+            [attr.data-testid]="testId()"
+            [attr.data-modal-primary]="modalPrimary() ? '' : null"
+            (input)="valueChange.emit($any($event.target).value)"
+          />
+        }
+      </span>
+
+      @if (error()) {
+        <span class="mt-2 block text-sm text-alert-600">{{ error() }}</span>
+      }
+    </label>
+  

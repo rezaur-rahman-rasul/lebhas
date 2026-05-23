@@ -1,0 +1,17 @@
+
+    <app-card>
+      <div class="flex items-start justify-between gap-4">
+        <div class="min-w-0">
+          <p class="text-sm text-muted">{{ label() }}</p>
+          <p class="mt-2 text-2xl font-semibold text-ink">{{ value() }}</p>
+          @if (description()) {
+            <p class="mt-2 text-sm leading-6 text-muted">{{ description() }}</p>
+          }
+        </div>
+
+        <div [class]="iconContainerClasses()">
+          <app-icon [name]="icon()" [size]="20" />
+        </div>
+      </div>
+    </app-card>
+  

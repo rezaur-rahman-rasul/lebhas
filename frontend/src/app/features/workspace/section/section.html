@@ -1,0 +1,25 @@
+<app-section-header
+  [eyebrow]="section.eyebrow"
+  [title]="section.title"
+  [description]="section.description"
+>
+  <app-badge [tone]="section.badgeTone">{{ section.badge }}</app-badge>
+</app-section-header>
+
+<section class="mt-6 grid gap-4 xl:grid-cols-3">
+  @for (card of section.cards; track card.title) {
+    <app-card>
+      <h2 class="text-base font-semibold text-ink">{{ card.title }}</h2>
+      <p class="mt-3 text-sm leading-7 text-muted">{{ card.description }}</p>
+    </app-card>
+  }
+</section>
+
+<div class="mt-6">
+  <app-empty-state
+    [icon]="section.emptyIcon"
+    [title]="section.emptyTitle"
+    [description]="section.emptyDescription"
+  />
+</div>
+

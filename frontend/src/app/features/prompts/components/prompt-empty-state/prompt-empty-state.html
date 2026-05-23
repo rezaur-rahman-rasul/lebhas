@@ -1,0 +1,8 @@
+<div class="flex flex-col items-center rounded-2xl border border-dashed border-border bg-panel px-6 py-12 text-center">
+  <div class="flex h-12 w-12 items-center justify-center rounded-full bg-brand-50 text-brand-600">
+    <app-icon [name]="icon()" [size]="22" />
+  </div>
+  <h3 class="mt-4 text-lg font-semibold text-ink">{{ title() }}</h3>
+  <p class="mt-2 max-w-md text-sm leading-6 text-muted">{{ description() }}</p>
+  <ng-content />
+</div>

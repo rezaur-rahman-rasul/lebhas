@@ -1,0 +1,164 @@
+<aside class="rounded-2xl border border-border bg-white p-4 shadow-sm">
+  <div class="flex items-center justify-between gap-3">
+    <div>
+      <h2 class="text-base font-semibold text-ink">Folders</h2>
+      <p class="mt-1 text-sm text-muted">Keep raw, product, and brand assets organized.</p>
+    </div>
+
+    @if (canManageFolders()) {
+      <app-button size="sm" variant="secondary" icon="plus" (click)="toggleCreateForm()">
+        New
+      </app-button>
+    }
+  </div>
+
+  <div class="mt-5 space-y-2">
+    <button
+      type="button"
+      class="flex w-full items-center justify-between rounded-xl px-3 py-2.5 text-left text-sm font-medium transition"
+      [class.bg-brand-50]="selectedFolder() === 'all'"
+      [class.text-brand-700]="selectedFolder() === 'all'"
+      [class.text-ink]="selectedFolder() !== 'all'"
+      [class.hover:bg-slate-50]="selectedFolder() !== 'all'"
+      (click)="folderSelected.emit('all')"
+    >
+      <span class="flex items-center gap-2">
+        <app-icon name="folder-kanban" [size]="16" />
+        All assets
+      </span>
+      <app-icon name="chevron-right" [size]="16" className="text-slate-400" />
+    </button>
+
+    <button
+      type="button"
+      class="flex w-full items-center justify-between rounded-xl px-3 py-2.5 text-left text-sm font-medium transition"
+      [class.bg-brand-50]="selectedFolder() === 'uncategorized'"
+      [class.text-brand-700]="selectedFolder() === 'uncategorized'"
+      [class.text-ink]="selectedFolder() !== 'uncategorized'"
+      [class.hover:bg-slate-50]="selectedFolder() !== 'uncategorized'"
+      (click)="folderSelected.emit('uncategorized')"
+    >
+      <span class="flex items-center gap-2">
+        <app-icon name="folder-open" [size]="16" />
+        Uncategorized
+      </span>
+      <app-icon name="chevron-right" [size]="16" className="text-slate-400" />
+    </button>
+  </div>
+
+  @if (showCreateForm()) {
+    <form class="mt-4 space-y-3 rounded-2xl border border-border bg-slate-50 p-4" [formGroup]="createForm" (ngSubmit)="createFolder()">
+      <div>
+        <label class="mb-2 block text-sm font-medium text-ink" for="newFolderName">Folder name</label>
+        <input
+          id="newFolderName"
+          type="text"
+          formControlName="name"
+          class="h-11 w-full rounded-lg border border-border bg-white px-3 text-sm text-ink outline-none transition focus:border-brand-500 focus:ring-2 focus:ring-brand-100"
+        />
+        @if (createForm.controls.name.touched && createForm.controls.name.errors?.['required']) {
+          <p class="mt-2 text-sm text-alert-600">Folder name is required.</p>
+        }
+      </div>
+
+      <div>
+        <label class="mb-2 block text-sm font-medium text-ink" for="newFolderDescription">Description</label>
+        <textarea
+          id="newFolderDescription"
+          rows="3"
+          formControlName="description"
+          class="w-full rounded-lg border border-border bg-white px-3 py-3 text-sm text-ink outline-none transition focus:border-brand-500 focus:ring-2 focus:ring-brand-100"
+        ></textarea>
+      </div>
+
+      <div class="flex justify-end gap-2">
+        <app-button type="button" variant="ghost" (click)="toggleCreateForm()">Cancel</app-button>
+        <app-button type="submit" icon="save" [disabled]="loading()">Create folder</app-button>
+      </div>
+    </form>
+  }
+
+  <div class="mt-5">
+    @if (hasFolders()) {
+      <div class="space-y-2">
+        @for (folder of folders(); track folder.id) {
+          <div class="rounded-2xl border border-border">
+            @if (editingFolderId() === folder.id) {
+              <form class="space-y-3 p-4" [formGroup]="editForm" (ngSubmit)="saveRename(folder.id)">
+                <div>
+                  <label class="mb-2 block text-sm font-medium text-ink" [for]="'folderName-' + folder.id">
+                    Folder name
+                  </label>
+                  <input
+                    [id]="'folderName-' + folder.id"
+                    type="text"
+                    formControlName="name"
+                    class="h-11 w-full rounded-lg border border-border bg-white px-3 text-sm text-ink outline-none transition focus:border-brand-500 focus:ring-2 focus:ring-brand-100"
+                  />
+                </div>
+
+                <div>
+                  <label class="mb-2 block text-sm font-medium text-ink" [for]="'folderDescription-' + folder.id">
+                    Description
+                  </label>
+                  <textarea
+                    [id]="'folderDescription-' + folder.id"
+                    rows="3"
+                    formControlName="description"
+                    class="w-full rounded-lg border border-border bg-white px-3 py-3 text-sm text-ink outline-none transition focus:border-brand-500 focus:ring-2 focus:ring-brand-100"
+                  ></textarea>
+                </div>
+
+                <div class="flex justify-end gap-2">
+                  <app-button type="button" variant="ghost" (click)="cancelRename()">Cancel</app-button>
+                  <app-button type="submit" icon="save" [disabled]="loading()">Save</app-button>
+                </div>
+              </form>
+            } @else {
+              <div class="flex items-start gap-3 px-3 py-3">
+                <button
+                  type="button"
+                  class="flex min-w-0 flex-1 items-center gap-2 rounded-xl px-2 py-1 text-left text-sm font-medium text-ink transition hover:bg-slate-50"
+                  (click)="folderSelected.emit(folder.id)"
+                >
+                  <app-icon name="folder-open" [size]="16" />
+                  <span class="truncate">{{ folder.name }}</span>
+                </button>
+
+                @if (canManageFolders()) {
+                  <div class="flex shrink-0 items-center gap-1">
+                    <button
+                      type="button"
+                      class="rounded-md p-2 text-slate-500 transition hover:bg-slate-100 hover:text-ink"
+                      (click)="beginRename(folder)"
+                      aria-label="Rename folder"
+                    >
+                      <app-icon name="pencil-line" [size]="16" />
+                    </button>
+                    <button
+                      type="button"
+                      class="rounded-md p-2 text-slate-500 transition hover:bg-red-50 hover:text-red-600"
+                      (click)="folderDeleted.emit(folder.id)"
+                      aria-label="Delete folder"
+                    >
+                      <app-icon name="trash-2" [size]="16" />
+                    </button>
+                  </div>
+                }
+              </div>
+
+              @if (folder.description) {
+                <p class="px-5 pb-4 text-sm leading-6 text-muted">{{ folder.description }}</p>
+              }
+            }
+          </div>
+        }
+      </div>
+    } @else {
+      <div class="rounded-2xl border border-dashed border-border bg-slate-50 px-4 py-6 text-center">
+        <p class="text-sm font-medium text-ink">No folders yet</p>
+        <p class="mt-1 text-sm text-muted">Create folders for logos, products, and campaign source files.</p>
+      </div>
+    }
+  </div>
+</aside>

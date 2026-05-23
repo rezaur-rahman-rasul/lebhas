@@ -1,0 +1,40 @@
+:host {
+  display: block;
+}
+
+.ai-loading-state__pulse {
+  animation: ai-loading-pulse 1.4s ease-in-out infinite;
+}
+
+.ai-loading-state__shimmer {
+  background: linear-gradient(90deg, #e2e8f0 0%, #f8fafc 45%, #e2e8f0 100%);
+  background-size: 200% 100%;
+  animation: ai-loading-shimmer 1.6s ease-in-out infinite;
+}
+
+.ai-loading-state__shimmer--delay {
+  animation-delay: 0.25s;
+}
+
+@keyframes ai-loading-pulse {
+  0%,
+  100% {
+    transform: scale(1);
+    opacity: 1;
+  }
+
+  50% {
+    transform: scale(1.04);
+    opacity: 0.85;
+  }
+}
+
+@keyframes ai-loading-shimmer {
+  0% {
+    background-position: 200% 0;
+  }
+
+  100% {
+    background-position: -200% 0;
+  }
+}

@@ -1,0 +1,121 @@
+
+    <app-page-header
+      eyebrow="Platform"
+      title="Workspace oversight"
+      description="Review accessible workspaces, choose an active tenant context, and move directly into operational surfaces."
+    >
+      <app-badge tone="red">MASTER</app-badge>
+    </app-page-header>
+
+    @if (store.workspaceError()) {
+      <div class="mt-6 rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
+        {{ store.workspaceError() }}
+      </div>
+    }
+
+    @if (store.workspaceLoading() && !workspaces().length) {
+      <section class="mt-6 grid gap-4 md:grid-cols-3">
+        @for (item of skeletonCards; track item) {
+          <div class="h-32 animate-pulse rounded-lg border border-border bg-white"></div>
+        }
+      </section>
+      <div class="mt-6 h-72 animate-pulse rounded-lg border border-border bg-white"></div>
+    } @else if (workspaces().length) {
+      <section class="mt-6 grid gap-4 md:grid-cols-3">
+        <app-workspace-summary-card
+          label="Accessible workspaces"
+          [value]="totalWorkspacesLabel()"
+          description="Tenant records currently available to this master session."
+          icon="building-2"
+        />
+        <app-workspace-summary-card
+          label="Active"
+          [value]="activeWorkspacesLabel()"
+          description="Workspaces currently operating without suspension."
+          icon="circle-check"
+          accent="blue"
+        />
+        <app-workspace-summary-card
+          label="Needs attention"
+          [value]="attentionWorkspacesLabel()"
+          description="Suspended or archived workspaces that may require intervention."
+          icon="circle-alert"
+          accent="neutral"
+        />
+      </section>
+
+      <section class="mt-6 grid gap-4 xl:grid-cols-2">
+        @for (workspace of workspaces(); track workspace.id) {
+          <app-card>
+            <div class="flex items-start justify-between gap-3">
+              <div class="min-w-0">
+                <h2 class="truncate text-base font-semibold text-ink">{{ workspace.name }}</h2>
+                <p class="mt-1 text-sm text-muted">{{ workspace.slug || 'Slug pending' }}</p>
+              </div>
+              <app-badge [tone]="statusTone(workspace.status)">
+                {{ statusLabel(workspace.status) }}
+              </app-badge>
+            </div>
+
+            <dl class="mt-5 grid gap-3 sm:grid-cols-2">
+              <div class="rounded-lg border border-border p-4">
+                <dt class="text-sm text-muted">Language</dt>
+                <dd class="mt-2 text-sm font-medium text-ink">{{ languageLabel(workspace.language) }}</dd>
+              </div>
+              <div class="rounded-lg border border-border p-4">
+                <dt class="text-sm text-muted">Timezone</dt>
+                <dd class="mt-2 text-sm font-medium text-ink">{{ workspace.timezone }}</dd>
+              </div>
+              <div class="rounded-lg border border-border p-4">
+                <dt class="text-sm text-muted">Last updated</dt>
+                <dd class="mt-2 text-sm font-medium text-ink">{{ workspace.updatedAt | date: 'MMM d, y' }}</dd>
+              </div>
+              <div class="rounded-lg border border-border p-4">
+                <dt class="text-sm text-muted">Role scope</dt>
+                <dd class="mt-2 text-sm font-medium text-ink">{{ workspace.currentUserRole }}</dd>
+              </div>
+            </dl>
+
+            <div class="mt-5 flex flex-wrap items-center justify-between gap-3 rounded-lg border border-dashed border-border bg-slate-50 px-4 py-3">
+              <div class="flex flex-wrap items-center gap-2">
+                @if (activeWorkspaceId() === workspace.id) {
+                  <app-badge tone="brand">Active workspace</app-badge>
+                } @else {
+                  <app-badge tone="neutral">Available</app-badge>
+                }
+                <p class="text-sm text-muted">Open the workspace shell with this tenant context.</p>
+              </div>
+
+              <div class="flex flex-wrap gap-2">
+                <app-button
+                  size="sm"
+                  variant="secondary"
+                  icon="building-2"
+                  [attr.data-testid]="'open-workspace-' + workspace.id"
+                  (click)="openWorkspace(workspace.id)"
+                >
+                  Open workspace
+                </app-button>
+                <app-button
+                  size="sm"
+                  icon="image"
+                  [attr.data-testid]="'open-assets-' + workspace.id"
+                  (click)="openWorkspace(workspace.id, '/admin/assets')"
+                >
+                  Open assets
+                </app-button>
+              </div>
+            </div>
+          </app-card>
+        }
+      </section>
+    } @else {
+      <div class="mt-6">
+        <app-empty-state
+          icon="building-2"
+          title="No workspaces available"
+          description="This master session does not currently expose any workspace records."
+        />
+      </div>
+    }
+  

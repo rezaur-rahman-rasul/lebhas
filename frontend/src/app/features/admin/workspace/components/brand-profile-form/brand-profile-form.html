@@ -1,0 +1,173 @@
+
+    <app-card>
+      <div class="flex flex-col gap-4 border-b border-border pb-5 sm:flex-row sm:items-start sm:justify-between">
+        <div>
+          <div class="flex items-center gap-2">
+            <h2 class="text-lg font-semibold text-ink">Brand profile</h2>
+            @if (readOnly()) {
+              <app-badge tone="neutral">Read only</app-badge>
+            }
+          </div>
+          <p class="mt-2 max-w-2xl text-sm leading-6 text-muted">
+            Capture the brand context that future creative generation, review, and campaign flows will depend on.
+          </p>
+        </div>
+
+      </div>
+
+      @if (readOnly()) {
+        <div class="mt-5 rounded-lg border border-border bg-slate-50 px-4 py-3 text-sm text-muted">
+          Brand context is visible here in read-only mode for your current role.
+        </div>
+      }
+
+      <form id="brand-profile-form" class="mt-6 space-y-6" [formGroup]="form" (ngSubmit)="submit()">
+        <div class="grid gap-6 lg:grid-cols-2">
+          <label class="block">
+            <span class="mb-2 block text-sm font-medium text-ink">Brand name</span>
+            <input type="text" formControlName="brandName" placeholder="Lebhas Creative" [class]="inputClasses()" />
+            @if (fieldError('brandName')) {
+              <span class="mt-2 block text-sm text-alert-600">{{ fieldError('brandName') }}</span>
+            }
+          </label>
+
+          <label class="block">
+            <span class="mb-2 block text-sm font-medium text-ink">Business type</span>
+            <input type="text" formControlName="businessType" placeholder="Agency" [class]="inputClasses()" />
+            @if (fieldError('businessType')) {
+              <span class="mt-2 block text-sm text-alert-600">{{ fieldError('businessType') }}</span>
+            }
+          </label>
+
+          <label class="block">
+            <span class="mb-2 block text-sm font-medium text-ink">Industry</span>
+            <input type="text" formControlName="industry" placeholder="Marketing services" [class]="inputClasses()" />
+            @if (fieldError('industry')) {
+              <span class="mt-2 block text-sm text-alert-600">{{ fieldError('industry') }}</span>
+            }
+          </label>
+
+          <label class="block">
+            <span class="mb-2 block text-sm font-medium text-ink">Preferred CTA</span>
+            <input type="text" formControlName="preferredCTA" placeholder="Book a consultation" [class]="inputClasses()" />
+            @if (fieldError('preferredCTA')) {
+              <span class="mt-2 block text-sm text-alert-600">{{ fieldError('preferredCTA') }}</span>
+            }
+          </label>
+
+          <label class="block lg:col-span-2">
+            <span class="mb-2 block text-sm font-medium text-ink">Target audience</span>
+            <textarea
+              rows="3"
+              formControlName="targetAudience"
+              placeholder="SMEs, agencies, and marketing teams in Bangladesh that need quick campaign creative turnaround."
+              [class]="textareaClasses()"
+            ></textarea>
+            @if (fieldError('targetAudience')) {
+              <span class="mt-2 block text-sm text-alert-600">{{ fieldError('targetAudience') }}</span>
+            }
+          </label>
+
+          <label class="block lg:col-span-2">
+            <span class="mb-2 block text-sm font-medium text-ink">Brand voice</span>
+            <textarea
+              rows="3"
+              formControlName="brandVoice"
+              placeholder="Confident, practical, and polished with concise sales language."
+              [class]="textareaClasses()"
+            ></textarea>
+            @if (fieldError('brandVoice')) {
+              <span class="mt-2 block text-sm text-alert-600">{{ fieldError('brandVoice') }}</span>
+            }
+          </label>
+
+          <label class="block">
+            <span class="mb-2 block text-sm font-medium text-ink">Primary color</span>
+            <div class="flex gap-3">
+              <input type="text" formControlName="primaryColor" placeholder="#0F766E" [class]="inputClasses()" />
+              <span
+                class="h-11 w-11 shrink-0 rounded-md border border-border"
+                [style.backgroundColor]="form.controls.primaryColor.value || '#ffffff'"
+              ></span>
+            </div>
+            @if (fieldError('primaryColor')) {
+              <span class="mt-2 block text-sm text-alert-600">{{ fieldError('primaryColor') }}</span>
+            }
+          </label>
+
+          <label class="block">
+            <span class="mb-2 block text-sm font-medium text-ink">Secondary color</span>
+            <div class="flex gap-3">
+              <input type="text" formControlName="secondaryColor" placeholder="#F59E0B" [class]="inputClasses()" />
+              <span
+                class="h-11 w-11 shrink-0 rounded-md border border-border"
+                [style.backgroundColor]="form.controls.secondaryColor.value || '#ffffff'"
+              ></span>
+            </div>
+            @if (fieldError('secondaryColor')) {
+              <span class="mt-2 block text-sm text-alert-600">{{ fieldError('secondaryColor') }}</span>
+            }
+          </label>
+
+          <label class="block">
+            <span class="mb-2 block text-sm font-medium text-ink">Website</span>
+            <input type="url" formControlName="website" placeholder="https://company.com" [class]="inputClasses()" />
+            @if (fieldError('website')) {
+              <span class="mt-2 block text-sm text-alert-600">{{ fieldError('website') }}</span>
+            }
+          </label>
+
+          <label class="block">
+            <span class="mb-2 block text-sm font-medium text-ink">Facebook URL</span>
+            <input type="url" formControlName="facebookUrl" placeholder="https://facebook.com/company" [class]="inputClasses()" />
+            @if (fieldError('facebookUrl')) {
+              <span class="mt-2 block text-sm text-alert-600">{{ fieldError('facebookUrl') }}</span>
+            }
+          </label>
+
+          <label class="block">
+            <span class="mb-2 block text-sm font-medium text-ink">Instagram URL</span>
+            <input type="url" formControlName="instagramUrl" placeholder="https://instagram.com/company" [class]="inputClasses()" />
+            @if (fieldError('instagramUrl')) {
+              <span class="mt-2 block text-sm text-alert-600">{{ fieldError('instagramUrl') }}</span>
+            }
+          </label>
+
+          <label class="block">
+            <span class="mb-2 block text-sm font-medium text-ink">LinkedIn URL</span>
+            <input type="url" formControlName="linkedinUrl" placeholder="https://linkedin.com/company/company" [class]="inputClasses()" />
+            @if (fieldError('linkedinUrl')) {
+              <span class="mt-2 block text-sm text-alert-600">{{ fieldError('linkedinUrl') }}</span>
+            }
+          </label>
+
+          <label class="block">
+            <span class="mb-2 block text-sm font-medium text-ink">TikTok URL</span>
+            <input type="url" formControlName="tiktokUrl" placeholder="https://tiktok.com/@company" [class]="inputClasses()" />
+            @if (fieldError('tiktokUrl')) {
+              <span class="mt-2 block text-sm text-alert-600">{{ fieldError('tiktokUrl') }}</span>
+            }
+          </label>
+
+          <label class="block lg:col-span-2">
+            <span class="mb-2 block text-sm font-medium text-ink">Description</span>
+            <textarea
+              rows="5"
+              formControlName="description"
+              placeholder="Explain the brand promise, customer value, and what differentiates the business."
+              [class]="textareaClasses()"
+            ></textarea>
+            @if (fieldError('description')) {
+              <span class="mt-2 block text-sm text-alert-600">{{ fieldError('description') }}</span>
+            }
+          </label>
+        </div>
+
+        @if (!readOnly()) {
+          <div class="flex justify-end">
+            <app-button type="submit" icon="save" [loading]="submitting()">Save profile</app-button>
+          </div>
+        }
+      </form>
+    </app-card>
+  

@@ -1,0 +1,130 @@
+package com.lebhas.creativesaas.asset.application;
+
+import com.lebhas.creativesaas.asset.application.dto.AssetListCriteria;
+import com.lebhas.creativesaas.asset.application.dto.AssetUrlView;
+import com.lebhas.creativesaas.asset.application.dto.AssetView;
+import com.lebhas.creativesaas.asset.domain.AssetEntity;
+import com.lebhas.creativesaas.asset.infrastructure.persistence.AssetRepository;
+import com.lebhas.creativesaas.asset.infrastructure.persistence.AssetSpecifications;
+import com.lebhas.creativesaas.common.api.PagedResult;
+import com.lebhas.creativesaas.common.security.Permission;
+import com.lebhas.creativesaas.identity.application.WorkspaceAuthorizationService;
+import com.lebhas.creativesaas.messaging.kafka.KafkaTopicConstants;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Sort;
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+import org.springframework.util.StringUtils;
+
+import java.util.Map;
+import java.util.UUID;
+
+@Service
+public class AssetQueryService {
+
+    private static final int DEFAULT_PAGE_SIZE = 20;
+    private static final int MAX_PAGE_SIZE = 100;
+
+    private final AssetValidationService assetValidationService;
+    private final AssetRepository assetRepository;
+    private final AssetCacheService assetCacheService;
+    private final AssetMapper assetMapper;
+    private final SignedUrlService signedUrlService;
+    private final AssetActivityLogger assetActivityLogger;
+    private final AssetEventPublisher assetEventPublisher;
+
+    public AssetQueryService(
+            AssetValidationService assetValidationService,
+            AssetRepository assetRepository,
+            AssetCacheService assetCacheService,
+            AssetMapper assetMapper,
+            SignedUrlService signedUrlService,
+            AssetActivityLogger assetActivityLogger,
+            AssetEventPublisher assetEventPublisher
+    ) {
+        this.assetValidationService = assetValidationService;
+        this.assetRepository = assetRepository;
+        this.assetCacheService = assetCacheService;
+        this.assetMapper = assetMapper;
+        this.signedUrlService = signedUrlService;
+        this.assetActivityLogger = assetActivityLogger;
+        this.assetEventPublisher = assetEventPublisher;
+    }
+
+    @Transactional(readOnly = true)
+    public PagedResult<AssetView> listAssets(AssetListCriteria criteria) {
+        assetValidationService.requireViewAccess(criteria.workspaceId());
+        if (criteria.projectId() != null) {
+            assetValidationService.validateProjectContext(criteria.workspaceId(), criteria.projectId());
+        }
+        return assetCacheService.getOrLoadList(criteria, () -> {
+            Pageable pageable = PageRequest.of(
+                    Math.max(criteria.page(), 0),
+                    Math.min(criteria.size() <= 0 ? DEFAULT_PAGE_SIZE : criteria.size(), MAX_PAGE_SIZE),
+                    Sort.by(
+                            criteria.sortDirection() == null ? Sort.Direction.DESC : criteria.sortDirection(),
+                            resolveSortBy(criteria.sortBy())));
+            return PagedResult.from(assetRepository.findAll(AssetSpecifications.forList(criteria), pageable).map(assetMapper::toAssetView));
+        });
+    }
+
+    @Transactional(readOnly = true)
+    public AssetView getAsset(UUID workspaceId, UUID assetId) {
+        assetValidationService.requireViewAccess(workspaceId);
+        return assetCacheService.getOrLoadAsset(
+                workspaceId,
+                assetId,
+                () -> assetMapper.toAssetView(assetValidationService.requireAsset(workspaceId, assetId)));
+    }
+
+    @Transactional(readOnly = true)
+    public AssetUrlView generatePreviewUrl(UUID workspaceId, UUID assetId) {
+        WorkspaceAuthorizationService.WorkspaceAccess access = assetValidationService.requireViewAccess(workspaceId);
+        AssetEntity asset = assetValidationService.requireAsset(workspaceId, assetId);
+        AssetUrlView urlView = signedUrlService.previewUrl(asset);
+        assetActivityLogger.logSignedUrlGenerated(workspaceId, assetId, access.currentUser().userId(), "preview");
+        return urlView;
+    }
+
+    @Transactional(readOnly = true)
+    public AssetUrlView generateDownloadUrl(UUID workspaceId, UUID assetId) {
+        WorkspaceAuthorizationService.WorkspaceAccess access = assetValidationService.requireDownloadAccess(workspaceId);
+        AssetEntity asset = assetValidationService.requireAsset(workspaceId, assetId);
+        assetActivityLogger.logDownloadRequested(workspaceId, assetId, access.currentUser().userId(), "download");
+        assetEventPublisher.publish(
+                KafkaTopicConstants.ASSET_DOWNLOAD_REQUESTED,
+                workspaceId,
+                assetId,
+                Map.of(
+                        "workspaceId", workspaceId.toString(),
+                        "assetId", assetId.toString(),
+                        "projectId", asset.getProjectId().toString(),
+                        "actorUserId", access.currentUser().userId().toString(),
+                        "permission", Permission.CREATIVE_DOWNLOAD.name()));
+        AssetUrlView urlView = signedUrlService.downloadUrl(asset);
+        assetActivityLogger.logSignedUrlGenerated(workspaceId, assetId, access.currentUser().userId(), "download");
+        return urlView;
+    }
+
+    @Transactional(readOnly = true)
+    public AssetEntity requireAsset(UUID workspaceId, UUID assetId) {
+        return assetValidationService.requireAsset(workspaceId, assetId);
+    }
+
+    @Transactional(readOnly = true)
+    public AssetEntity requireAssetForSignedAccess(UUID assetId) {
+        return assetValidationService.requireAssetForSignedAccess(assetId);
+    }
+
+    private String resolveSortBy(String sortBy) {
+        if (!StringUtils.hasText(sortBy)) {
+            return "createdAt";
+        }
+        return switch (sortBy.trim()) {
+            case "displayName" -> "displayName";
+            case "updatedAt" -> "updatedAt";
+            default -> "createdAt";
+        };
+    }
+}

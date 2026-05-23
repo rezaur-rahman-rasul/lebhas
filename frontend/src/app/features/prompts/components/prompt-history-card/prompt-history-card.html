@@ -1,0 +1,44 @@
+<app-card [interactive]="true">
+  <div
+    class="space-y-4"
+    [class.ring-2]="selected()"
+    [class.ring-brand-200]="selected()"
+  >
+    <div class="flex flex-wrap items-start justify-between gap-3">
+      <div class="flex flex-wrap gap-2">
+        <app-badge [tone]="promptHistoryStatusTone(entry().status)">
+          {{ promptHistoryStatusLabel(entry().status) }}
+        </app-badge>
+        <app-badge tone="neutral">{{ promptPlatformLabel(entry().platform) }}</app-badge>
+        <app-badge tone="neutral">{{ promptLanguageLabel(entry().language) }}</app-badge>
+      </div>
+      <span class="text-xs text-muted">{{ entry().createdAt | date: 'medium' }}</span>
+    </div>
+
+    <div class="grid gap-3 md:grid-cols-2">
+      <div class="space-y-1">
+        <p class="text-xs font-semibold uppercase tracking-wide text-muted">Source prompt</p>
+        <p class="text-sm leading-6 text-ink">{{ promptPreviewText(entry().sourcePrompt) }}</p>
+      </div>
+      <div class="space-y-1">
+        <p class="text-xs font-semibold uppercase tracking-wide text-muted">Enhanced prompt</p>
+        <p class="text-sm leading-6 text-ink">{{ promptPreviewText(entry().enhancedPrompt) }}</p>
+      </div>
+    </div>
+
+    <dl class="grid gap-2 text-sm sm:grid-cols-2">
+      <div>
+        <dt class="text-xs uppercase tracking-wide text-muted">AI provider</dt>
+        <dd class="mt-1 font-medium text-ink">{{ entry().aiProvider || '—' }}</dd>
+      </div>
+      <div>
+        <dt class="text-xs uppercase tracking-wide text-muted">AI model</dt>
+        <dd class="mt-1 font-medium text-ink">{{ entry().model || '—' }}</dd>
+      </div>
+    </dl>
+
+    <app-button size="sm" variant="secondary" icon="eye" (click)="detailRequested.emit(entry())">
+      View detail
+    </app-button>
+  </div>
+</app-card>

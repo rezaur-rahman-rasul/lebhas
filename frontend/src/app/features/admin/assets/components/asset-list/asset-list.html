@@ -1,0 +1,191 @@
+<div class="space-y-4">
+  <div class="hidden overflow-hidden rounded-lg border border-border bg-white shadow-sm lg:block">
+    <table class="min-w-full divide-y divide-border text-sm">
+      <thead class="bg-slate-50">
+        <tr class="text-left text-xs uppercase tracking-[0.14em] text-slate-500">
+          <th class="px-4 py-3 font-medium">Asset</th>
+          <th class="px-4 py-3 font-medium">Category</th>
+          <th class="px-4 py-3 font-medium">Type</th>
+          <th class="px-4 py-3 font-medium">Size</th>
+          <th class="px-4 py-3 font-medium">Uploaded by</th>
+          <th class="px-4 py-3 font-medium">Date</th>
+          <th class="px-4 py-3 font-medium">Status</th>
+          <th class="px-4 py-3 font-medium text-right">Actions</th>
+        </tr>
+      </thead>
+      <tbody class="divide-y divide-border">
+        @for (asset of assets(); track asset.id) {
+          <tr class="align-top">
+            <td class="px-4 py-4">
+              <div class="flex items-start gap-3">
+                <div class="grid h-11 w-11 shrink-0 place-items-center overflow-hidden rounded-lg bg-slate-100">
+                  @if (asset.thumbnailUrl || asset.previewUrl || asset.publicUrl) {
+                    <img
+                      [src]="asset.thumbnailUrl || asset.previewUrl || asset.publicUrl || ''"
+                      [alt]="asset.originalFileName"
+                      class="h-full w-full object-cover"
+                    />
+                  } @else {
+                    <app-icon
+                      [name]="asset.fileType === 'VIDEO' ? 'video' : 'image'"
+                      [size]="20"
+                      className="text-slate-500"
+                    />
+                  }
+                </div>
+
+                <div class="min-w-0">
+                  <button
+                    type="button"
+                    class="block max-w-full truncate text-left font-semibold text-ink hover:text-brand-700"
+                    (click)="detailRequested.emit(asset)"
+                  >
+                    {{ asset.originalFileName }}
+                  </button>
+                  <p class="mt-1 text-xs text-muted">{{ asset.storageProvider }}</p>
+                </div>
+              </div>
+            </td>
+            <td class="px-4 py-4 text-ink">{{ assetCategoryLabel(asset.assetCategory) }}</td>
+            <td class="px-4 py-4 text-ink">{{ assetFileTypeLabel(asset.fileType) }}</td>
+            <td class="px-4 py-4 text-ink">{{ formatFileSize(asset.fileSize) }}</td>
+            <td class="px-4 py-4 text-ink">{{ asset.uploadedBy }}</td>
+            <td class="px-4 py-4 text-ink">{{ asset.createdAt | date: 'd MMM y, h:mm a' }}</td>
+            <td class="px-4 py-4">
+              <app-badge [tone]="assetStatusTone(asset.status)">
+                {{ assetStatusLabel(asset.status) }}
+              </app-badge>
+            </td>
+            <td class="px-4 py-4">
+              <div class="flex justify-end gap-2">
+                <app-button
+                  size="sm"
+                  variant="secondary"
+                  icon="eye"
+                  (click)="previewRequested.emit(asset)"
+                >
+                  Preview
+                </app-button>
+
+                @if (canDownload()) {
+                  <app-button
+                    size="sm"
+                    variant="secondary"
+                    icon="download"
+                    (click)="downloadRequested.emit(asset)"
+                  >
+                    Download
+                  </app-button>
+                }
+
+                @if (canDelete()) {
+                  <app-button
+                    size="sm"
+                    variant="danger"
+                    icon="trash-2"
+                    [loading]="deletingAssetId() === asset.id"
+                    (click)="deleteRequested.emit(asset)"
+                  >
+                    Delete
+                  </app-button>
+                }
+              </div>
+            </td>
+          </tr>
+        }
+      </tbody>
+    </table>
+  </div>
+
+  <div class="grid gap-3 lg:hidden">
+    @for (asset of assets(); track asset.id) {
+      <app-card>
+        <div class="flex items-start gap-3">
+          <div class="grid h-14 w-14 shrink-0 place-items-center overflow-hidden rounded-lg bg-slate-100">
+            @if (asset.thumbnailUrl || asset.previewUrl || asset.publicUrl) {
+              <img
+                [src]="asset.thumbnailUrl || asset.previewUrl || asset.publicUrl || ''"
+                [alt]="asset.originalFileName"
+                class="h-full w-full object-cover"
+              />
+            } @else {
+              <app-icon
+                [name]="asset.fileType === 'VIDEO' ? 'video' : 'image'"
+                [size]="22"
+                className="text-slate-500"
+              />
+            }
+          </div>
+
+          <div class="min-w-0 flex-1">
+            <div class="flex items-start justify-between gap-3">
+              <button
+                type="button"
+                class="max-w-full truncate text-left text-sm font-semibold text-ink"
+                (click)="detailRequested.emit(asset)"
+              >
+                {{ asset.originalFileName }}
+              </button>
+              <app-badge [tone]="assetStatusTone(asset.status)">
+                {{ assetStatusLabel(asset.status) }}
+              </app-badge>
+            </div>
+
+            <dl class="mt-3 grid grid-cols-2 gap-3 text-sm">
+              <div>
+                <dt class="text-xs uppercase tracking-[0.14em] text-slate-500">Category</dt>
+                <dd class="mt-1 text-ink">{{ assetCategoryLabel(asset.assetCategory) }}</dd>
+              </div>
+              <div>
+                <dt class="text-xs uppercase tracking-[0.14em] text-slate-500">Type</dt>
+                <dd class="mt-1 text-ink">{{ assetFileTypeLabel(asset.fileType) }}</dd>
+              </div>
+              <div>
+                <dt class="text-xs uppercase tracking-[0.14em] text-slate-500">Size</dt>
+                <dd class="mt-1 text-ink">{{ formatFileSize(asset.fileSize) }}</dd>
+              </div>
+              <div>
+                <dt class="text-xs uppercase tracking-[0.14em] text-slate-500">Date</dt>
+                <dd class="mt-1 text-ink">{{ asset.createdAt | date: 'd MMM y' }}</dd>
+              </div>
+            </dl>
+
+            <div class="mt-4 flex flex-wrap gap-2">
+              <app-button
+                size="sm"
+                variant="secondary"
+                icon="eye"
+                (click)="previewRequested.emit(asset)"
+              >
+                Preview
+              </app-button>
+
+              @if (canDownload()) {
+                <app-button
+                  size="sm"
+                  variant="secondary"
+                  icon="download"
+                  (click)="downloadRequested.emit(asset)"
+                >
+                  Download
+                </app-button>
+              }
+
+              @if (canDelete()) {
+                <app-button
+                  size="sm"
+                  variant="danger"
+                  icon="trash-2"
+                  [loading]="deletingAssetId() === asset.id"
+                  (click)="deleteRequested.emit(asset)"
+                >
+                  Delete
+                </app-button>
+              }
+            </div>
+          </div>
+        </div>
+      </app-card>
+    }
+  </div>
+</div>

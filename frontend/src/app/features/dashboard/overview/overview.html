@@ -1,0 +1,110 @@
+<app-section-header eyebrow="Workspace overview" title="Dashboard" [description]="description()">
+  @if (workspaceId()) {
+    <app-badge tone="brand">{{ workspaceLabel() }}</app-badge>
+  }
+</app-section-header>
+
+@if (role() !== 'MASTER' && !workspaceId()) {
+  <div class="mt-6">
+    <app-empty-state
+      icon="building-2"
+      title="Workspace context is missing"
+      description="Select or restore an active workspace before opening the management surfaces."
+    />
+  </div>
+} @else {
+  <section class="mt-6 grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+    @for (metric of metrics(); track metric.label) {
+      <app-card>
+        <div class="flex items-start justify-between gap-3">
+          <div>
+            <p class="text-sm text-muted">{{ metric.label }}</p>
+            <p class="mt-2 text-2xl font-semibold text-ink">{{ metric.value }}</p>
+          </div>
+          <div class="grid h-10 w-10 place-items-center rounded-2xl bg-brand-500/12 text-brand-700 dark:bg-brand-500/20 dark:text-brand-100">
+            <app-icon [name]="metric.icon" [size]="18" />
+          </div>
+        </div>
+      </app-card>
+    }
+  </section>
+
+  <section class="mt-6 grid gap-4 xl:grid-cols-[minmax(0,1.05fr)_minmax(0,0.95fr)]">
+    <app-card>
+      <div class="flex items-center justify-between gap-3">
+        <div>
+          <h2 class="text-base font-semibold text-ink">Quick actions</h2>
+          <p class="mt-1 text-sm text-muted">Open the next management surface for your current role.</p>
+        </div>
+        <app-badge tone="blue">{{ role() || 'ADMIN' }}</app-badge>
+      </div>
+
+      <div class="mt-5 grid gap-3">
+        @for (action of quickActions(); track action.title) {
+          <a [routerLink]="action.route">
+            <app-card [interactive]="true">
+              <div class="flex items-start gap-3">
+                <div class="grid h-10 w-10 shrink-0 place-items-center rounded-2xl bg-brand-500/12 text-brand-700 dark:bg-brand-500/20 dark:text-brand-100">
+                  <app-icon [name]="action.icon" [size]="18" />
+                </div>
+                <div>
+                  <h3 class="text-sm font-semibold text-ink">{{ action.title }}</h3>
+                  <p class="mt-2 text-sm leading-6 text-muted">{{ action.description }}</p>
+                </div>
+              </div>
+            </app-card>
+          </a>
+        }
+      </div>
+    </app-card>
+
+    <div class="grid gap-4">
+      <app-card>
+        <div class="flex items-center justify-between gap-3">
+          <div>
+            <h2 class="text-base font-semibold text-ink">Hierarchy preview</h2>
+            <p class="mt-1 text-sm text-muted">Workspace -> Brand -> Product Service -> Project Campaign</p>
+          </div>
+          <app-badge tone="brand">Day 2</app-badge>
+        </div>
+
+        <div class="mt-5 grid gap-3">
+          @for (item of ['Workspace', 'Brand', 'Product Service', 'Project Campaign']; track item; let last = $last) {
+            <div>
+              <div class="flex items-center gap-3 rounded-2xl border border-border bg-panel/30 px-4 py-3">
+                <div class="grid h-9 w-9 place-items-center rounded-full bg-brand-500/12 text-brand-700 dark:bg-brand-500/20 dark:text-brand-100">
+                  {{ $index + 1 }}
+                </div>
+                <p class="text-sm font-semibold text-ink">{{ item }}</p>
+              </div>
+              @if (!last) {
+                <div class="ml-5 mt-2 h-5 w-px bg-border"></div>
+              }
+            </div>
+          }
+        </div>
+      </app-card>
+
+      <app-card>
+        <div class="flex items-center justify-between gap-3">
+          <div>
+            <h2 class="text-base font-semibold text-ink">Recent activity placeholder</h2>
+            <p class="mt-1 text-sm text-muted">Operational visibility before deeper analytics arrive later.</p>
+          </div>
+          <app-badge tone="neutral">Placeholder</app-badge>
+        </div>
+
+        <div class="mt-5 grid gap-3">
+          @for (item of recentActivity; track item) {
+            <div class="flex items-start gap-3 rounded-2xl border border-border bg-panel/30 px-4 py-3">
+              <div class="grid h-8 w-8 shrink-0 place-items-center rounded-full bg-brand-500/12 text-brand-700 dark:bg-brand-500/20 dark:text-brand-100">
+                <app-icon name="circle-check" [size]="15" />
+              </div>
+              <p class="text-sm leading-6 text-ink">{{ item }}</p>
+            </div>
+          }
+        </div>
+      </app-card>
+    </div>
+  </section>
+}

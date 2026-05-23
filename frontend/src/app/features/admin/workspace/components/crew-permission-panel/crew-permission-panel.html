@@ -1,0 +1,49 @@
+
+    <section class="space-y-3">
+      @if (title()) {
+        <div>
+          <h3 class="text-sm font-semibold text-ink">{{ title() }}</h3>
+          @if (description()) {
+            <p class="mt-1 text-sm text-muted">{{ description() }}</p>
+          }
+        </div>
+      }
+
+      <div class="space-y-3">
+        @for (option of permissionOptions; track option.permission) {
+          <label
+            class="flex gap-3 rounded-lg border border-border p-4 transition"
+            [class.bg-slate-50]="selectedPermissions().includes(option.permission)"
+          >
+            <input
+              type="checkbox"
+              class="mt-1 h-4 w-4 rounded border-border text-brand-600 focus:ring-brand-500"
+              [checked]="selectedPermissions().includes(option.permission)"
+              [disabled]="disabled()"
+              (change)="toggle(option.permission, $any($event.target).checked)"
+            />
+
+            <div class="min-w-0">
+              <div class="flex flex-wrap items-center gap-2">
+                <span class="text-sm font-medium text-ink">{{ option.label }}</span>
+                @if (option.permission === 'WORKSPACE_VIEW') {
+                  <span class="rounded-full bg-slate-100 px-2 py-0.5 text-[11px] font-medium text-slate-600">
+                    Baseline access
+                  </span>
+                }
+              </div>
+              <p class="mt-1 text-sm leading-6 text-muted">{{ option.description }}</p>
+            </div>
+          </label>
+        }
+      </div>
+
+      <div class="rounded-lg border border-dashed border-border bg-slate-50 px-4 py-3 text-sm text-muted">
+        Workspace View is enforced by policy whenever crew access is saved.
+      </div>
+
+      @if (error()) {
+        <p class="text-sm text-alert-600">{{ error() }}</p>
+      }
+    </section>
+  

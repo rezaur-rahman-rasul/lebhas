@@ -1,0 +1,42 @@
+
+    <app-page-header
+      eyebrow="Workspace"
+      title="Brand profile"
+      [description]="pageDescription()"
+    >
+      <app-badge [tone]="store.isBrandProfileComplete() ? 'brand' : 'blue'">
+        {{ store.brandProfileCompletion() }}% ready
+      </app-badge>
+      <app-badge [tone]="canEdit() ? 'brand' : 'neutral'">
+        {{ canEdit() ? 'Editable' : 'Read only' }}
+      </app-badge>
+    </app-page-header>
+
+    @if (store.workspaceError()) {
+      <div class="mt-6 rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
+        {{ store.workspaceError() }}
+      </div>
+    }
+
+    @if (store.workspaceLoading() && !profile()) {
+      <div class="mt-6 h-[44rem] animate-pulse rounded-lg border border-border bg-white"></div>
+    } @else if (profile()) {
+      <div class="mt-6">
+        <app-brand-profile-form
+          [profile]="profile()"
+          [readOnly]="!canEdit()"
+          [submitting]="saving()"
+          [serverErrors]="fieldErrors()"
+          (saved)="save($event)"
+        />
+      </div>
+    } @else {
+      <div class="mt-6">
+        <app-empty-state
+          icon="megaphone"
+          title="Brand profile unavailable"
+          description="Brand profile context is provisioned with the workspace and can be loaded once access is active."
+        />
+      </div>
+    }
+  

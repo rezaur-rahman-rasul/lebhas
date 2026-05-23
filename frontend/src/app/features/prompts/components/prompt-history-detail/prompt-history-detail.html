@@ -1,0 +1,88 @@
+<div class="space-y-6">
+  <div class="flex flex-wrap gap-2">
+    <app-badge [tone]="promptHistoryStatusTone(entry().status)">
+      {{ promptHistoryStatusLabel(entry().status) }}
+    </app-badge>
+    <app-badge tone="neutral">{{ promptPlatformLabel(entry().platform) }}</app-badge>
+    <app-badge tone="neutral">{{ promptLanguageLabel(entry().language) }}</app-badge>
+    @if (entry().tokenUsage !== null) {
+      <app-badge tone="blue">{{ entry().tokenUsage }} tokens</app-badge>
+    }
+  </div>
+
+  <div class="grid gap-4 lg:grid-cols-2">
+    <app-card>
+      <div class="space-y-2">
+        <h3 class="text-sm font-semibold text-ink">Source prompt</h3>
+        <p class="whitespace-pre-line text-sm leading-6 text-ink">{{ entry().sourcePrompt }}</p>
+      </div>
+    </app-card>
+
+    <app-card>
+      <div class="space-y-2">
+        <h3 class="text-sm font-semibold text-ink">Enhanced prompt</h3>
+        <p class="whitespace-pre-line text-sm leading-6 text-ink">
+          {{ entry().enhancedPrompt || 'No enhanced prompt was stored for this event.' }}
+        </p>
+      </div>
+    </app-card>
+  </div>
+
+  <app-card>
+    <h3 class="text-sm font-semibold text-ink">Context summary</h3>
+    <dl class="mt-4 grid gap-3 sm:grid-cols-2">
+      @for (item of contextSummary(); track item.label) {
+        <div>
+          <dt class="text-xs uppercase tracking-wide text-muted">{{ item.label }}</dt>
+          <dd class="mt-1 text-sm text-ink">{{ item.value }}</dd>
+        </div>
+      }
+    </dl>
+  </app-card>
+
+  <app-card>
+    <h3 class="text-sm font-semibold text-ink">Metadata</h3>
+    <dl class="mt-4 grid gap-3 sm:grid-cols-2">
+      <div>
+        <dt class="text-xs uppercase tracking-wide text-muted">History ID</dt>
+        <dd class="mt-1 break-all text-sm text-ink">{{ entry().id }}</dd>
+      </div>
+      <div>
+        <dt class="text-xs uppercase tracking-wide text-muted">Project ID</dt>
+        <dd class="mt-1 break-all text-sm text-ink">{{ entry().projectCampaignId }}</dd>
+      </div>
+      <div>
+        <dt class="text-xs uppercase tracking-wide text-muted">AI provider</dt>
+        <dd class="mt-1 text-sm text-ink">{{ entry().aiProvider || '—' }}</dd>
+      </div>
+      <div>
+        <dt class="text-xs uppercase tracking-wide text-muted">AI model</dt>
+        <dd class="mt-1 text-sm text-ink">{{ entry().model || '—' }}</dd>
+      </div>
+      <div>
+        <dt class="text-xs uppercase tracking-wide text-muted">Token usage</dt>
+        <dd class="mt-1 text-sm text-ink">
+          @if (entry().tokenUsage !== null) {
+            {{ entry().tokenUsage }}
+          } @else {
+            —
+          }
+        </dd>
+      </div>
+      <div>
+        <dt class="text-xs uppercase tracking-wide text-muted">Created by</dt>
+        <dd class="mt-1 break-all text-sm text-ink">{{ entry().createdBy }}</dd>
+      </div>
+      <div>
+        <dt class="text-xs uppercase tracking-wide text-muted">Created</dt>
+        <dd class="mt-1 text-sm text-ink">{{ entry().createdAt | date: 'medium' }}</dd>
+      </div>
+      @if (entry().creativeRequestId) {
+        <div class="sm:col-span-2">
+          <dt class="text-xs uppercase tracking-wide text-muted">Creative request</dt>
+          <dd class="mt-1 break-all text-sm text-ink">{{ entry().creativeRequestId }}</dd>
+        </div>
+      }
+    </dl>
+  </app-card>
+</div>

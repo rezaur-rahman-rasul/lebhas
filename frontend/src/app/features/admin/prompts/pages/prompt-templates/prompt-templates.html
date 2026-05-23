@@ -1,0 +1,154 @@
+<app-page-header
+  eyebrow="AI Workspace"
+  title="Prompt templates"
+  description="Manage reusable prompt structures for frequent campaign setups and team-wide consistency."
+>
+  <app-badge tone="neutral">{{ templateCountLabel() }}</app-badge>
+  @if (store.canManageTemplates()) {
+    <app-button icon="plus" (click)="openCreate()">New template</app-button>
+  }
+</app-page-header>
+
+@if (!store.hasWorkspaceContext()) {
+  <div class="mt-6">
+    <app-empty-state
+      icon="building-2"
+      title="Workspace context required"
+      description="Select a workspace before managing prompt templates."
+    />
+  </div>
+} @else if (!store.canViewTemplates()) {
+  <div class="mt-6">
+    <app-empty-state
+      icon="circle-alert"
+      title="Template access is not available"
+      description="This session does not have permission to view or manage prompt templates."
+    />
+  </div>
+} @else {
+  @if (store.promptError()) {
+    <div class="mt-6 rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
+      {{ store.promptError() }}
+    </div>
+  }
+
+  <section class="mt-6 space-y-4">
+    <form class="grid gap-3 rounded-lg border border-border bg-white p-4 shadow-sm md:grid-cols-[minmax(0,1fr)_12rem_12rem_12rem_auto_auto]" [formGroup]="filterForm">
+      <input
+        type="text"
+        formControlName="search"
+        class="h-11 w-full rounded-md border border-border bg-white px-3 text-sm text-ink outline-none transition placeholder:text-slate-400 focus:border-brand-500 focus:ring-2 focus:ring-brand-100"
+        placeholder="Search templates"
+      />
+      <select
+        formControlName="platform"
+        class="h-11 rounded-md border border-border bg-white px-3 text-sm text-ink outline-none transition focus:border-brand-500 focus:ring-2 focus:ring-brand-100"
+      >
+        <option value="">All platforms</option>
+        @for (option of platformOptions; track option.value) {
+          <option [value]="option.value">{{ option.label }}</option>
+        }
+      </select>
+      <select
+        formControlName="language"
+        class="h-11 rounded-md border border-border bg-white px-3 text-sm text-ink outline-none transition focus:border-brand-500 focus:ring-2 focus:ring-brand-100"
+      >
+        <option value="">All languages</option>
+        @for (option of languageOptions; track option.value) {
+          <option [value]="option.value">{{ option.label }}</option>
+        }
+      </select>
+      <select
+        formControlName="status"
+        class="h-11 rounded-md border border-border bg-white px-3 text-sm text-ink outline-none transition focus:border-brand-500 focus:ring-2 focus:ring-brand-100"
+      >
+        <option value="">All statuses</option>
+        @for (option of statusOptions; track option.value) {
+          <option [value]="option.value">{{ option.label }}</option>
+        }
+      </select>
+      <app-button variant="secondary" (click)="applyFilters()">Apply</app-button>
+      <app-button variant="ghost" (click)="resetFilters()">Reset</app-button>
+    </form>
+
+    @if (store.promptLoading() && !store.templates().length) {
+      <div class="grid gap-4 lg:grid-cols-2 2xl:grid-cols-3">
+        @for (item of [0, 1, 2, 3, 4, 5]; track item) {
+          <div class="h-80 animate-pulse rounded-lg border border-border bg-white"></div>
+        }
+      </div>
+    } @else if (store.templates().length) {
+      <div class="grid gap-4 lg:grid-cols-2 2xl:grid-cols-3">
+        @for (template of store.templates(); track template.id) {
+          <app-prompt-template-card
+            [template]="template"
+            [canUse]="store.canUsePromptBuilder()"
+            [canManage]="store.canManageTemplates()"
+            (useRequested)="useTemplate($event)"
+            (editRequested)="openEdit($event)"
+            (deleteRequested)="confirmDelete($event)"
+          />
+        }
+      </div>
+    } @else if (store.promptError()) {
+      <app-empty-state
+        icon="circle-alert"
+        title="Prompt templates could not be loaded"
+        [description]="store.promptError()!"
+      >
+        <app-button variant="secondary" (click)="reloadTemplates()">Try again</app-button>
+      </app-empty-state>
+    } @else {
+      <app-empty-state
+        icon="save"
+        title="No prompt templates yet"
+        description="Create reusable prompt structures for your most common campaign types."
+      >
+        @if (store.canManageTemplates()) {
+          <app-button icon="plus" (click)="openCreate()">Create first template</app-button>
+        }
+      </app-empty-state>
+    }
+  </section>
+}
+
+<app-modal-shell
+  [open]="formOpen()"
+  [title]="editingTemplate() ? 'Edit prompt template' : 'Create prompt template'"
+  description="Keep templates concise, reusable, and scoped to the campaign pattern they serve."
+  (closed)="closeForm()"
+>
+  <app-prompt-template-form
+    [template]="editingTemplate()"
+    [loading]="store.promptLoading()"
+    [fieldErrors]="fieldErrors()"
+    (submitted)="saveTemplate($event)"
+    (cancelled)="closeForm()"
+  />
+</app-modal-shell>
+
+<app-modal-shell
+  [open]="deleteOpen()"
+  title="Delete prompt template"
+  description="This removes the template from the current workspace."
+  (closed)="cancelDelete()"
+>
+  <div class="space-y-5">
+    <p class="text-sm leading-6 text-muted">
+      <span class="font-medium text-ink">{{ pendingDeleteTemplate()?.name }}</span>
+      will no longer be available in the prompt builder.
+    </p>
+    <div class="flex justify-end gap-3">
+      <app-button type="button" variant="ghost" (click)="cancelDelete()">Cancel</app-button>
+      <app-button
+        type="button"
+        variant="danger"
+        icon="trash-2"
+        [loading]="store.promptLoading()"
+        (click)="deleteTemplate()"
+      >
+        Delete template
+      </app-button>
+    </div>
+  </div>
+</app-modal-shell>

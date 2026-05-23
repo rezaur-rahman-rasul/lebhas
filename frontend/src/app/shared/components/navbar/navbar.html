@@ -1,0 +1,93 @@
+<header class="sticky top-0 z-40 border-b border-white/10 bg-canvas/85 backdrop-blur-xl">
+  <div class="mx-auto flex max-w-7xl items-center justify-between gap-4 px-4 py-4 sm:px-6 lg:px-8">
+    <a routerLink="/" class="flex min-w-0 items-center gap-3" aria-label="Lebhas - Brand Attire home">
+      <app-brand-logo size="sm" />
+      <div class="min-w-0">
+        <p class="truncate text-xs font-semibold uppercase tracking-[0.16em] text-brand-500">
+          Lebhas - Brand Attire
+        </p>
+        <p class="truncate text-sm text-ink">Create Ads Beyond Imagination</p>
+      </div>
+    </a>
+
+    @if (isDesktop()) {
+      <nav class="flex items-center gap-7">
+        @for (item of items(); track item.href) {
+          <a [href]="item.href" class="text-sm font-medium text-muted transition hover:text-ink">
+            {{ item.label }}
+          </a>
+        }
+      </nav>
+
+      <div class="flex items-center gap-3">
+        <app-theme-toggle />
+        @if (authenticated()) {
+          <a routerLink="/dashboard">
+            <app-button icon="layout-dashboard">Dashboard</app-button>
+          </a>
+        } @else {
+          <app-button
+            variant="secondary"
+            icon="user-round"
+            [testId]="'navbar-login-button'"
+            (click)="requestLogin()"
+          >
+            Log in
+          </app-button>
+        }
+      </div>
+    } @else {
+      <button
+        type="button"
+        class="inline-flex h-11 w-11 items-center justify-center rounded-full border border-border bg-surface text-ink transition hover:bg-panel"
+        aria-label="Toggle navigation"
+        (click)="toggleMenu()"
+      >
+        <app-icon [name]="menuOpen() ? 'x' : 'menu'" [size]="18" />
+      </button>
+    }
+  </div>
+
+  @if (!isDesktop() && menuOpen()) {
+    <div class="border-t border-border bg-surface/95">
+      <div class="mx-auto max-w-7xl px-4 py-4 sm:px-6">
+        <nav class="grid gap-2">
+          @for (item of items(); track item.href) {
+            <a
+              [href]="item.href"
+              class="rounded-lg px-3 py-3 text-sm font-medium text-muted transition hover:bg-panel hover:text-ink"
+              (click)="closeMenu()"
+            >
+              {{ item.label }}
+            </a>
+          }
+        </nav>
+
+        <div class="mt-4 flex items-center justify-between gap-3 rounded-lg border border-border bg-canvas/60 p-3">
+          <div>
+            <p class="text-xs font-semibold uppercase tracking-[0.16em] text-brand-500">Theme</p>
+            <p class="mt-1 text-sm text-muted">Dark mode stays on by default.</p>
+          </div>
+          <app-theme-toggle />
+        </div>
+
+        <div class="mt-4">
+          @if (authenticated()) {
+            <a routerLink="/dashboard" (click)="closeMenu()">
+              <app-button [fullWidth]="true" icon="layout-dashboard">Dashboard</app-button>
+            </a>
+          } @else {
+            <app-button
+              [fullWidth]="true"
+              icon="user-round"
+              [testId]="'navbar-login-button'"
+              (click)="requestLogin()"
+            >
+              Log in
+            </app-button>
+          }
+        </div>
+      </div>
+    </div>
+  }
+</header>

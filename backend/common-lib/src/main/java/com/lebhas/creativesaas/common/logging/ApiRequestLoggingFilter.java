@@ -1,0 +1,48 @@
+package com.lebhas.creativesaas.common.logging;
+
+import jakarta.servlet.FilterChain;
+import jakarta.servlet.ServletException;
+import jakarta.servlet.http.HttpServletRequest;
+import jakarta.servlet.http.HttpServletResponse;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import org.springframework.core.Ordered;
+import org.springframework.core.annotation.Order;
+import org.springframework.stereotype.Component;
+import org.springframework.web.filter.OncePerRequestFilter;
+
+import java.io.IOException;
+import java.time.Duration;
+import java.time.Instant;
+
+@Component
+@Order(Ordered.HIGHEST_PRECEDENCE + 20)
+public class ApiRequestLoggingFilter extends OncePerRequestFilter {
+
+    private static final Logger log = LoggerFactory.getLogger(ApiRequestLoggingFilter.class);
+
+    @Override
+    protected boolean shouldNotFilter(HttpServletRequest request) {
+        return request.getRequestURI().startsWith("/actuator");
+    }
+
+    @Override
+    protected void doFilterInternal(
+            HttpServletRequest request,
+            HttpServletResponse response,
+            FilterChain filterChain
+    ) throws ServletException, IOException {
+        Instant startedAt = Instant.now();
+        try {
+            filterChain.doFilter(request, response);
+        } finally {
+            long durationMs = Duration.between(startedAt, Instant.now()).toMillis();
+            log.info("http_request method={} path={} status={} durationMs={} remoteAddress={}",
+                    request.getMethod(),
+                    request.getRequestURI(),
+                    response.getStatus(),
+                    durationMs,
+                    request.getRemoteAddr());
+        }
+    }
+}

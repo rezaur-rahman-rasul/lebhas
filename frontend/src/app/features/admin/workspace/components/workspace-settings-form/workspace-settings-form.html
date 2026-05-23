@@ -1,0 +1,160 @@
+
+    <app-card>
+      <div class="flex flex-col gap-4 border-b border-border pb-5 sm:flex-row sm:items-start sm:justify-between">
+        <div>
+          <div class="flex items-center gap-2">
+            <h2 class="text-lg font-semibold text-ink">Workspace settings</h2>
+            @if (readOnly()) {
+              <app-badge tone="neutral">Read only</app-badge>
+            }
+          </div>
+          <p class="mt-2 max-w-2xl text-sm leading-6 text-muted">
+            Manage the workspace identity, default language, and crew policy switches used across the admin shell.
+          </p>
+        </div>
+
+      </div>
+
+      @if (readOnly()) {
+        <div class="mt-5 rounded-lg border border-border bg-slate-50 px-4 py-3 text-sm text-muted">
+          This workspace is visible here for oversight only. The current session cannot edit these settings.
+        </div>
+      }
+
+      <form
+        id="workspace-settings-form"
+        class="mt-6 space-y-6"
+        [formGroup]="form"
+        (ngSubmit)="submit()"
+      >
+        <div class="grid gap-6 lg:grid-cols-2">
+          <label class="block lg:col-span-2">
+            <span class="mb-2 block text-sm font-medium text-ink">Workspace name</span>
+            <input type="text" formControlName="name" placeholder="Lebhas Creative Studio" [class]="inputClasses()" />
+            @if (fieldError('name')) {
+              <span class="mt-2 block text-sm text-alert-600">{{ fieldError('name') }}</span>
+            }
+          </label>
+
+          <label class="block lg:col-span-2">
+            <span class="mb-2 block text-sm font-medium text-ink">Description</span>
+            <textarea
+              rows="4"
+              formControlName="description"
+              placeholder="Summarize the workspace, core service lines, and operating context."
+              [class]="textareaClasses()"
+            ></textarea>
+            @if (fieldError('description')) {
+              <span class="mt-2 block text-sm text-alert-600">{{ fieldError('description') }}</span>
+            }
+          </label>
+
+          <label class="block">
+            <span class="mb-2 block text-sm font-medium text-ink">Industry</span>
+            <input type="text" formControlName="industry" placeholder="Agency" [class]="inputClasses()" />
+            @if (fieldError('industry')) {
+              <span class="mt-2 block text-sm text-alert-600">{{ fieldError('industry') }}</span>
+            }
+          </label>
+
+          <label class="block">
+            <span class="mb-2 block text-sm font-medium text-ink">Logo URL</span>
+            <input type="url" formControlName="logoUrl" placeholder="https://cdn.company.com/logo.png" [class]="inputClasses()" />
+            @if (fieldError('logoUrl')) {
+              <span class="mt-2 block text-sm text-alert-600">{{ fieldError('logoUrl') }}</span>
+            }
+          </label>
+
+          <label class="block">
+            <span class="mb-2 block text-sm font-medium text-ink">Timezone</span>
+            <input type="text" formControlName="timezone" placeholder="Asia/Dhaka" [class]="inputClasses()" />
+            @if (fieldError('timezone')) {
+              <span class="mt-2 block text-sm text-alert-600">{{ fieldError('timezone') }}</span>
+            }
+          </label>
+
+          <label class="block">
+            <span class="mb-2 block text-sm font-medium text-ink">Language</span>
+            <select formControlName="language" [class]="selectClasses()">
+              @for (option of languageOptions; track option.value) {
+                <option [value]="option.value">{{ option.label }}</option>
+              }
+            </select>
+            @if (fieldError('language')) {
+              <span class="mt-2 block text-sm text-alert-600">{{ fieldError('language') }}</span>
+            }
+          </label>
+
+          <label class="block">
+            <span class="mb-2 block text-sm font-medium text-ink">Currency</span>
+            <input type="text" formControlName="currency" placeholder="BDT" maxlength="3" [class]="inputClasses('uppercase')" />
+            @if (fieldError('currency')) {
+              <span class="mt-2 block text-sm text-alert-600">{{ fieldError('currency') }}</span>
+            }
+          </label>
+
+          <label class="block">
+            <span class="mb-2 block text-sm font-medium text-ink">Country</span>
+            <input type="text" formControlName="country" placeholder="BD" maxlength="2" [class]="inputClasses('uppercase')" />
+            @if (fieldError('country')) {
+              <span class="mt-2 block text-sm text-alert-600">{{ fieldError('country') }}</span>
+            }
+          </label>
+
+          <label class="block lg:col-span-2">
+            <span class="mb-2 block text-sm font-medium text-ink">Workspace visibility</span>
+            <select formControlName="workspaceVisibility" [class]="selectClasses()">
+              @for (option of visibilityOptions; track option.value) {
+                <option [value]="option.value">{{ option.label }}</option>
+              }
+            </select>
+            <p class="mt-2 text-sm text-muted">
+              {{
+                visibilityOptions.find((option) => option.value === form.controls.workspaceVisibility.value)
+                  ?.description
+              }}
+            </p>
+            @if (fieldError('workspaceVisibility')) {
+              <span class="mt-2 block text-sm text-alert-600">{{ fieldError('workspaceVisibility') }}</span>
+            }
+          </label>
+        </div>
+
+        <div class="grid gap-4 lg:grid-cols-2">
+          <label class="flex items-start gap-3 rounded-lg border border-border p-4">
+            <input
+              type="checkbox"
+              formControlName="allowCrewDownload"
+              class="mt-1 h-4 w-4 rounded border-border text-brand-600 focus:ring-brand-500"
+            />
+            <div>
+              <span class="text-sm font-medium text-ink">Allow crew download</span>
+              <p class="mt-1 text-sm leading-6 text-muted">
+                Permit crew members with matching creative permissions to download workspace deliverables.
+              </p>
+            </div>
+          </label>
+
+          <label class="flex items-start gap-3 rounded-lg border border-border p-4">
+            <input
+              type="checkbox"
+              formControlName="allowCrewPublish"
+              class="mt-1 h-4 w-4 rounded border-border text-brand-600 focus:ring-brand-500"
+            />
+            <div>
+              <span class="text-sm font-medium text-ink">Allow crew publish</span>
+              <p class="mt-1 text-sm leading-6 text-muted">
+                Prepare the workspace for future publish and approval handoff workflows.
+              </p>
+            </div>
+          </label>
+        </div>
+
+        @if (!readOnly()) {
+          <div class="flex justify-end">
+            <app-button type="submit" icon="save" [loading]="submitting()">Save settings</app-button>
+          </div>
+        }
+      </form>
+    </app-card>
+  

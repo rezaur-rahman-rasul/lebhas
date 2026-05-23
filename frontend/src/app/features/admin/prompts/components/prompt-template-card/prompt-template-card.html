@@ -1,0 +1,61 @@
+<app-card [interactive]="true">
+  <div class="space-y-4">
+    <div class="flex items-start justify-between gap-3">
+      <div class="min-w-0">
+        <div class="flex flex-wrap gap-2">
+          <app-badge [tone]="promptTemplateStatusTone(template().status)">
+            {{ promptTemplateStatusLabel(template().status) }}
+          </app-badge>
+          @if (template().isSystemDefault) {
+            <app-badge tone="blue">System default</app-badge>
+          }
+        </div>
+        <h3 class="mt-3 truncate text-base font-semibold text-ink">{{ template().name }}</h3>
+        <p class="mt-1 text-sm leading-6 text-muted">
+          {{ template().description || 'Workspace prompt template for recurring campaign briefs.' }}
+        </p>
+      </div>
+    </div>
+
+    <dl class="grid gap-3 text-sm sm:grid-cols-2">
+      <div>
+        <dt class="text-xs uppercase tracking-[0.12em] text-muted">Platform</dt>
+        <dd class="mt-1 font-medium text-ink">{{ promptPlatformLabel(template().platform) }}</dd>
+      </div>
+      <div>
+        <dt class="text-xs uppercase tracking-[0.12em] text-muted">Objective</dt>
+        <dd class="mt-1 font-medium text-ink">
+          {{ campaignObjectiveLabel(template().campaignObjective) }}
+        </dd>
+      </div>
+      <div>
+        <dt class="text-xs uppercase tracking-[0.12em] text-muted">Language</dt>
+        <dd class="mt-1 font-medium text-ink">{{ promptLanguageLabel(template().language) }}</dd>
+      </div>
+      <div>
+        <dt class="text-xs uppercase tracking-[0.12em] text-muted">Business type</dt>
+        <dd class="mt-1 font-medium text-ink">{{ template().businessType || 'General' }}</dd>
+      </div>
+    </dl>
+
+    <div class="rounded-md border border-slate-200 bg-slate-50 px-3 py-3 text-sm leading-6 text-slate-700">
+      {{ template().templateText }}
+    </div>
+
+    <div class="flex flex-wrap gap-2">
+      @if (canUse()) {
+        <app-button size="sm" icon="arrow-right" (click)="useRequested.emit(template())">
+          Use template
+        </app-button>
+      }
+      @if (canManage()) {
+        <app-button size="sm" variant="secondary" icon="settings" (click)="editRequested.emit(template())">
+          Edit
+        </app-button>
+        <app-button size="sm" variant="danger" icon="trash-2" (click)="deleteRequested.emit(template())">
+          Delete
+        </app-button>
+      }
+    </div>
+  </div>
+</app-card>

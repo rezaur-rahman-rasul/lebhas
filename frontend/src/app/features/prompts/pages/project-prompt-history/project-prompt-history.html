@@ -1,0 +1,26 @@
+<app-page-header
+  eyebrow="Prompt intelligence"
+  title="Prompt history"
+  description="Project-scoped prompt history route. History list UI will load here in the next milestone."
+>
+  <a
+    [routerLink]="['/projects', projectId(), 'prompts']"
+    class="text-sm font-medium text-brand-600 hover:text-brand-700"
+  >
+    Back to builder
+  </a>
+  <app-badge tone="neutral">Project {{ projectId() }}</app-badge>
+</app-page-header>
+
+@if (!canViewPromptHistory()) {
+  <app-empty-state
+    class="mt-6 block"
+    icon="circle-alert"
+    title="Prompt history access required"
+    description="This account does not have permission to view prompt history."
+  />
+} @else {
+  <section class="mt-6 rounded-2xl border border-border bg-panel p-6 shadow-sm">
+    <p class="text-sm text-muted">History shell is wired for this project campaign.</p>
+  </section>
+}

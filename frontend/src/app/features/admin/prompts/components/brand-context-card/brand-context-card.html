@@ -1,0 +1,63 @@
+<app-card>
+  <div class="space-y-4">
+    <div class="flex items-start justify-between gap-4">
+      <div>
+        <div class="flex flex-wrap gap-2">
+          <app-badge [tone]="enabled() ? 'brand' : 'neutral'">
+            {{ enabled() ? 'Brand context on' : 'Brand context off' }}
+          </app-badge>
+        </div>
+        <h3 class="mt-3 text-base font-semibold text-ink">Brand context</h3>
+        <p class="mt-1 text-sm text-muted">
+          Pulls workspace brand profile details into prompt intelligence requests.
+        </p>
+      </div>
+
+      <label class="inline-flex items-center gap-2 text-sm font-medium text-ink">
+        <input
+          type="checkbox"
+          class="h-4 w-4 rounded border-border text-brand-600 focus:ring-brand-500"
+          [checked]="enabled()"
+          [disabled]="disabled()"
+          (change)="toggled.emit($any($event.target).checked)"
+        />
+        Use brand profile
+      </label>
+    </div>
+
+    @if (brandProfile()) {
+      <dl class="grid gap-3 text-sm sm:grid-cols-2">
+        <div>
+          <dt class="text-xs uppercase tracking-[0.12em] text-muted">Brand name</dt>
+          <dd class="mt-1 font-medium text-ink">{{ brandProfile()?.brandName || 'Not set' }}</dd>
+        </div>
+        <div>
+          <dt class="text-xs uppercase tracking-[0.12em] text-muted">Business type</dt>
+          <dd class="mt-1 font-medium text-ink">{{ brandProfile()?.businessType || 'Not set' }}</dd>
+        </div>
+        <div>
+          <dt class="text-xs uppercase tracking-[0.12em] text-muted">Industry</dt>
+          <dd class="mt-1 font-medium text-ink">{{ brandProfile()?.industry || 'Not set' }}</dd>
+        </div>
+        <div>
+          <dt class="text-xs uppercase tracking-[0.12em] text-muted">Target audience</dt>
+          <dd class="mt-1 font-medium text-ink">
+            {{ brandProfile()?.targetAudience || 'Not set' }}
+          </dd>
+        </div>
+        <div>
+          <dt class="text-xs uppercase tracking-[0.12em] text-muted">Brand voice</dt>
+          <dd class="mt-1 font-medium text-ink">{{ brandProfile()?.brandVoice || 'Not set' }}</dd>
+        </div>
+        <div>
+          <dt class="text-xs uppercase tracking-[0.12em] text-muted">Preferred CTA</dt>
+          <dd class="mt-1 font-medium text-ink">{{ brandProfile()?.preferredCTA || 'Not set' }}</dd>
+        </div>
+      </dl>
+    } @else {
+      <div class="rounded-md border border-dashed border-border bg-slate-50 px-4 py-4 text-sm text-muted">
+        No brand profile data is available yet for this workspace.
+      </div>
+    }
+  </div>
+</app-card>

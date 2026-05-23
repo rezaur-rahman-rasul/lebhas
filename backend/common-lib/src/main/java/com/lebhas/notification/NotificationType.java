@@ -1,0 +1,10 @@
+package com.lebhas.notification;
+
+public enum NotificationType {
+    APPROVAL_ASSIGNED,
+    APPROVAL_SUBMITTED,
+    APPROVAL_APPROVED,
+    APPROVAL_REJECTED,
+    APPROVAL_CHANGES_REQUESTED,
+    APPROVAL_RESUBMITTED
+}

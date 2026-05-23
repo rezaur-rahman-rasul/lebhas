@@ -1,0 +1,36 @@
+<app-card>
+  <div class="space-y-4">
+    <div class="flex flex-wrap items-start justify-between gap-3">
+      <div>
+        <p class="text-sm font-semibold text-ink">{{ job().jobType }}</p>
+        <p class="mt-1 text-sm text-muted">{{ job().queueName || 'Queue pending' }}</p>
+      </div>
+      <app-badge [tone]="statusTone(job().status)">{{ statusLabel(job().status) }}</app-badge>
+    </div>
+
+    <dl class="grid gap-3 text-sm sm:grid-cols-2">
+      <div>
+        <dt class="text-xs uppercase tracking-[0.12em] text-muted">Attempts</dt>
+        <dd class="mt-1 font-medium text-ink">{{ job().attemptCount }} / {{ job().maxAttempts }}</dd>
+      </div>
+      <div>
+        <dt class="text-xs uppercase tracking-[0.12em] text-muted">Provider job</dt>
+        <dd class="mt-1 font-medium text-ink">{{ job().providerJobId || 'Pending' }}</dd>
+      </div>
+      <div>
+        <dt class="text-xs uppercase tracking-[0.12em] text-muted">Started</dt>
+        <dd class="mt-1 font-medium text-ink">{{ job().startedAt ? (job().startedAt | date: 'short') : 'Not started' }}</dd>
+      </div>
+      <div>
+        <dt class="text-xs uppercase tracking-[0.12em] text-muted">Completed</dt>
+        <dd class="mt-1 font-medium text-ink">{{ job().completedAt ? (job().completedAt | date: 'short') : 'Pending' }}</dd>
+      </div>
+    </dl>
+
+    @if (job().errorMessage) {
+      <div class="rounded-md border border-red-200 bg-red-50 px-3 py-3 text-sm text-red-700">
+        {{ job().errorMessage }}
+      </div>
+    }
+  </div>
+</app-card>

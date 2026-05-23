@@ -1,0 +1,61 @@
+@if (sections().length) {
+  <div class="space-y-4">
+    @if (reasoningSummary()) {
+      <app-card>
+        <div class="space-y-2">
+          <h3 class="text-sm font-semibold uppercase tracking-[0.12em] text-brand-700">
+            Reasoning summary
+          </h3>
+          <p class="text-sm leading-6 text-muted">{{ reasoningSummary() }}</p>
+        </div>
+      </app-card>
+    }
+
+    @for (section of sections(); track section.key) {
+      <app-card>
+        <div class="space-y-4">
+          <div>
+            <h3 class="text-base font-semibold text-ink">{{ section.title }}</h3>
+            <p class="mt-1 text-sm text-muted">
+              Review options, copy them, or insert them back into the builder.
+            </p>
+          </div>
+
+          <div class="space-y-3">
+            @for (suggestion of section.suggestions; track suggestion) {
+              <div class="rounded-md border border-slate-200 bg-slate-50 px-4 py-4">
+                <p class="text-sm leading-6 text-ink">{{ suggestion }}</p>
+                <div class="mt-3 flex flex-wrap gap-2">
+                  <app-button size="sm" variant="secondary" (click)="copyRequested.emit(suggestion)">
+                    Copy
+                  </app-button>
+                  <app-button size="sm" variant="secondary" (click)="insertRequested.emit(suggestion)">
+                    Insert
+                  </app-button>
+                  <app-button size="sm" variant="ghost" (click)="replaceRequested.emit(suggestion)">
+                    Replace prompt
+                  </app-button>
+                  <app-button size="sm" variant="ghost" (click)="savedRequested.emit(suggestion)">
+                    Save selection
+                  </app-button>
+                </div>
+              </div>
+            }
+          </div>
+        </div>
+      </app-card>
+    }
+  </div>
+} @else if (loading()) {
+  <div class="grid gap-4">
+    @for (item of [0, 1, 2]; track item) {
+      <div class="h-40 animate-pulse rounded-lg border border-border bg-white"></div>
+    }
+  </div>
+} @else {
+  <app-empty-state
+    icon="sparkles"
+    title="Suggestions will appear here"
+    description="Run grouped or targeted prompt suggestions after the builder fields are ready."
+  />
+}

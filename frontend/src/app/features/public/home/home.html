@@ -1,0 +1,528 @@
+<div
+  id="home"
+  class="home-shell min-h-screen overflow-x-hidden"
+  [class.light-mode]="currentTheme() === 'light'"
+>
+  <header class="home-header">
+    <div class="home-container nav-container">
+      <a href="#home" class="brand-logo">
+        <img
+          [src]="
+            currentTheme() === 'light'
+              ? '/assets/lebhas-logo-header-light.png'
+              : '/assets/lebhas-logo-header.png'
+          "
+          alt="Lebhas logo"
+          class="brand-logo-image"
+        />
+      </a>
+
+      <nav class="desktop-nav">
+        @for (item of navItems(); track item.href) {
+          <a [href]="item.href" class="nav-link" [class.active]="item.href === '#home'">
+            {{ item.label }}
+
+            @if (item.hasDropdown) {
+              <app-icon name="chevron-down" [size]="14" />
+            }
+          </a>
+        }
+      </nav>
+
+      <div class="nav-actions">
+        <button type="button" class="theme-pill" aria-label="Toggle theme" (click)="toggleTheme()">
+          <span class="theme-pill-option" [class.active]="currentTheme() === 'light'">
+            <app-icon name="sun" [size]="17" [strokeWidth]="2.3" />
+          </span>
+          <span class="theme-pill-option" [class.active]="currentTheme() === 'dark'">
+            <app-icon name="moon" [size]="17" [strokeWidth]="2.3" />
+          </span>
+        </button>
+
+        <div class="language-toggle" [attr.aria-label]="copy().nav.language" role="group">
+          <button
+            type="button"
+            class="language-toggle-option"
+            [class.active]="language() === 'bn'"
+            (click)="setLanguage('bn')"
+          >
+            BN
+          </button>
+          <button
+            type="button"
+            class="language-toggle-option"
+            [class.active]="language() === 'en'"
+            (click)="setLanguage('en')"
+          >
+            EN
+          </button>
+        </div>
+
+        @if (isAuthenticated()) {
+          <a routerLink="/dashboard" class="login-button">{{ copy().nav.dashboard }}</a>
+        } @else {
+          <button
+            type="button"
+            data-testid="navbar-login-button"
+            class="login-button"
+            (click)="openLoginModal()"
+          >
+            {{ copy().nav.login }}
+          </button>
+        }
+      </div>
+
+      <button
+        type="button"
+        class="mobile-menu-button"
+        aria-label="Toggle navigation"
+        (click)="toggleMenu()"
+      >
+        <app-icon [name]="menuOpen() ? 'x' : 'menu'" [size]="20" />
+      </button>
+    </div>
+
+    @if (menuOpen()) {
+      <div class="mobile-menu">
+        <nav class="mobile-menu-inner">
+          @for (item of navItems(); track item.href) {
+            <a [href]="item.href" class="mobile-nav-link" (click)="closeMenu()">
+              {{ item.label }}
+            </a>
+          }
+
+          <div class="mobile-control-row">
+            <span>{{ copy().nav.theme }}</span>
+            <app-theme-toggle />
+          </div>
+
+          <div class="mobile-control-row">
+            <span>{{ copy().nav.language }}</span>
+            <div class="language-toggle" [attr.aria-label]="copy().nav.language" role="group">
+              <button
+                type="button"
+                class="language-toggle-option"
+                [class.active]="language() === 'bn'"
+                (click)="setLanguage('bn')"
+              >
+                BN
+              </button>
+              <button
+                type="button"
+                class="language-toggle-option"
+                [class.active]="language() === 'en'"
+                (click)="setLanguage('en')"
+              >
+                EN
+              </button>
+            </div>
+          </div>
+
+          @if (isAuthenticated()) {
+            <a routerLink="/dashboard" class="login-button mobile-full" (click)="closeMenu()">
+              {{ copy().nav.dashboard }}
+            </a>
+          } @else {
+            <button type="button" class="login-button mobile-full" (click)="openLoginModal()">
+              {{ copy().nav.login }}
+            </button>
+          }
+        </nav>
+      </div>
+    }
+  </header>
+
+  <main>
+    <section class="home-container hero-section">
+      <div class="hero-copy">
+        <div class="eyebrow">
+          <app-icon name="sparkles" [size]="15" />
+          <span>{{ copy().hero.eyebrow }}</span>
+        </div>
+
+        <h1 data-testid="hero-tagline" class="hero-title">
+          {{ copy().hero.lineOne }}<br />
+          {{ copy().hero.lineTwo }}
+          <span class="hero-title-accent">{{ copy().hero.accentOne }}</span
+          ><br />
+          <span class="hero-title-accent">{{ copy().hero.accentTwo }}</span>
+        </h1>
+
+        <p class="hero-description">
+          {{ copy().hero.description }}
+        </p>
+
+        <div class="hero-actions-row">
+          <div class="hero-buttons">
+            <button
+              type="button"
+              data-testid="hero-start-creating"
+              class="primary-cta"
+              (click)="openLoginModal()"
+            >
+              {{ copy().hero.primaryCta }}
+              <span>
+                <app-icon name="arrow-right" [size]="18" />
+              </span>
+            </button>
+
+            <button type="button" class="secondary-cta" (click)="scrollToSection('workflow')">
+              {{ copy().hero.secondaryCta }}
+              <span>
+                <app-icon name="play" [size]="16" />
+              </span>
+            </button>
+          </div>
+
+          <div class="hero-highlights">
+            @for (item of heroHighlights(); track item.title) {
+              <article class="hero-highlight">
+                <span class="hero-highlight-icon">
+                  <app-icon [name]="item.icon" [size]="18" />
+                </span>
+                <p>{{ item.title }}</p>
+              </article>
+            }
+          </div>
+        </div>
+      </div>
+
+      <div class="hero-visual" data-testid="hero-transform-grid">
+        <article class="pipeline-block product-card">
+          <p class="pipeline-label">{{ copy().hero.rawProduct }}</p>
+
+          <div class="product-frame">
+            <img
+              src="/assets/hero-raw-product-card.png"
+              alt="Raw product preview"
+              class="pipeline-card-image"
+            />
+
+            <div class="raw-image-badge">
+              <app-icon name="image" [size]="14" />
+              <span>{{ copy().hero.rawBadge }}</span>
+            </div>
+          </div>
+        </article>
+
+        <div class="pipeline-arrow">
+          <img
+            [src]="
+              currentTheme() === 'light'
+                ? '/assets/hero-pipeline-arrow-light.svg'
+                : '/assets/hero-pipeline-arrow.png'
+            "
+            alt=""
+            class="pipeline-arrow-image"
+          />
+        </div>
+
+        <article class="pipeline-block ai-card">
+          <p class="pipeline-label">{{ copy().hero.aiProcessing }}</p>
+
+          <div data-testid="hero-processing-panel" class="ai-processing-frame">
+            <div class="ai-orbit">
+              <img src="/assets/hero-ai-processing-icon.png" alt="AI processing icon" />
+            </div>
+
+            <div class="processing-texts">
+              @for (stage of processingStages(); track stage) {
+                <p>{{ stage }}</p>
+              }
+            </div>
+
+            <div class="progress-row">
+              <div class="progress-track">
+                <div class="progress-value"></div>
+              </div>
+              <span>75%</span>
+            </div>
+          </div>
+        </article>
+
+        <div class="pipeline-arrow">
+          <img
+            [src]="
+              currentTheme() === 'light'
+                ? '/assets/hero-pipeline-arrow-light.svg'
+                : '/assets/hero-pipeline-arrow.png'
+            "
+            alt=""
+            class="pipeline-arrow-image"
+          />
+        </div>
+
+        <article class="pipeline-block campaign-card">
+          <p class="pipeline-label">{{ copy().hero.campaignCreative }}</p>
+
+          <div class="campaign-frame">
+            <img
+              src="/assets/hero-campaign-creative-card.png"
+              alt="Generated campaign creative"
+              class="pipeline-card-image"
+            />
+
+            <div class="campaign-overlay">
+              <img src="/assets/lebhas-logo.png" alt="Lebhas mini logo" />
+              <h3>Elevate Your Brand Style</h3>
+              <p>Premium Quality. Timeless Design. Made for Impact.</p>
+              <button type="button">Shop Now</button>
+            </div>
+
+            <div class="social-row">
+              <span class="platform-facebook">f</span>
+              <span class="platform-instagram">ig</span>
+              <span class="platform-tiktok">tt</span>
+              <span class="platform-linkedin">in</span>
+            </div>
+          </div>
+        </article>
+
+        <div class="outcome-strip">
+          @for (item of outcomeChips(); track item.label) {
+            <div class="outcome-item">
+              <span class="outcome-icon">
+                <app-icon [name]="item.icon" [size]="18" />
+              </span>
+              <span class="outcome-label">{{ item.label }}</span>
+            </div>
+          }
+        </div>
+      </div>
+    </section>
+
+    <section class="home-container">
+      <div class="platform-strip">
+        <p>{{ copy().platformStrip.title }}</p>
+
+        <div class="platform-list">
+          @for (platform of platformBadges(); track platform.name) {
+            <div class="platform-item">
+              <span [class]="platform.accentClass">{{ platform.shortLabel }}</span>
+              <strong>{{ platform.name }}</strong>
+            </div>
+          }
+        </div>
+      </div>
+    </section>
+
+    <section id="features" class="home-container lower-grid">
+      <article id="workflow" class="workflow-card">
+        <h2>{{ copy().workflow.title }}</h2>
+        <p>{{ copy().workflow.description }}</p>
+
+        <div class="workflow-steps" data-testid="workflow-stepper">
+          @for (step of workflowSteps(); track step.step; let last = $last) {
+            <div class="workflow-step" data-testid="workflow-step-card">
+              <div class="step-icon-row">
+                <div class="step-icon">
+                  <app-icon [name]="step.icon" [size]="28" />
+                </div>
+
+                @if (!last) {
+                  <div class="step-line">
+                    <app-icon name="arrow-right" [size]="18" />
+                  </div>
+                }
+              </div>
+
+              <strong>{{ step.step }}</strong>
+              <h3>{{ step.title }}</h3>
+              <p>{{ step.description }}</p>
+            </div>
+          }
+        </div>
+      </article>
+
+      <article class="workspace-card" data-testid="workspace-overview">
+        <div class="workspace-layout">
+          <aside class="workspace-sidebar">
+            <div class="sidebar-active">
+              <app-icon name="layout-grid" [size]="20" />
+            </div>
+            <app-icon name="briefcase" [size]="18" />
+            <app-icon name="box" [size]="18" />
+            <app-icon name="bar-chart-3" [size]="18" />
+            <app-icon name="users" [size]="18" />
+            <app-icon name="settings" [size]="18" />
+          </aside>
+
+          <div class="workspace-main">
+            <div class="workspace-header">
+              <h2>{{ copy().workspace.title }}</h2>
+
+              <button type="button">
+                {{ copy().workspace.period }}
+                <app-icon name="chevron-down" [size]="14" />
+              </button>
+            </div>
+
+            <div class="metric-grid">
+              @for (metric of workspaceMetrics(); track metric.label) {
+                <div class="metric-card">
+                  <p>{{ metric.label }}</p>
+                  <strong>{{ metric.value }}</strong>
+                  <span>{{ metric.delta }}</span>
+                </div>
+              }
+            </div>
+
+            <div class="workspace-bottom">
+              <div class="activity-card">
+                <h3>{{ copy().workspace.activityTitle }}</h3>
+
+                <div class="activity-list">
+                  @for (item of activityItems(); track item.title) {
+                    <div class="activity-item">
+                      <span>
+                        <app-icon [name]="item.icon" [size]="13" />
+                      </span>
+
+                      <p>{{ item.title }}</p>
+                      <small>{{ item.age }}</small>
+                    </div>
+                  }
+                </div>
+              </div>
+
+              <div class="platform-chart-card">
+                <h3>{{ copy().workspace.chartTitle }}</h3>
+
+                <div class="chart-content">
+                  <div class="donut-chart" [style.background]="donutGradient()"></div>
+
+                  <div class="chart-labels">
+                    @for (platform of topPlatforms; track platform.name) {
+                      <div>
+                        <span [style.background]="platform.color"></span>
+                        <p>{{ platform.name }}</p>
+                        <strong>{{ platform.share }}%</strong>
+                      </div>
+                    }
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </article>
+    </section>
+
+    <section id="pricing" class="home-container pricing-section">
+      <div class="section-header">
+        <div class="section-kicker">
+          <app-icon name="credit-card" [size]="15" />
+          <span>{{ copy().pricing.eyebrow }}</span>
+        </div>
+
+        <h2>{{ copy().pricing.title }}</h2>
+        <p>{{ copy().pricing.description }}</p>
+      </div>
+
+      <div class="pricing-grid">
+        @for (plan of pricingPlans(); track plan.name) {
+          <article class="pricing-card" [class.featured]="plan.featured">
+            <div class="plan-header">
+              <h3>{{ plan.name }}</h3>
+              @if (plan.featured) {
+                <span class="plan-badge">Popular</span>
+              }
+            </div>
+
+            <div class="plan-price-row">
+              <strong>{{ plan.price }}</strong>
+              @if (plan.period) {
+                <span>{{ plan.period }}</span>
+              }
+            </div>
+
+            <p class="plan-description">{{ plan.description }}</p>
+
+            <div class="plan-features">
+              @for (feature of plan.features; track feature) {
+                <div class="plan-feature">
+                  <app-icon name="circle-check" [size]="16" />
+                  <span>{{ feature }}</span>
+                </div>
+              }
+            </div>
+
+            <button type="button" class="plan-button" (click)="openLoginModal()">
+              {{ plan.action }}
+            </button>
+          </article>
+        }
+      </div>
+    </section>
+
+    <section id="about" class="home-container about-section">
+      <article class="about-panel">
+        <div class="section-kicker">
+          <app-icon name="users" [size]="15" />
+          <span>{{ copy().about.eyebrow }}</span>
+        </div>
+
+        <h2>{{ copy().about.title }}</h2>
+        <p class="about-lead">{{ copy().about.description }}</p>
+
+        <div class="about-paragraphs">
+          @for (paragraph of copy().about.paragraphs; track paragraph) {
+            <p>{{ paragraph }}</p>
+          }
+        </div>
+
+        <div class="about-actions">
+          <button type="button" class="primary-cta about-primary" (click)="scrollToSection('workflow')">
+            {{ copy().about.primaryCta }}
+            <span>
+              <app-icon name="arrow-right" [size]="18" />
+            </span>
+          </button>
+
+          <button
+            type="button"
+            class="secondary-cta about-secondary"
+            (click)="scrollToSection('pricing')"
+          >
+            {{ copy().about.secondaryCta }}
+            <span>
+              <app-icon name="play" [size]="16" />
+            </span>
+          </button>
+        </div>
+      </article>
+
+      <aside class="about-side">
+        <div class="about-stats">
+          @for (stat of aboutStats(); track stat.label) {
+            <div class="about-stat">
+              <strong>{{ stat.value }}</strong>
+              <span>{{ stat.label }}</span>
+            </div>
+          }
+        </div>
+
+        <div class="about-points">
+          @for (point of aboutPoints(); track point.title) {
+            <article class="about-point">
+              <span class="about-point-icon">
+                <app-icon [name]="point.icon" [size]="20" />
+              </span>
+
+              <div>
+                <h3>{{ point.title }}</h3>
+                <p>{{ point.description }}</p>
+              </div>
+            </article>
+          }
+        </div>
+      </aside>
+    </section>
+  </main>
+
+  <footer class="home-footer">
+    &copy; {{ currentYear }} {{ copy().footer }}
+  </footer>
+
+  <app-auth-dialog [open]="loginModalOpen()" (closed)="closeLoginModal()" />
+</div>

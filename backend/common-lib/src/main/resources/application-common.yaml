@@ -1,0 +1,317 @@
+spring:
+  datasource:
+    url: jdbc:postgresql://${POSTGRES_HOST:localhost}:${POSTGRES_PORT:5432}/${POSTGRES_DB:creative_saas}
+    username: ${POSTGRES_USERNAME:postgres}
+    password: ${POSTGRES_PASSWORD:postgres}
+    driver-class-name: org.postgresql.Driver
+    hikari:
+      pool-name: ${spring.application.name}-hikari
+      maximum-pool-size: ${DB_POOL_MAX_SIZE:10}
+      minimum-idle: ${DB_POOL_MIN_IDLE:2}
+      connection-timeout: ${DB_CONNECTION_TIMEOUT_MS:30000}
+      idle-timeout: ${DB_IDLE_TIMEOUT_MS:600000}
+      max-lifetime: ${DB_MAX_LIFETIME_MS:1800000}
+  jpa:
+    open-in-view: false
+    hibernate:
+      ddl-auto: validate
+    properties:
+      hibernate:
+        dialect: org.hibernate.dialect.PostgreSQLDialect
+        default_schema: ${DB_SCHEMA:platform}
+        jdbc:
+          time_zone: UTC
+        format_sql: false
+  flyway:
+    enabled: ${FLYWAY_ENABLED:true}
+    locations: classpath:db/migration
+    baseline-on-migrate: true
+    create-schemas: true
+    schemas: ${DB_SCHEMA:platform}
+    default-schema: ${DB_SCHEMA:platform}
+  data:
+    redis:
+      host: ${REDIS_HOST:localhost}
+      port: ${REDIS_PORT:6379}
+      password: ${REDIS_PASSWORD:}
+      timeout: ${REDIS_TIMEOUT:2s}
+      repositories:
+        enabled: false
+  cache:
+    type: redis
+    redis:
+      key-prefix: "creative-saas:${spring.application.name}:"
+      use-key-prefix: true
+      cache-null-values: false
+      time-to-live: ${CACHE_TTL:15m}
+  kafka:
+    bootstrap-servers: ${KAFKA_BOOTSTRAP_SERVERS:localhost:9092}
+    producer:
+      key-serializer: org.apache.kafka.common.serialization.StringSerializer
+      value-serializer: org.springframework.kafka.support.serializer.JsonSerializer
+      properties:
+        spring.json.add.type.headers: false
+    consumer:
+      group-id: ${KAFKA_CONSUMER_GROUP_ID:${spring.application.name}}
+      key-deserializer: org.apache.kafka.common.serialization.StringDeserializer
+      value-deserializer: org.springframework.kafka.support.serializer.JsonDeserializer
+      auto-offset-reset: earliest
+      properties:
+        spring.json.trusted.packages: "com.lebhas.creativesaas.*,com.lebhas.asset.*,com.lebhas.ai.*,com.lebhas.approval.*"
+        spring.json.use.type.headers: false
+  sql:
+    init:
+      mode: never
+
+server:
+  shutdown: graceful
+  servlet:
+    encoding:
+      charset: UTF-8
+      force: true
+
+management:
+  endpoint:
+    health:
+      probes:
+        enabled: true
+      show-details: when_authorized
+  endpoints:
+    web:
+      exposure:
+        include: health,info,metrics
+  health:
+    db:
+      enabled: true
+    redis:
+      enabled: true
+
+springdoc:
+  swagger-ui:
+    path: /swagger-ui.html
+    display-request-duration: true
+    operations-sorter: method
+    tags-sorter: alpha
+  api-docs:
+    path: /v3/api-docs
+
+platform:
+  security:
+    allowed-origins: ${CORS_ALLOWED_ORIGINS:http://localhost:4200,http://127.0.0.1:4200,http://[::1]:4200,http://localhost:4300,http://127.0.0.1:4300,http://[::1]:4300}
+    allowed-methods: GET,POST,PUT,PATCH,DELETE,OPTIONS
+    allowed-headers: "*"
+    allow-credentials: false
+    max-age-seconds: 3600
+    rate-limit:
+      login:
+        max-attempts-per-ip: ${LOGIN_RATE_LIMIT_IP_ATTEMPTS:20}
+        max-attempts-per-identity: ${LOGIN_RATE_LIMIT_IDENTITY_ATTEMPTS:8}
+        lockout-threshold: ${LOGIN_LOCKOUT_THRESHOLD:5}
+        window: ${LOGIN_RATE_LIMIT_WINDOW:15m}
+        lockout-duration: ${LOGIN_LOCKOUT_DURATION:15m}
+      refresh:
+        max-attempts-per-ip: ${REFRESH_RATE_LIMIT_IP_ATTEMPTS:40}
+        max-attempts-per-token: ${REFRESH_RATE_LIMIT_TOKEN_ATTEMPTS:6}
+        window: ${REFRESH_RATE_LIMIT_WINDOW:15m}
+    jwt:
+      issuer: ${JWT_ISSUER:creative-saas-platform}
+      secret-base64: ${JWT_SECRET_BASE64:Q3JlYXRpdmVTYWFTUGxhdGZvcm1EZXYyMDI2U2lnbmluZ1NlY3JldEJhc2U2NEtleUZvckxvY2FsVXNlT25seQ==}
+      access-token-ttl: ${JWT_ACCESS_TTL:15m}
+      refresh-token-ttl: ${JWT_REFRESH_TTL:30d}
+      invitation-token-ttl: ${JWT_INVITATION_TTL:7d}
+      clock-skew: ${JWT_CLOCK_SKEW:30s}
+  redis:
+    token-namespace: creative-saas:tokens
+    rate-limit-namespace: creative-saas:rate-limits
+    session-namespace: creative-saas:sessions
+  kafka:
+    topic-prefix: ${KAFKA_TOPIC_PREFIX:}
+  session:
+    active-state-ttl: ${SESSION_ACTIVE_STATE_TTL:30m}
+    support-mode-ttl: ${SESSION_SUPPORT_MODE_TTL:2h}
+    entity-cache-ttl: ${SESSION_ENTITY_CACHE_TTL:5m}
+  storage:
+    provider: ${STORAGE_PROVIDER:R2}
+    bucket: ${STORAGE_BUCKET:${R2_BUCKET:creative-saas-assets}}
+    signed-url-ttl: ${STORAGE_SIGNED_URL_TTL:15m}
+    r2:
+      region: ${R2_REGION:auto}
+      endpoint: ${R2_ENDPOINT:}
+      access-key: ${R2_ACCESS_KEY:}
+      secret-key: ${R2_SECRET_KEY:}
+      bucket: ${R2_BUCKET:${STORAGE_BUCKET:creative-saas-assets}}
+      public-base-url: ${R2_PUBLIC_BASE_URL:}
+      path-style-access-enabled: ${R2_PATH_STYLE_ACCESS_ENABLED:true}
+    s3:
+      region: ${S3_REGION:ap-southeast-1}
+      endpoint: ${S3_ENDPOINT:}
+      access-key: ${S3_ACCESS_KEY:}
+      secret-key: ${S3_SECRET_KEY:}
+      path-style-access-enabled: ${S3_PATH_STYLE_ACCESS_ENABLED:true}
+    local:
+      root-path: ${LOCAL_STORAGE_ROOT:./var/storage}
+      base-url: ${LOCAL_STORAGE_BASE_URL:http://localhost:8080}
+      signing-secret: ${LOCAL_STORAGE_SIGNING_SECRET:creative-saas-local-asset-url-secret}
+    foundation:
+      default-provider: ${STORAGE_FOUNDATION_PROVIDER:${STORAGE_PROVIDER:R2}}
+      default-bucket: ${STORAGE_FOUNDATION_BUCKET:${STORAGE_BUCKET:${R2_BUCKET:creative-saas-assets}}}
+      default-cdn-base-url: ${STORAGE_FOUNDATION_CDN_BASE_URL:${R2_PUBLIC_BASE_URL:}}
+      r2:
+        endpoint: ${R2_ENDPOINT:}
+        account-id: ${R2_ACCOUNT_ID:}
+        region: ${R2_REGION:auto}
+        bucket: ${R2_BUCKET:${STORAGE_BUCKET:creative-saas-assets}}
+        public-base-url: ${R2_PUBLIC_BASE_URL:}
+  prompt:
+    rate-limit:
+      max-requests-per-user: ${PROMPT_RATE_LIMIT_USER:60}
+      max-requests-per-workspace: ${PROMPT_RATE_LIMIT_WORKSPACE:300}
+      max-requests-per-ip: ${PROMPT_RATE_LIMIT_IP:120}
+      window: ${PROMPT_RATE_LIMIT_WINDOW:1h}
+  generation:
+    image-provider: ${GENERATION_IMAGE_PROVIDER:DISABLED}
+    video-provider: ${GENERATION_VIDEO_PROVIDER:GENERIC_VIDEO}
+    max-attempts: ${GENERATION_MAX_ATTEMPTS:3}
+    request-timeout: ${GENERATION_PROVIDER_TIMEOUT:60s}
+    queue:
+      provider: ${GENERATION_QUEUE_PROVIDER:KAFKA}
+      worker-enabled: ${GENERATION_WORKER_ENABLED:false}
+      name: ${GENERATION_QUEUE_NAME:creative.generation.requested}
+    rate-limit:
+      max-requests-per-user: ${GENERATION_RATE_LIMIT_USER:30}
+      max-requests-per-workspace: ${GENERATION_RATE_LIMIT_WORKSPACE:150}
+      max-requests-per-ip: ${GENERATION_RATE_LIMIT_IP:60}
+      window: ${GENERATION_RATE_LIMIT_WINDOW:1h}
+    open-ai:
+      base-url: ${OPENAI_IMAGE_BASE_URL:https://api.openai.com}
+      image-path: ${OPENAI_IMAGE_PATH:/v1/images/generations}
+      api-key: ${OPENAI_API_KEY:}
+      model: ${OPENAI_IMAGE_MODEL:gpt-image-1.5}
+      organization: ${OPENAI_ORGANIZATION:}
+      project: ${OPENAI_PROJECT:}
+    stability:
+      base-url: ${STABILITY_BASE_URL:https://api.stability.ai}
+      generation-path: ${STABILITY_IMAGE_PATH:/v2beta/stable-image/generate/core}
+      api-key: ${STABILITY_API_KEY:}
+      model: ${STABILITY_IMAGE_MODEL:stable-image-core}
+  ai:
+    text:
+      provider: ${TEXT_AI_PROVIDER:DISABLED}
+      request-timeout: ${TEXT_AI_REQUEST_TIMEOUT:20s}
+      open-ai:
+        base-url: ${OPENAI_BASE_URL:https://api.openai.com}
+        chat-path: ${OPENAI_CHAT_PATH:/v1/chat/completions}
+        api-key: ${OPENAI_API_KEY:}
+        model: ${OPENAI_MODEL:gpt-4.1-mini}
+        organization: ${OPENAI_ORGANIZATION:}
+        project: ${OPENAI_PROJECT:}
+    generation:
+      image-provider: ${AI_GENERATION_IMAGE_PROVIDER:DISABLED}
+      video-provider: ${AI_GENERATION_VIDEO_PROVIDER:DISABLED}
+      request-timeout: ${AI_GENERATION_REQUEST_TIMEOUT:45s}
+      kafka:
+        consumer-enabled: ${AI_GENERATION_KAFKA_CONSUMER_ENABLED:true}
+        consumer-group: ${AI_GENERATION_KAFKA_CONSUMER_GROUP:${spring.application.name}-ai-generation}
+      open-ai:
+        enabled: ${AI_OPENAI_ENABLED:false}
+        base-url: ${AI_OPENAI_BASE_URL:https://api.openai.com}
+        image-path: ${AI_OPENAI_IMAGE_PATH:/v1/images/generations}
+        api-key: ${AI_OPENAI_API_KEY:}
+        model: ${AI_OPENAI_MODEL:gpt-image-1}
+        organization: ${AI_OPENAI_ORGANIZATION:}
+        project: ${AI_OPENAI_PROJECT:}
+      gemini:
+        enabled: ${AI_GEMINI_ENABLED:false}
+        base-url: ${AI_GEMINI_BASE_URL:https://generativelanguage.googleapis.com}
+        image-path: ${AI_GEMINI_IMAGE_PATH:/v1beta/models/gemini-2.0-flash-exp:generateContent}
+        api-key: ${AI_GEMINI_API_KEY:}
+        model: ${AI_GEMINI_MODEL:gemini-2.0-flash-exp}
+      mock:
+        enabled: ${AI_MOCK_ENABLED:true}
+        model: ${AI_MOCK_MODEL:mock-ai-v1}
+        deterministic-prefix: ${AI_MOCK_DETERMINISTIC_PREFIX:lebhas-mock}
+      job:
+        max-attempts: ${AI_GENERATION_JOB_MAX_ATTEMPTS:3}
+        emit-failure-metadata: ${AI_GENERATION_JOB_EMIT_FAILURE_METADATA:true}
+    redis:
+      job-state-ttl: ${AI_REDIS_JOB_STATE_TTL:12h}
+      progress-ttl: ${AI_REDIS_PROGRESS_TTL:12h}
+      prompt-response-ttl: ${AI_REDIS_PROMPT_RESPONSE_TTL:24h}
+      duplicate-generation-lock-ttl: ${AI_REDIS_DUPLICATE_LOCK_TTL:10m}
+      credit-reservation-lock-ttl: ${AI_REDIS_CREDIT_LOCK_TTL:30s}
+      retry-throttle-window: ${AI_REDIS_RETRY_WINDOW:15m}
+      retry-throttle-limit: ${AI_REDIS_RETRY_LIMIT:5}
+      provider-rate-limit-window: ${AI_REDIS_PROVIDER_WINDOW:1m}
+      provider-rate-limit: ${AI_REDIS_PROVIDER_LIMIT:60}
+
+logging:
+  pattern:
+    console: "%d{yyyy-MM-dd'T'HH:mm:ss.SSSXXX} level=%level service=${spring.application.name:-application} correlationId=%X{correlationId:-} workspaceId=%X{workspaceId:-} thread=%thread logger=%logger{36} message=%msg%n"
+  level:
+    root: INFO
+    com.lebhas.creativesaas: INFO
+    org.springframework.security: INFO
+
+---
+spring:
+  config:
+    activate:
+      on-profile: local
+  datasource:
+    url: jdbc:postgresql://${POSTGRES_HOST:localhost}:${POSTGRES_PORT:5432}/${POSTGRES_DB:creative_saas}
+  jpa:
+    show-sql: false
+
+logging:
+  level:
+    com.lebhas.creativesaas: DEBUG
+
+---
+spring:
+  config:
+    activate:
+      on-profile: dev
+  datasource:
+    hikari:
+      maximum-pool-size: ${DB_POOL_MAX_SIZE:10}
+
+logging:
+  level:
+    com.lebhas.creativesaas: DEBUG
+
+---
+spring:
+  config:
+    activate:
+      on-profile: staging
+  datasource:
+    hikari:
+      maximum-pool-size: ${DB_POOL_MAX_SIZE:20}
+
+logging:
+  level:
+    com.lebhas.creativesaas: INFO
+
+---
+spring:
+  config:
+    activate:
+      on-profile: production
+  datasource:
+    url: jdbc:postgresql://${POSTGRES_HOST}:${POSTGRES_PORT:5432}/${POSTGRES_DB}
+    username: ${POSTGRES_USERNAME}
+    password: ${POSTGRES_PASSWORD}
+    hikari:
+      maximum-pool-size: ${DB_POOL_MAX_SIZE:30}
+      minimum-idle: ${DB_POOL_MIN_IDLE:5}
+  data:
+    redis:
+      host: ${REDIS_HOST}
+      port: ${REDIS_PORT:6379}
+      password: ${REDIS_PASSWORD}
+
+logging:
+  level:
+    root: INFO
+    com.lebhas.creativesaas: INFO
+    org.springframework.security: WARN

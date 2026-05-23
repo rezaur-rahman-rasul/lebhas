@@ -1,0 +1,32 @@
+<app-page-header
+  eyebrow="Prompt intelligence"
+  title="Prompt templates"
+  description="Workspace prompt template library route. Template management UI will load here in the next milestone."
+>
+  <a routerLink="/projects" class="text-sm font-medium text-brand-600 hover:text-brand-700">Projects</a>
+  @if (canManageTemplates()) {
+    <app-badge tone="brand">Manage</app-badge>
+  } @else {
+    <app-badge tone="neutral">View only</app-badge>
+  }
+</app-page-header>
+
+@if (!canViewPromptTemplates()) {
+  <app-empty-state
+    class="mt-6 block"
+    icon="circle-alert"
+    title="Template access required"
+    description="This account does not have permission to view prompt templates."
+  />
+} @else {
+  <section class="mt-6 rounded-2xl border border-border bg-panel p-6 shadow-sm">
+    <p class="text-sm text-muted">
+      Template library shell is wired.
+      @if (canManageTemplates()) {
+        Create and edit actions will appear here.
+      } @else {
+        You have read-only template access.
+      }
+    </p>
+  </section>
+}

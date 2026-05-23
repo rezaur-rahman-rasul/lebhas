@@ -1,0 +1,43 @@
+<app-card>
+  <div class="space-y-4">
+    <div class="flex flex-wrap items-center gap-2">
+      <app-badge tone="neutral">Assets {{ assets().length }}</app-badge>
+    </div>
+
+    @if (assets().length) {
+      <div class="space-y-3">
+        @for (asset of assets(); track asset.id) {
+          <div class="flex items-center gap-3 rounded-md border border-border bg-white px-3 py-3">
+            @if (isImageAsset(asset) && (asset.thumbnailUrl || asset.previewUrl || asset.publicUrl)) {
+              <img
+                class="h-12 w-12 rounded-md object-cover"
+                [src]="asset.thumbnailUrl || asset.previewUrl || asset.publicUrl || ''"
+                [alt]="asset.originalFileName"
+              />
+            } @else {
+              <div class="grid h-12 w-12 place-items-center rounded-md bg-slate-100 text-slate-600">
+                <app-icon [name]="asset.fileType === 'VIDEO' ? 'video' : 'image'" [size]="18" />
+              </div>
+            }
+            <div class="min-w-0 flex-1">
+              <p class="truncate text-sm font-medium text-ink">{{ asset.originalFileName }}</p>
+              <p class="mt-1 text-xs text-muted">{{ asset.assetCategory }} - {{ formatFileSize(asset.fileSize) }}</p>
+            </div>
+            @if (removable()) {
+              <button
+                type="button"
+                class="rounded-md p-2 text-muted hover:bg-slate-100 hover:text-ink"
+                aria-label="Remove selected asset"
+                (click)="assetRemoved.emit(asset.id)"
+              >
+                <app-icon name="x" [size]="16" />
+              </button>
+            }
+          </div>
+        }
+      </div>
+    } @else {
+      <p class="text-sm leading-6 text-muted">No assets selected. Add product or brand assets in the form.</p>
+    }
+  </div>
+</app-card>

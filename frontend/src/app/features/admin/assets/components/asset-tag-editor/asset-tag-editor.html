@@ -1,0 +1,48 @@
+<section class="rounded-2xl border border-border p-4">
+  <div class="flex flex-wrap items-center justify-between gap-3">
+    <div>
+      <h3 class="text-sm font-semibold text-ink">Tags</h3>
+      <p class="mt-1 text-sm text-muted">Group assets for campaigns, channels, or production stages.</p>
+    </div>
+
+    @if (!readonly()) {
+      <app-button size="sm" icon="save" [loading]="saving()" (click)="saveTags()">
+        Save tags
+      </app-button>
+    }
+  </div>
+
+  <div class="mt-4 flex flex-wrap gap-2">
+    @if (localTags().length) {
+      @for (tag of localTags(); track tag) {
+        <span class="inline-flex items-center gap-2 rounded-full bg-brand-50 px-3 py-1 text-sm font-medium text-brand-700">
+          {{ tag }}
+          @if (!readonly()) {
+            <button type="button" class="rounded-full text-brand-700 hover:text-brand-900" (click)="removeTag(tag)">
+              <app-icon name="x" [size]="14" />
+            </button>
+          }
+        </span>
+      }
+    } @else {
+      <p class="text-sm text-muted">No tags applied yet.</p>
+    }
+  </div>
+
+  @if (!readonly()) {
+    <div class="mt-4 flex flex-col gap-3 sm:flex-row">
+      <input
+        type="text"
+        [formControl]="tagControl"
+        placeholder="Add a tag"
+        class="h-11 flex-1 rounded-lg border border-border bg-white px-3 text-sm text-ink outline-none transition placeholder:text-slate-400 focus:border-brand-500 focus:ring-2 focus:ring-brand-100"
+        (keydown.enter)="$event.preventDefault(); addTag()"
+      />
+      <app-button type="button" variant="secondary" icon="tag" (click)="addTag()">Add tag</app-button>
+    </div>
+
+    @if (errorMessage()) {
+      <p class="mt-2 text-sm text-alert-600">{{ errorMessage() }}</p>
+    }
+  }
+</section>

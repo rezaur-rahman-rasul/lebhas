@@ -1,0 +1,136 @@
+<app-page-header
+  eyebrow="AI Workspace"
+  title="Prompt builder"
+  description="Build campaign-ready prompt instructions with workspace, brand, and asset context before future generation flows."
+>
+  <app-badge [tone]="roleTone()">{{ roleLabel() }}</app-badge>
+  <app-badge tone="neutral">{{ workspaceLabel() }}</app-badge>
+</app-page-header>
+
+@if (!store.hasWorkspaceContext()) {
+  <div class="mt-6">
+    <app-empty-state
+      icon="building-2"
+      title="Workspace context required"
+      description="Select a workspace before opening prompt intelligence."
+    />
+  </div>
+} @else if (!store.canUsePromptBuilder()) {
+  <div class="mt-6">
+    <app-empty-state
+      icon="circle-alert"
+      title="Prompt access is not available"
+      description="This session does not have permission to use prompt intelligence."
+    />
+  </div>
+} @else {
+  @if (store.promptError()) {
+    <div class="mt-6 rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
+      {{ store.promptError() }}
+    </div>
+  }
+
+  <section class="mt-6 grid gap-6 2xl:grid-cols-[minmax(0,1.3fr)_minmax(20rem,0.9fr)]">
+    <div class="space-y-6">
+      <app-prompt-editor
+        [editorForm]="builderForm"
+        [templates]="store.templates()"
+        [canUseTemplates]="store.canViewTemplates()"
+        [selectedAssetCount]="store.selectedAssetCount()"
+      />
+
+      <app-asset-context-picker
+        [assets]="store.availableAssets()"
+        [selectedAssets]="store.selectedAssets()"
+        [loading]="store.promptLoading() && !store.availableAssets().length"
+        (searchSubmitted)="searchAssets($event)"
+        (assetToggled)="toggleAsset($event)"
+        (assetRemoved)="removeAsset($event)"
+      />
+    </div>
+
+    <div class="space-y-6">
+      <app-prompt-toolbar
+        [loading]="store.promptLoading()"
+        [disabled]="!store.canEnhancePrompt()"
+        (actionTriggered)="runAction($event)"
+      />
+
+      <app-brand-context-card
+        [brandProfile]="store.brandProfile()"
+        [enabled]="builderForm.controls.useBrandContext.value"
+        [disabled]="store.promptLoading()"
+        (toggled)="toggleBrandContext($event)"
+      />
+
+      @if (store.enhancedPrompt()) {
+        <app-card>
+          <div class="space-y-4">
+            <div class="flex flex-wrap items-center gap-2">
+              <app-badge tone="brand">Enhanced prompt</app-badge>
+              @if (store.enhancedPrompt()?.aiProvider) {
+                <app-badge tone="neutral">{{ store.enhancedPrompt()?.aiProvider }}</app-badge>
+              }
+              @if (store.enhancedPrompt()?.tokenUsage !== null) {
+                <app-badge tone="neutral">{{ store.enhancedPrompt()?.tokenUsage }} tokens</app-badge>
+              }
+            </div>
+            <p class="whitespace-pre-line text-sm leading-6 text-ink">
+              {{ store.enhancedPrompt()?.enhancedPrompt }}
+            </p>
+            @if (store.enhancedPrompt()?.reasoningSummary) {
+              <div class="rounded-md border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-muted">
+                {{ store.enhancedPrompt()?.reasoningSummary }}
+              </div>
+            }
+            @if (store.enhancedPrompt()?.suggestedMissingFields?.length) {
+              <div class="flex flex-wrap gap-2">
+                @for (field of store.enhancedPrompt()!.suggestedMissingFields; track field) {
+                  <app-badge tone="blue">{{ field }}</app-badge>
+                }
+              </div>
+            }
+          </div>
+        </app-card>
+      }
+
+      @if (store.rewriteResult()?.variations?.length) {
+        <app-card>
+          <div class="space-y-4">
+            <div class="flex flex-wrap items-center gap-2">
+              <app-badge tone="blue">Rewrite options</app-badge>
+              @if (store.rewriteResult()?.aiModel) {
+                <app-badge tone="neutral">{{ store.rewriteResult()?.aiModel }}</app-badge>
+              }
+            </div>
+            <div class="space-y-3">
+              @for (variation of store.rewriteResult()!.variations; track variation) {
+                <div class="rounded-md border border-slate-200 bg-slate-50 px-4 py-4">
+                  <p class="text-sm leading-6 text-ink">{{ variation }}</p>
+                </div>
+              }
+            </div>
+          </div>
+        </app-card>
+      }
+
+      <app-prompt-suggestion-panel
+        [sections]="suggestionSections()"
+        [loading]="store.promptLoading()"
+        [reasoningSummary]="store.suggestions()?.reasoningSummary ?? null"
+        (copyRequested)="copySuggestion($event)"
+        (insertRequested)="insertSuggestion($event)"
+        (replaceRequested)="replacePrompt($event)"
+        (savedRequested)="saveSuggestionSelection($event)"
+      />
+
+      @if (!store.promptLoading() && !store.enhancedPrompt() && !store.rewriteResult() && !store.hasSuggestions()) {
+        <app-empty-state
+          icon="wand-sparkles"
+          title="Run prompt intelligence"
+          description="Enhancement, rewrite, and suggestion results will appear in this panel after the prompt is ready."
+        />
+      }
+    </div>
+  </section>
+}

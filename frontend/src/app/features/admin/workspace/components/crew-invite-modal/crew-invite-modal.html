@@ -1,0 +1,64 @@
+
+    <app-modal-shell
+      [open]="open()"
+      title="Invite crew"
+      description="Send a workspace invite foundation and preconfigure the member's permissions."
+      (closed)="closed.emit()"
+    >
+      <form class="space-y-5" [formGroup]="form" (ngSubmit)="submit()">
+        <div class="flex items-center justify-between rounded-lg border border-border bg-slate-50 px-4 py-3">
+          <div>
+            <p class="text-sm font-medium text-ink">Role</p>
+            <p class="mt-1 text-sm text-muted">Crew members inherit workspace-scoped creative access.</p>
+          </div>
+          <app-badge tone="blue">CREW</app-badge>
+        </div>
+
+        <div class="grid gap-4 sm:grid-cols-2">
+          <label class="block">
+            <span class="mb-2 block text-sm font-medium text-ink">First name</span>
+            <input
+              type="text"
+              formControlName="firstName"
+              placeholder="Optional placeholder"
+              [class]="inputClasses()"
+            />
+            <p class="mt-2 text-xs text-muted">
+              This stays local until the invite contract expands beyond email and permissions.
+            </p>
+            @if (fieldError('firstName')) {
+              <span class="mt-2 block text-sm text-alert-600">{{ fieldError('firstName') }}</span>
+            }
+          </label>
+
+          <label class="block">
+            <span class="mb-2 block text-sm font-medium text-ink">Email</span>
+            <input
+              type="email"
+              formControlName="email"
+              autocomplete="email"
+              placeholder="creator@company.com"
+              [class]="inputClasses()"
+            />
+            @if (fieldError('email')) {
+              <span class="mt-2 block text-sm text-alert-600">{{ fieldError('email') }}</span>
+            }
+          </label>
+        </div>
+
+        <app-crew-permission-panel
+          [selectedPermissions]="form.controls.permissions.value"
+          [disabled]="submitting()"
+          [error]="fieldError('permissions')"
+          (selectionChange)="updatePermissions($event)"
+        />
+
+        <div class="flex flex-col-reverse gap-3 sm:flex-row sm:justify-end">
+          <app-button variant="secondary" (click)="closed.emit()">Cancel</app-button>
+          <app-button type="submit" icon="user-plus" [loading]="submitting()">
+            Send invite
+          </app-button>
+        </div>
+      </form>
+    </app-modal-shell>
+  

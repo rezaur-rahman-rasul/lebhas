@@ -1,0 +1,19 @@
+spring:
+  application:
+    name: gateway-service
+  profiles:
+    active: ${SPRING_PROFILES_ACTIVE:local}
+  config:
+    import: optional:classpath:application-common.yaml
+
+server:
+  port: ${SERVER_PORT:8080}
+
+platform:
+  gateway:
+    connect-timeout: ${GATEWAY_CONNECT_TIMEOUT:5s}
+    read-timeout: ${GATEWAY_READ_TIMEOUT:30s}
+    services:
+      auth: ${AUTH_SERVICE_BASE_URL:http://localhost:8081}
+      workspace: ${WORKSPACE_SERVICE_BASE_URL:http://localhost:8083}
+      creative: ${CREATIVE_SERVICE_BASE_URL:http://localhost:8084}

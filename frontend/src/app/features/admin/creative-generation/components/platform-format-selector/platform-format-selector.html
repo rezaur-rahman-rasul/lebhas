@@ -1,0 +1,153 @@
+<app-card>
+  <div class="space-y-5" [formGroup]="form()">
+    <div>
+      <h3 class="text-base font-semibold text-ink">Placement and format</h3>
+      <p class="mt-1 text-sm text-muted">Set the channel, objective, language, file format, and output dimensions.</p>
+    </div>
+
+    <div class="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
+      <div class="space-y-2">
+        <label class="text-sm font-medium text-ink" for="generationPlatform">Platform</label>
+        <select
+          id="generationPlatform"
+          formControlName="platform"
+          class="h-11 w-full rounded-md border border-border bg-white px-3 text-sm text-ink outline-none transition focus:border-brand-500 focus:ring-2 focus:ring-brand-100"
+          [disabled]="disabled()"
+        >
+          @for (option of platformOptions; track option.value) {
+            <option [value]="option.value">{{ option.label }}</option>
+          }
+        </select>
+        @if (form().get('platform')?.touched && form().get('platform')?.hasError('required')) {
+          <p class="text-sm text-red-600">Platform is required.</p>
+        }
+        @if (form().get('platform')?.touched && form().get('platform')?.hasError('unsupportedSelection')) {
+          <p class="text-sm text-red-600">Select a supported platform.</p>
+        }
+      </div>
+
+      <div class="space-y-2">
+        <label class="text-sm font-medium text-ink" for="generationObjective">Campaign objective</label>
+        <select
+          id="generationObjective"
+          formControlName="campaignObjective"
+          class="h-11 w-full rounded-md border border-border bg-white px-3 text-sm text-ink outline-none transition focus:border-brand-500 focus:ring-2 focus:ring-brand-100"
+          [disabled]="disabled()"
+        >
+          @for (option of objectiveOptions; track option.value) {
+            <option [value]="option.value">{{ option.label }}</option>
+          }
+        </select>
+        @if (form().get('campaignObjective')?.touched && form().get('campaignObjective')?.hasError('required')) {
+          <p class="text-sm text-red-600">Campaign objective is required.</p>
+        }
+        @if (form().get('campaignObjective')?.touched && form().get('campaignObjective')?.hasError('unsupportedSelection')) {
+          <p class="text-sm text-red-600">Select a supported campaign objective.</p>
+        }
+      </div>
+
+      <div class="space-y-2">
+        <label class="text-sm font-medium text-ink" for="generationLanguage">Language</label>
+        <select
+          id="generationLanguage"
+          formControlName="language"
+          class="h-11 w-full rounded-md border border-border bg-white px-3 text-sm text-ink outline-none transition focus:border-brand-500 focus:ring-2 focus:ring-brand-100"
+          [disabled]="disabled()"
+        >
+          @for (option of languageOptions; track option.value) {
+            <option [value]="option.value">{{ option.label }}</option>
+          }
+        </select>
+        @if (form().get('language')?.touched && form().get('language')?.hasError('required')) {
+          <p class="text-sm text-red-600">Language is required.</p>
+        }
+        @if (form().get('language')?.touched && form().get('language')?.hasError('unsupportedSelection')) {
+          <p class="text-sm text-red-600">Select a supported language.</p>
+        }
+      </div>
+
+      <div class="space-y-2">
+        <label class="text-sm font-medium text-ink" for="outputFormat">Output format</label>
+        <select
+          id="outputFormat"
+          formControlName="outputFormat"
+          class="h-11 w-full rounded-md border border-border bg-white px-3 text-sm text-ink outline-none transition focus:border-brand-500 focus:ring-2 focus:ring-brand-100"
+          [disabled]="disabled()"
+        >
+          @for (option of outputFormatOptions; track option.value) {
+            <option [value]="option.value">{{ option.label }}</option>
+          }
+        </select>
+        @if (form().get('outputFormat')?.touched && form().get('outputFormat')?.hasError('required')) {
+          <p class="text-sm text-red-600">Output format is required.</p>
+        }
+        @if (form().get('outputFormat')?.touched && form().get('outputFormat')?.hasError('unsupportedSelection')) {
+          <p class="text-sm text-red-600">Select a supported output format.</p>
+        }
+      </div>
+
+      <div class="space-y-2">
+        <label class="text-sm font-medium text-ink" for="width">Width</label>
+        <input
+          id="width"
+          type="number"
+          formControlName="width"
+          min="256"
+          max="4096"
+          class="h-11 w-full rounded-md border border-border bg-white px-3 text-sm text-ink outline-none transition focus:border-brand-500 focus:ring-2 focus:ring-brand-100"
+          [disabled]="disabled()"
+        />
+      </div>
+
+      <div class="space-y-2">
+        <label class="text-sm font-medium text-ink" for="height">Height</label>
+        <input
+          id="height"
+          type="number"
+          formControlName="height"
+          min="256"
+          max="4096"
+          class="h-11 w-full rounded-md border border-border bg-white px-3 text-sm text-ink outline-none transition focus:border-brand-500 focus:ring-2 focus:ring-brand-100"
+          [disabled]="disabled()"
+        />
+      </div>
+    </div>
+
+    <div class="flex flex-wrap gap-2">
+      @for (size of imageSizeOptions; track size.label) {
+        <button
+          type="button"
+          class="rounded-md border border-border bg-white px-3 py-2 text-sm font-medium text-ink transition hover:bg-slate-50"
+          [disabled]="disabled()"
+          (click)="sizeSelected.emit({ width: size.width, height: size.height })"
+        >
+          {{ size.label }}
+        </button>
+      }
+    </div>
+
+    <div class="space-y-2">
+      <label class="text-sm font-medium text-ink" for="duration">Video duration foundation</label>
+      <input
+        id="duration"
+        type="number"
+        formControlName="duration"
+        min="1"
+        max="90"
+        class="h-11 w-full rounded-md border border-border bg-white px-3 text-sm text-ink outline-none transition focus:border-brand-500 focus:ring-2 focus:ring-brand-100"
+        placeholder="Required only for video foundations"
+        [disabled]="disabled()"
+      />
+      @if (form().hasError('durationRequired') && form().get('duration')?.touched) {
+        <p class="text-sm text-red-600">Duration is required for video generation foundations.</p>
+      }
+    </div>
+
+    @if (form().hasError('unsupportedOutputFormat')) {
+      <p class="text-sm text-red-600">Selected output format is not supported for this creative type.</p>
+    }
+    @if (form().hasError('imageDimensionsRequired')) {
+      <p class="text-sm text-red-600">Width and height are required for image creatives.</p>
+    }
+  </div>
+</app-card>

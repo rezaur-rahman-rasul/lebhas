@@ -1,0 +1,7 @@
+.hero-card {
+  transition: transform 180ms ease, box-shadow 180ms ease;
+}
+
+.hero-card:hover {
+  transform: translateY(-4px);
+}

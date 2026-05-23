@@ -1,0 +1,41 @@
+<app-card>
+  <div class="space-y-4" [formGroup]="form()">
+    <div>
+      <h3 class="text-base font-semibold text-ink">Creative type</h3>
+      <p class="mt-1 text-sm text-muted">Static image is production-ready; video types are request foundations.</p>
+    </div>
+
+    <div class="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
+      @for (option of creativeTypeOptions; track option.value) {
+        <label
+          class="flex cursor-pointer gap-3 rounded-lg border px-4 py-4 transition"
+          [class.border-brand-300]="form().get('creativeType')?.value === option.value"
+          [class.bg-brand-50]="form().get('creativeType')?.value === option.value"
+          [class.border-border]="form().get('creativeType')?.value !== option.value"
+        >
+          <input
+            class="sr-only"
+            type="radio"
+            formControlName="creativeType"
+            [value]="option.value"
+            [disabled]="disabled()"
+          />
+          <span class="grid h-10 w-10 shrink-0 place-items-center rounded-md bg-white text-brand-700 shadow-sm">
+            <app-icon [name]="option.icon" [size]="18" />
+          </span>
+          <span class="min-w-0">
+            <span class="block text-sm font-semibold text-ink">{{ option.label }}</span>
+            <span class="mt-1 block text-sm leading-5 text-muted">{{ option.description }}</span>
+          </span>
+        </label>
+      }
+    </div>
+
+    @if (form().get('creativeType')?.touched && form().get('creativeType')?.hasError('required')) {
+      <p class="text-sm text-red-600">Creative type is required.</p>
+    }
+    @if (form().get('creativeType')?.touched && form().get('creativeType')?.hasError('unsupportedSelection')) {
+      <p class="text-sm text-red-600">Select a supported creative type.</p>
+    }
+  </div>
+</app-card>

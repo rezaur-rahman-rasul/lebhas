@@ -1,0 +1,198 @@
+<app-page-header
+  eyebrow="Workspace"
+  title="Asset library"
+  [description]="description()"
+>
+  <app-badge [tone]="roleTone()">{{ roleLabel() }}</app-badge>
+  <app-badge tone="neutral">{{ assetCountLabel() }}</app-badge>
+
+  @if (store.canUploadAssets()) {
+    <app-button icon="cloud-upload" data-testid="open-asset-uploader" (click)="openUploader()">
+      Upload asset
+    </app-button>
+  }
+</app-page-header>
+
+@if (!hasWorkspaceContext()) {
+  <div class="mt-6">
+    <app-empty-state
+      icon="folder-kanban"
+      title="Workspace context required"
+      description="Select or switch into a workspace before reviewing its asset library."
+    />
+  </div>
+} @else if (!store.canViewAssets()) {
+  <div class="mt-6">
+    <app-empty-state
+      icon="circle-alert"
+      title="Asset access is not available"
+      description="This session does not currently have permission to view workspace assets."
+    />
+  </div>
+} @else {
+  @if (store.assetError()) {
+    <div class="mt-6 rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
+      {{ store.assetError() }}
+    </div>
+  }
+
+  <section class="mt-6 grid gap-6 xl:grid-cols-[18rem_minmax(0,1fr)]">
+    <app-asset-folder-panel
+      [folders]="store.folders()"
+      [selectedFolder]="store.selectedFolder()"
+      [canManageFolders]="store.canManageFolders()"
+      [loading]="store.assetLoading()"
+      (folderSelected)="selectFolder($event)"
+      (folderCreated)="createFolder($event)"
+      (folderRenamed)="renameFolder($event)"
+      (folderDeleted)="deleteFolder($event)"
+    />
+
+    <div class="space-y-4">
+      <app-asset-filter-bar
+        [filters]="store.filters()"
+        [viewMode]="store.viewMode()"
+        [selectedFolderName]="store.selectedFolderName()"
+        [disabled]="store.assetLoading()"
+        (filtersApplied)="applyFilters($event)"
+        (filtersReset)="resetFilters()"
+        (viewModeChanged)="store.setViewMode($event)"
+      />
+
+      @if (store.assetLoading() && !store.hasAssets()) {
+        <div class="grid gap-4 md:grid-cols-2 2xl:grid-cols-3">
+          @for (item of skeletonItems; track item) {
+            <div class="h-72 animate-pulse rounded-2xl border border-border bg-white"></div>
+          }
+        </div>
+      } @else if (store.hasAssets()) {
+        @if (store.isGridView()) {
+          <app-asset-grid
+            [assets]="store.filteredAssets()"
+            [canDownload]="store.canDownloadAssets()"
+            [canDelete]="store.canDeleteAssets()"
+            [deletingAssetId]="pendingDeleteAsset()?.id ?? null"
+            (previewRequested)="openPreview($event)"
+            (downloadRequested)="downloadAsset($event)"
+            (deleteRequested)="confirmDelete($event)"
+            (detailRequested)="openAssetDetail($event)"
+          />
+        } @else {
+          <app-asset-list
+            [assets]="store.filteredAssets()"
+            [canDownload]="store.canDownloadAssets()"
+            [canDelete]="store.canDeleteAssets()"
+            [deletingAssetId]="pendingDeleteAsset()?.id ?? null"
+            (previewRequested)="openPreview($event)"
+            (downloadRequested)="downloadAsset($event)"
+            (deleteRequested)="confirmDelete($event)"
+            (detailRequested)="openAssetDetail($event)"
+          />
+        }
+
+        @if (store.pagination().totalPages > 1) {
+          <div class="flex flex-col gap-3 rounded-2xl border border-border bg-white px-4 py-3 shadow-sm sm:flex-row sm:items-center sm:justify-between">
+            <p class="text-sm text-muted">
+              Page {{ store.pagination().page + 1 }} of {{ store.pagination().totalPages }}
+            </p>
+
+            <div class="flex gap-2">
+              <app-button
+                size="sm"
+                variant="secondary"
+                [disabled]="store.pagination().first || store.assetLoading()"
+                (click)="goToPreviousPage()"
+              >
+                Previous
+              </app-button>
+              <app-button
+                size="sm"
+                variant="secondary"
+                [disabled]="store.pagination().last || store.assetLoading()"
+                (click)="goToNextPage()"
+              >
+                Next
+              </app-button>
+            </div>
+          </div>
+        }
+      } @else if (store.assetError()) {
+        <app-empty-state
+          icon="circle-alert"
+          title="Asset library could not be loaded"
+          [description]="store.assetError()!"
+        >
+          <app-button variant="secondary" icon="arrow-right" (click)="reloadLibrary()">
+            Try again
+          </app-button>
+        </app-empty-state>
+      } @else {
+        <app-empty-state
+          icon="image"
+          title="No assets yet"
+          description="Upload brand logos, product media, and raw files to start building a structured workspace library."
+        >
+          @if (store.canUploadAssets()) {
+            <app-button icon="cloud-upload" data-testid="open-asset-uploader" (click)="openUploader()">
+              Upload first asset
+            </app-button>
+          }
+        </app-empty-state>
+      }
+    </div>
+  </section>
+}
+
+<app-asset-uploader
+  [open]="uploaderOpen()"
+  [folders]="store.folders()"
+  [uploading]="store.assetLoading() && store.uploadProgress() !== null"
+  [uploadProgress]="store.uploadProgress()"
+  [fieldErrors]="uploadFieldErrors()"
+  (submitted)="submitUpload($event)"
+  (closed)="closeUploader()"
+  (uploadCancelled)="cancelUpload()"
+/>
+
+<app-asset-preview-drawer
+  [open]="previewOpen()"
+  [asset]="store.selectedAsset()"
+  [previewUrl]="previewUrl()"
+  [previewLoading]="previewLoading()"
+  [downloading]="downloadingAssetId() === store.selectedAsset()?.id"
+  [deleting]="pendingDeleteAsset()?.id === store.selectedAsset()?.id"
+  [canDownload]="store.canDownloadAssets()"
+  [canDelete]="store.canDeleteAssets()"
+  (closed)="closePreview()"
+  (previewRequested)="refreshPreview($event)"
+  (downloadRequested)="downloadAsset($event)"
+  (deleteRequested)="confirmDelete($event)"
+  (detailRequested)="openAssetDetail($event)"
+/>
+
+<app-modal-shell
+  [open]="deleteDialogOpen()"
+  title="Delete asset"
+  description="This removes the asset from the current workspace library."
+  (closed)="cancelDelete()"
+>
+  <div class="space-y-5">
+    <p class="text-sm leading-6 text-muted">
+      <span class="font-medium text-ink">{{ pendingDeleteAsset()?.originalFileName }}</span>
+      will no longer appear in search, folders, or previews.
+    </p>
+
+    <div class="flex justify-end gap-3">
+      <app-button type="button" variant="ghost" (click)="cancelDelete()">Cancel</app-button>
+      <app-button
+        type="button"
+        variant="danger"
+        icon="trash-2"
+        [loading]="store.assetLoading()"
+        (click)="deleteAsset()"
+      >
+        Delete asset
+      </app-button>
+    </div>
+  </div>
+</app-modal-shell>

@@ -1,0 +1,138 @@
+
+    <app-page-header
+      eyebrow="Team"
+      [title]="title()"
+      [description]="description()"
+    >
+      <app-badge tone="blue">CREW</app-badge>
+      @if (workspace()) {
+        <app-badge [tone]="statusTone()">{{ statusLabel() }}</app-badge>
+      }
+    </app-page-header>
+
+    @if (store.workspaceError()) {
+      <div class="mt-6 rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
+        {{ store.workspaceError() }}
+      </div>
+    }
+
+    @if (store.workspaceLoading() && !workspace()) {
+      <section class="mt-6 grid gap-4 md:grid-cols-3">
+        @for (item of skeletonCards; track item) {
+          <div class="h-32 animate-pulse rounded-lg border border-border bg-white"></div>
+        }
+      </section>
+      <div class="mt-6 h-72 animate-pulse rounded-lg border border-border bg-white"></div>
+    } @else if (workspace()) {
+      <section class="mt-6 grid gap-4 md:grid-cols-3">
+        <app-workspace-summary-card
+          label="Assigned workspace"
+          [value]="workspace()!.name"
+          description="Current workspace context for your crew session."
+          icon="building-2"
+        />
+        <app-workspace-summary-card
+          label="Permission set"
+          [value]="permissionCountLabel()"
+          description="Workspace-scoped permissions currently assigned to you."
+          icon="shield-check"
+          accent="blue"
+        />
+        <app-workspace-summary-card
+          label="Brand profile"
+          [value]="brandProfileLabel()"
+          description="Read-only summary of brand readiness for future creative workflows."
+          icon="badge-check"
+          accent="neutral"
+        />
+      </section>
+
+      <section class="mt-6 grid gap-4 xl:grid-cols-[1.05fr_0.95fr]">
+        <app-card>
+          <div class="flex items-center justify-between gap-3">
+            <div>
+              <h2 class="text-base font-semibold text-ink">Workspace summary</h2>
+              <p class="mt-1 text-sm text-muted">Read-only context for the assigned crew workspace.</p>
+            </div>
+            <app-badge tone="neutral">{{ languageLabel() }}</app-badge>
+          </div>
+
+          <dl class="mt-5 grid gap-4 sm:grid-cols-2">
+            <div class="rounded-lg border border-border p-4">
+              <dt class="text-sm text-muted">Industry</dt>
+              <dd class="mt-2 text-sm font-medium text-ink">{{ workspace()!.industry || 'Not set yet' }}</dd>
+            </div>
+            <div class="rounded-lg border border-border p-4">
+              <dt class="text-sm text-muted">Timezone</dt>
+              <dd class="mt-2 text-sm font-medium text-ink">{{ workspace()!.timezone }}</dd>
+            </div>
+          </dl>
+
+          <div class="mt-5">
+            <p class="text-sm font-medium text-ink">Permission summary</p>
+            <div class="mt-3 flex flex-wrap gap-2">
+              @for (permission of permissions(); track permission) {
+                <app-badge tone="blue">{{ permissionLabel(permission) }}</app-badge>
+              }
+            </div>
+          </div>
+
+          <div class="mt-5 rounded-lg border border-border bg-slate-50 p-4">
+            <p class="text-sm font-medium text-ink">Workspace description</p>
+            <p class="mt-2 text-sm leading-6 text-muted">
+              {{ workspace()!.description || 'No workspace description has been added yet.' }}
+            </p>
+          </div>
+        </app-card>
+
+        <app-card>
+          <div class="flex items-center justify-between gap-3">
+            <div>
+              <h2 class="text-base font-semibold text-ink">Brand profile summary</h2>
+              <p class="mt-1 text-sm text-muted">Read-only brand context prepared by the workspace admin.</p>
+            </div>
+            <app-badge [tone]="store.isBrandProfileComplete() ? 'brand' : 'neutral'">
+              {{ store.brandProfileCompletion() }}%
+            </app-badge>
+          </div>
+
+          <dl class="mt-5 space-y-4">
+            <div class="rounded-lg border border-border p-4">
+              <dt class="text-sm text-muted">Brand name</dt>
+              <dd class="mt-2 text-sm font-medium text-ink">{{ brandProfile()?.brandName || 'Not set yet' }}</dd>
+            </div>
+            <div class="rounded-lg border border-border p-4">
+              <dt class="text-sm text-muted">Target audience</dt>
+              <dd class="mt-2 text-sm leading-6 text-ink">
+                {{ brandProfile()?.targetAudience || 'Target audience has not been defined yet.' }}
+              </dd>
+            </div>
+            <div class="rounded-lg border border-border p-4">
+              <dt class="text-sm text-muted">Brand voice</dt>
+              <dd class="mt-2 text-sm leading-6 text-ink">
+                {{ brandProfile()?.brandVoice || 'Brand voice has not been defined yet.' }}
+              </dd>
+            </div>
+            <div class="rounded-lg border border-border p-4">
+              <dt class="text-sm text-muted">Preferred CTA</dt>
+              <dd class="mt-2 text-sm font-medium text-ink">
+                {{ brandProfile()?.preferredCTA || 'Not set yet' }}
+              </dd>
+            </div>
+            <div class="rounded-lg border border-border p-4">
+              <dt class="text-sm text-muted">Website</dt>
+              <dd class="mt-2 text-sm font-medium text-ink">{{ brandProfile()?.website || 'Not set yet' }}</dd>
+            </div>
+          </dl>
+        </app-card>
+      </section>
+    } @else {
+      <div class="mt-6">
+        <app-empty-state
+          icon="building-2"
+          title="Assigned workspace unavailable"
+          description="This crew session does not currently have an active workspace context."
+        />
+      </div>
+    }
+  

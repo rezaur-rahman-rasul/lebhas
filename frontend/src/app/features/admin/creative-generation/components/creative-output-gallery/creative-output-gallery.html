@@ -1,0 +1,25 @@
+@if (loading() && !outputs().length) {
+  <div class="grid gap-4 md:grid-cols-2 2xl:grid-cols-3">
+    @for (item of [0, 1, 2, 3, 4, 5]; track item) {
+      <div class="h-80 animate-pulse rounded-lg border border-border bg-white"></div>
+    }
+  </div>
+} @else if (outputs().length) {
+  <div class="grid gap-4 md:grid-cols-2 2xl:grid-cols-3">
+    @for (output of outputs(); track output.id) {
+      <app-creative-output-card
+        [output]="output"
+        [canDownload]="canDownload()"
+        (previewRequested)="previewRequested.emit($event)"
+        (downloadRequested)="downloadRequested.emit($event)"
+        (detailRequested)="detailRequested.emit($event)"
+      />
+    }
+  </div>
+} @else {
+  <app-empty-state
+    icon="image"
+    title="No outputs yet"
+    description="Generated creative outputs will appear here when a request completes."
+  />
+}

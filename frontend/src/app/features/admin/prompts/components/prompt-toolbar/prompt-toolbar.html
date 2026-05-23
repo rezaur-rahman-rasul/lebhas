@@ -1,0 +1,94 @@
+<app-card>
+  <div class="space-y-4">
+    <div>
+      <h3 class="text-sm font-semibold uppercase tracking-[0.12em] text-brand-700">
+        Prompt intelligence
+      </h3>
+      <p class="mt-1 text-sm text-muted">
+        Strengthen the prompt, explore variations, or ask for targeted marketing suggestions.
+      </p>
+    </div>
+
+    <div class="grid gap-3 sm:grid-cols-2">
+      <app-button
+        icon="wand-sparkles"
+        [fullWidth]="true"
+        [loading]="loading()"
+        [disabled]="disabled()"
+        (click)="trigger('enhance')"
+      >
+        Enhance prompt
+      </app-button>
+
+      <app-button
+        variant="secondary"
+        icon="sparkles"
+        [fullWidth]="true"
+        [disabled]="disabled() || loading()"
+        (click)="trigger('rewrite')"
+      >
+        Rewrite prompt
+      </app-button>
+    </div>
+
+    <div class="grid gap-2 sm:grid-cols-2 xl:grid-cols-3">
+      <app-button
+        size="sm"
+        variant="secondary"
+        [disabled]="disabled() || loading()"
+        (click)="trigger('suggestions')"
+      >
+        All suggestions
+      </app-button>
+      <app-button
+        size="sm"
+        variant="secondary"
+        [disabled]="disabled() || loading()"
+        (click)="trigger('headline')"
+      >
+        Headlines
+      </app-button>
+      <app-button
+        size="sm"
+        variant="secondary"
+        [disabled]="disabled() || loading()"
+        (click)="trigger('cta')"
+      >
+        CTA
+      </app-button>
+      <app-button
+        size="sm"
+        variant="secondary"
+        [disabled]="disabled() || loading()"
+        (click)="trigger('offer')"
+      >
+        Offers
+      </app-button>
+      <app-button
+        size="sm"
+        variant="secondary"
+        [disabled]="disabled() || loading()"
+        (click)="trigger('angle')"
+      >
+        Angles
+      </app-button>
+      <app-button
+        size="sm"
+        variant="secondary"
+        [disabled]="disabled() || loading()"
+        (click)="trigger('tone')"
+      >
+        Tone
+      </app-button>
+    </div>
+
+    <app-button
+      size="sm"
+      variant="ghost"
+      [disabled]="disabled() || loading()"
+      (click)="trigger('category')"
+    >
+      Business category suggestions
+    </app-button>
+  </div>
+</app-card>

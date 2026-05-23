@@ -1,0 +1,63 @@
+<section class="w-full">
+  <div class="flex items-start justify-between gap-4">
+    <div>
+  <p class="text-sm font-semibold uppercase tracking-[0.18em] text-brand-700">Lebhas Creative Maker</p>
+      <h2 class="mt-3 text-[2rem] font-semibold leading-tight text-slate-900">Log in to Lebhas</h2>
+      <p class="mt-2 text-sm leading-6 text-slate-500">
+        Choose a saved profile or continue with another team account.
+      </p>
+    </div>
+
+    <button
+      type="button"
+      class="grid h-11 w-11 shrink-0 place-items-center rounded-full border border-slate-200 text-slate-500 transition hover:border-slate-300 hover:bg-slate-50 hover:text-slate-700"
+      aria-label="Manage saved profiles"
+      (click)="manageProfiles.emit()"
+    >
+      <app-icon name="settings" [size]="18" />
+    </button>
+  </div>
+
+  <div class="mt-6 space-y-3">
+    @for (profile of profiles(); track profile.id) {
+      <button
+        type="button"
+        class="group flex w-full items-center gap-4 rounded-2xl border border-slate-200 px-4 py-4 text-left transition hover:-translate-y-0.5 hover:border-brand-200 hover:bg-brand-50/40"
+        [disabled]="loading()"
+        [attr.data-testid]="'remembered-profile-' + profile.id"
+        (click)="profileSelected.emit(profile)"
+      >
+        <app-avatar [name]="profile.name" [avatarUrl]="profile.avatarUrl" size="lg" />
+
+        <div class="min-w-0 flex-1">
+          <p class="truncate text-base font-semibold text-slate-900">{{ profile.name }}</p>
+          <p class="mt-1 truncate text-sm text-slate-500">{{ profile.email }}</p>
+        </div>
+
+        <app-icon
+          name="arrow-right"
+          className="text-slate-400 transition group-hover:text-brand-700"
+          [size]="18"
+        />
+      </button>
+    }
+  </div>
+
+  <div class="mt-6 grid gap-3 sm:grid-cols-2">
+    <button
+      type="button"
+      class="flex h-12 items-center justify-center rounded-xl border border-slate-200 px-4 text-sm font-semibold text-slate-700 transition hover:bg-slate-50"
+      data-testid="use-another-profile"
+      (click)="useAnotherProfile.emit()"
+    >
+      Use another profile
+    </button>
+
+    <a
+      routerLink="/register"
+      class="flex h-12 items-center justify-center rounded-xl bg-emerald-500 px-4 text-sm font-semibold text-white shadow-sm transition hover:bg-emerald-600"
+    >
+      Create new account
+    </a>
+  </div>
+</section>

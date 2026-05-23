@@ -1,0 +1,281 @@
+<app-page-header
+  eyebrow="Prompt intelligence"
+  title="Prompt builder"
+  description="Project-scoped prompt intelligence with workspace, brand, product, and asset context."
+>
+  <a routerLink="/projects" class="text-sm font-medium text-brand-600 hover:text-brand-700">Projects</a>
+  @if (project()) {
+    <a
+      [routerLink]="['/projects', projectId(), 'prompts', 'history']"
+      class="text-sm font-medium text-brand-600 hover:text-brand-700"
+    >
+      History
+    </a>
+  }
+  <app-badge [tone]="roleTone()">{{ roleLabel() }}</app-badge>
+  <app-badge tone="neutral">{{ workspaceLabel() }}</app-badge>
+</app-page-header>
+
+@if (!hasWorkspaceContext()) {
+  <div class="mt-6">
+    <app-prompt-empty-state
+      icon="building-2"
+      title="Workspace context required"
+      description="Select a workspace before opening the project prompt builder."
+    />
+  </div>
+} @else if (!canUsePromptBuilder()) {
+  <div class="mt-6">
+    <app-prompt-empty-state
+      icon="circle-alert"
+      title="Prompt builder access required"
+      description="This account does not have permission to use prompt intelligence."
+    />
+  </div>
+} @else if (initializing()) {
+  <div class="mt-6">
+    <app-ai-loading-state title="Loading project context" description="Resolving brand, product, project, and asset context." />
+  </div>
+} @else if (!hasProjectContext()) {
+  <div class="mt-6">
+    <app-prompt-empty-state
+      icon="folder-open"
+      title="Project context missing"
+      description="This project could not be found in the active workspace. Return to projects and open a valid campaign."
+    />
+  </div>
+} @else {
+  @if (promptStore.error()) {
+    <div class="mt-6 flex flex-col gap-3 rounded-lg border border-red-200 bg-red-50 px-4 py-3 sm:flex-row sm:items-center sm:justify-between">
+      <p class="text-sm text-red-700">{{ promptStore.error() }}</p>
+      <app-button type="button" variant="ghost" size="sm" (click)="clearError()">Dismiss</app-button>
+    </div>
+  }
+
+  <section class="mt-6 rounded-2xl border border-border bg-panel p-4 shadow-sm">
+    <p class="text-xs font-semibold uppercase tracking-[0.18em] text-muted">Workspace context</p>
+    <div class="mt-2 flex flex-wrap items-center gap-2">
+      <app-badge tone="brand">{{ workspaceLabel() }}</app-badge>
+      @if (project()) {
+        <app-badge tone="neutral">{{ project()!.name }}</app-badge>
+      }
+      @if (brand()) {
+        <app-badge tone="neutral">{{ brand()!.name }}</app-badge>
+      }
+    </div>
+  </section>
+
+  @if (aiBusy()) {
+    <div class="mt-6">
+      <app-ai-loading-state />
+    </div>
+  }
+
+  <section class="mt-6 grid gap-6 xl:grid-cols-[minmax(0,1.2fr)_minmax(0,0.8fr)]">
+    <div class="space-y-6">
+      <div class="grid gap-6 lg:grid-cols-2">
+        <app-prompt-context-card
+          kind="brand"
+          [title]="brand()?.name ?? 'Brand'"
+          [empty]="!brand()"
+          [businessType]="brand()?.businessType ?? null"
+          [industry]="brand()?.industry ?? null"
+          [targetAudience]="brand()?.targetAudience ?? null"
+          [brandVoice]="brand()?.brandVoice ?? null"
+        />
+        <app-prompt-context-card
+          kind="product"
+          [title]="product()?.name ?? 'Product / service'"
+          [empty]="!product()"
+          [description]="product()?.description ?? null"
+          [category]="product()?.category ?? null"
+          [sellingPoints]="product()?.sellingPoints ?? null"
+        />
+      </div>
+
+      <app-prompt-context-card
+        kind="project"
+        [title]="project()?.name ?? 'Project / campaign'"
+        [subtitle]="project()?.description ?? null"
+        [empty]="!project()"
+        [campaignObjective]="project()?.campaignObjective ?? null"
+        [targetPlatform]="project()?.targetPlatform ?? null"
+        [campaignType]="project()?.campaignType ?? null"
+      />
+
+      <app-asset-context-selector
+        [assets]="assetStore.filteredAssets()"
+        [selectedAssets]="promptStore.selectedAssets()"
+        [loading]="assetStore.loading()"
+        [disabled]="aiBusy() || !canUsePromptBuilder()"
+        (assetToggled)="toggleAsset($event)"
+        (assetRemoved)="removeAsset($event)"
+      />
+
+      <app-card>
+        <div class="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+          <div class="space-y-2">
+            <label class="text-sm font-medium text-ink" for="platform">Platform</label>
+            <select
+              id="platform"
+              class="h-11 w-full rounded-md border border-border bg-white px-3 text-sm text-ink outline-none transition focus:border-brand-500 focus:ring-2 focus:ring-brand-100 disabled:cursor-not-allowed disabled:bg-slate-50"
+              [disabled]="aiBusy() || !canUsePromptBuilder()"
+              [value]="builderSettings().platform ?? ''"
+              (change)="updatePlatform($any($event.target).value)"
+            >
+              <option value="">Select platform</option>
+              @for (option of platformOptions; track option.value) {
+                <option [value]="option.value">{{ option.label }}</option>
+              }
+            </select>
+            @if (fieldErrors()['platform']) {
+              <p class="text-sm text-red-600">{{ fieldErrors()['platform'] }}</p>
+            }
+          </div>
+
+          <div class="space-y-2">
+            <label class="text-sm font-medium text-ink" for="campaignObjective">Campaign objective</label>
+            <select
+              id="campaignObjective"
+              class="h-11 w-full rounded-md border border-border bg-white px-3 text-sm text-ink outline-none transition focus:border-brand-500 focus:ring-2 focus:ring-brand-100 disabled:cursor-not-allowed disabled:bg-slate-50"
+              [disabled]="aiBusy() || !canUsePromptBuilder()"
+              [value]="builderSettings().campaignObjective ?? ''"
+              (change)="updateCampaignObjective($any($event.target).value)"
+            >
+              <option value="">Select objective</option>
+              @for (option of campaignObjectiveOptions; track option.value) {
+                <option [value]="option.value">{{ option.label }}</option>
+              }
+            </select>
+            @if (fieldErrors()['campaignObjective']) {
+              <p class="text-sm text-red-600">{{ fieldErrors()['campaignObjective'] }}</p>
+            }
+          </div>
+
+          <div class="space-y-2">
+            <label class="text-sm font-medium text-ink" for="language">Language</label>
+            <select
+              id="language"
+              class="h-11 w-full rounded-md border border-border bg-white px-3 text-sm text-ink outline-none transition focus:border-brand-500 focus:ring-2 focus:ring-brand-100 disabled:cursor-not-allowed disabled:bg-slate-50"
+              [disabled]="aiBusy() || !canUsePromptBuilder()"
+              [value]="builderSettings().language ?? ''"
+              (change)="updateLanguage($any($event.target).value)"
+            >
+              @for (option of languageOptions; track option.value) {
+                <option [value]="option.value">{{ option.label }}</option>
+              }
+            </select>
+            @if (fieldErrors()['language']) {
+              <p class="text-sm text-red-600">{{ fieldErrors()['language'] }}</p>
+            }
+          </div>
+
+          <div class="space-y-2">
+            <label class="text-sm font-medium text-ink" for="tone">Tone</label>
+            <select
+              id="tone"
+              class="h-11 w-full rounded-md border border-border bg-white px-3 text-sm text-ink outline-none transition focus:border-brand-500 focus:ring-2 focus:ring-brand-100 disabled:cursor-not-allowed disabled:bg-slate-50"
+              [disabled]="aiBusy() || !canUsePromptBuilder()"
+              [value]="builderSettings().tone ?? ''"
+              (change)="updateTone($any($event.target).value)"
+            >
+              <option value="">Select tone</option>
+              @for (option of toneOptions; track option.value) {
+                <option [value]="option.value">{{ option.label }}</option>
+              }
+            </select>
+          </div>
+        </div>
+      </app-card>
+
+      <app-prompt-editor
+        [sourcePrompt]="promptStore.sourcePrompt()"
+        [enhancedPrompt]="promptStore.enhancedPrompt()?.enhancedPrompt ?? null"
+        [disabled]="aiBusy() || !canUsePromptBuilder()"
+        [sourcePromptError]="sourcePromptError()"
+        (sourcePromptChange)="updateSourcePrompt($event)"
+        (copyEnhanced)="copyEnhancedPrompt()"
+        (reset)="resetPrompt()"
+      />
+
+      <div class="flex flex-wrap gap-3">
+        <app-button
+          type="button"
+          icon="sparkles"
+          [loading]="aiBusy()"
+          [disabled]="!canEnhancePrompt() || aiBusy()"
+          (click)="enhancePrompt()"
+        >
+          Enhance prompt
+        </app-button>
+        <app-button
+          type="button"
+          variant="secondary"
+          icon="lightbulb"
+          [loading]="aiBusy()"
+          [disabled]="!canUsePromptBuilder() || aiBusy() || !promptStore.hasSourcePrompt()"
+          (click)="getSuggestions()"
+        >
+          Get suggestions
+        </app-button>
+      </div>
+    </div>
+
+    <aside class="space-y-6">
+      @if (promptStore.enhancedPrompt(); as enhanced) {
+        <app-card>
+          <div class="space-y-3">
+            <div class="flex flex-wrap gap-2">
+              <app-badge tone="brand">Latest enhancement</app-badge>
+              @if (enhanced.aiProvider) {
+                <app-badge tone="neutral">{{ enhanced.aiProvider }}</app-badge>
+              }
+              @if (enhanced.model) {
+                <app-badge tone="neutral">{{ enhanced.model }}</app-badge>
+              }
+              @if (enhanced.tokenUsage !== null) {
+                <app-badge tone="neutral">{{ enhanced.tokenUsage }} tokens</app-badge>
+              }
+            </div>
+            @if (enhanced.reasoningSummary) {
+              <p class="rounded-md border border-slate-200 bg-slate-50 px-3 py-2 text-sm text-muted">
+                {{ enhanced.reasoningSummary }}
+              </p>
+            }
+            @if (enhanced.suggestedMissingFields.length) {
+              <div class="flex flex-wrap gap-2">
+                @for (field of enhanced.suggestedMissingFields; track field) {
+                  <app-badge tone="blue">{{ field }}</app-badge>
+                }
+              </div>
+            }
+          </div>
+        </app-card>
+      }
+
+      @if (promptStore.hasSuggestions()) {
+        <app-card>
+          <div class="space-y-4">
+            <h3 class="text-base font-semibold text-ink">Suggestions</h3>
+            @for (group of suggestionGroups(); track group.title) {
+              <div class="space-y-2">
+                <p class="text-xs font-semibold uppercase tracking-wide text-muted">{{ group.title }}</p>
+                <ul class="space-y-2">
+                  @for (item of group.items; track item) {
+                    <li class="rounded-md border border-border bg-white px-3 py-2 text-sm text-ink">{{ item }}</li>
+                  }
+                </ul>
+              </div>
+            }
+          </div>
+        </app-card>
+      } @else if (contextReady() && !aiBusy() && !promptStore.hasEnhancedPrompt()) {
+        <app-prompt-empty-state
+          icon="sparkles"
+          title="Ready when you are"
+          description="Enhance a source prompt or request suggestions once platform, objective, and language are set."
+        />
+      }
+    </aside>
+  </section>
+}

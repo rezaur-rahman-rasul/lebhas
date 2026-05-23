@@ -1,0 +1,55 @@
+{
+  "name": "creative-saas-frontend",
+  "version": "0.1.0",
+  "scripts": {
+    "ng": "ng",
+    "start": "ng serve --configuration local --host 0.0.0.0 --port 4200",
+    "build": "ng build --configuration production",
+    "build:local": "ng build --configuration local",
+    "build:dev": "ng build --configuration dev",
+    "build:staging": "ng build --configuration staging",
+    "watch": "ng build --watch --configuration local",
+    "test": "ng test",
+    "typecheck": "ng build --configuration local",
+    "e2e": "playwright test",
+    "e2e:headed": "playwright test --headed"
+  },
+  "prettier": {
+    "printWidth": 100,
+    "singleQuote": true,
+    "overrides": [
+      {
+        "files": "*.html",
+        "options": {
+          "parser": "angular"
+        }
+      }
+    ]
+  },
+  "private": true,
+  "packageManager": "npm@11.6.2",
+  "dependencies": {
+    "@angular/common": "21.2.11",
+    "@angular/compiler": "21.2.11",
+    "@angular/core": "21.2.11",
+    "@angular/forms": "21.2.11",
+    "@angular/platform-browser": "21.2.11",
+    "@angular/router": "21.2.11",
+    "lucide-angular": "^1.0.0",
+    "rxjs": "~7.8.0",
+    "tslib": "^2.3.0"
+  },
+  "devDependencies": {
+    "@angular/build": "21.2.9",
+    "@angular/cli": "21.2.9",
+    "@angular/compiler-cli": "21.2.11",
+    "@playwright/test": "^1.56.1",
+    "@types/node": "^25.8.0",
+    "autoprefixer": "^10.4.21",
+    "jsdom": "^26.1.0",
+    "postcss": "^8.5.6",
+    "tailwindcss": "^3.4.17",
+    "typescript": "~5.9.2",
+    "vitest": "^4.0.8"
+  }
+}

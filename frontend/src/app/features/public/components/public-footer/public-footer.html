@@ -1,0 +1,19 @@
+<footer class="border-t border-border bg-surface/70">
+  <div class="mx-auto grid max-w-7xl gap-8 px-4 py-10 sm:px-6 lg:grid-cols-[minmax(0,1fr)_auto] lg:px-8">
+    <div>
+      <p class="text-sm font-semibold uppercase tracking-[0.16em] text-brand-500">Lebhas Creative Maker</p>
+      <p class="mt-3 max-w-2xl text-sm leading-7 text-muted">
+        AI-powered creative operating system for Bangladeshi businesses that need to turn
+        product visuals into campaign-ready assets across major social channels.
+      </p>
+    </div>
+
+    <div class="flex flex-wrap items-center gap-x-5 gap-y-3">
+      @for (link of links; track link.label) {
+        <a [href]="link.href" class="text-sm font-medium text-muted transition hover:text-ink">
+          {{ link.label }}
+        </a>
+      }
+    </div>
+  </div>
+</footer>

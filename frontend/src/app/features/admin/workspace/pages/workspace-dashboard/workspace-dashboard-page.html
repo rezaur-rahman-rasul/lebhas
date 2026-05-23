@@ -1,0 +1,172 @@
+
+    <app-page-header
+      eyebrow="Workspace"
+      [title]="title()"
+      [description]="description()"
+    >
+      <app-badge [tone]="roleTone()">{{ roleLabel() }}</app-badge>
+      @if (workspace()) {
+        <app-badge [tone]="statusTone()">{{ statusLabel() }}</app-badge>
+      }
+    </app-page-header>
+
+    @if (store.workspaceError()) {
+      <div class="mt-6 rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
+        {{ store.workspaceError() }}
+      </div>
+    }
+
+    @if (store.workspaceLoading() && !workspace()) {
+      <section class="mt-6 grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+        @for (item of skeletonCards; track item) {
+          <div class="h-32 animate-pulse rounded-lg border border-border bg-white"></div>
+        }
+      </section>
+      <div class="mt-6 h-64 animate-pulse rounded-lg border border-border bg-white"></div>
+    } @else if (workspace()) {
+      <section class="mt-6 grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+        <app-workspace-summary-card
+          label="Workspace status"
+          [value]="statusLabel()"
+          description="Current operating state for workspace access."
+          icon="building-2"
+        />
+        <app-workspace-summary-card
+          label="Default language"
+          [value]="defaultLanguageLabel()"
+          description="Primary language used across workspace defaults."
+          icon="languages"
+          accent="blue"
+        />
+        <app-workspace-summary-card
+          label="Total crew"
+          [value]="crewCountLabel()"
+          description="Crew member count inside the assigned workspace."
+          icon="users"
+          accent="neutral"
+        />
+        <app-workspace-summary-card
+          label="Brand profile"
+          [value]="brandCompletionLabel()"
+          description="Completion progress for future AI creative context."
+          icon="badge-check"
+        />
+      </section>
+
+      <section class="mt-6 grid gap-4 xl:grid-cols-[1.1fr_0.9fr]">
+        <app-card>
+          <div class="flex items-center justify-between gap-3">
+            <div>
+              <h2 class="text-base font-semibold text-ink">Workspace summary</h2>
+              <p class="mt-1 text-sm text-muted">Core workspace identity and policy defaults.</p>
+            </div>
+            @if (settings()) {
+              <app-badge tone="neutral">
+                {{ visibilityLabel() }}
+              </app-badge>
+            }
+          </div>
+
+          <dl class="mt-5 grid gap-4 sm:grid-cols-2">
+            <div class="rounded-lg border border-border p-4">
+              <dt class="text-sm text-muted">Industry</dt>
+              <dd class="mt-2 text-sm font-medium text-ink">{{ workspace()!.industry || 'Not set yet' }}</dd>
+            </div>
+            <div class="rounded-lg border border-border p-4">
+              <dt class="text-sm text-muted">Timezone</dt>
+              <dd class="mt-2 text-sm font-medium text-ink">
+                {{ settings()?.defaultTimezone || workspace()!.timezone }}
+              </dd>
+            </div>
+            <div class="rounded-lg border border-border p-4">
+              <dt class="text-sm text-muted">Currency</dt>
+              <dd class="mt-2 text-sm font-medium text-ink">{{ workspace()!.currency || 'Not set yet' }}</dd>
+            </div>
+            <div class="rounded-lg border border-border p-4">
+              <dt class="text-sm text-muted">Country</dt>
+              <dd class="mt-2 text-sm font-medium text-ink">{{ workspace()!.country || 'Not set yet' }}</dd>
+            </div>
+          </dl>
+
+          <div class="mt-5 rounded-lg border border-border bg-slate-50 p-4">
+            <p class="text-sm font-medium text-ink">Description</p>
+            <p class="mt-2 text-sm leading-6 text-muted">
+              {{ workspace()!.description || 'Add a workspace description to align teams and future creative context.' }}
+            </p>
+          </div>
+        </app-card>
+
+        <div class="grid gap-4">
+          <a
+            routerLink="/admin/settings"
+            class="block rounded-lg border border-border bg-white p-5 shadow-sm transition hover:-translate-y-0.5 hover:shadow-soft"
+          >
+            <div class="flex items-center justify-between gap-3">
+              <div class="grid h-11 w-11 place-items-center rounded-lg bg-brand-50 text-brand-700">
+                <app-icon name="settings" [size]="20" />
+              </div>
+              <app-icon name="arrow-right" className="text-slate-400" [size]="18" />
+            </div>
+            <h2 class="mt-4 text-base font-semibold text-ink">Workspace settings</h2>
+            <p class="mt-2 text-sm leading-6 text-muted">
+              Update workspace identity, default language, and crew policy controls.
+            </p>
+          </a>
+
+          <a
+            routerLink="/admin/brand-profile"
+            class="block rounded-lg border border-border bg-white p-5 shadow-sm transition hover:-translate-y-0.5 hover:shadow-soft"
+          >
+            <div class="flex items-center justify-between gap-3">
+              <div class="grid h-11 w-11 place-items-center rounded-lg bg-blue-50 text-blue-700">
+                <app-icon name="megaphone" [size]="20" />
+              </div>
+              <app-icon name="arrow-right" className="text-slate-400" [size]="18" />
+            </div>
+            <h2 class="mt-4 text-base font-semibold text-ink">Brand profile</h2>
+            <p class="mt-2 text-sm leading-6 text-muted">
+              Define voice, audience, color, and channel context for future creative workflows.
+            </p>
+          </a>
+
+          @if (store.canManageCrew()) {
+            <a
+              routerLink="/admin/crew"
+              class="block rounded-lg border border-border bg-white p-5 shadow-sm transition hover:-translate-y-0.5 hover:shadow-soft"
+            >
+              <div class="flex items-center justify-between gap-3">
+                <div class="grid h-11 w-11 place-items-center rounded-lg bg-slate-100 text-slate-700">
+                  <app-icon name="users" [size]="20" />
+                </div>
+                <app-icon name="arrow-right" className="text-slate-400" [size]="18" />
+              </div>
+              <h2 class="mt-4 text-base font-semibold text-ink">Crew management</h2>
+              <p class="mt-2 text-sm leading-6 text-muted">
+                Invite crew members, review statuses, and adjust permission scope.
+              </p>
+            </a>
+          }
+        </div>
+      </section>
+    } @else if (store.workspaceError()) {
+      <div class="mt-6">
+        <app-empty-state
+          icon="circle-alert"
+          title="Workspace could not be loaded"
+          [description]="store.workspaceError()!"
+        >
+          <app-button variant="secondary" icon="arrow-right" (click)="reload()">
+            Try again
+          </app-button>
+        </app-empty-state>
+      </div>
+    } @else {
+      <div class="mt-6">
+        <app-empty-state
+          icon="building-2"
+          title="Workspace not available"
+          description="The current session does not have an active workspace context yet."
+        />
+      </div>
+    }
+  

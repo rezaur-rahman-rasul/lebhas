@@ -1,0 +1,179 @@
+<app-page-header
+  eyebrow="Prompt intelligence"
+  title="Prompt history"
+  description="Review project-scoped prompt intelligence events, enhancements, and metadata."
+>
+  <a routerLink="/projects" class="text-sm font-medium text-brand-600 hover:text-brand-700">Projects</a>
+  @if (project()) {
+    <a
+      [routerLink]="['/projects', projectId(), 'prompts']"
+      class="text-sm font-medium text-brand-600 hover:text-brand-700"
+    >
+      Builder
+    </a>
+    <app-badge tone="neutral">{{ project()!.name }}</app-badge>
+  }
+  <app-badge [tone]="roleTone()">{{ roleLabel() }}</app-badge>
+  <app-badge tone="neutral">{{ historyCountLabel() }}</app-badge>
+</app-page-header>
+
+@if (!hasWorkspaceContext()) {
+  <div class="mt-6">
+    <app-prompt-empty-state
+      icon="building-2"
+      title="Workspace context required"
+      description="Select a workspace before viewing project prompt history."
+    />
+  </div>
+} @else if (!canViewHistory()) {
+  <div class="mt-6">
+    <app-prompt-empty-state
+      icon="circle-alert"
+      title="Prompt history access required"
+      description="This account does not have permission to view prompt history."
+    />
+  </div>
+} @else if (!projectId()) {
+  <div class="mt-6">
+    <app-prompt-empty-state
+      icon="folder-open"
+      title="Project context missing"
+      description="Open prompt history from a valid project campaign route."
+    />
+  </div>
+} @else if (initializing()) {
+  <div class="mt-6 grid gap-4 lg:grid-cols-2 2xl:grid-cols-3">
+    @for (item of skeletonItems; track item) {
+      <div class="h-72 animate-pulse rounded-lg border border-border bg-panel"></div>
+    }
+  </div>
+} @else {
+  @if (store.error()) {
+    <div class="mt-6 flex flex-col gap-3 rounded-lg border border-red-200 bg-red-50 px-4 py-3 sm:flex-row sm:items-center sm:justify-between">
+      <p class="text-sm text-red-700">{{ store.error() }}</p>
+      <app-button type="button" variant="ghost" size="sm" (click)="clearError()">Dismiss</app-button>
+    </div>
+  }
+
+  <section class="mt-6 space-y-4">
+    <form
+      class="grid gap-3 rounded-lg border border-border bg-panel p-4 shadow-sm md:grid-cols-[12rem_12rem_12rem_12rem_auto_auto]"
+      [formGroup]="filterForm"
+    >
+      <select
+        formControlName="platform"
+        class="h-11 rounded-md border border-border bg-white px-3 text-sm text-ink outline-none transition focus:border-brand-500 focus:ring-2 focus:ring-brand-100"
+      >
+        <option value="">All platforms</option>
+        @for (option of platformOptions; track option.value) {
+          <option [value]="option.value">{{ option.label }}</option>
+        }
+      </select>
+      <select
+        formControlName="campaignObjective"
+        class="h-11 rounded-md border border-border bg-white px-3 text-sm text-ink outline-none transition focus:border-brand-500 focus:ring-2 focus:ring-brand-100"
+      >
+        <option value="">All objectives</option>
+        @for (option of objectiveOptions; track option.value) {
+          <option [value]="option.value">{{ option.label }}</option>
+        }
+      </select>
+      <select
+        formControlName="suggestionType"
+        class="h-11 rounded-md border border-border bg-white px-3 text-sm text-ink outline-none transition focus:border-brand-500 focus:ring-2 focus:ring-brand-100"
+      >
+        <option value="">All event types</option>
+        @for (option of suggestionTypeOptions; track option.value) {
+          <option [value]="option.value">{{ option.label }}</option>
+        }
+      </select>
+      <select
+        formControlName="status"
+        class="h-11 rounded-md border border-border bg-white px-3 text-sm text-ink outline-none transition focus:border-brand-500 focus:ring-2 focus:ring-brand-100"
+      >
+        <option value="">All statuses</option>
+        @for (option of statusOptions; track option.value) {
+          <option [value]="option.value">{{ option.label }}</option>
+        }
+      </select>
+      <app-button variant="secondary" (click)="applyFilters()">Apply</app-button>
+      <app-button variant="ghost" (click)="resetFilters()">Reset</app-button>
+    </form>
+
+    @if (store.loading() && !store.hasHistory()) {
+      <div class="grid gap-4 lg:grid-cols-2 2xl:grid-cols-3">
+        @for (item of skeletonItems; track item) {
+          <div class="h-72 animate-pulse rounded-lg border border-border bg-panel"></div>
+        }
+      </div>
+    } @else if (store.hasHistory()) {
+      <div class="grid gap-4 lg:grid-cols-2 2xl:grid-cols-3">
+        @for (entry of store.history(); track entry.id) {
+          <app-prompt-history-card
+            [entry]="entry"
+            [selected]="selectedEntry()?.id === entry.id"
+            (detailRequested)="openDetail($event)"
+          />
+        }
+      </div>
+
+      @if (store.pagination().totalPages > 1) {
+        <div class="flex flex-col gap-3 rounded-lg border border-border bg-panel px-4 py-3 sm:flex-row sm:items-center sm:justify-between">
+          <p class="text-sm text-muted">
+            Page {{ store.pagination().page + 1 }} of {{ store.pagination().totalPages }}
+          </p>
+          <div class="flex gap-2">
+            <app-button
+              size="sm"
+              variant="secondary"
+              [disabled]="store.pagination().first || store.loading()"
+              (click)="previousPage()"
+            >
+              Previous
+            </app-button>
+            <app-button
+              size="sm"
+              variant="secondary"
+              [disabled]="store.pagination().last || store.loading()"
+              (click)="nextPage()"
+            >
+              Next
+            </app-button>
+          </div>
+        </div>
+      }
+    } @else if (store.error()) {
+      <app-prompt-empty-state
+        icon="circle-alert"
+        title="Prompt history could not be loaded"
+        [description]="store.error()!"
+      >
+        <app-button class="mt-4" variant="secondary" (click)="reloadHistory()">Try again</app-button>
+      </app-prompt-empty-state>
+    } @else {
+      <app-prompt-empty-state
+        icon="history"
+        title="No prompt history yet"
+        description="Enhance prompts or request suggestions in the builder to create history for this project."
+      >
+        <a
+          class="mt-4 inline-flex text-sm font-medium text-brand-600 hover:text-brand-700"
+          [routerLink]="['/projects', projectId(), 'prompts']"
+        >
+          Open prompt builder
+        </a>
+      </app-prompt-empty-state>
+    }
+  </section>
+}
+
+<app-modal-shell
+  [open]="detailOpen()"
+  title="Prompt history detail"
+  description="Full prompt intelligence event for this project campaign."
+  (closed)="closeDetail()"
+>
+  @if (selectedEntry(); as entry) {
+    <app-prompt-history-detail [entry]="entry" />
+  }
+</app-modal-shell>

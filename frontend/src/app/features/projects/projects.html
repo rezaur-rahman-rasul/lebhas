@@ -1,0 +1,266 @@
+<app-section-header
+  eyebrow="Projects and campaigns"
+  title="Projects / Campaigns"
+  description="Manage campaign containers that inherit their product and brand relationship from the workspace hierarchy."
+>
+  @if (canCreate()) {
+    <app-button icon="plus" [testId]="'project-create-button'" (click)="openCreateDialog()">
+      Create Project / Campaign
+    </app-button>
+  }
+</app-section-header>
+
+@if (!workspaceId()) {
+  <div class="mt-6">
+    <app-empty-state
+      icon="building-2"
+      title="Select a workspace"
+      description="Choose an active workspace from the header before managing projects."
+    />
+  </div>
+} @else if (!canView()) {
+  <div class="mt-6">
+    <app-empty-state
+      icon="shield-alert"
+      title="Project access is restricted"
+      description="Your current role does not include project viewing permission in this workspace."
+    />
+  </div>
+} @else if (store.loading()) {
+  <div class="mt-6">
+    <app-loading label="Loading projects" />
+  </div>
+} @else if (store.error()) {
+  <div class="mt-6">
+    <app-empty-state
+      icon="triangle-alert"
+      title="Projects could not be loaded"
+      [description]="store.error()!"
+    >
+      <app-button variant="secondary" icon="refresh-cw" (click)="store.load(workspaceId()!, { force: true })">
+        Retry
+      </app-button>
+    </app-empty-state>
+  </div>
+} @else {
+  <div class="mt-6 grid gap-6 xl:grid-cols-[minmax(0,1.08fr)_22rem]">
+    <app-card>
+      <div class="flex items-center justify-between gap-3">
+        <div>
+          <h2 class="text-base font-semibold text-ink">Project roster</h2>
+          <p class="mt-1 text-sm text-muted">{{ store.total() }} project campaigns in the active workspace</p>
+        </div>
+        <app-badge tone="blue">Product -> Project</app-badge>
+      </div>
+
+      @if (projects().length === 0) {
+        <div class="mt-5">
+          <app-empty-state
+            icon="folder-kanban"
+            title="No projects yet"
+            description="Create the first project once a product or service is available."
+          />
+        </div>
+      } @else {
+        <div class="mt-5 overflow-x-auto">
+          <table class="min-w-full divide-y divide-border text-left">
+            <thead class="text-xs uppercase tracking-[0.14em] text-muted">
+              <tr>
+                <th class="pb-3 pr-4 font-semibold">Project / Campaign</th>
+                <th class="pb-3 pr-4 font-semibold">Product / Service</th>
+                <th class="pb-3 pr-4 font-semibold">Platform</th>
+                <th class="pb-3 font-semibold">Status</th>
+              </tr>
+            </thead>
+            <tbody class="divide-y divide-border">
+              @for (project of projects(); track project.id) {
+                <tr
+                  class="cursor-pointer transition hover:bg-panel/30"
+                  [class.bg-brand-500/8]="selectedProjectId() === project.id"
+                  (click)="selectProject(project.id)"
+                >
+                  <td class="py-4 pr-4">
+                    <p class="font-semibold text-ink">{{ project.name }}</p>
+                    <p class="mt-1 text-sm text-muted">{{ project.campaignObjective || 'Objective pending' }}</p>
+                  </td>
+                  <td class="py-4 pr-4 text-sm text-muted">{{ productName(project.productServiceId) }}</td>
+                  <td class="py-4 pr-4 text-sm text-muted">{{ project.targetPlatform || 'Multi-platform' }}</td>
+                  <td class="py-4">
+                    <app-badge [tone]="project.status === 'ACTIVE' ? 'brand' : 'neutral'">
+                      {{ project.status }}
+                    </app-badge>
+                  </td>
+                </tr>
+              }
+            </tbody>
+          </table>
+        </div>
+      }
+    </app-card>
+
+    <div class="grid gap-6">
+      <app-card>
+        <div class="flex items-center justify-between gap-3">
+          <div>
+            <h2 class="text-base font-semibold text-ink">Project detail</h2>
+            <p class="mt-1 text-sm text-muted">Campaign planning context linked to product and brand</p>
+          </div>
+          @if (selectedProject()) {
+            <app-badge [tone]="selectedProject()!.status === 'ACTIVE' ? 'brand' : 'neutral'">
+              {{ selectedProject()!.status }}
+            </app-badge>
+          }
+        </div>
+
+        @if (selectedProject(); as project) {
+          <div class="mt-5 space-y-4">
+            <div>
+              <h3 class="text-xl font-semibold text-ink">{{ project.name }}</h3>
+              <p class="mt-2 text-sm leading-7 text-muted">
+                {{ project.description || 'Project description has not been configured yet.' }}
+              </p>
+            </div>
+
+            <div class="grid gap-3 sm:grid-cols-2">
+              <div class="rounded-2xl border border-border bg-panel/35 p-4">
+                <p class="text-xs font-semibold uppercase tracking-[0.14em] text-muted">Brand</p>
+                <p class="mt-2 text-sm font-medium text-ink">{{ brandName(project.brandId) }}</p>
+              </div>
+              <div class="rounded-2xl border border-border bg-panel/35 p-4">
+                <p class="text-xs font-semibold uppercase tracking-[0.14em] text-muted">Product / Service</p>
+                <p class="mt-2 text-sm font-medium text-ink">{{ productName(project.productServiceId) }}</p>
+              </div>
+            </div>
+
+            <div class="grid gap-3 sm:grid-cols-2">
+              <div class="rounded-2xl border border-border bg-panel/35 p-4">
+                <p class="text-xs font-semibold uppercase tracking-[0.14em] text-muted">Target platform</p>
+                <p class="mt-2 text-sm font-medium text-ink">{{ project.targetPlatform || 'Multi-platform' }}</p>
+              </div>
+              <div class="rounded-2xl border border-border bg-panel/35 p-4">
+                <p class="text-xs font-semibold uppercase tracking-[0.14em] text-muted">Campaign type</p>
+                <p class="mt-2 text-sm font-medium text-ink">{{ project.campaignType || 'General campaign' }}</p>
+              </div>
+            </div>
+
+            <div class="rounded-2xl border border-border bg-panel/35 p-4">
+              <p class="text-xs font-semibold uppercase tracking-[0.14em] text-muted">Objective</p>
+              <p class="mt-2 text-sm leading-7 text-muted">{{ project.campaignObjective || 'Pending' }}</p>
+            </div>
+
+            @if (canUpdate()) {
+              <div class="flex flex-wrap gap-3">
+                <app-button variant="secondary" icon="pencil" (click)="openEditDialog()">
+                  Edit Project / Campaign
+                </app-button>
+                <app-button variant="danger" icon="trash-2" (click)="deleteSelected()">
+                  Delete
+                </app-button>
+              </div>
+            }
+          </div>
+        } @else {
+          <div class="mt-5">
+            <app-empty-state
+              icon="mouse-pointer-click"
+              title="Select a project"
+              description="Choose a project or campaign from the roster to inspect its linked product and brand context."
+            />
+          </div>
+        }
+      </app-card>
+
+      <app-card>
+        <p class="text-xs font-semibold uppercase tracking-[0.16em] text-brand-500">Relationship rule</p>
+        <h2 class="mt-2 text-base font-semibold text-ink">Every project campaign must belong to a product service</h2>
+        <p class="mt-3 text-sm leading-7 text-muted">
+          This preserves the hierarchy from workspace to brand to product before creative requests and generated versions arrive later.
+        </p>
+      </app-card>
+    </div>
+  </div>
+}
+
+<app-modal
+  [open]="dialogMode() !== null"
+  [title]="dialogMode() === 'create' ? 'Create project / campaign' : 'Edit project / campaign'"
+  [description]="dialogMode() === 'create'
+    ? 'Attach a project campaign to a product service before creative generation begins.'
+    : 'Update the selected project campaign in the active workspace.'"
+  panelClass="max-w-4xl"
+  testId="project-form-modal"
+  (closed)="closeDialog()"
+>
+  <form class="grid gap-4" [formGroup]="form" (ngSubmit)="submit()">
+    <label class="block">
+      <span class="mb-2 block text-sm font-medium text-ink">Product / Service</span>
+      <select
+        class="h-12 w-full rounded-xl border border-border bg-surface px-3 text-base text-ink shadow-sm outline-none transition focus:border-brand-500 focus:ring-4 focus:ring-brand-100/60"
+        data-testid="project-product-select"
+        formControlName="productServiceId"
+      >
+        <option value="">Select product or service</option>
+        @for (product of products(); track product.id) {
+          <option [value]="product.id">{{ product.name }}</option>
+        }
+      </select>
+      @if (fieldError('productServiceId')) {
+        <span class="mt-2 block text-sm text-alert-600">{{ fieldError('productServiceId') }}</span>
+      }
+    </label>
+
+    <div class="grid gap-4 sm:grid-cols-2">
+      <app-input
+        label="Name"
+        placeholder="Eid launch campaign"
+        [testId]="'project-name-input'"
+        [control]="form.controls.name"
+        [error]="fieldError('name')"
+      />
+      <app-input
+        label="Target platform"
+        placeholder="Facebook + Instagram"
+        [control]="form.controls.targetPlatform"
+      />
+    </div>
+
+    <app-input
+      label="Description"
+      placeholder="Campaign planning container for the seasonal promotion"
+      [control]="form.controls.description"
+    />
+
+    <div class="grid gap-4 sm:grid-cols-2">
+      <app-input
+        label="Campaign objective"
+        placeholder="Drive product discovery and conversions"
+        [control]="form.controls.campaignObjective"
+      />
+      <app-input
+        label="Campaign type"
+        placeholder="Launch campaign"
+        [control]="form.controls.campaignType"
+      />
+    </div>
+
+    @if (dialogMode() === 'edit') {
+      <label class="block">
+        <span class="mb-2 block text-sm font-medium text-ink">Status</span>
+        <select
+          class="h-12 w-full rounded-xl border border-border bg-surface px-3 text-base text-ink shadow-sm outline-none transition focus:border-brand-500 focus:ring-4 focus:ring-brand-100/60"
+          formControlName="status"
+        >
+          <option value="ACTIVE">ACTIVE</option>
+          <option value="ARCHIVED">ARCHIVED</option>
+        </select>
+      </label>
+    }
+
+    <div class="flex flex-col-reverse gap-3 pt-2 sm:flex-row sm:justify-end">
+      <app-button variant="secondary" type="button" (click)="closeDialog()">Cancel</app-button>
+      <app-button type="submit" [loading]="store.saving()" [testId]="'project-submit'">
+        {{ dialogMode() === 'create' ? 'Create Project / Campaign' : 'Save Changes' }}
+      </app-button>
+    </div>
+  </form>
+</app-modal>

@@ -1,0 +1,14 @@
+
+    <div [class]="avatarClasses()" [attr.aria-label]="name()">
+      @if (avatarUrl()) {
+        <img
+          [src]="avatarUrl()!"
+          [alt]="name()"
+          class="h-full w-full object-cover"
+          loading="lazy"
+        />
+      } @else {
+        {{ name() | initials }}
+      }
+    </div>
+  

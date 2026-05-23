@@ -1,0 +1,27 @@
+FROM maven:3.9.9-eclipse-temurin-21-alpine AS build
+
+WORKDIR /workspace
+
+ARG SERVICE_NAME
+
+COPY .mvn .mvn
+COPY mvnw pom.xml ./
+COPY backend backend
+
+RUN sed -i 's/\r$//' mvnw \
+    && chmod +x mvnw \
+    && ./mvnw -q -pl backend/${SERVICE_NAME} -am -DskipTests package
+
+FROM eclipse-temurin:21-jre-alpine
+
+RUN apk add --no-cache curl
+
+WORKDIR /app
+
+ARG SERVICE_NAME
+
+COPY --from=build /workspace/backend/${SERVICE_NAME}/target/${SERVICE_NAME}-0.1.0-SNAPSHOT.jar /app/application.jar
+
+EXPOSE 8080
+
+ENTRYPOINT ["java", "-XX:MaxRAMPercentage=75.0", "-XX:+ExitOnOutOfMemoryError", "-jar", "/app/application.jar"]

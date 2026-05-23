@@ -1,0 +1,199 @@
+<form class="space-y-5" [formGroup]="form()" (ngSubmit)="submitted.emit()">
+  <app-card>
+    <div class="space-y-5">
+      <div class="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
+        <div>
+          <h2 class="text-lg font-semibold text-ink">Generation request</h2>
+          <p class="mt-1 text-sm text-muted">Use a prompt intelligence result or write the generation prompt directly.</p>
+        </div>
+        <app-badge tone="neutral">Assets {{ selectedAssets().length }}</app-badge>
+      </div>
+
+      <div class="space-y-2">
+        <label class="text-sm font-medium text-ink" for="promptHistoryId">Prompt history</label>
+        <select
+          id="promptHistoryId"
+          formControlName="promptHistoryId"
+          class="h-11 w-full rounded-md border border-border bg-white px-3 text-sm text-ink outline-none transition focus:border-brand-500 focus:ring-2 focus:ring-brand-100"
+          [disabled]="disabled()"
+          (change)="promptHistorySelected.emit($any($event.target).value || null)"
+        >
+          <option value="">Use a custom prompt</option>
+          @for (history of promptHistory(); track history.id) {
+            <option [value]="history.id">
+              {{ history.platform || 'Prompt' }} - {{ history.campaignObjective || 'Objective' }} - {{ history.createdAt | date: 'mediumDate' }}
+            </option>
+          }
+        </select>
+      </div>
+
+      <div class="space-y-2">
+        <div class="flex items-center justify-between gap-3">
+          <label class="text-sm font-medium text-ink" for="sourcePrompt">Source prompt</label>
+          <span class="text-xs text-muted">{{ form().get('sourcePrompt')?.value?.length ?? 0 }}/32000</span>
+        </div>
+        <textarea
+          id="sourcePrompt"
+          formControlName="sourcePrompt"
+          rows="6"
+          class="w-full rounded-md border border-border bg-white px-3 py-3 text-sm leading-6 text-ink outline-none transition placeholder:text-slate-400 focus:border-brand-500 focus:ring-2 focus:ring-brand-100"
+          placeholder="Describe what the creative should communicate, what should be visible, and what response it should drive."
+          [disabled]="disabled()"
+        ></textarea>
+        @if (form().get('sourcePrompt')?.touched && form().get('sourcePrompt')?.hasError('required')) {
+          <p class="text-sm text-red-600">Prompt is required.</p>
+        }
+        @if (form().get('sourcePrompt')?.touched && form().get('sourcePrompt')?.hasError('minlength')) {
+          <p class="text-sm text-red-600">Prompt must be at least 5 characters.</p>
+        }
+        @if (form().get('sourcePrompt')?.touched && form().get('sourcePrompt')?.hasError('maxlength')) {
+          <p class="text-sm text-red-600">Prompt must stay within 32000 characters.</p>
+        }
+      </div>
+
+      <div class="space-y-2">
+        <label class="text-sm font-medium text-ink" for="enhancedPrompt">Enhanced prompt</label>
+        <textarea
+          id="enhancedPrompt"
+          formControlName="enhancedPrompt"
+          rows="5"
+          class="w-full rounded-md border border-border bg-white px-3 py-3 text-sm leading-6 text-ink outline-none transition placeholder:text-slate-400 focus:border-brand-500 focus:ring-2 focus:ring-brand-100"
+          placeholder="Optional enhanced prompt from prompt intelligence."
+          [disabled]="disabled()"
+        ></textarea>
+      </div>
+    </div>
+  </app-card>
+
+  <app-creative-type-selector [form]="form()" [disabled]="disabled()" />
+
+  <app-platform-format-selector
+    [form]="form()"
+    [disabled]="disabled()"
+    (sizeSelected)="sizeSelected.emit($event)"
+  />
+
+  <app-card>
+    <div class="space-y-4">
+      <div>
+        <h3 class="text-base font-semibold text-ink">Asset context</h3>
+        <p class="mt-1 text-sm text-muted">Select uploaded assets for product, brand, or offer reference context.</p>
+      </div>
+
+      <div class="flex gap-2">
+        <input
+          type="text"
+          class="h-11 min-w-0 flex-1 rounded-md border border-border bg-white px-3 text-sm text-ink outline-none transition placeholder:text-slate-400 focus:border-brand-500 focus:ring-2 focus:ring-brand-100"
+          placeholder="Search uploaded assets"
+          [value]="searchValue()"
+          [disabled]="disabled()"
+          (input)="searchValue.set($any($event.target).value)"
+          (keydown.enter)="submitAssetSearch(); $event.preventDefault()"
+        />
+        <app-button variant="secondary" [disabled]="disabled() || loading()" (click)="submitAssetSearch()">
+          Search
+        </app-button>
+      </div>
+
+      @if (selectedAssets().length) {
+        <div class="flex flex-wrap gap-2">
+          @for (asset of selectedAssets(); track asset.id) {
+            <button
+              type="button"
+              class="inline-flex max-w-full items-center gap-2 rounded-full border border-brand-200 bg-brand-50 px-3 py-2 text-sm text-brand-700"
+              [disabled]="disabled()"
+              (click)="assetRemoved.emit(asset.id)"
+            >
+              <span class="truncate">{{ asset.originalFileName }}</span>
+              <app-icon name="x" [size]="14" />
+            </button>
+          }
+        </div>
+      }
+
+      @if (loading() && !availableAssets().length) {
+        <div class="grid gap-3 sm:grid-cols-2">
+          @for (item of [0, 1, 2, 3]; track item) {
+            <div class="h-24 animate-pulse rounded-lg border border-border bg-slate-50"></div>
+          }
+        </div>
+      } @else if (availableAssets().length) {
+        <div class="grid gap-3 sm:grid-cols-2">
+          @for (asset of availableAssets(); track asset.id) {
+            <button
+              type="button"
+              class="flex items-center gap-3 rounded-lg border px-3 py-3 text-left transition"
+              [class.border-brand-300]="isSelected(asset.id)"
+              [class.bg-brand-50]="isSelected(asset.id)"
+              [class.border-border]="!isSelected(asset.id)"
+              [disabled]="disabled()"
+              (click)="assetToggled.emit(asset)"
+            >
+              @if (isImageAsset(asset) && (asset.thumbnailUrl || asset.previewUrl || asset.publicUrl)) {
+                <img
+                  class="h-14 w-14 rounded-md object-cover"
+                  [src]="asset.thumbnailUrl || asset.previewUrl || asset.publicUrl || ''"
+                  [alt]="asset.originalFileName"
+                />
+              } @else {
+                <div class="grid h-14 w-14 place-items-center rounded-md bg-slate-100 text-slate-600">
+                  <app-icon [name]="asset.fileType === 'VIDEO' ? 'video' : 'image'" [size]="20" />
+                </div>
+              }
+              <div class="min-w-0 flex-1">
+                <p class="truncate text-sm font-medium text-ink">{{ asset.originalFileName }}</p>
+                <p class="mt-1 text-xs text-muted">{{ asset.assetCategory }} - {{ formatFileSize(asset.fileSize) }}</p>
+              </div>
+            </button>
+          }
+        </div>
+      } @else {
+        <app-empty-state
+          icon="image"
+          title="No assets available"
+          description="Upload workspace assets first or adjust the search to add context."
+        />
+      }
+    </div>
+  </app-card>
+
+  <app-card>
+    <div class="space-y-4">
+      <label class="flex items-center gap-3 text-sm font-medium text-ink">
+        <input
+          type="checkbox"
+          formControlName="useBrandContext"
+          class="h-4 w-4 rounded border-border text-brand-600 focus:ring-brand-500"
+          [disabled]="disabled()"
+        />
+        Use brand context
+      </label>
+
+      <div class="space-y-2">
+        <label class="text-sm font-medium text-ink" for="generationConfigText">Generation config foundation</label>
+        <textarea
+          id="generationConfigText"
+          formControlName="generationConfigText"
+          rows="4"
+          class="w-full rounded-md border border-border bg-white px-3 py-3 font-mono text-sm leading-6 text-ink outline-none transition placeholder:text-slate-400 focus:border-brand-500 focus:ring-2 focus:ring-brand-100"
+          placeholder='{"style":"clean ecommerce ad"}'
+          [disabled]="disabled()"
+        ></textarea>
+        @if (form().get('generationConfigText')?.touched && form().get('generationConfigText')?.hasError('jsonObject')) {
+          <p class="text-sm text-red-600">Generation config must be a valid JSON object.</p>
+        }
+      </div>
+
+      <div class="flex justify-end">
+        <app-button
+          type="submit"
+          icon="sparkles"
+          [loading]="loading()"
+          [disabled]="disabled() || !canSubmit()"
+        >
+          Generate creative
+        </app-button>
+      </div>
+    </div>
+  </app-card>
+</form>

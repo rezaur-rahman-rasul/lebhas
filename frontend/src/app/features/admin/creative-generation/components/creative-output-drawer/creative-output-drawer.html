@@ -1,0 +1,120 @@
+@if (open() && output()) {
+  <div class="fixed inset-0 z-50">
+    <button
+      type="button"
+      class="absolute inset-0 bg-slate-950/40"
+      aria-label="Close creative output detail"
+      (click)="closed.emit()"
+    ></button>
+
+    <aside class="absolute right-0 top-0 h-full w-full max-w-3xl overflow-y-auto bg-white shadow-xl">
+      <div class="sticky top-0 z-10 flex items-center justify-between border-b border-border bg-white px-5 py-4">
+        <div>
+          <p class="text-xs font-medium uppercase tracking-[0.12em] text-muted">Creative output</p>
+          <h2 class="mt-1 text-lg font-semibold text-ink">{{ output()!.headline || creativeTypeLabel(output()!.creativeType) }}</h2>
+        </div>
+        <button
+          type="button"
+          class="rounded-md p-2 text-muted hover:bg-slate-100 hover:text-ink"
+          aria-label="Close drawer"
+          (click)="closed.emit()"
+        >
+          <app-icon name="x" [size]="20" />
+        </button>
+      </div>
+
+      <div class="space-y-6 p-5">
+        <div class="overflow-hidden rounded-lg border border-border bg-slate-100">
+          @if (isImageFormat(output()!.outputFormat) && output()!.previewUrl) {
+            <img class="max-h-[34rem] w-full object-contain" [src]="output()!.previewUrl!" [alt]="output()!.headline || 'Creative preview'" />
+          } @else {
+            <div class="grid aspect-video place-items-center text-slate-500">
+              <app-icon [name]="isImageFormat(output()!.outputFormat) ? 'image' : 'video'" [size]="40" />
+            </div>
+          }
+        </div>
+
+        <div class="flex flex-wrap gap-2">
+          <app-badge [tone]="statusTone(output()!.status)">{{ statusLabel(output()!.status) }}</app-badge>
+          <app-badge tone="neutral">{{ outputFormatLabel(output()!.outputFormat) }}</app-badge>
+          <app-badge tone="neutral">{{ promptPlatformLabel(output()!.platform) }}</app-badge>
+        </div>
+
+        <div class="flex flex-wrap gap-2">
+          <app-button variant="secondary" icon="eye" (click)="previewRequested.emit(output()!)">
+            Preview URL
+          </app-button>
+          @if (canDownload()) {
+            <app-button icon="download" (click)="downloadRequested.emit(output()!)">
+              Download URL
+            </app-button>
+          }
+        </div>
+
+        <dl class="grid gap-4 text-sm sm:grid-cols-2">
+          <div>
+            <dt class="text-xs uppercase tracking-[0.12em] text-muted">Creative type</dt>
+            <dd class="mt-1 font-medium text-ink">{{ creativeTypeLabel(output()!.creativeType) }}</dd>
+          </div>
+          <div>
+            <dt class="text-xs uppercase tracking-[0.12em] text-muted">Dimensions</dt>
+            <dd class="mt-1 font-medium text-ink">{{ formatOutputDimensions(output()!) }}</dd>
+          </div>
+          <div>
+            <dt class="text-xs uppercase tracking-[0.12em] text-muted">Duration</dt>
+            <dd class="mt-1 font-medium text-ink">{{ formatOutputDuration(output()!.duration) }}</dd>
+          </div>
+          <div>
+            <dt class="text-xs uppercase tracking-[0.12em] text-muted">File size</dt>
+            <dd class="mt-1 font-medium text-ink">{{ fileSizeLabel(output()!.fileSize) }}</dd>
+          </div>
+          <div>
+            <dt class="text-xs uppercase tracking-[0.12em] text-muted">Created</dt>
+            <dd class="mt-1 font-medium text-ink">{{ output()!.createdAt | date: 'medium' }}</dd>
+          </div>
+          <div>
+            <dt class="text-xs uppercase tracking-[0.12em] text-muted">Generated asset</dt>
+            <dd class="mt-1 font-medium text-ink">{{ output()!.generatedAssetId || 'Pending' }}</dd>
+          </div>
+        </dl>
+
+        <div class="space-y-3">
+          <div>
+            <p class="text-xs uppercase tracking-[0.12em] text-muted">Headline</p>
+            <p class="mt-1 text-sm leading-6 text-ink">{{ output()!.headline || 'Not generated' }}</p>
+          </div>
+          <div>
+            <p class="text-xs uppercase tracking-[0.12em] text-muted">Caption</p>
+            <p class="mt-1 whitespace-pre-line text-sm leading-6 text-ink">{{ output()!.caption || 'Not generated' }}</p>
+          </div>
+          <div>
+            <p class="text-xs uppercase tracking-[0.12em] text-muted">CTA</p>
+            <p class="mt-1 text-sm leading-6 text-ink">{{ output()!.ctaText || 'Not generated' }}</p>
+          </div>
+        </div>
+
+        @if (request()) {
+          <div class="rounded-lg border border-border bg-slate-50 px-4 py-4">
+            <p class="text-sm font-semibold text-ink">Related generation request</p>
+            <p class="mt-2 line-clamp-4 whitespace-pre-line text-sm leading-6 text-muted">
+              {{ request()!.enhancedPrompt || request()!.sourcePrompt || 'Prompt unavailable' }}
+            </p>
+          </div>
+        }
+
+        @if (output()!.metadata | keyvalue; as metadata) {
+          @if (metadata.length) {
+            <div class="space-y-2">
+              <p class="text-xs uppercase tracking-[0.12em] text-muted">Metadata</p>
+              <div class="rounded-lg border border-border bg-slate-50 px-4 py-3 text-sm text-muted">
+                @for (entry of metadata; track entry.key) {
+                  <p><span class="font-medium text-ink">{{ entry.key }}:</span> {{ entry.value }}</p>
+                }
+              </div>
+            </div>
+          }
+        }
+      </div>
+    </aside>
+  </div>
+}

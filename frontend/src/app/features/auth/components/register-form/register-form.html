@@ -1,0 +1,74 @@
+<section class="w-full">
+  @if (errorMessage()) {
+    <div class="mt-5 rounded-2xl border border-red-500/30 bg-red-500/10 px-4 py-3 text-sm text-red-200 dark:text-red-100">
+      {{ errorMessage() }}
+    </div>
+  }
+
+  <form class="mt-6 flex flex-col gap-4" [formGroup]="form" (ngSubmit)="submit()">
+    <div class="grid gap-4 sm:grid-cols-2">
+      <app-input
+        label="First name"
+        placeholder="Rezaur"
+        autocomplete="given-name"
+        [control]="form.controls.firstName"
+        [error]="fieldError('firstName')"
+      />
+
+      <app-input
+        label="Last name"
+        placeholder="Rasul"
+        autocomplete="family-name"
+        [control]="form.controls.lastName"
+        [error]="fieldError('lastName')"
+      />
+    </div>
+
+    <app-input
+      label="Email address"
+      type="email"
+      autocomplete="email"
+      placeholder="owner@lebhas.com"
+      icon="mail"
+      [control]="form.controls.email"
+      [error]="fieldError('email')"
+    />
+
+    <app-input
+      label="Phone number"
+      type="tel"
+      autocomplete="tel"
+      placeholder="+8801XXXXXXXXX"
+      icon="phone"
+      [control]="form.controls.phone"
+      [error]="fieldError('phone')"
+    />
+
+    <app-password-input
+      label="Password"
+      placeholder="Create a strong password"
+      autocomplete="new-password"
+      [control]="form.controls.password"
+      [submitted]="attemptedSubmit()"
+      [error]="passwordError()"
+    />
+
+    <app-password-input
+      label="Confirm password"
+      placeholder="Repeat the password"
+      autocomplete="new-password"
+      [control]="form.controls.confirmPassword"
+      [submitted]="attemptedSubmit()"
+      [error]="confirmPasswordError()"
+    />
+
+    <app-button
+      type="submit"
+      [fullWidth]="true"
+      [loading]="loading()"
+      [testId]="'register-submit'"
+    >
+      Create workspace account
+    </app-button>
+  </form>
+</section>

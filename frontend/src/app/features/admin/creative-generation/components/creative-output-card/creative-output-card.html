@@ -1,0 +1,62 @@
+<app-card [interactive]="true">
+  <div class="space-y-4">
+    <button
+      type="button"
+      class="group relative aspect-[4/3] w-full overflow-hidden rounded-lg border border-border bg-slate-100"
+      (click)="detailRequested.emit(output())"
+    >
+      @if (isImageFormat(output().outputFormat) && output().previewUrl) {
+        <img class="h-full w-full object-cover transition group-hover:scale-[1.02]" [src]="output().previewUrl!" [alt]="output().headline || 'Creative output preview'" />
+      } @else {
+        <div class="grid h-full place-items-center text-slate-500">
+          <app-icon [name]="isImageFormat(output().outputFormat) ? 'image' : 'video'" [size]="32" />
+        </div>
+      }
+      <span class="absolute left-3 top-3">
+        <app-badge [tone]="statusTone(output().status)">{{ statusLabel(output().status) }}</app-badge>
+      </span>
+    </button>
+
+    <div>
+      <h3 class="line-clamp-2 text-sm font-semibold text-ink">
+        {{ output().headline || creativeTypeLabel(output().creativeType) }}
+      </h3>
+      <p class="mt-1 line-clamp-2 text-sm text-muted">
+        {{ output().caption || 'Generated creative output preview.' }}
+      </p>
+    </div>
+
+    <dl class="grid gap-2 text-sm sm:grid-cols-2">
+      <div>
+        <dt class="text-xs uppercase tracking-[0.12em] text-muted">Platform</dt>
+        <dd class="mt-1 font-medium text-ink">{{ promptPlatformLabel(output().platform) }}</dd>
+      </div>
+      <div>
+        <dt class="text-xs uppercase tracking-[0.12em] text-muted">Format</dt>
+        <dd class="mt-1 font-medium text-ink">{{ outputFormatLabel(output().outputFormat) }}</dd>
+      </div>
+      <div>
+        <dt class="text-xs uppercase tracking-[0.12em] text-muted">Size</dt>
+        <dd class="mt-1 font-medium text-ink">{{ formatOutputDimensions(output()) }}</dd>
+      </div>
+      <div>
+        <dt class="text-xs uppercase tracking-[0.12em] text-muted">Created</dt>
+        <dd class="mt-1 font-medium text-ink">{{ output().createdAt | date: 'mediumDate' }}</dd>
+      </div>
+    </dl>
+
+    <div class="flex flex-wrap gap-2">
+      <app-button size="sm" variant="secondary" icon="eye" (click)="previewRequested.emit(output())">
+        Preview
+      </app-button>
+      @if (canDownload()) {
+        <app-button size="sm" variant="secondary" icon="download" (click)="downloadRequested.emit(output())">
+          Download
+        </app-button>
+      }
+      <app-button size="sm" icon="panel-right" (click)="detailRequested.emit(output())">
+        Detail
+      </app-button>
+    </div>
+  </div>
+</app-card>

@@ -1,0 +1,25 @@
+<div>
+  @switch (size()) {
+    @case ('sm') {
+      <img
+        ngSrc="/assets/lebhas-logo-header.png"
+        alt="Lebhas - Brand Attire logo"
+        class="h-8 w-auto"
+        height="153" width="622"/>
+    }
+    @case ('lg') {
+      <img
+        ngSrc="/assets/lebhas-logo-header.png"
+        alt="Lebhas - Brand Attire logo"
+        class="h-14 w-auto"
+        height="153" width="622"/>
+    }
+    @default {
+      <img
+        ngSrc="/assets/lebhas-logo-header.png"
+        alt="Lebhas - Brand Attire logo"
+        class="h-10 w-auto"
+        height="153" width="622"/>
+    }
+  }
+</div>

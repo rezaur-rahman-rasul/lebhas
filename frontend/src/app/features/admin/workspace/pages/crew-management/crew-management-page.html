@@ -1,0 +1,137 @@
+
+    <app-page-header
+      eyebrow="Workspace"
+      title="Crew management"
+      [description]="pageDescription()"
+    >
+      <app-badge [tone]="canManage() ? 'brand' : 'neutral'">
+        {{ canManage() ? 'Manage access' : 'Read only' }}
+      </app-badge>
+      @if (canManage()) {
+        <app-button icon="user-plus" (click)="inviteOpen.set(true)">Invite crew</app-button>
+      }
+    </app-page-header>
+
+    @if (store.workspaceError()) {
+      <div class="mt-6 rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
+        {{ store.workspaceError() }}
+      </div>
+    }
+
+    @if (store.workspaceLoading() && !workspace()) {
+      <section class="mt-6 grid gap-4 md:grid-cols-3">
+        @for (item of skeletonCards; track item) {
+          <div class="h-32 animate-pulse rounded-lg border border-border bg-white"></div>
+        }
+      </section>
+      <div class="mt-6 h-72 animate-pulse rounded-lg border border-border bg-white"></div>
+    } @else if (!workspace()) {
+      <div class="mt-6">
+        <app-empty-state
+          icon="users"
+          title="Workspace context missing"
+          description="Crew management can load once the current session has an active workspace."
+        />
+      </div>
+    } @else if (!canManage()) {
+      <div class="mt-6">
+        <app-empty-state
+          icon="users"
+          title="Crew management is unavailable"
+          description="This session does not currently have the permissions required to manage crew access."
+        />
+      </div>
+    } @else {
+      <section class="mt-6 grid gap-4 md:grid-cols-3">
+        <app-workspace-summary-card
+          label="Total crew"
+          [value]="totalCrewLabel()"
+          description="All current crew records inside the active workspace."
+          icon="users"
+        />
+        <app-workspace-summary-card
+          label="Active crew"
+          [value]="activeCrewLabel()"
+          description="Crew members currently active and available."
+          icon="circle-check"
+          accent="blue"
+        />
+        <app-workspace-summary-card
+          label="Invites pending"
+          [value]="invitedCrewLabel()"
+          description="Workspace invitations still waiting for acceptance."
+          icon="mail"
+          accent="neutral"
+        />
+      </section>
+
+      @if (crewMembers().length) {
+        <div class="mt-6">
+          <app-crew-list
+            [members]="crewMembers()"
+            [canManage]="canManage()"
+            [removingCrewId]="removingCrewId()"
+            (editRequested)="openEdit($event)"
+            (removeRequested)="removeCrew($event)"
+          />
+        </div>
+      } @else {
+        <div class="mt-6">
+          <app-empty-state
+            icon="users"
+            title="No crew members yet"
+            description="Invite designers, copywriters, or operators to give this workspace a Day 3 team foundation."
+          >
+            <app-button icon="user-plus" (click)="inviteOpen.set(true)">Invite crew</app-button>
+          </app-empty-state>
+        </div>
+      }
+    }
+
+    <app-crew-invite-modal
+      [open]="inviteOpen()"
+      [submitting]="inviteSaving()"
+      [serverErrors]="inviteFieldErrors()"
+      (closed)="closeInvite()"
+      (invited)="inviteCrew($event)"
+    />
+
+    @if (editingMember()) {
+      <app-modal-shell
+        [open]="true"
+        title="Edit crew permissions"
+        description="Adjust access scope and operational status for the selected crew member."
+        (closed)="closeEdit()"
+      >
+        <form class="space-y-5" [formGroup]="editForm" (ngSubmit)="saveEdit()">
+          <div class="rounded-lg border border-border bg-slate-50 px-4 py-3">
+            <p class="text-sm font-semibold text-ink">{{ memberName(editingMember()!) }}</p>
+            <p class="mt-1 text-sm text-muted">{{ editingMember()!.email }}</p>
+          </div>
+
+          <label class="block">
+            <span class="mb-2 block text-sm font-medium text-ink">Status</span>
+            <select formControlName="status" [class]="selectClasses()">
+              <option value="ACTIVE">Active</option>
+              <option value="SUSPENDED">Suspended</option>
+            </select>
+            @if (editFieldError('status')) {
+              <span class="mt-2 block text-sm text-alert-600">{{ editFieldError('status') }}</span>
+            }
+          </label>
+
+          <app-crew-permission-panel
+            [selectedPermissions]="editForm.controls.permissions.value"
+            [disabled]="editSaving()"
+            [error]="editFieldError('permissions')"
+            (selectionChange)="updateEditPermissions($event)"
+          />
+
+          <div class="flex flex-col-reverse gap-3 sm:flex-row sm:justify-end">
+            <app-button variant="secondary" (click)="closeEdit()">Cancel</app-button>
+            <app-button type="submit" icon="save" [loading]="editSaving()">Save changes</app-button>
+          </div>
+        </form>
+      </app-modal-shell>
+    }
+  

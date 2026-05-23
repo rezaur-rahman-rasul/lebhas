@@ -1,0 +1,40 @@
+
+    <app-page-header
+      eyebrow="Workspace"
+      title="Workspace settings"
+      [description]="pageDescription()"
+    >
+      <app-badge [tone]="canEdit() ? 'brand' : 'neutral'">
+        {{ canEdit() ? 'Editable' : 'Read only' }}
+      </app-badge>
+    </app-page-header>
+
+    @if (store.workspaceError()) {
+      <div class="mt-6 rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
+        {{ store.workspaceError() }}
+      </div>
+    }
+
+    @if (store.workspaceLoading() && !workspace()) {
+      <div class="mt-6 h-96 animate-pulse rounded-lg border border-border bg-white"></div>
+    } @else if (workspace() && settings()) {
+      <div class="mt-6">
+        <app-workspace-settings-form
+          [workspace]="workspace()"
+          [settings]="settings()"
+          [readOnly]="!canEdit()"
+          [submitting]="saving()"
+          [serverErrors]="fieldErrors()"
+          (saved)="save($event)"
+        />
+      </div>
+    } @else {
+      <div class="mt-6">
+        <app-empty-state
+          icon="settings"
+          title="Workspace settings unavailable"
+          description="Settings can load once the session has a valid workspace context."
+        />
+      </div>
+    }
+  

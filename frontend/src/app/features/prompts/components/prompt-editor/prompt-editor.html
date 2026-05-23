@@ -1,0 +1,70 @@
+<app-card>
+  <div class="space-y-5">
+    <div class="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+      <div>
+        <h2 class="text-lg font-semibold text-ink">Prompt editor</h2>
+        <p class="text-sm text-muted">Write the source prompt, then enhance or request suggestions.</p>
+      </div>
+      <div class="flex flex-wrap gap-2">
+        <app-button
+          type="button"
+          variant="secondary"
+          size="sm"
+          icon="copy"
+          [disabled]="!canCopyEnhanced()"
+          (click)="copyEnhanced.emit()"
+        >
+          Copy enhanced
+        </app-button>
+        <app-button
+          type="button"
+          variant="ghost"
+          size="sm"
+          icon="rotate-ccw"
+          [disabled]="disabled()"
+          (click)="reset.emit()"
+        >
+          Reset
+        </app-button>
+      </div>
+    </div>
+
+    <div class="space-y-2">
+      <div class="flex items-center justify-between gap-3">
+        <label class="text-sm font-medium text-ink" for="sourcePrompt">Source prompt</label>
+        <span class="text-xs text-muted">{{ characterCount() }}/{{ maxLength }}</span>
+      </div>
+      <textarea
+        id="sourcePrompt"
+        rows="8"
+        class="w-full rounded-md border border-border bg-white px-3 py-3 text-sm leading-6 text-ink outline-none transition placeholder:text-slate-400 focus:border-brand-500 focus:ring-2 focus:ring-brand-100 disabled:cursor-not-allowed disabled:bg-slate-50"
+        [disabled]="disabled()"
+        [value]="sourcePrompt()"
+        (input)="sourcePromptChange.emit($any($event.target).value)"
+        placeholder="Describe the campaign, offer, audience, and creative direction you want."
+      ></textarea>
+      @if (showValidation()) {
+        @if (characterCount() > 0 && characterCount() < minLength) {
+          <p class="text-sm text-amber-700">
+            Add at least {{ minLength }} characters before running prompt intelligence.
+          </p>
+        }
+        @if (characterCount() > maxLength) {
+          <p class="text-sm text-red-600">Prompt must stay within {{ maxLength }} characters.</p>
+        }
+        @if (sourcePromptError()) {
+          <p class="text-sm text-red-600">{{ sourcePromptError() }}</p>
+        }
+      }
+    </div>
+
+    @if (enhancedPrompt()) {
+      <div class="space-y-2 rounded-xl border border-brand-100 bg-brand-50/40 p-4">
+        <div class="flex flex-wrap items-center gap-2">
+          <app-badge tone="brand">Enhanced prompt</app-badge>
+        </div>
+        <p class="whitespace-pre-line text-sm leading-6 text-ink">{{ enhancedPrompt() }}</p>
+      </div>
+    }
+  </div>
+</app-card>

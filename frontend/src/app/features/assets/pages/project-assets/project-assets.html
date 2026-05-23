@@ -1,0 +1,166 @@
+<app-page-header
+  eyebrow="Campaign assets"
+  [title]="project()?.name ?? 'Project assets'"
+  description="Upload and manage raw product media for this campaign. Assets stay linked to the selected brand and product context."
+>
+  <a routerLink="/assets" class="text-sm font-medium text-brand-600 hover:text-brand-700">All projects</a>
+  <app-badge tone="neutral">{{ assetCountLabel() }}</app-badge>
+
+  @if (store.canUploadAssets() && projectId()) {
+    <app-button icon="cloud-upload" data-testid="open-asset-uploader" (click)="openUploader()">
+      Upload asset
+    </app-button>
+  }
+</app-page-header>
+
+@if (!hasWorkspaceContext()) {
+  <div class="mt-6">
+    <app-empty-state
+      icon="folder-kanban"
+      title="Workspace context required"
+      description="Select a workspace before managing campaign assets."
+    />
+  </div>
+} @else if (!projectId() || !project()) {
+  <div class="mt-6">
+    <app-empty-state
+      icon="circle-alert"
+      title="Project context required"
+      description="Choose a valid project campaign before uploading or reviewing assets."
+    />
+  </div>
+} @else if (!store.canViewAssets()) {
+  <div class="mt-6">
+    <app-empty-state
+      icon="circle-alert"
+      title="Asset access is not available"
+      description="This session does not have permission to view project assets."
+    />
+  </div>
+} @else {
+  <app-asset-context-banner
+    class="mt-6 block"
+    [workspaceLabel]="workspace.workspaceLabel()"
+    [brandName]="brand()?.name ?? '—'"
+    [productName]="product()?.name ?? '—'"
+    [projectName]="project()?.name ?? '—'"
+  />
+
+  @if (store.assetError()) {
+    <div class="mt-6 rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
+      {{ store.assetError() }}
+    </div>
+  }
+
+  <section class="mt-6 space-y-4">
+    <app-asset-filter-bar
+      [filters]="store.filters()"
+      [viewMode]="store.viewMode()"
+      contextLabel="Project assets"
+      [disabled]="store.assetLoading()"
+      (filtersApplied)="applyFilters($event)"
+      (filtersReset)="resetFilters()"
+      (viewModeChanged)="store.setViewMode($event)"
+    />
+
+    @if (store.assetLoading() && !store.hasAssets()) {
+      <div class="grid gap-4 md:grid-cols-2 2xl:grid-cols-3">
+        @for (item of skeletonItems; track item) {
+          <div class="h-72 animate-pulse rounded-2xl border border-border bg-panel"></div>
+        }
+      </div>
+    } @else if (store.hasAssets()) {
+      @if (store.isGridView()) {
+        <app-asset-grid
+          [assets]="store.filteredAssets()"
+          [canDownload]="store.canDownloadAssets()"
+          [canDelete]="store.canDeleteAssets()"
+          [deletingAssetId]="pendingDeleteAsset()?.id ?? null"
+          (previewRequested)="openPreview($event)"
+          (downloadRequested)="downloadAsset($event)"
+          (deleteRequested)="confirmDelete($event)"
+          (detailRequested)="openAssetDetail($event)"
+        />
+      } @else {
+        <app-asset-list
+          [assets]="store.filteredAssets()"
+          [canDownload]="store.canDownloadAssets()"
+          [canDelete]="store.canDeleteAssets()"
+          [deletingAssetId]="pendingDeleteAsset()?.id ?? null"
+          (previewRequested)="openPreview($event)"
+          (downloadRequested)="downloadAsset($event)"
+          (deleteRequested)="confirmDelete($event)"
+          (detailRequested)="openAssetDetail($event)"
+        />
+      }
+
+      <div class="flex items-center justify-between gap-3 pt-2">
+        <p class="text-sm text-muted">
+          Page {{ store.pagination().page + 1 }} of {{ store.pagination().totalPages || 1 }}
+        </p>
+        <div class="flex gap-2">
+          <app-button
+            size="sm"
+            variant="secondary"
+            [disabled]="store.pagination().first || store.assetLoading()"
+            (click)="goToPreviousPage()"
+          >
+            Previous
+          </app-button>
+          <app-button
+            size="sm"
+            variant="secondary"
+            [disabled]="store.pagination().last || store.assetLoading()"
+            (click)="goToNextPage()"
+          >
+            Next
+          </app-button>
+        </div>
+      </div>
+    } @else {
+      <app-empty-state
+        icon="image"
+        title="No assets yet"
+        description="Upload product images or videos to start building campaign-ready creative inputs."
+      >
+        @if (store.canUploadAssets()) {
+          <app-button icon="cloud-upload" (click)="openUploader()">Upload first asset</app-button>
+        }
+      </app-empty-state>
+    }
+  </section>
+}
+
+<app-asset-uploader
+  [open]="uploaderOpen()"
+  [uploading]="store.isUploading()"
+  [uploadProgress]="store.uploadProgress()"
+  [fieldErrors]="uploadFieldErrors()"
+  (submitted)="submitUpload($event)"
+  (closed)="closeUploader()"
+  (uploadCancelled)="cancelUpload()"
+/>
+
+<app-asset-preview-drawer
+  [open]="previewOpen()"
+  [asset]="store.selectedAsset()"
+  [previewUrl]="previewUrl()"
+  [previewLoading]="previewLoading()"
+  [canDownload]="store.canDownloadAssets()"
+  (closed)="closePreview()"
+  (downloadRequested)="downloadAsset($event)"
+/>
+
+<app-modal-shell
+  [open]="deleteDialogOpen()"
+  title="Delete asset"
+  description="This removes the asset from the project library."
+  (closed)="cancelDelete()"
+>
+  <div class="flex justify-end gap-3">
+    <app-button variant="secondary" (click)="cancelDelete()">Cancel</app-button>
+    <app-button variant="danger" [loading]="store.assetLoading()" (click)="deleteAsset()">
+      Delete asset
+    </app-button>
+  </div>
+</app-modal-shell>

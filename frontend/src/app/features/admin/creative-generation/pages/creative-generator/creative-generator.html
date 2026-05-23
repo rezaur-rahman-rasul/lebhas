@@ -1,0 +1,120 @@
+<app-page-header
+  eyebrow="AI Workspace"
+  title="Creative generation"
+  description="Submit workspace-scoped creative generation requests and review outputs as they are produced."
+>
+  <app-badge [tone]="roleTone()">{{ roleLabel() }}</app-badge>
+  <app-badge tone="neutral">{{ workspaceLabel() }}</app-badge>
+</app-page-header>
+
+@if (!store.hasWorkspaceContext()) {
+  <div class="mt-6">
+    <app-empty-state
+      icon="building-2"
+      title="Workspace context required"
+      description="Select a workspace before opening creative generation."
+    />
+  </div>
+} @else if (!store.canViewGenerations()) {
+  <div class="mt-6">
+    <app-empty-state
+      icon="circle-alert"
+      title="Generation access is not available"
+      description="This session does not have permission to submit or view creative generation requests."
+    />
+  </div>
+} @else {
+  @if (store.generationError()) {
+    <div class="mt-6 rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
+      {{ store.generationError() }}
+    </div>
+  }
+
+  <section class="mt-6 grid gap-6 2xl:grid-cols-[minmax(0,1.35fr)_minmax(22rem,0.9fr)]">
+    <div class="space-y-6">
+      <app-generation-form
+        [form]="generationForm"
+        [promptHistory]="store.promptHistory()"
+        [availableAssets]="store.availableAssets()"
+        [selectedAssets]="store.selectedAssets()"
+        [loading]="store.generationLoading()"
+        [disabled]="store.generationLoading()"
+        [canSubmit]="store.canSubmitGeneration()"
+        (submitted)="onSubmit()"
+        (promptHistorySelected)="onPromptHistorySelected($event)"
+        (assetSearchSubmitted)="searchAssets($event)"
+        (assetToggled)="toggleAsset($event)"
+        (assetRemoved)="removeAsset($event)"
+        (sizeSelected)="onSizeSelected($event)"
+      />
+    </div>
+
+    <div class="space-y-6">
+      <app-prompt-context-summary
+        [promptHistory]="selectedPromptHistory()"
+        [sourcePrompt]="generationForm.controls.sourcePrompt.value"
+        [enhancedPrompt]="generationForm.controls.enhancedPrompt.value"
+      />
+
+      <app-brand-context-summary
+        [brandProfile]="store.brandProfile()"
+        [enabled]="generationForm.controls.useBrandContext.value"
+      />
+
+      <app-selected-assets-summary
+        [assets]="store.selectedAssets()"
+        [removable]="true"
+        (assetRemoved)="removeAsset($event)"
+      />
+
+      <app-generation-progress
+        [request]="store.selectedRequest()"
+        [loading]="store.generationLoading()"
+        [canRetry]="store.canRetryGeneration()"
+        [canCancel]="store.canCancelGeneration()"
+        (retryRequested)="retryGeneration()"
+        (cancelRequested)="cancelGeneration()"
+        (refreshRequested)="refreshGeneration()"
+      />
+
+      @if (store.generationJobs().length) {
+        <div class="space-y-3">
+          @for (job of store.generationJobs(); track job.id) {
+            <app-generation-job-card [job]="job" />
+          }
+        </div>
+      }
+    </div>
+  </section>
+
+  <section class="mt-8 space-y-4">
+    <div class="flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
+      <div>
+        <h2 class="text-lg font-semibold text-ink">Output gallery</h2>
+        <p class="mt-1 text-sm text-muted">Preview generated outputs, open details, or request signed download URLs.</p>
+      </div>
+      @if (!store.hasOutputs() && !store.generationLoading()) {
+        <app-badge tone="neutral">Waiting for completed generation</app-badge>
+      }
+    </div>
+
+    <app-creative-output-gallery
+      [outputs]="store.creativeOutputs()"
+      [loading]="store.generationLoading()"
+      [canDownload]="store.canDownloadOutputs()"
+      (previewRequested)="previewOutput($event)"
+      (downloadRequested)="downloadOutput($event)"
+      (detailRequested)="openOutputDetail($event)"
+    />
+  </section>
+}
+
+<app-creative-output-drawer
+  [open]="!!store.selectedOutput()"
+  [output]="store.selectedOutput()"
+  [request]="store.selectedRequest()"
+  [canDownload]="store.canDownloadOutputs()"
+  (closed)="closeOutputDetail()"
+  (previewRequested)="previewOutput($event)"
+  (downloadRequested)="downloadOutput($event)"
+/>

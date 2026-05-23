@@ -1,0 +1,33 @@
+<app-card>
+  <div class="space-y-4">
+    <div class="flex flex-wrap items-center gap-2">
+      <app-badge tone="brand">Prompt context</app-badge>
+      @if (promptHistory()) {
+        <app-badge tone="neutral">History linked</app-badge>
+      }
+    </div>
+
+    @if (sourcePrompt() || enhancedPrompt()) {
+      <div class="space-y-3">
+        <div>
+          <p class="text-xs font-medium uppercase tracking-[0.12em] text-muted">Source prompt</p>
+          <p class="mt-1 line-clamp-4 whitespace-pre-line text-sm leading-6 text-ink">
+            {{ sourcePrompt() || 'No source prompt provided.' }}
+          </p>
+        </div>
+        @if (enhancedPrompt()) {
+          <div class="rounded-md border border-brand-100 bg-brand-50 px-3 py-3">
+            <p class="text-xs font-medium uppercase tracking-[0.12em] text-brand-700">Enhanced prompt</p>
+            <p class="mt-1 line-clamp-5 whitespace-pre-line text-sm leading-6 text-ink">
+              {{ enhancedPrompt() }}
+            </p>
+          </div>
+        }
+      </div>
+    } @else {
+      <p class="text-sm leading-6 text-muted">
+        Choose a prompt history item or enter a source prompt in the generation form.
+      </p>
+    }
+  </div>
+</app-card>

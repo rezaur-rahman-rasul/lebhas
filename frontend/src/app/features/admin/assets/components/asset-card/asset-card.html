@@ -1,0 +1,136 @@
+<app-card [interactive]="true" [padded]="false">
+  <div class="overflow-hidden rounded-lg">
+    <button
+      type="button"
+      class="relative block w-full overflow-hidden border-b border-border bg-slate-100 text-left"
+      (click)="previewRequested.emit(asset())"
+    >
+      <div class="aspect-[4/3]">
+        @switch (asset().fileType) {
+          @case ('VIDEO') {
+            @if (asset().thumbnailUrl || asset().previewUrl) {
+              <img
+                [src]="asset().thumbnailUrl || asset().previewUrl || ''"
+                [alt]="asset().originalFileName"
+                class="h-full w-full object-cover"
+              />
+            } @else {
+              <div class="grid h-full place-items-center bg-slate-900 text-white">
+                <div class="flex flex-col items-center gap-2">
+                  <app-icon name="video" [size]="28" />
+                  <span class="text-xs font-medium uppercase tracking-[0.16em]">
+                    {{ asset().fileExtension }}
+                  </span>
+                </div>
+              </div>
+            }
+
+            <div class="absolute inset-0 grid place-items-center bg-slate-950/10">
+              <div class="grid h-12 w-12 place-items-center rounded-full bg-white/90 text-ink shadow-sm">
+                <app-icon name="play" [size]="20" />
+              </div>
+            </div>
+          }
+          @default {
+            @if (asset().thumbnailUrl || asset().previewUrl || asset().publicUrl) {
+              <img
+                [src]="asset().thumbnailUrl || asset().previewUrl || asset().publicUrl || ''"
+                [alt]="asset().originalFileName"
+                class="h-full w-full object-cover"
+              />
+            } @else {
+              <div class="grid h-full place-items-center bg-slate-50 text-slate-500">
+                <div class="flex flex-col items-center gap-2">
+                  <app-icon name="image" [size]="28" />
+                  <span class="text-xs font-medium uppercase tracking-[0.16em]">
+                    {{ asset().fileExtension }}
+                  </span>
+                </div>
+              </div>
+            }
+          }
+        }
+      </div>
+
+      <div class="absolute left-3 top-3">
+        <app-badge [tone]="assetStatusTone(asset().status)">
+          {{ assetStatusLabel(asset().status) }}
+        </app-badge>
+      </div>
+    </button>
+
+    <div class="p-4">
+      <div class="flex items-start justify-between gap-3">
+        <div class="min-w-0">
+          <button
+            type="button"
+            class="block max-w-full truncate text-left text-sm font-semibold text-ink hover:text-brand-700"
+            (click)="detailRequested.emit(asset())"
+          >
+            {{ asset().originalFileName }}
+          </button>
+          <p class="mt-1 text-xs text-muted">
+            {{ assetCategoryLabel(asset().assetCategory) }}
+          </p>
+        </div>
+
+        <span class="rounded-full bg-slate-100 px-2.5 py-1 text-[11px] font-semibold uppercase tracking-[0.14em] text-slate-600">
+          {{ asset().fileExtension }}
+        </span>
+      </div>
+
+      <dl class="mt-4 grid grid-cols-2 gap-3 text-sm">
+        <div>
+          <dt class="text-xs uppercase tracking-[0.14em] text-slate-500">Type</dt>
+          <dd class="mt-1 font-medium text-ink">{{ assetFileTypeLabel(asset().fileType) }}</dd>
+        </div>
+        <div>
+          <dt class="text-xs uppercase tracking-[0.14em] text-slate-500">Size</dt>
+          <dd class="mt-1 font-medium text-ink">{{ formatFileSize(asset().fileSize) }}</dd>
+        </div>
+        <div>
+          <dt class="text-xs uppercase tracking-[0.14em] text-slate-500">Created</dt>
+          <dd class="mt-1 font-medium text-ink">{{ asset().createdAt | date: 'd MMM y' }}</dd>
+        </div>
+        <div>
+          <dt class="text-xs uppercase tracking-[0.14em] text-slate-500">Tags</dt>
+          <dd class="mt-1 font-medium text-ink">{{ asset().tags.length || 0 }}</dd>
+        </div>
+      </dl>
+
+      <div class="mt-4 flex flex-wrap gap-2">
+        <app-button
+          size="sm"
+          variant="secondary"
+          icon="eye"
+          (click)="previewRequested.emit(asset())"
+        >
+          Preview
+        </app-button>
+
+        @if (canDownload()) {
+          <app-button
+            size="sm"
+            variant="secondary"
+            icon="download"
+            (click)="downloadRequested.emit(asset())"
+          >
+            Download
+          </app-button>
+        }
+
+        @if (canDelete()) {
+          <app-button
+            size="sm"
+            variant="danger"
+            icon="trash-2"
+            [loading]="deleting()"
+            (click)="deleteRequested.emit(asset())"
+          >
+            Delete
+          </app-button>
+        }
+      </div>
+    </div>
+  </div>
+</app-card>

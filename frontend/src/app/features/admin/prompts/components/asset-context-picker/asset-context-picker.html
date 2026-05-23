@@ -1,0 +1,93 @@
+<app-card>
+  <div class="space-y-4">
+    <div class="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+      <div>
+        <div class="flex flex-wrap gap-2">
+          <app-badge tone="neutral">Selected {{ selectedAssets().length }}</app-badge>
+        </div>
+        <h3 class="mt-3 text-base font-semibold text-ink">Asset context</h3>
+        <p class="mt-1 text-sm text-muted">
+          Select uploaded assets to give the prompt engine more campaign context.
+        </p>
+      </div>
+    </div>
+
+    <div class="flex gap-2">
+      <input
+        type="text"
+        class="h-11 min-w-0 flex-1 rounded-md border border-border bg-white px-3 text-sm text-ink outline-none transition placeholder:text-slate-400 focus:border-brand-500 focus:ring-2 focus:ring-brand-100"
+        placeholder="Search uploaded assets"
+        [value]="searchValue()"
+        [disabled]="disabled()"
+        (input)="searchValue.set($any($event.target).value)"
+        (keydown.enter)="submitSearch()"
+      />
+      <app-button variant="secondary" [disabled]="disabled() || loading()" (click)="submitSearch()">
+        Search
+      </app-button>
+    </div>
+
+    @if (selectedAssets().length) {
+      <div class="flex flex-wrap gap-2">
+        @for (asset of selectedAssets(); track asset.id) {
+          <button
+            type="button"
+            class="inline-flex items-center gap-2 rounded-full border border-brand-200 bg-brand-50 px-3 py-2 text-sm text-brand-700"
+            [disabled]="disabled()"
+            (click)="assetRemoved.emit(asset.id)"
+          >
+            <span class="truncate">{{ asset.originalFileName }}</span>
+            <app-icon name="x" [size]="14" />
+          </button>
+        }
+      </div>
+    }
+
+    @if (loading()) {
+      <div class="grid gap-3 sm:grid-cols-2">
+        @for (item of [0, 1, 2, 3]; track item) {
+          <div class="h-24 animate-pulse rounded-lg border border-border bg-slate-50"></div>
+        }
+      </div>
+    } @else if (assets().length) {
+      <div class="grid gap-3 sm:grid-cols-2">
+        @for (asset of assets(); track asset.id) {
+          <button
+            type="button"
+            class="flex items-center gap-3 rounded-lg border px-3 py-3 text-left transition"
+            [class.border-brand-300]="isSelected(asset.id)"
+            [class.bg-brand-50]="isSelected(asset.id)"
+            [class.border-border]="!isSelected(asset.id)"
+            [disabled]="disabled()"
+            (click)="assetToggled.emit(asset)"
+          >
+            @if (isImageAsset(asset) && (asset.thumbnailUrl || asset.previewUrl || asset.publicUrl)) {
+              <img
+                class="h-14 w-14 rounded-md object-cover"
+                [src]="asset.thumbnailUrl || asset.previewUrl || asset.publicUrl || ''"
+                [alt]="asset.originalFileName"
+              />
+            } @else {
+              <div class="grid h-14 w-14 place-items-center rounded-md bg-slate-100 text-slate-600">
+                <app-icon [name]="asset.fileType === 'VIDEO' ? 'video' : 'image'" [size]="20" />
+              </div>
+            }
+
+            <div class="min-w-0 flex-1">
+              <p class="truncate text-sm font-medium text-ink">{{ asset.originalFileName }}</p>
+              <p class="mt-1 text-xs text-muted">
+                {{ asset.assetCategory }} - {{ formatFileSize(asset.fileSize) }}
+              </p>
+            </div>
+          </button>
+        }
+      </div>
+    } @else {
+      <app-empty-state
+        icon="image"
+        title="No assets available"
+        description="Upload workspace assets first or adjust the search to add context."
+      />
+    }
+  </div>
+</app-card>

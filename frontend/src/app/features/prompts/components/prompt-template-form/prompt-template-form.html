@@ -1,0 +1,170 @@
+<form class="space-y-4" [formGroup]="form" (ngSubmit)="submit()">
+  <div class="space-y-2">
+    <label class="text-sm font-medium text-ink" for="name">Template name</label>
+    <input
+      id="name"
+      type="text"
+      formControlName="name"
+      class="h-11 w-full rounded-md border border-border bg-white px-3 text-sm text-ink outline-none transition placeholder:text-slate-400 focus:border-brand-500 focus:ring-2 focus:ring-brand-100 disabled:cursor-not-allowed disabled:bg-slate-50"
+      placeholder="Retargeting fashion sale"
+    />
+    @if (form.controls.name.touched && form.controls.name.hasError('required')) {
+      <p class="text-sm text-red-600">Template name is required.</p>
+    }
+    @if (fieldErrors()['name']) {
+      <p class="text-sm text-red-600">{{ fieldErrors()['name'] }}</p>
+    }
+  </div>
+
+  <div class="space-y-2">
+    <label class="text-sm font-medium text-ink" for="description">Description</label>
+    <textarea
+      id="description"
+      rows="3"
+      formControlName="description"
+      class="w-full rounded-md border border-border bg-white px-3 py-3 text-sm leading-6 text-ink outline-none transition placeholder:text-slate-400 focus:border-brand-500 focus:ring-2 focus:ring-brand-100 disabled:cursor-not-allowed disabled:bg-slate-50"
+      placeholder="When this template should be used."
+    ></textarea>
+  </div>
+
+  <div class="grid gap-4 md:grid-cols-2">
+    <div class="space-y-2">
+      <label class="text-sm font-medium text-ink" for="platform">Platform</label>
+      <select
+        id="platform"
+        formControlName="platform"
+        class="h-11 w-full rounded-md border border-border bg-white px-3 text-sm text-ink outline-none transition focus:border-brand-500 focus:ring-2 focus:ring-brand-100 disabled:cursor-not-allowed disabled:bg-slate-50"
+      >
+        <option value="">Select platform</option>
+        @for (option of platformOptions; track option.value) {
+          <option [value]="option.value">{{ option.label }}</option>
+        }
+      </select>
+      @if (form.controls.platform.touched && form.controls.platform.hasError('required')) {
+        <p class="text-sm text-red-600">Platform is required.</p>
+      }
+      @if (fieldErrors()['platform']) {
+        <p class="text-sm text-red-600">{{ fieldErrors()['platform'] }}</p>
+      }
+    </div>
+
+    <div class="space-y-2">
+      <label class="text-sm font-medium text-ink" for="campaignObjective">Campaign objective</label>
+      <select
+        id="campaignObjective"
+        formControlName="campaignObjective"
+        class="h-11 w-full rounded-md border border-border bg-white px-3 text-sm text-ink outline-none transition focus:border-brand-500 focus:ring-2 focus:ring-brand-100 disabled:cursor-not-allowed disabled:bg-slate-50"
+      >
+        <option value="">Select objective</option>
+        @for (option of campaignObjectiveOptions; track option.value) {
+          <option [value]="option.value">{{ option.label }}</option>
+        }
+      </select>
+      @if (form.controls.campaignObjective.touched && form.controls.campaignObjective.hasError('required')) {
+        <p class="text-sm text-red-600">Campaign objective is required.</p>
+      }
+      @if (fieldErrors()['campaignObjective']) {
+        <p class="text-sm text-red-600">{{ fieldErrors()['campaignObjective'] }}</p>
+      }
+    </div>
+
+    <div class="space-y-2">
+      <label class="text-sm font-medium text-ink" for="category">Category</label>
+      <input
+        id="category"
+        type="text"
+        formControlName="category"
+        class="h-11 w-full rounded-md border border-border bg-white px-3 text-sm text-ink outline-none transition placeholder:text-slate-400 focus:border-brand-500 focus:ring-2 focus:ring-brand-100 disabled:cursor-not-allowed disabled:bg-slate-50"
+        placeholder="Seasonal sale, launch, retargeting"
+      />
+      @if (fieldErrors()['category']) {
+        <p class="text-sm text-red-600">{{ fieldErrors()['category'] }}</p>
+      }
+    </div>
+
+    <div class="space-y-2">
+      <label class="text-sm font-medium text-ink" for="language">Language</label>
+      <select
+        id="language"
+        formControlName="language"
+        class="h-11 w-full rounded-md border border-border bg-white px-3 text-sm text-ink outline-none transition focus:border-brand-500 focus:ring-2 focus:ring-brand-100 disabled:cursor-not-allowed disabled:bg-slate-50"
+      >
+        <option value="">Select language</option>
+        @for (option of languageOptions; track option.value) {
+          <option [value]="option.value">{{ option.label }}</option>
+        }
+      </select>
+      @if (form.controls.language.touched && form.controls.language.hasError('required')) {
+        <p class="text-sm text-red-600">Language is required.</p>
+      }
+      @if (fieldErrors()['language']) {
+        <p class="text-sm text-red-600">{{ fieldErrors()['language'] }}</p>
+      }
+    </div>
+
+    <div class="space-y-2 md:col-span-2">
+      <label class="text-sm font-medium text-ink" for="businessType">Business type</label>
+      <input
+        id="businessType"
+        type="text"
+        formControlName="businessType"
+        class="h-11 w-full rounded-md border border-border bg-white px-3 text-sm text-ink outline-none transition placeholder:text-slate-400 focus:border-brand-500 focus:ring-2 focus:ring-brand-100 disabled:cursor-not-allowed disabled:bg-slate-50"
+        placeholder="Boutique, apparel, retail"
+      />
+    </div>
+  </div>
+
+  <div class="space-y-2">
+    <div class="flex items-center justify-between gap-3">
+      <label class="text-sm font-medium text-ink" for="promptBody">Template body</label>
+      <span class="text-xs text-muted">{{ promptBodyLength() }}/{{ maxLength }}</span>
+    </div>
+    <textarea
+      id="promptBody"
+      rows="8"
+      formControlName="promptBody"
+      class="w-full rounded-md border border-border bg-white px-3 py-3 text-sm leading-6 text-ink outline-none transition placeholder:text-slate-400 focus:border-brand-500 focus:ring-2 focus:ring-brand-100 disabled:cursor-not-allowed disabled:bg-slate-50"
+      placeholder="Write the reusable prompt structure for this campaign pattern."
+    ></textarea>
+    @if (form.controls.promptBody.touched && form.controls.promptBody.hasError('required')) {
+      <p class="text-sm text-red-600">Template body is required.</p>
+    }
+    @if (form.controls.promptBody.touched && form.controls.promptBody.hasError('minlength')) {
+      <p class="text-sm text-red-600">Template body must be at least {{ minLength }} characters.</p>
+    }
+    @if (fieldErrors()['promptBody']) {
+      <p class="text-sm text-red-600">{{ fieldErrors()['promptBody'] }}</p>
+    }
+  </div>
+
+  <div class="grid gap-4 md:grid-cols-2">
+    <label class="flex items-center gap-3 rounded-md border border-border px-3 py-3 text-sm text-ink">
+      <input
+        type="checkbox"
+        formControlName="isDefault"
+        class="h-4 w-4 rounded border-border text-brand-600 focus:ring-brand-500 disabled:cursor-not-allowed"
+      />
+      <span>Mark as system default template</span>
+    </label>
+
+    <div class="space-y-2">
+      <label class="text-sm font-medium text-ink" for="status">Status</label>
+      <select
+        id="status"
+        formControlName="status"
+        class="h-11 w-full rounded-md border border-border bg-white px-3 text-sm text-ink outline-none transition focus:border-brand-500 focus:ring-2 focus:ring-brand-100 disabled:cursor-not-allowed disabled:bg-slate-50"
+      >
+        @for (option of statusOptions; track option.value) {
+          <option [value]="option.value">{{ option.label }}</option>
+        }
+      </select>
+    </div>
+  </div>
+
+  @if (!disabled()) {
+    <div class="flex justify-end gap-3">
+      <app-button type="button" variant="ghost" (click)="cancelled.emit()">Cancel</app-button>
+      <app-button type="submit" icon="save" [loading]="loading()">Save template</app-button>
+    </div>
+  }
+</form>

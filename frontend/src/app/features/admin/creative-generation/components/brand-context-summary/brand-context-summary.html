@@ -1,0 +1,40 @@
+<app-card>
+  <div class="space-y-4">
+    <div class="flex flex-wrap items-center gap-2">
+      <app-badge [tone]="enabled() ? 'brand' : 'neutral'">
+        {{ enabled() ? 'Brand context on' : 'Brand context off' }}
+      </app-badge>
+    </div>
+
+    @if (brandProfile()) {
+      <dl class="grid gap-3 text-sm sm:grid-cols-2">
+        <div>
+          <dt class="text-xs uppercase tracking-[0.12em] text-muted">Brand</dt>
+          <dd class="mt-1 font-medium text-ink">{{ brandProfile()?.brandName || 'Not set' }}</dd>
+        </div>
+        <div>
+          <dt class="text-xs uppercase tracking-[0.12em] text-muted">Business type</dt>
+          <dd class="mt-1 font-medium text-ink">{{ brandProfile()?.businessType || 'Not set' }}</dd>
+        </div>
+        <div>
+          <dt class="text-xs uppercase tracking-[0.12em] text-muted">Industry</dt>
+          <dd class="mt-1 font-medium text-ink">{{ brandProfile()?.industry || 'Not set' }}</dd>
+        </div>
+        <div>
+          <dt class="text-xs uppercase tracking-[0.12em] text-muted">Voice</dt>
+          <dd class="mt-1 font-medium text-ink">{{ brandProfile()?.brandVoice || 'Not set' }}</dd>
+        </div>
+        <div>
+          <dt class="text-xs uppercase tracking-[0.12em] text-muted">Audience</dt>
+          <dd class="mt-1 font-medium text-ink">{{ brandProfile()?.targetAudience || 'Not set' }}</dd>
+        </div>
+        <div>
+          <dt class="text-xs uppercase tracking-[0.12em] text-muted">Preferred CTA</dt>
+          <dd class="mt-1 font-medium text-ink">{{ brandProfile()?.preferredCTA || 'Not set' }}</dd>
+        </div>
+      </dl>
+    } @else {
+      <p class="text-sm leading-6 text-muted">No brand profile is available for this workspace yet.</p>
+    }
+  </div>
+</app-card>

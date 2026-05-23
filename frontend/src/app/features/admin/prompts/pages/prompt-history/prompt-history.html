@@ -1,0 +1,169 @@
+<app-page-header
+  eyebrow="AI Workspace"
+  title="Prompt history"
+  description="Review prompt intelligence usage, output direction, and provider metadata for this workspace."
+>
+  <app-badge tone="neutral">{{ historyCountLabel() }}</app-badge>
+</app-page-header>
+
+@if (!store.hasWorkspaceContext()) {
+  <div class="mt-6">
+    <app-empty-state
+      icon="building-2"
+      title="Workspace context required"
+      description="Select a workspace before reviewing prompt history."
+    />
+  </div>
+} @else if (!store.canViewHistory()) {
+  <div class="mt-6">
+    <app-empty-state
+      icon="circle-alert"
+      title="History access is not available"
+      description="This session does not have permission to review prompt history."
+    />
+  </div>
+} @else {
+  @if (store.promptError()) {
+    <div class="mt-6 rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
+      {{ store.promptError() }}
+    </div>
+  }
+
+  <section class="mt-6 space-y-4">
+    <form class="grid gap-3 rounded-lg border border-border bg-white p-4 shadow-sm md:grid-cols-5" [formGroup]="filterForm">
+      <select
+        formControlName="platform"
+        class="h-11 rounded-md border border-border bg-white px-3 text-sm text-ink outline-none transition focus:border-brand-500 focus:ring-2 focus:ring-brand-100"
+      >
+        <option value="">All platforms</option>
+        @for (option of platformOptions; track option.value) {
+          <option [value]="option.value">{{ option.label }}</option>
+        }
+      </select>
+      <select
+        formControlName="campaignObjective"
+        class="h-11 rounded-md border border-border bg-white px-3 text-sm text-ink outline-none transition focus:border-brand-500 focus:ring-2 focus:ring-brand-100"
+      >
+        <option value="">All objectives</option>
+        @for (option of objectiveOptions; track option.value) {
+          <option [value]="option.value">{{ option.label }}</option>
+        }
+      </select>
+      <select
+        formControlName="suggestionType"
+        class="h-11 rounded-md border border-border bg-white px-3 text-sm text-ink outline-none transition focus:border-brand-500 focus:ring-2 focus:ring-brand-100"
+      >
+        <option value="">All prompt events</option>
+        @for (option of suggestionTypeOptions; track option.value) {
+          <option [value]="option.value">{{ option.label }}</option>
+        }
+      </select>
+      <select
+        formControlName="status"
+        class="h-11 rounded-md border border-border bg-white px-3 text-sm text-ink outline-none transition focus:border-brand-500 focus:ring-2 focus:ring-brand-100"
+      >
+        <option value="">All statuses</option>
+        @for (option of statusOptions; track option.value) {
+          <option [value]="option.value">{{ option.label }}</option>
+        }
+      </select>
+      <div class="flex gap-2">
+        <app-button variant="secondary" [fullWidth]="true" (click)="applyFilters()">Apply</app-button>
+        <app-button variant="ghost" [fullWidth]="true" (click)="resetFilters()">Reset</app-button>
+      </div>
+    </form>
+
+    @if (store.promptLoading() && !store.history().length) {
+      <div class="grid gap-3">
+        @for (item of [0, 1, 2, 3]; track item) {
+          <div class="h-24 animate-pulse rounded-lg border border-border bg-white"></div>
+        }
+      </div>
+    } @else if (store.history().length) {
+      <app-prompt-history-list
+        [history]="store.history()"
+        [pagination]="store.historyPagination()"
+        [loading]="store.promptLoading()"
+        (detailRequested)="openDetail($event)"
+        (previousRequested)="previousPage()"
+        (nextRequested)="nextPage()"
+      />
+    } @else if (store.promptError()) {
+      <app-empty-state
+        icon="circle-alert"
+        title="Prompt history could not be loaded"
+        [description]="store.promptError()!"
+      >
+        <app-button variant="secondary" (click)="reloadHistory()">Try again</app-button>
+      </app-empty-state>
+    } @else {
+      <app-empty-state
+        icon="sparkles"
+        title="No prompt history yet"
+        description="Prompt intelligence events will appear here after the workspace starts using the builder."
+      />
+    }
+  </section>
+}
+
+<app-modal-shell
+  [open]="!!store.selectedHistory()"
+  title="Prompt history detail"
+  description="Review the source prompt, output, and provider metadata for this event."
+  (closed)="closeDetail()"
+>
+  @if (store.selectedHistory(); as history) {
+    <div class="space-y-5">
+      <div class="flex flex-wrap gap-2">
+        <app-badge [tone]="history.status === 'SUCCEEDED' ? 'brand' : 'red'">{{ history.status }}</app-badge>
+        @if (history.suggestionType) {
+          <app-badge tone="neutral">{{ suggestionTypeLabel(history.suggestionType) }}</app-badge>
+        }
+      </div>
+
+      <div class="space-y-2">
+        <h3 class="text-sm font-semibold uppercase tracking-[0.12em] text-brand-700">Source prompt</h3>
+        <p class="whitespace-pre-line text-sm leading-6 text-ink">{{ history.sourcePrompt }}</p>
+      </div>
+
+      @if (history.enhancedPrompt) {
+        <div class="space-y-2">
+          <h3 class="text-sm font-semibold uppercase tracking-[0.12em] text-brand-700">Enhanced output</h3>
+          <p class="whitespace-pre-line text-sm leading-6 text-ink">{{ history.enhancedPrompt }}</p>
+        </div>
+      }
+
+      <dl class="grid gap-3 text-sm sm:grid-cols-2">
+        <div>
+          <dt class="text-xs uppercase tracking-[0.12em] text-muted">Provider</dt>
+          <dd class="mt-1 font-medium text-ink">{{ history.aiProvider || 'Pending' }}</dd>
+        </div>
+        <div>
+          <dt class="text-xs uppercase tracking-[0.12em] text-muted">Model</dt>
+          <dd class="mt-1 font-medium text-ink">{{ history.aiModel || 'Pending' }}</dd>
+        </div>
+        <div>
+          <dt class="text-xs uppercase tracking-[0.12em] text-muted">Language</dt>
+          <dd class="mt-1 font-medium text-ink">{{ history.language || 'Not captured' }}</dd>
+        </div>
+        <div>
+          <dt class="text-xs uppercase tracking-[0.12em] text-muted">Token usage</dt>
+          <dd class="mt-1 font-medium text-ink">{{ history.tokenUsage ?? 'Not captured' }}</dd>
+        </div>
+      </dl>
+
+      @if (history.brandContextSnapshot | keyvalue; as snapshot) {
+        @if (snapshot.length) {
+          <div class="space-y-2">
+            <h3 class="text-sm font-semibold uppercase tracking-[0.12em] text-brand-700">Brand context snapshot</h3>
+            <div class="rounded-md border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-muted">
+              @for (entry of snapshot; track entry.key) {
+                <p><span class="font-medium text-ink">{{ entry.key }}:</span> {{ entry.value }}</p>
+              }
+            </div>
+          </div>
+        }
+      }
+    </div>
+  }
+</app-modal-shell>

@@ -1,0 +1,198 @@
+<app-card>
+  <div class="space-y-5" [formGroup]="editorForm()">
+    <div class="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+      <div>
+        <h2 class="text-lg font-semibold text-ink">Prompt builder</h2>
+        <p class="text-sm text-muted">
+          Structure the campaign context first, then run prompt intelligence actions.
+        </p>
+      </div>
+
+      <div class="flex flex-wrap gap-2">
+        <app-badge tone="neutral">Assets {{ selectedAssetCount() }}</app-badge>
+        @if (canUseTemplates()) {
+          <app-badge tone="brand">Templates available</app-badge>
+        }
+      </div>
+    </div>
+
+    @if (canUseTemplates()) {
+      <div class="space-y-2">
+        <label class="text-sm font-medium text-ink" for="templateId">Prompt template</label>
+        <select
+          id="templateId"
+          formControlName="templateId"
+          class="h-11 w-full rounded-md border border-border bg-white px-3 text-sm text-ink outline-none transition focus:border-brand-500 focus:ring-2 focus:ring-brand-100"
+        >
+          <option value="">Start from a custom prompt</option>
+          @for (template of templates(); track template.id) {
+            <option [value]="template.id">
+              {{ template.name }} - {{ template.platform }} - {{ template.language }}
+            </option>
+          }
+        </select>
+      </div>
+    }
+
+    <div class="space-y-2">
+      <div class="flex items-center justify-between gap-3">
+        <label class="text-sm font-medium text-ink" for="prompt">Source prompt</label>
+        <span class="text-xs text-muted">
+          {{ editorForm().get('prompt')?.value?.length ?? 0 }}/5000
+        </span>
+      </div>
+      <textarea
+        id="prompt"
+        formControlName="prompt"
+        rows="9"
+        class="w-full rounded-md border border-border bg-white px-3 py-3 text-sm leading-6 text-ink outline-none transition placeholder:text-slate-400 focus:border-brand-500 focus:ring-2 focus:ring-brand-100"
+        placeholder="Describe the product, offer, platform, and the kind of creative direction you want."
+      ></textarea>
+      @if (editorForm().get('prompt')?.touched && editorForm().get('prompt')?.hasError('required')) {
+        <p class="text-sm text-red-600">Prompt is required.</p>
+      }
+      @if (editorForm().get('prompt')?.touched && editorForm().get('prompt')?.hasError('minlength')) {
+        <p class="text-sm text-red-600">Prompt must be at least 5 characters.</p>
+      }
+      @if (editorForm().get('prompt')?.touched && editorForm().get('prompt')?.hasError('maxlength')) {
+        <p class="text-sm text-red-600">Prompt must stay within 5000 characters.</p>
+      }
+    </div>
+
+    <div class="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
+      <div class="space-y-2">
+        <label class="text-sm font-medium text-ink" for="platform">Platform</label>
+        <select
+          id="platform"
+          formControlName="platform"
+          class="h-11 w-full rounded-md border border-border bg-white px-3 text-sm text-ink outline-none transition focus:border-brand-500 focus:ring-2 focus:ring-brand-100"
+        >
+          <option value="">Select platform</option>
+          @for (option of platformOptions; track option.value) {
+            <option [value]="option.value">{{ option.label }}</option>
+          }
+        </select>
+        @if (editorForm().get('platform')?.touched && editorForm().get('platform')?.hasError('required')) {
+          <p class="text-sm text-red-600">Platform is required.</p>
+        }
+        @if (editorForm().get('platform')?.touched && editorForm().get('platform')?.hasError('unsupportedSelection')) {
+          <p class="text-sm text-red-600">Select a supported platform.</p>
+        }
+      </div>
+
+      <div class="space-y-2">
+        <label class="text-sm font-medium text-ink" for="campaignObjective">Campaign objective</label>
+        <select
+          id="campaignObjective"
+          formControlName="campaignObjective"
+          class="h-11 w-full rounded-md border border-border bg-white px-3 text-sm text-ink outline-none transition focus:border-brand-500 focus:ring-2 focus:ring-brand-100"
+        >
+          <option value="">Select objective</option>
+          @for (option of campaignObjectiveOptions; track option.value) {
+            <option [value]="option.value">{{ option.label }}</option>
+          }
+        </select>
+        @if (editorForm().get('campaignObjective')?.touched && editorForm().get('campaignObjective')?.hasError('required')) {
+          <p class="text-sm text-red-600">Campaign objective is required.</p>
+        }
+        @if (editorForm().get('campaignObjective')?.touched && editorForm().get('campaignObjective')?.hasError('unsupportedSelection')) {
+          <p class="text-sm text-red-600">Select a supported campaign objective.</p>
+        }
+      </div>
+
+      <div class="space-y-2">
+        <label class="text-sm font-medium text-ink" for="language">Language</label>
+        <select
+          id="language"
+          formControlName="language"
+          class="h-11 w-full rounded-md border border-border bg-white px-3 text-sm text-ink outline-none transition focus:border-brand-500 focus:ring-2 focus:ring-brand-100"
+        >
+          <option value="">Select language</option>
+          @for (option of languageOptions; track option.value) {
+            <option [value]="option.value">{{ option.label }}</option>
+          }
+        </select>
+        @if (editorForm().get('language')?.touched && editorForm().get('language')?.hasError('required')) {
+          <p class="text-sm text-red-600">Language is required.</p>
+        }
+        @if (editorForm().get('language')?.touched && editorForm().get('language')?.hasError('unsupportedSelection')) {
+          <p class="text-sm text-red-600">Select a supported language.</p>
+        }
+      </div>
+
+      <div class="space-y-2">
+        <label class="text-sm font-medium text-ink" for="businessType">Business type</label>
+        <input
+          id="businessType"
+          type="text"
+          formControlName="businessType"
+          class="h-11 w-full rounded-md border border-border bg-white px-3 text-sm text-ink outline-none transition placeholder:text-slate-400 focus:border-brand-500 focus:ring-2 focus:ring-brand-100"
+          placeholder="Fashion retail, boutique, agency"
+        />
+      </div>
+
+      <div class="space-y-2">
+        <label class="text-sm font-medium text-ink" for="creativeStyle">Creative style</label>
+        <select
+          id="creativeStyle"
+          formControlName="creativeStyle"
+          class="h-11 w-full rounded-md border border-border bg-white px-3 text-sm text-ink outline-none transition focus:border-brand-500 focus:ring-2 focus:ring-brand-100"
+        >
+          <option value="">Select style</option>
+          @for (option of creativeStyleOptions; track option.value) {
+            <option [value]="option.value">{{ option.label }}</option>
+          }
+        </select>
+      </div>
+
+      <div class="space-y-2">
+        <label class="text-sm font-medium text-ink" for="tone">Campaign tone</label>
+        <select
+          id="tone"
+          formControlName="tone"
+          class="h-11 w-full rounded-md border border-border bg-white px-3 text-sm text-ink outline-none transition focus:border-brand-500 focus:ring-2 focus:ring-brand-100"
+        >
+          <option value="">Select tone</option>
+          @for (option of toneOptions; track option.value) {
+            <option [value]="option.value">{{ option.label }}</option>
+          }
+        </select>
+      </div>
+    </div>
+
+    <div class="grid gap-4 md:grid-cols-2">
+      <div class="space-y-2">
+        <label class="text-sm font-medium text-ink" for="targetAudience">Target audience</label>
+        <input
+          id="targetAudience"
+          type="text"
+          formControlName="targetAudience"
+          class="h-11 w-full rounded-md border border-border bg-white px-3 text-sm text-ink outline-none transition placeholder:text-slate-400 focus:border-brand-500 focus:ring-2 focus:ring-brand-100"
+          placeholder="Young professionals in Dhaka"
+        />
+      </div>
+
+      <div class="space-y-2">
+        <label class="text-sm font-medium text-ink" for="ctaPreference">CTA preference</label>
+        <input
+          id="ctaPreference"
+          type="text"
+          formControlName="ctaPreference"
+          class="h-11 w-full rounded-md border border-border bg-white px-3 text-sm text-ink outline-none transition placeholder:text-slate-400 focus:border-brand-500 focus:ring-2 focus:ring-brand-100"
+          placeholder="Shop now, order today, explore collection"
+        />
+      </div>
+    </div>
+
+    <div class="space-y-2">
+      <label class="text-sm font-medium text-ink" for="offerDetails">Offer details</label>
+      <textarea
+        id="offerDetails"
+        formControlName="offerDetails"
+        rows="4"
+        class="w-full rounded-md border border-border bg-white px-3 py-3 text-sm leading-6 text-ink outline-none transition placeholder:text-slate-400 focus:border-brand-500 focus:ring-2 focus:ring-brand-100"
+        placeholder="Mention pricing, seasonal deals, limited-time offers, or delivery incentives."
+      ></textarea>
+    </div>
+  </div>
+</app-card>
