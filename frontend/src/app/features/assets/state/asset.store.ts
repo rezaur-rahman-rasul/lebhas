@@ -5,6 +5,7 @@ import { firstValueFrom, Subscription } from 'rxjs';
 import { normalizeHttpError } from '@app/core/api/http-error';
 import { SKIP_ERROR_TOAST } from '@app/core/auth/auth-request-context';
 import { CurrentUserStore } from '@app/core/auth/current-user.store';
+import { PermissionStore } from '@app/core/permissions/permission.store';
 import { Permission } from '@app/features/auth/models/user.models';
 import { NotificationStateService } from '@app/core/state/notification-state.service';
 import {
@@ -19,14 +20,15 @@ import {
   UploadAssetPayload,
   UploadState,
 } from '../models/asset.models';
-import { AssetService } from '../services/asset.service';
+import { AssetApiService } from '../services/asset-api.service';
 import { validateUploadPayload } from '../services/asset.validation';
 
 @Injectable({ providedIn: 'root' })
 export class AssetStore {
   private readonly auth = inject(CurrentUserStore);
+  private readonly permissions = inject(PermissionStore);
   private readonly notifications = inject(NotificationStateService);
-  private readonly assetService = inject(AssetService);
+  private readonly assetService = inject(AssetApiService);
 
   private readonly assetsSignal = signal<readonly Asset[]>([]);
   private readonly selectedAssetSignal = signal<Asset | null>(null);
@@ -301,7 +303,7 @@ export class AssetStore {
   }
 
   private hasPermission(permission: Permission): boolean {
-    return this.auth.permissions().includes(permission);
+    return this.permissions.has(permission);
   }
 
   private assetRequestContext(): HttpContext {

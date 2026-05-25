@@ -86,6 +86,34 @@ public class CreditPackage {
         return creditPackage;
     }
 
+    public void update(
+            String name,
+            String code,
+            long credits,
+            long bonusCredits,
+            BigDecimal price,
+            String currency,
+            boolean active,
+            int sortOrder
+    ) {
+        this.name = PaymentTransaction.normalizeRequired(name, "name");
+        this.code = PaymentTransaction.normalizeRequired(code, "code").toUpperCase();
+        this.credits = requireNonNegative(credits, "credits");
+        this.bonusCredits = requireNonNegative(bonusCredits, "bonusCredits");
+        this.price = PaymentTransaction.normalizeMoney(price, "price");
+        this.currency = PaymentTransaction.normalizeCurrency(currency);
+        this.active = active;
+        this.sortOrder = Math.max(sortOrder, 0);
+    }
+
+    public void activate() {
+        this.active = true;
+    }
+
+    public void deactivate() {
+        this.active = false;
+    }
+
     @PrePersist
     void onCreate() {
         Instant now = Instant.now();

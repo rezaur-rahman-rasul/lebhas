@@ -5,13 +5,23 @@ import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.EnumType;
 import jakarta.persistence.Enumerated;
+import jakarta.persistence.Index;
 import jakarta.persistence.Table;
+import jakarta.persistence.UniqueConstraint;
 
 import java.time.Instant;
 import java.util.UUID;
 
 @Entity
-@Table(name = "notifications", schema = "platform")
+@Table(
+        name = "notifications",
+        schema = "platform",
+        uniqueConstraints = @UniqueConstraint(name = "uk_notifications_source_event_id", columnNames = "source_event_id"),
+        indexes = {
+                @Index(name = "idx_notifications_workspace_created_at", columnList = "workspace_id,created_at"),
+                @Index(name = "idx_notifications_recipient_status_created_at", columnList = "recipient_user_id,notification_status,created_at"),
+                @Index(name = "idx_notifications_reference", columnList = "reference_type,reference_id")
+        })
 public class Notification extends TenantAwareEntity {
 
     @Column(name = "source_event_id", nullable = false, updatable = false, length = 120)
@@ -43,6 +53,14 @@ public class Notification extends TenantAwareEntity {
     @Column(name = "notification_status", nullable = false, length = 40)
     private NotificationStatus notificationStatus;
 
+    @Enumerated(EnumType.STRING)
+    @Column(name = "notification_channel", nullable = false, length = 40)
+    private NotificationChannel notificationChannel;
+
+    @Enumerated(EnumType.STRING)
+    @Column(name = "notification_priority", nullable = false, length = 30)
+    private NotificationPriority notificationPriority;
+
     @Column(name = "read_at")
     private Instant readAt;
 
@@ -61,6 +79,8 @@ public class Notification extends TenantAwareEntity {
         notification.referenceType = request.referenceType();
         notification.referenceId = request.referenceId();
         notification.notificationStatus = NotificationStatus.UNREAD;
+        notification.notificationChannel = NotificationChannel.IN_APP;
+        notification.notificationPriority = NotificationPriority.NORMAL;
         notification.readAt = null;
         return notification;
     }
@@ -99,6 +119,14 @@ public class Notification extends TenantAwareEntity {
 
     public NotificationStatus getNotificationStatus() {
         return notificationStatus;
+    }
+
+    public NotificationChannel getNotificationChannel() {
+        return notificationChannel;
+    }
+
+    public NotificationPriority getNotificationPriority() {
+        return notificationPriority;
     }
 
     public Instant getReadAt() {

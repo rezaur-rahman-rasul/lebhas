@@ -9,6 +9,7 @@ import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
 import jakarta.persistence.Index;
 import jakarta.persistence.PrePersist;
+import jakarta.persistence.PreUpdate;
 import jakarta.persistence.Table;
 import jakarta.persistence.UniqueConstraint;
 
@@ -65,6 +66,9 @@ public class PaymentWebhookLog {
     @Column(name = "created_at", nullable = false, updatable = false)
     private Instant createdAt;
 
+    @Column(name = "processed_at")
+    private Instant processedAt;
+
     protected PaymentWebhookLog() {
     }
 
@@ -90,9 +94,36 @@ public class PaymentWebhookLog {
         return log;
     }
 
+    public void markVerification(PaymentWebhookVerificationStatus verificationStatus, String providerTransactionId, String webhookEventType, String failureReason) {
+        this.verificationStatus = verificationStatus == null ? PaymentWebhookVerificationStatus.PENDING : verificationStatus;
+        this.providerTransactionId = PaymentTransaction.normalizeNullable(providerTransactionId);
+        if (webhookEventType != null && !webhookEventType.isBlank()) {
+            this.webhookEventType = PaymentTransaction.normalizeRequired(webhookEventType, "webhookEventType");
+        }
+        this.failureReason = PaymentTransaction.normalizeNullable(failureReason);
+    }
+
+    public void markProcessed() {
+        this.processed = true;
+        this.processedAt = Instant.now();
+    }
+
+    public void markProcessedFailure(String failureReason) {
+        this.processed = true;
+        this.failureReason = PaymentTransaction.normalizeNullable(failureReason);
+        this.processedAt = Instant.now();
+    }
+
     @PrePersist
     void onCreate() {
         this.createdAt = Instant.now();
+    }
+
+    @PreUpdate
+    void onUpdate() {
+        if (this.processed && this.processedAt == null) {
+            this.processedAt = Instant.now();
+        }
     }
 
     public UUID getId() {
@@ -133,5 +164,9 @@ public class PaymentWebhookLog {
 
     public Instant getCreatedAt() {
         return createdAt;
+    }
+
+    public Instant getProcessedAt() {
+        return processedAt;
     }
 }

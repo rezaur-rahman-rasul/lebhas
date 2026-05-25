@@ -1,0 +1,15 @@
+<div
+  role="status"
+  [attr.aria-live]="polite() ? 'polite' : null"
+  [class]="
+    fullscreen()
+      ? 'grid min-h-[24rem] place-items-center'
+      : 'inline-flex items-center gap-3'
+  "
+>
+  <div class="inline-flex items-center gap-3 rounded-md border border-border bg-surface px-3 py-2 shadow-sm">
+    <app-spinner [size]="size()" />
+    <span class="text-sm font-medium text-muted">{{ label() }}</span>
+  </div>
+</div>
+

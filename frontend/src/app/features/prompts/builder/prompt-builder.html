@@ -1,17 +1,9 @@
 <app-page-header
   eyebrow="Prompt intelligence"
   title="Prompt builder"
-  description="Project-scoped prompt intelligence with workspace, brand, product, and asset context."
+  description="Create campaign prompts with brand, product, project, and asset context."
 >
   <a routerLink="/projects" class="text-sm font-medium text-brand-600 hover:text-brand-700">Projects</a>
-  @if (project()) {
-    <a
-      [routerLink]="['/projects', projectId(), 'prompts', 'history']"
-      class="text-sm font-medium text-brand-600 hover:text-brand-700"
-    >
-      History
-    </a>
-  }
   <app-badge [tone]="roleTone()">{{ roleLabel() }}</app-badge>
   <app-badge tone="neutral">{{ workspaceLabel() }}</app-badge>
 </app-page-header>
@@ -34,14 +26,14 @@
   </div>
 } @else if (initializing()) {
   <div class="mt-6">
-    <app-ai-loading-state title="Loading project context" description="Resolving brand, product, project, and asset context." />
+    <app-ai-loading-state title="Loading project context" description="Resolving brand, product, project, and assets." />
   </div>
 } @else if (!hasProjectContext()) {
   <div class="mt-6">
     <app-prompt-empty-state
       icon="folder-open"
       title="Project context missing"
-      description="This project could not be found in the active workspace. Return to projects and open a valid campaign."
+      description="Return to projects and open a valid campaign."
     />
   </div>
 } @else {
@@ -53,15 +45,19 @@
   }
 
   <section class="mt-6 rounded-2xl border border-border bg-panel p-4 shadow-sm">
-    <p class="text-xs font-semibold uppercase tracking-[0.18em] text-muted">Workspace context</p>
-    <div class="mt-2 flex flex-wrap items-center gap-2">
-      <app-badge tone="brand">{{ workspaceLabel() }}</app-badge>
-      @if (project()) {
-        <app-badge tone="neutral">{{ project()!.name }}</app-badge>
-      }
-      @if (brand()) {
-        <app-badge tone="neutral">{{ brand()!.name }}</app-badge>
-      }
+    <div class="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
+      <div>
+        <p class="text-xs font-semibold uppercase tracking-[0.18em] text-muted">Current context</p>
+        <div class="mt-3 flex flex-wrap items-center gap-2">
+          <app-badge tone="brand">Workspace: {{ workspaceLabel() }}</app-badge>
+          <app-badge tone="neutral">Brand: {{ brand()?.name ?? 'Not loaded' }}</app-badge>
+          <app-badge tone="blue">Product: {{ product()?.name ?? 'Not loaded' }}</app-badge>
+          <app-badge tone="neutral">Project: {{ project()?.name ?? 'Not loaded' }}</app-badge>
+        </div>
+      </div>
+      <div class="rounded-xl border border-border bg-surface px-4 py-3 text-sm text-muted">
+        Creative quality mode is controlled by your current package.
+      </div>
     </div>
   </section>
 
@@ -71,8 +67,8 @@
     </div>
   }
 
-  <section class="mt-6 grid gap-6 xl:grid-cols-[minmax(0,1.2fr)_minmax(0,0.8fr)]">
-    <div class="space-y-6">
+  <section class="mt-6 grid gap-6 xl:grid-cols-[minmax(0,1.2fr)_minmax(20rem,0.8fr)]">
+    <div class="min-w-0 space-y-6">
       <div class="grid gap-6 lg:grid-cols-2">
         <app-prompt-context-card
           kind="brand"
@@ -103,6 +99,108 @@
         [campaignType]="project()?.campaignType ?? null"
       />
 
+      <app-card>
+        <div class="space-y-4">
+          <div class="grid gap-4 md:grid-cols-3">
+            <div class="space-y-2">
+              <label class="text-sm font-medium text-ink" for="platform">Platform</label>
+              <select
+                id="platform"
+                class="h-11 w-full rounded-md border border-border bg-white px-3 text-sm text-ink outline-none transition focus:border-brand-500 focus:ring-2 focus:ring-brand-100 disabled:cursor-not-allowed disabled:bg-slate-50"
+                [disabled]="aiBusy() || !canUsePromptBuilder()"
+                [value]="builderSettings().platform ?? ''"
+                (change)="updatePlatform($any($event.target).value)"
+              >
+                <option value="">Select platform</option>
+                @for (option of platformOptions; track option.value) {
+                  <option [value]="option.value">{{ option.label }}</option>
+                }
+              </select>
+              @if (fieldErrors()['platform']) {
+                <p class="text-sm text-red-600">{{ fieldErrors()['platform'] }}</p>
+              }
+            </div>
+
+            <div class="space-y-2">
+              <label class="text-sm font-medium text-ink" for="campaignObjective">Campaign objective</label>
+              <select
+                id="campaignObjective"
+                class="h-11 w-full rounded-md border border-border bg-white px-3 text-sm text-ink outline-none transition focus:border-brand-500 focus:ring-2 focus:ring-brand-100 disabled:cursor-not-allowed disabled:bg-slate-50"
+                [disabled]="aiBusy() || !canUsePromptBuilder()"
+                [value]="builderSettings().campaignObjective ?? ''"
+                (change)="updateCampaignObjective($any($event.target).value)"
+              >
+                <option value="">Select objective</option>
+                @for (option of campaignObjectiveOptions; track option.value) {
+                  <option [value]="option.value">{{ option.label }}</option>
+                }
+              </select>
+              @if (fieldErrors()['campaignObjective']) {
+                <p class="text-sm text-red-600">{{ fieldErrors()['campaignObjective'] }}</p>
+              }
+            </div>
+
+            <div class="space-y-2">
+              <label class="text-sm font-medium text-ink" for="language">Language</label>
+              <select
+                id="language"
+                class="h-11 w-full rounded-md border border-border bg-white px-3 text-sm text-ink outline-none transition focus:border-brand-500 focus:ring-2 focus:ring-brand-100 disabled:cursor-not-allowed disabled:bg-slate-50"
+                [disabled]="aiBusy() || !canUsePromptBuilder()"
+                [value]="builderSettings().language ?? ''"
+                (change)="updateLanguage($any($event.target).value)"
+              >
+                @if (brand()?.languagePreference === 'BOTH') {
+                  <option value="">Choose language</option>
+                }
+                @for (option of visibleLanguageOptions(); track option.value) {
+                  <option [value]="option.value">{{ option.label }}</option>
+                }
+              </select>
+              <p class="text-sm text-muted">{{ languageGuidance() }}</p>
+              @if (fieldErrors()['language']) {
+                <p class="text-sm text-red-600">{{ fieldErrors()['language'] }}</p>
+              }
+            </div>
+          </div>
+
+          <button
+            type="button"
+            class="inline-flex items-center gap-2 text-sm font-medium text-brand-600 hover:text-brand-700"
+            (click)="toggleAdvanced()"
+          >
+            @if (advancedOpen()) {
+              Hide advanced settings
+            } @else {
+              Show advanced settings
+            }
+          </button>
+
+          @if (advancedOpen()) {
+            <div class="grid gap-4 rounded-xl border border-border bg-surface p-4 md:grid-cols-2">
+              <div class="space-y-2">
+                <label class="text-sm font-medium text-ink" for="tone">Tone</label>
+                <select
+                  id="tone"
+                  class="h-11 w-full rounded-md border border-border bg-white px-3 text-sm text-ink outline-none transition focus:border-brand-500 focus:ring-2 focus:ring-brand-100 disabled:cursor-not-allowed disabled:bg-slate-50"
+                  [disabled]="aiBusy() || !canUsePromptBuilder()"
+                  [value]="builderSettings().tone ?? ''"
+                  (change)="updateTone($any($event.target).value)"
+                >
+                  <option value="">Select tone</option>
+                  @for (option of toneOptions; track option.value) {
+                    <option [value]="option.value">{{ option.label }}</option>
+                  }
+                </select>
+              </div>
+
+              <div class="rounded-lg border border-border bg-panel px-3 py-3 text-sm text-muted">
+                Keep these defaults unless the campaign needs a specific tone.
+              </div>
+            </div>
+          }
+        </div>
+      </app-card>
+
       <app-asset-context-selector
         [assets]="assetStore.filteredAssets()"
         [selectedAssets]="promptStore.selectedAssets()"
@@ -111,82 +209,6 @@
         (assetToggled)="toggleAsset($event)"
         (assetRemoved)="removeAsset($event)"
       />
-
-      <app-card>
-        <div class="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
-          <div class="space-y-2">
-            <label class="text-sm font-medium text-ink" for="platform">Platform</label>
-            <select
-              id="platform"
-              class="h-11 w-full rounded-md border border-border bg-white px-3 text-sm text-ink outline-none transition focus:border-brand-500 focus:ring-2 focus:ring-brand-100 disabled:cursor-not-allowed disabled:bg-slate-50"
-              [disabled]="aiBusy() || !canUsePromptBuilder()"
-              [value]="builderSettings().platform ?? ''"
-              (change)="updatePlatform($any($event.target).value)"
-            >
-              <option value="">Select platform</option>
-              @for (option of platformOptions; track option.value) {
-                <option [value]="option.value">{{ option.label }}</option>
-              }
-            </select>
-            @if (fieldErrors()['platform']) {
-              <p class="text-sm text-red-600">{{ fieldErrors()['platform'] }}</p>
-            }
-          </div>
-
-          <div class="space-y-2">
-            <label class="text-sm font-medium text-ink" for="campaignObjective">Campaign objective</label>
-            <select
-              id="campaignObjective"
-              class="h-11 w-full rounded-md border border-border bg-white px-3 text-sm text-ink outline-none transition focus:border-brand-500 focus:ring-2 focus:ring-brand-100 disabled:cursor-not-allowed disabled:bg-slate-50"
-              [disabled]="aiBusy() || !canUsePromptBuilder()"
-              [value]="builderSettings().campaignObjective ?? ''"
-              (change)="updateCampaignObjective($any($event.target).value)"
-            >
-              <option value="">Select objective</option>
-              @for (option of campaignObjectiveOptions; track option.value) {
-                <option [value]="option.value">{{ option.label }}</option>
-              }
-            </select>
-            @if (fieldErrors()['campaignObjective']) {
-              <p class="text-sm text-red-600">{{ fieldErrors()['campaignObjective'] }}</p>
-            }
-          </div>
-
-          <div class="space-y-2">
-            <label class="text-sm font-medium text-ink" for="language">Language</label>
-            <select
-              id="language"
-              class="h-11 w-full rounded-md border border-border bg-white px-3 text-sm text-ink outline-none transition focus:border-brand-500 focus:ring-2 focus:ring-brand-100 disabled:cursor-not-allowed disabled:bg-slate-50"
-              [disabled]="aiBusy() || !canUsePromptBuilder()"
-              [value]="builderSettings().language ?? ''"
-              (change)="updateLanguage($any($event.target).value)"
-            >
-              @for (option of languageOptions; track option.value) {
-                <option [value]="option.value">{{ option.label }}</option>
-              }
-            </select>
-            @if (fieldErrors()['language']) {
-              <p class="text-sm text-red-600">{{ fieldErrors()['language'] }}</p>
-            }
-          </div>
-
-          <div class="space-y-2">
-            <label class="text-sm font-medium text-ink" for="tone">Tone</label>
-            <select
-              id="tone"
-              class="h-11 w-full rounded-md border border-border bg-white px-3 text-sm text-ink outline-none transition focus:border-brand-500 focus:ring-2 focus:ring-brand-100 disabled:cursor-not-allowed disabled:bg-slate-50"
-              [disabled]="aiBusy() || !canUsePromptBuilder()"
-              [value]="builderSettings().tone ?? ''"
-              (change)="updateTone($any($event.target).value)"
-            >
-              <option value="">Select tone</option>
-              @for (option of toneOptions; track option.value) {
-                <option [value]="option.value">{{ option.label }}</option>
-              }
-            </select>
-          </div>
-        </div>
-      </app-card>
 
       <app-prompt-editor
         [sourcePrompt]="promptStore.sourcePrompt()"
@@ -218,25 +240,57 @@
         >
           Get suggestions
         </app-button>
+        @if (canManageTemplates()) {
+          <app-button
+            type="button"
+            variant="ghost"
+            icon="save"
+            [disabled]="!templatePromptBody().trim()"
+            (click)="openTemplateDialog()"
+          >
+            Save template
+          </app-button>
+        }
       </div>
     </div>
 
-    <aside class="space-y-6">
+    <aside class="min-w-0 space-y-6">
+      <app-card>
+        <div class="space-y-3">
+          <h3 class="text-base font-semibold text-ink">Selected campaign setup</h3>
+          <dl class="grid gap-3 text-sm">
+            <div class="flex items-center justify-between gap-3">
+              <dt class="text-muted">Platform</dt>
+              <dd class="font-medium text-ink">{{ promptPlatformLabel(builderSettings().platform) }}</dd>
+            </div>
+            <div class="flex items-center justify-between gap-3">
+              <dt class="text-muted">Objective</dt>
+              <dd class="font-medium text-ink">{{ campaignObjectiveLabel(builderSettings().campaignObjective) }}</dd>
+            </div>
+            <div class="flex items-center justify-between gap-3">
+              <dt class="text-muted">Language</dt>
+              <dd class="font-medium text-ink">{{ promptLanguageLabel(builderSettings().language) }}</dd>
+            </div>
+            <div class="flex items-center justify-between gap-3">
+              <dt class="text-muted">Assets</dt>
+              <dd class="font-medium text-ink">{{ promptStore.selectedAssetCount() }} selected</dd>
+            </div>
+          </dl>
+        </div>
+      </app-card>
+
       @if (promptStore.enhancedPrompt(); as enhanced) {
         <app-card>
           <div class="space-y-3">
             <div class="flex flex-wrap gap-2">
               <app-badge tone="brand">Latest enhancement</app-badge>
-              @if (enhanced.aiProvider) {
-                <app-badge tone="neutral">{{ enhanced.aiProvider }}</app-badge>
-              }
-              @if (enhanced.model) {
-                <app-badge tone="neutral">{{ enhanced.model }}</app-badge>
-              }
               @if (enhanced.tokenUsage !== null) {
                 <app-badge tone="neutral">{{ enhanced.tokenUsage }} tokens</app-badge>
               }
             </div>
+            <p class="rounded-md border border-slate-200 bg-slate-50 px-3 py-2 text-sm text-muted">
+              Creative quality mode is controlled by your current package.
+            </p>
             @if (enhanced.reasoningSummary) {
               <p class="rounded-md border border-slate-200 bg-slate-50 px-3 py-2 text-sm text-muted">
                 {{ enhanced.reasoningSummary }}
@@ -256,7 +310,7 @@
       @if (promptStore.hasSuggestions()) {
         <app-card>
           <div class="space-y-4">
-            <h3 class="text-base font-semibold text-ink">Suggestions</h3>
+            <h3 class="text-base font-semibold text-ink">Smart suggestions</h3>
             @for (group of suggestionGroups(); track group.title) {
               <div class="space-y-2">
                 <p class="text-xs font-semibold uppercase tracking-wide text-muted">{{ group.title }}</p>
@@ -273,9 +327,86 @@
         <app-prompt-empty-state
           icon="sparkles"
           title="Ready when you are"
-          description="Enhance a source prompt or request suggestions once platform, objective, and language are set."
+          description="Add a source prompt, confirm platform, objective, and language, then enhance."
         />
+      }
+
+      @if (canViewHistory()) {
+        <app-card>
+          <div class="space-y-4">
+            <div class="flex items-center justify-between gap-3">
+              <h3 class="text-base font-semibold text-ink">Prompt history</h3>
+              <app-button type="button" size="sm" variant="ghost" icon="history" (click)="toggleHistory()">
+                {{ historyOpen() ? 'Hide' : 'Show' }}
+              </app-button>
+            </div>
+
+            @if (historyOpen()) {
+              <input
+                type="search"
+                class="h-11 w-full rounded-md border border-border bg-white px-3 text-sm text-ink outline-none transition placeholder:text-slate-400 focus:border-brand-500 focus:ring-2 focus:ring-brand-100"
+                placeholder="Search prompt history"
+                [value]="historySearch()"
+                (input)="updateHistorySearch($any($event.target).value)"
+              />
+
+              @if (historyStore.error()) {
+                <app-prompt-empty-state
+                  icon="circle-alert"
+                  title="Prompt history could not be loaded"
+                  [description]="historyStore.error()!"
+                >
+                  <app-button class="mt-4" variant="secondary" icon="refresh-cw" (click)="reloadHistory()">Retry</app-button>
+                </app-prompt-empty-state>
+              } @else if (historyStore.loading()) {
+                <app-ai-loading-state title="Loading prompt history" description="Checking previous prompt work for this project." />
+              } @else if (filteredHistory().length) {
+                <div class="space-y-3">
+                  @for (entry of filteredHistory(); track entry.id) {
+                    <app-prompt-history-card
+                      [entry]="entry"
+                      [selected]="selectedHistoryEntry()?.id === entry.id"
+                      (detailRequested)="openHistoryDetail($event)"
+                    />
+                  }
+                </div>
+              } @else {
+                <app-prompt-empty-state
+                  icon="history"
+                  title="No prompt history yet"
+                  description="Enhance prompts or request suggestions to build this project history."
+                />
+              }
+            }
+          </div>
+        </app-card>
       }
     </aside>
   </section>
 }
+
+<app-modal-shell
+  [open]="historyDetailOpen()"
+  title="Prompt history detail"
+  description="Prompt intelligence event for this project campaign."
+  (closed)="closeHistoryDetail()"
+>
+  @if (selectedHistoryEntry(); as entry) {
+    <app-prompt-history-detail [entry]="entry" />
+  }
+</app-modal-shell>
+
+<app-modal-shell
+  [open]="templateDialogOpen()"
+  title="Save prompt template"
+  description="Save reusable prompt structure for this workspace."
+  (closed)="closeTemplateDialog()"
+>
+  <app-prompt-template-form
+    [loading]="templateStore.loading()"
+    [fieldErrors]="templateFieldErrors()"
+    [defaultPromptBody]="templatePromptBody()"
+    (submitted)="saveTemplate($event)"
+    (cancelled)="closeTemplateDialog()"
+  />
+</app-modal-shell>

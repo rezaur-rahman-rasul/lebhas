@@ -2,9 +2,11 @@ import { TestBed } from '@angular/core/testing';
 import { of, Subject, throwError } from 'rxjs';
 
 import { CurrentUserStore } from '@app/core/auth/current-user.store';
+import { PermissionStore } from '@app/core/permissions/permission.store';
 import { NotificationStateService } from '@app/core/state/notification-state.service';
+import { Permission } from '@app/features/auth/models/user.models';
 import { Asset } from '../models/asset.models';
-import { AssetService } from '../services/asset.service';
+import { AssetApiService } from '../services/asset-api.service';
 import { AssetStore } from './asset.store';
 
 const sampleAsset: Asset = {
@@ -58,8 +60,9 @@ describe('AssetStore', () => {
   };
   let auth: {
     activeWorkspaceId: ReturnType<typeof vi.fn>;
-    permissions: ReturnType<typeof vi.fn>;
+    permissions: () => readonly Permission[];
   };
+  let permissions: readonly Permission[];
 
   beforeEach(() => {
     assetService = {
@@ -69,16 +72,23 @@ describe('AssetStore', () => {
       uploadProjectAsset: vi.fn(),
     };
 
+    permissions = ['ASSET_VIEW', 'ASSET_UPLOAD', 'ASSET_DELETE'];
     auth = {
       activeWorkspaceId: vi.fn(() => 'workspace-1'),
-      permissions: vi.fn(() => ['ASSET_VIEW', 'ASSET_UPLOAD', 'ASSET_DELETE']),
+      permissions: () => permissions,
     };
 
     TestBed.configureTestingModule({
       providers: [
         AssetStore,
-        { provide: AssetService, useValue: assetService },
+        { provide: AssetApiService, useValue: assetService },
         { provide: CurrentUserStore, useValue: auth },
+        {
+          provide: PermissionStore,
+          useValue: {
+            has: (permission: Permission) => auth.permissions().includes(permission),
+          },
+        },
         {
           provide: NotificationStateService,
           useValue: { success: vi.fn(), error: vi.fn() },
@@ -113,7 +123,7 @@ describe('AssetStore', () => {
   });
 
   it('hides upload permission for crew without access', () => {
-    auth.permissions.mockReturnValue(['ASSET_VIEW']);
+    permissions = ['ASSET_VIEW'];
     expect(store.canUploadAssets()).toBe(false);
   });
 

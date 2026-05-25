@@ -26,16 +26,9 @@
       </div>
     </div>
 
-    <dl class="grid gap-2 text-sm sm:grid-cols-2">
-      <div>
-        <dt class="text-xs uppercase tracking-wide text-muted">AI provider</dt>
-        <dd class="mt-1 font-medium text-ink">{{ entry().aiProvider || '—' }}</dd>
-      </div>
-      <div>
-        <dt class="text-xs uppercase tracking-wide text-muted">AI model</dt>
-        <dd class="mt-1 font-medium text-ink">{{ entry().model || '—' }}</dd>
-      </div>
-    </dl>
+    <p class="rounded-md border border-border bg-surface px-3 py-2 text-sm text-muted">
+      Creative quality mode is controlled by your current package.
+    </p>
 
     <app-button size="sm" variant="secondary" icon="eye" (click)="detailRequested.emit(entry())">
       View detail

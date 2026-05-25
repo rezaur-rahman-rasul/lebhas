@@ -4,7 +4,12 @@
   description="Manage campaign containers that inherit their product and brand relationship from the workspace hierarchy."
 >
   @if (canCreate()) {
-    <app-button icon="plus" [testId]="'project-create-button'" (click)="openCreateDialog()">
+    <app-button
+      icon="plus"
+      [disabled]="products().length === 0"
+      [testId]="'project-create-button'"
+      (click)="openCreateDialog()"
+    >
       Create Project / Campaign
     </app-button>
   }
@@ -59,7 +64,13 @@
             icon="folder-kanban"
             title="No projects yet"
             description="Create the first project once a product or service is available."
-          />
+          >
+            @if (products().length === 0) {
+              <a routerLink="/product-services">
+                <app-button variant="secondary" icon="package-open">Create Product/Service First</app-button>
+              </a>
+            }
+          </app-empty-state>
         </div>
       } @else {
         <div class="mt-5 overflow-x-auto">
@@ -198,16 +209,32 @@
         class="h-12 w-full rounded-xl border border-border bg-surface px-3 text-base text-ink shadow-sm outline-none transition focus:border-brand-500 focus:ring-4 focus:ring-brand-100/60"
         data-testid="project-product-select"
         formControlName="productServiceId"
+        (change)="updateFormProduct($event)"
       >
         <option value="">Select product or service</option>
         @for (product of products(); track product.id) {
-          <option [value]="product.id">{{ product.name }}</option>
+          <option [value]="product.id">{{ product.name }} · {{ brandName(product.brandId) }}</option>
         }
       </select>
       @if (fieldError('productServiceId')) {
         <span class="mt-2 block text-sm text-alert-600">{{ fieldError('productServiceId') }}</span>
       }
     </label>
+
+    @if (formProduct(); as product) {
+      <div class="grid gap-3 rounded-xl border border-border bg-panel/35 p-4 sm:grid-cols-2">
+        <div>
+          <p class="text-xs font-semibold uppercase tracking-[0.14em] text-muted">Selected product/service</p>
+          <p class="mt-2 text-sm font-semibold text-ink">{{ product.name }}</p>
+          <p class="mt-1 text-sm text-muted">{{ product.category || 'Category pending' }}</p>
+        </div>
+        <div>
+          <p class="text-xs font-semibold uppercase tracking-[0.14em] text-muted">Derived brand context</p>
+          <p class="mt-2 text-sm font-semibold text-ink">{{ formBrand()?.name || 'Unknown brand' }}</p>
+          <p class="mt-1 text-sm text-muted">{{ formBrand()?.industry || 'Industry pending' }}</p>
+        </div>
+      </div>
+    }
 
     <div class="grid gap-4 sm:grid-cols-2">
       <app-input
@@ -217,11 +244,17 @@
         [control]="form.controls.name"
         [error]="fieldError('name')"
       />
-      <app-input
-        label="Target platform"
-        placeholder="Facebook + Instagram"
-        [control]="form.controls.targetPlatform"
-      />
+      <label class="block">
+        <span class="mb-2 block text-sm font-medium text-ink">Target platform</span>
+        <select
+          class="h-12 w-full rounded-xl border border-border bg-surface px-3 text-base text-ink shadow-sm outline-none transition focus:border-brand-500 focus:ring-4 focus:ring-brand-100/60"
+          formControlName="targetPlatform"
+        >
+          @for (platform of targetPlatforms; track platform) {
+            <option [value]="platform">{{ platform }}</option>
+          }
+        </select>
+      </label>
     </div>
 
     <app-input
@@ -231,11 +264,17 @@
     />
 
     <div class="grid gap-4 sm:grid-cols-2">
-      <app-input
-        label="Campaign objective"
-        placeholder="Drive product discovery and conversions"
-        [control]="form.controls.campaignObjective"
-      />
+      <label class="block">
+        <span class="mb-2 block text-sm font-medium text-ink">Campaign objective</span>
+        <select
+          class="h-12 w-full rounded-xl border border-border bg-surface px-3 text-base text-ink shadow-sm outline-none transition focus:border-brand-500 focus:ring-4 focus:ring-brand-100/60"
+          formControlName="campaignObjective"
+        >
+          @for (objective of campaignObjectives; track objective) {
+            <option [value]="objective">{{ objective }}</option>
+          }
+        </select>
+      </label>
       <app-input
         label="Campaign type"
         placeholder="Launch campaign"

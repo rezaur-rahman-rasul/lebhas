@@ -21,7 +21,7 @@ export function normalizeHttpError(error: unknown): NormalizedHttpError {
 
     return {
       status: error.status,
-      message: body?.message || error.message || 'Request failed',
+      message: friendlyHttpMessage(error.status, body, error.message),
       errors: body?.errors ?? [],
     };
   }
@@ -31,4 +31,30 @@ export function normalizeHttpError(error: unknown): NormalizedHttpError {
     message: 'Unexpected application error',
     errors: [],
   };
+}
+
+function friendlyHttpMessage(
+  status: number,
+  body: Partial<ApiResponse<unknown>> | null,
+  fallbackMessage: string,
+): string {
+  if (status === 403) {
+    return 'You do not have permission to perform this action.';
+  }
+
+  const rawMessage = body?.message || fallbackMessage || 'Request failed';
+  const errorText = [rawMessage, ...(body?.errors ?? []).map((error) => `${error.code ?? ''} ${error.message}`)]
+    .join(' ')
+    .toLowerCase();
+
+  if (errorText.includes('quota') || errorText.includes('storage full')) {
+    return 'Your workspace storage is full. Please remove old files or upgrade your package.';
+  }
+
+  if (errorText.includes('plan limit') || errorText.includes('limit exceeded')) {
+    const explicitLimit = errorText.match(/\b\d+\b/)?.[0] ?? 'the allowed number of';
+    return `Your current package allows only ${explicitLimit} creative version(s) for this request.`;
+  }
+
+  return rawMessage;
 }

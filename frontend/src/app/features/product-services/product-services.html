@@ -4,7 +4,12 @@
   description="Connect each catalog item to a brand so project campaigns inherit the right commercial context."
 >
   @if (canManage()) {
-    <app-button icon="plus" [testId]="'product-create-button'" (click)="openCreateDialog()">
+    <app-button
+      icon="plus"
+      [disabled]="brands().length === 0"
+      [testId]="'product-create-button'"
+      (click)="openCreateDialog()"
+    >
       Create Product / Service
     </app-button>
   }
@@ -59,7 +64,13 @@
             icon="package-open"
             title="No product services yet"
             description="Create a catalog item once the brand layer is ready."
-          />
+          >
+            @if (brands().length === 0) {
+              <a routerLink="/brands">
+                <app-button variant="secondary" icon="badge-check">Create Brand First</app-button>
+              </a>
+            }
+          </app-empty-state>
         </div>
       } @else {
         <div class="mt-5 overflow-x-auto">
@@ -192,6 +203,7 @@
         class="h-12 w-full rounded-xl border border-border bg-surface px-3 text-base text-ink shadow-sm outline-none transition focus:border-brand-500 focus:ring-4 focus:ring-brand-100/60"
         data-testid="product-brand-select"
         formControlName="brandId"
+        (change)="updateFormBrand($event)"
       >
         <option value="">Select brand</option>
         @for (brand of brands(); track brand.id) {
@@ -202,6 +214,14 @@
         <span class="mt-2 block text-sm text-alert-600">{{ fieldError('brandId') }}</span>
       }
     </label>
+
+    @if (formBrand(); as brand) {
+      <div class="rounded-xl border border-border bg-panel/35 p-4">
+        <p class="text-xs font-semibold uppercase tracking-[0.14em] text-muted">Selected brand context</p>
+        <p class="mt-2 text-sm font-semibold text-ink">{{ brand.name }}</p>
+        <p class="mt-1 text-sm text-muted">{{ brand.industry || 'Industry pending' }}</p>
+      </div>
+    }
 
     <div class="grid gap-4 sm:grid-cols-2">
       <app-input

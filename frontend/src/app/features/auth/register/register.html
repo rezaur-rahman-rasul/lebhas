@@ -106,7 +106,13 @@
 
       <p class="mt-6 text-center text-sm text-muted">
         Already registered?
-        <a routerLink="/login" class="font-medium text-brand-700 hover:text-brand-600">Sign in</a>
+        <a
+          routerLink="/"
+          [queryParams]="{ auth: 'login' }"
+          class="font-medium text-brand-700 hover:text-brand-600"
+        >
+          Sign in
+        </a>
       </p>
     </app-auth-card>
   

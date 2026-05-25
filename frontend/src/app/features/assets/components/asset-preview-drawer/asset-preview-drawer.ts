@@ -3,6 +3,7 @@ import { ChangeDetectionStrategy, Component, input, output } from '@angular/core
 
 import { BadgeComponent } from '@app/shared/components/badge/badge';
 import { ButtonComponent } from '@app/shared/components/button/button';
+import { AppDrawerComponent } from '@app/shared/components/app-drawer/app-drawer';
 import { IconComponent } from '@app/shared/components/icon/icon';
 import {
   Asset,
@@ -18,7 +19,7 @@ import {
 @Component({
   selector: 'app-asset-preview-drawer',
   standalone: true,
-  imports: [DatePipe, BadgeComponent, ButtonComponent, IconComponent],
+  imports: [DatePipe, BadgeComponent, ButtonComponent, AppDrawerComponent, IconComponent],
   templateUrl: './asset-preview-drawer.html',
   styleUrl: './asset-preview-drawer.scss',
   changeDetection: ChangeDetectionStrategy.OnPush,

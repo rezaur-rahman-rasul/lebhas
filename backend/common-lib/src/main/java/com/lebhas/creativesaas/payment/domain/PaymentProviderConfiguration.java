@@ -107,6 +107,38 @@ public class PaymentProviderConfiguration {
         return configuration;
     }
 
+    public void update(
+            PaymentEnvironmentType environmentType,
+            String apiBaseUrl,
+            String merchantId,
+            String encryptedApiKey,
+            String encryptedSecret,
+            String encryptedWebhookSecret,
+            String successUrl,
+            String failureUrl,
+            String cancelUrl,
+            boolean active
+    ) {
+        this.environmentType = require(environmentType, "environmentType");
+        this.apiBaseUrl = normalizeNullable(apiBaseUrl);
+        this.merchantId = normalizeNullable(merchantId);
+        this.encryptedApiKey = normalizeNullable(encryptedApiKey);
+        this.encryptedSecret = normalizeNullable(encryptedSecret);
+        this.encryptedWebhookSecret = normalizeNullable(encryptedWebhookSecret);
+        this.successUrl = normalizeNullable(successUrl);
+        this.failureUrl = normalizeNullable(failureUrl);
+        this.cancelUrl = normalizeNullable(cancelUrl);
+        this.active = active;
+    }
+
+    public void activate() {
+        this.active = true;
+    }
+
+    public void deactivate() {
+        this.active = false;
+    }
+
     @PrePersist
     void onCreate() {
         Instant now = Instant.now();

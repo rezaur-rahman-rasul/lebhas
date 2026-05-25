@@ -11,10 +11,24 @@ import { InputComponent } from '@app/shared/components/input/input';
 import { LoadingComponent } from '@app/shared/components/loading/loading';
 import { ModalComponent } from '@app/shared/components/modal/modal';
 import { SectionHeaderComponent } from '@app/shared/components/section-header/section-header';
-import { Brand, BrandStatus, CreateBrandPayload, UpdateBrandPayload } from './brand.models';
+import {
+  Brand,
+  BrandLanguagePreference,
+  BrandStatus,
+  CreateBrandPayload,
+  UpdateBrandPayload,
+} from './brand.models';
 import { BrandStore } from './brand.store';
 
 type BrandDialogMode = 'create' | 'edit' | null;
+const LANGUAGE_PREFERENCES: readonly {
+  readonly value: BrandLanguagePreference;
+  readonly label: string;
+}[] = [
+  { value: 'BOTH', label: 'Bangla and English' },
+  { value: 'BANGLA', label: 'Bangla only' },
+  { value: 'ENGLISH', label: 'English only' },
+];
 
 @Component({
   selector: 'app-brands',
@@ -48,6 +62,7 @@ export class BrandsComponent {
   protected readonly canManage = this.permissions.canManageBrands;
   protected readonly workspaceId = this.workspace.activeWorkspaceId;
   protected readonly brands = this.store.items;
+  protected readonly languagePreferences = LANGUAGE_PREFERENCES;
   protected readonly selectedBrand = computed(
     () => this.brands().find((brand) => brand.id === this.selectedBrandId()) ?? null,
   );
@@ -66,6 +81,7 @@ export class BrandsComponent {
     instagramUrl: [''],
     linkedinUrl: [''],
     tiktokUrl: [''],
+    languagePreference: ['BOTH' as BrandLanguagePreference, [Validators.required]],
     status: ['ACTIVE' as BrandStatus],
   });
 
@@ -112,6 +128,7 @@ export class BrandsComponent {
       instagramUrl: '',
       linkedinUrl: '',
       tiktokUrl: '',
+      languagePreference: 'BOTH',
       status: 'ACTIVE',
     });
     this.dialogMode.set('create');
@@ -138,6 +155,7 @@ export class BrandsComponent {
       instagramUrl: brand.instagramUrl ?? '',
       linkedinUrl: brand.linkedinUrl ?? '',
       tiktokUrl: brand.tiktokUrl ?? '',
+      languagePreference: brand.languagePreference ?? 'BOTH',
       status: brand.status,
     });
     this.dialogMode.set('edit');
@@ -161,20 +179,24 @@ export class BrandsComponent {
 
     const payload = this.toPayload();
 
-    if (this.dialogMode() === 'create') {
-      const brand = await this.store.create(workspaceId, payload);
-      this.selectedBrandId.set(brand.id);
-    } else {
-      const brand = this.selectedBrand();
-      if (!brand) {
-        return;
-      }
+    try {
+      if (this.dialogMode() === 'create') {
+        const brand = await this.store.create(workspaceId, payload);
+        this.selectedBrandId.set(brand.id);
+      } else {
+        const brand = this.selectedBrand();
+        if (!brand) {
+          return;
+        }
 
-      const updatedBrand = await this.store.update(workspaceId, brand.id, {
-        ...payload,
-        status: this.form.getRawValue().status,
-      });
-      this.selectedBrandId.set(updatedBrand.id);
+        const updatedBrand = await this.store.update(workspaceId, brand.id, {
+          ...payload,
+          status: this.form.getRawValue().status,
+        });
+        this.selectedBrandId.set(updatedBrand.id);
+      }
+    } catch {
+      return;
     }
 
     this.closeDialog();
@@ -195,7 +217,7 @@ export class BrandsComponent {
     await this.store.remove(workspaceId, brand.id);
   }
 
-  protected fieldError(fieldName: 'name'): string {
+  protected fieldError(fieldName: 'name' | 'languagePreference'): string {
     const control = this.form.controls[fieldName];
 
     if (!this.attemptedSubmit() && !control.touched) {
@@ -203,7 +225,7 @@ export class BrandsComponent {
     }
 
     if (control.hasError('required')) {
-      return 'Enter a brand name.';
+      return fieldName === 'name' ? 'Enter a brand name.' : 'Choose a creative language preference.';
     }
 
     return '';
@@ -211,6 +233,10 @@ export class BrandsComponent {
 
   protected colorPreview(color: string | null): string {
     return color && color.trim() ? color : 'transparent';
+  }
+
+  protected languagePreferenceLabel(value: BrandLanguagePreference | null | undefined): string {
+    return LANGUAGE_PREFERENCES.find((option) => option.value === value)?.label ?? 'Bangla and English';
   }
 
   private toPayload(): CreateBrandPayload {
@@ -230,6 +256,7 @@ export class BrandsComponent {
       instagramUrl: this.normalize(value.instagramUrl),
       linkedinUrl: this.normalize(value.linkedinUrl),
       tiktokUrl: this.normalize(value.tiktokUrl),
+      languagePreference: value.languagePreference,
     };
   }
 

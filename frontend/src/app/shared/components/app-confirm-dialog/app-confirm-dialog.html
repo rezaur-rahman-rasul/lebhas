@@ -1,0 +1,11 @@
+
+<app-dialog
+  [open]="open()"
+  [title]="title()"
+  [description]="description()"
+  [closeOnBackdrop]="closeOnBackdrop()"
+  panelClass="max-w-[36rem]"
+  (closed)="closed.emit()"
+>
+  <ng-content />
+</app-dialog>

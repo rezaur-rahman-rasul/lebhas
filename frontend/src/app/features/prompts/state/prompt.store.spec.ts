@@ -49,8 +49,8 @@ describe('PromptStore', () => {
       enhancedPrompt: 'Enhanced campaign prompt',
       reasoningSummary: null,
       suggestedMissingFields: [],
-      aiProvider: 'openai',
-      model: 'gpt-4.1-mini',
+      aiProvider: null,
+      model: null,
       tokenUsage: 42,
     });
 
@@ -75,8 +75,8 @@ describe('PromptStore', () => {
       campaignToneSuggestions: [],
       businessCategorySuggestions: [],
       reasoningSummary: null,
-      aiProvider: 'openai',
-      model: 'gpt-4.1-mini',
+      aiProvider: null,
+      model: null,
       tokenUsage: 24,
     });
 

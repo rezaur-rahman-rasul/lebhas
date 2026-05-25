@@ -1,9 +1,9 @@
 <app-page-header
   eyebrow="Campaign assets"
   [title]="project()?.name ?? 'Project assets'"
-  description="Upload and manage raw product media for this campaign. Assets stay linked to the selected brand and product context."
+  description="Upload and manage campaign media. Previews and downloads are opened through backend signed URLs."
 >
-  <a routerLink="/assets" class="text-sm font-medium text-brand-600 hover:text-brand-700">All projects</a>
+  <a routerLink="/projects" class="text-sm font-medium text-brand-600 hover:text-brand-700">All projects</a>
   <app-badge tone="neutral">{{ assetCountLabel() }}</app-badge>
 
   @if (store.canUploadAssets() && projectId()) {
@@ -41,14 +41,55 @@
   <app-asset-context-banner
     class="mt-6 block"
     [workspaceLabel]="workspace.workspaceLabel()"
-    [brandName]="brand()?.name ?? '—'"
-    [productName]="product()?.name ?? '—'"
-    [projectName]="project()?.name ?? '—'"
+    [brandName]="brand()?.name ?? 'Not loaded'"
+    [productName]="product()?.name ?? 'Not loaded'"
+    [projectName]="project()?.name ?? 'Not loaded'"
   />
 
+  @if (storageSummary(); as storage) {
+    <section class="mt-4 rounded-2xl border border-border bg-panel p-4">
+      <div class="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
+        <div>
+          <p class="text-sm font-semibold text-ink">Workspace storage</p>
+          <p class="mt-1 text-sm text-muted">
+            Remaining: {{ storage.remainingLabel }}
+            @if (storage.limitLabel !== 'Unavailable') {
+              <span>of {{ storage.limitLabel }}</span>
+            }
+          </p>
+          @if (storage.message) {
+            <p class="mt-2 text-sm text-muted">{{ storage.message }}</p>
+          }
+        </div>
+
+        <div class="min-w-0 lg:w-72">
+          <div class="flex items-center justify-between text-xs font-medium text-muted">
+            <span>Used {{ storage.usedLabel }}</span>
+            @if (storage.percentage !== null) {
+              <span>{{ storage.percentage }}%</span>
+            }
+          </div>
+          <div class="mt-2 h-2 rounded-full bg-slate-200 dark:bg-slate-800">
+            <div
+              class="h-full rounded-full bg-brand-600 transition-[width]"
+              [style.width.%]="storage.percentage ?? 0"
+            ></div>
+          </div>
+        </div>
+      </div>
+    </section>
+  }
+
   @if (store.assetError()) {
-    <div class="mt-6 rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
-      {{ store.assetError() }}
+    <div class="mt-6">
+      <app-empty-state
+        icon="circle-alert"
+        tone="danger"
+        title="Assets could not be loaded"
+        [description]="store.assetError()!"
+      >
+        <app-button variant="secondary" icon="refresh-cw" (click)="reloadAssets()">Retry</app-button>
+      </app-empty-state>
     </div>
   }
 
@@ -136,6 +177,7 @@
   [uploading]="store.isUploading()"
   [uploadProgress]="store.uploadProgress()"
   [fieldErrors]="uploadFieldErrors()"
+  [formError]="uploadError()"
   (submitted)="submitUpload($event)"
   (closed)="closeUploader()"
   (uploadCancelled)="cancelUpload()"

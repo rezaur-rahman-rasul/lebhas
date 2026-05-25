@@ -8,31 +8,43 @@ import { NotificationStateService } from '@app/core/state/notification-state.ser
 import { WorkspaceStore } from '@app/core/workspace/workspace.store';
 import { Asset } from '@app/features/assets/models/asset.models';
 import { AssetStore } from '@app/features/assets/state/asset.store';
+import { BrandLanguagePreference } from '@app/features/brands/brand.models';
 import { BrandStore } from '@app/features/brands/brand.store';
 import { ProductServiceStore } from '@app/features/product-services/product-service.store';
 import { ProjectStore } from '@app/features/projects/project.store';
 import {
   CampaignObjective,
+  campaignObjectiveLabel,
+  CreatePromptTemplateRequest,
   DEFAULT_BUILDER_SUGGESTION_TYPES,
   parseCampaignObjective,
   parsePromptPlatform,
+  promptLanguageLabel,
+  promptPlatformLabel,
   PROMPT_TONE_OPTIONS,
   PLATFORM_OPTIONS,
   CAMPAIGN_OBJECTIVE_OPTIONS,
   PROMPT_LANGUAGE_OPTIONS,
+  PromptHistory,
   PromptLanguage,
   PromptPlatform,
   PromptTone,
 } from '../models';
+import { PromptHistoryStore } from '../state/prompt-history.store';
 import { PromptStore } from '../state/prompt.store';
+import { PromptTemplateStore } from '../state/prompt-template.store';
 import { AssetContextSelector } from '../components/asset-context-selector/asset-context-selector';
 import { AiLoadingState } from '../components/ai-loading-state/ai-loading-state';
 import { PromptContextCard } from '../components/prompt-context-card/prompt-context-card';
 import { PromptEditor } from '../components/prompt-editor/prompt-editor';
 import { PromptEmptyState } from '../components/prompt-empty-state/prompt-empty-state';
+import { PromptHistoryCard } from '../components/prompt-history-card/prompt-history-card';
+import { PromptHistoryDetail } from '../components/prompt-history-detail/prompt-history-detail';
+import { PromptTemplateForm } from '../components/prompt-template-form/prompt-template-form';
 import { BadgeComponent } from '@app/shared/components/badge/badge';
 import { ButtonComponent } from '@app/shared/components/button/button';
 import { CardComponent } from '@app/shared/components/card/card';
+import { ModalShellComponent } from '@app/shared/components/modal-shell/modal-shell';
 import { PageHeaderComponent } from '@app/shared/components/page-header/page-header';
 
 @Component({
@@ -49,6 +61,10 @@ import { PageHeaderComponent } from '@app/shared/components/page-header/page-hea
     PromptEditor,
     AiLoadingState,
     PromptEmptyState,
+    PromptHistoryCard,
+    PromptHistoryDetail,
+    PromptTemplateForm,
+    ModalShellComponent,
   ],
   templateUrl: './prompt-builder.html',
   styleUrl: './prompt-builder.scss',
@@ -56,6 +72,8 @@ import { PageHeaderComponent } from '@app/shared/components/page-header/page-hea
 })
 export class PromptBuilderPage {
   protected readonly promptStore = inject(PromptStore);
+  protected readonly historyStore = inject(PromptHistoryStore);
+  protected readonly templateStore = inject(PromptTemplateStore);
   private readonly permissions = inject(PermissionStore);
   private readonly auth = inject(CurrentUserStore);
   private readonly workspace = inject(WorkspaceStore);
@@ -67,10 +85,24 @@ export class PromptBuilderPage {
   private readonly route = inject(ActivatedRoute);
 
   private readonly fieldErrorsSignal = signal<Readonly<Record<string, string>>>({});
+  private readonly templateFieldErrorsSignal = signal<Readonly<Record<string, string>>>({});
   private readonly initializingSignal = signal(true);
+  private readonly advancedOpenSignal = signal(false);
+  private readonly historyOpenSignal = signal(false);
+  private readonly historySearchSignal = signal('');
+  private readonly historyDetailOpenSignal = signal(false);
+  private readonly selectedHistoryEntrySignal = signal<PromptHistory | null>(null);
+  private readonly templateDialogOpenSignal = signal(false);
 
   protected readonly fieldErrors = this.fieldErrorsSignal.asReadonly();
+  protected readonly templateFieldErrors = this.templateFieldErrorsSignal.asReadonly();
   protected readonly initializing = this.initializingSignal.asReadonly();
+  protected readonly advancedOpen = this.advancedOpenSignal.asReadonly();
+  protected readonly historyOpen = this.historyOpenSignal.asReadonly();
+  protected readonly historySearch = this.historySearchSignal.asReadonly();
+  protected readonly historyDetailOpen = this.historyDetailOpenSignal.asReadonly();
+  protected readonly selectedHistoryEntry = this.selectedHistoryEntrySignal.asReadonly();
+  protected readonly templateDialogOpen = this.templateDialogOpenSignal.asReadonly();
 
   protected readonly projectId = computed(() => this.route.snapshot.paramMap.get('projectId') ?? '');
   protected readonly workspaceLabel = this.workspace.workspaceLabel;
@@ -102,9 +134,54 @@ export class PromptBuilderPage {
   protected readonly campaignObjectiveOptions = CAMPAIGN_OBJECTIVE_OPTIONS;
   protected readonly languageOptions = PROMPT_LANGUAGE_OPTIONS;
   protected readonly toneOptions = PROMPT_TONE_OPTIONS;
+  protected readonly promptLanguageLabel = promptLanguageLabel;
+  protected readonly promptPlatformLabel = promptPlatformLabel;
+  protected readonly campaignObjectiveLabel = campaignObjectiveLabel;
 
   protected readonly builderSettings = this.promptStore.builderSettings;
   protected readonly sourcePromptError = computed(() => this.fieldErrors()['sourcePrompt'] ?? null);
+  protected readonly canManageTemplates = this.templateStore.canManageTemplates;
+  protected readonly canViewHistory = this.historyStore.canViewHistory;
+  protected readonly visibleLanguageOptions = computed(() => {
+    const preference = this.brand()?.languagePreference;
+    if (preference === 'BANGLA') {
+      return PROMPT_LANGUAGE_OPTIONS.filter((option) => option.value === 'BANGLA');
+    }
+
+    if (preference === 'ENGLISH') {
+      return PROMPT_LANGUAGE_OPTIONS.filter((option) => option.value === 'ENGLISH');
+    }
+
+    return PROMPT_LANGUAGE_OPTIONS;
+  });
+  protected readonly languageGuidance = computed(() => {
+    const preference = this.brand()?.languagePreference;
+    if (preference === 'BANGLA') {
+      return 'Bangla is selected from this brand profile.';
+    }
+
+    if (preference === 'ENGLISH') {
+      return 'English is selected from this brand profile.';
+    }
+
+    return 'This brand supports Bangla and English. Choose the language for this campaign.';
+  });
+  protected readonly filteredHistory = computed(() => {
+    const search = this.historySearchSignal().trim().toLowerCase();
+    const history = this.historyStore.history();
+    if (!search) {
+      return history;
+    }
+
+    return history.filter((entry) =>
+      [entry.sourcePrompt, entry.enhancedPrompt, entry.businessType, entry.platform, entry.campaignObjective]
+        .filter(Boolean)
+        .some((value) => String(value).toLowerCase().includes(search)),
+    );
+  });
+  protected readonly templatePromptBody = computed(
+    () => this.promptStore.enhancedPrompt()?.enhancedPrompt ?? this.promptStore.sourcePrompt(),
+  );
 
   protected readonly suggestionGroups = computed(() => {
     const suggestions = this.promptStore.suggestions();
@@ -164,6 +241,7 @@ export class PromptBuilderPage {
       this.promptStore.patchBuilderSettings({
         platform: parsePromptPlatform(project.targetPlatform),
         campaignObjective: parseCampaignObjective(project.campaignObjective),
+        language: this.defaultLanguageForBrand(brand.languagePreference),
         businessType: brand.businessType,
         targetAudience: brand.targetAudience ?? product.targetAudience ?? '',
         useBrandProfile: true,
@@ -173,6 +251,10 @@ export class PromptBuilderPage {
     }
 
     await this.assetStore.loadProjectAssets(projectId);
+    if (this.historyStore.canViewHistory()) {
+      this.historyStore.setSelectedProjectId(projectId);
+      await this.historyStore.loadHistory(projectId);
+    }
     this.initializingSignal.set(false);
   }
 
@@ -231,6 +313,52 @@ export class PromptBuilderPage {
     this.promptStore.resetPrompt();
   }
 
+  protected toggleAdvanced(): void {
+    this.advancedOpenSignal.update((open) => !open);
+  }
+
+  protected toggleHistory(): void {
+    this.historyOpenSignal.update((open) => !open);
+  }
+
+  protected updateHistorySearch(value: string): void {
+    this.historySearchSignal.set(value);
+  }
+
+  protected openHistoryDetail(entry: PromptHistory): void {
+    this.selectedHistoryEntrySignal.set(entry);
+    this.historyDetailOpenSignal.set(true);
+  }
+
+  protected closeHistoryDetail(): void {
+    this.selectedHistoryEntrySignal.set(null);
+    this.historyDetailOpenSignal.set(false);
+  }
+
+  protected reloadHistory(): void {
+    void this.historyStore.loadHistory(this.projectId());
+  }
+
+  protected openTemplateDialog(): void {
+    this.templateFieldErrorsSignal.set({});
+    this.templateDialogOpenSignal.set(true);
+  }
+
+  protected closeTemplateDialog(): void {
+    this.templateFieldErrorsSignal.set({});
+    this.templateDialogOpenSignal.set(false);
+  }
+
+  protected async saveTemplate(payload: CreatePromptTemplateRequest): Promise<void> {
+    this.templateFieldErrorsSignal.set({});
+    const result = await this.templateStore.createTemplate(payload);
+    if (result.ok) {
+      this.closeTemplateDialog();
+    } else {
+      this.templateFieldErrorsSignal.set(result.fieldErrors);
+    }
+  }
+
   protected toggleAsset(asset: Asset): void {
     this.promptStore.toggleAsset(asset);
   }
@@ -250,6 +378,17 @@ export class PromptBuilderPage {
   ): void {
     this.fieldErrorsSignal.update((errors) => removeFieldError(errors, key));
     this.promptStore.patchBuilderSettings({ [key]: value });
+  }
+
+  private defaultLanguageForBrand(preference: BrandLanguagePreference): PromptLanguage | null {
+    switch (preference) {
+      case 'BANGLA':
+        return 'BANGLA';
+      case 'ENGLISH':
+        return 'ENGLISH';
+      case 'BOTH':
+        return null;
+    }
   }
 }
 

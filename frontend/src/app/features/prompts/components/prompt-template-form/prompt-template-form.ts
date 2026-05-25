@@ -34,6 +34,7 @@ export class PromptTemplateForm {
   readonly loading = input(false);
   readonly disabled = input(false);
   readonly fieldErrors = input<Readonly<Record<string, string>>>({});
+  readonly defaultPromptBody = input('');
 
   readonly submitted = output<CreatePromptTemplateRequest>();
   readonly cancelled = output<void>();
@@ -108,7 +109,7 @@ export class PromptTemplateForm {
               campaignObjective: '',
               businessType: '',
               language: 'ENGLISH',
-              promptBody: '',
+              promptBody: this.defaultPromptBody(),
               isDefault: false,
               status: 'ACTIVE',
             },

@@ -1,0 +1,26 @@
+@if (items().length > 0) {
+  <nav aria-label="Current context" class="overflow-x-auto">
+    <ol class="flex min-w-0 items-center gap-1 text-sm text-muted">
+      @for (item of items(); track item.label; let last = $last) {
+        <li class="flex min-w-0 items-center gap-1">
+          @if (item.route && !last) {
+            <a
+              [routerLink]="item.route"
+              class="truncate rounded px-1.5 py-1 font-medium text-muted transition hover:bg-panel hover:text-ink focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500"
+            >
+              {{ item.label }}
+            </a>
+          } @else {
+            <span class="truncate px-1.5 py-1 font-medium" [class.text-ink]="last">
+              {{ item.label }}
+            </span>
+          }
+
+          @if (!last) {
+            <app-icon name="chevron-right" [size]="14" class="shrink-0" />
+          }
+        </li>
+      }
+    </ol>
+  </nav>
+}

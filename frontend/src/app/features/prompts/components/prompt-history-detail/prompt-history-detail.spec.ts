@@ -24,7 +24,8 @@ describe('PromptHistoryDetail', () => {
     expect(text).toContain('Context summary');
     expect(text).toContain('Lebhas Studio');
     expect(text).toContain(String(mockHistoryEntry.tokenUsage));
-    expect(text).toContain(mockHistoryEntry.aiProvider!);
-    expect(text).toContain(mockHistoryEntry.model!);
+    expect(text).toContain('Creative quality mode is controlled by your current package.');
+    expect(text).not.toContain('AI provider');
+    expect(text).not.toContain('AI model');
   });
 });

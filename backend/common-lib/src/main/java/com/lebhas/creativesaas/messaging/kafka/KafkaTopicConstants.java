@@ -96,6 +96,19 @@ public final class KafkaTopicConstants {
     public static final String WORKSPACE_LIMIT_EXCEEDED = "workspace.limit.exceeded";
     public static final String GENERATION_BLOCKED_INSUFFICIENT_CREDITS = "generation.blocked.insufficient.credits";
     public static final String BILLING_USAGE_LOGGED = "billing.usage.logged";
+    public static final String PAYMENT_TRANSACTION_INITIATED = "payment.transaction.initiated";
+    public static final String PAYMENT_TRANSACTION_SUCCEEDED = "payment.transaction.succeeded";
+    public static final String PAYMENT_TRANSACTION_FAILED = "payment.transaction.failed";
+    public static final String PAYMENT_TRANSACTION_CANCELLED = "payment.transaction.cancelled";
+    public static final String SUBSCRIPTION_ORDER_CREATED = "subscription.order.created";
+    public static final String PAYMENT_WEBHOOK_PROCESSED = "payment.webhook.processed";
+    public static final String PAYMENT_WEBHOOK_RECEIVED = "payment.webhook.received";
+    public static final String SUBSCRIPTION_ACTIVATED = "subscription.activated";
+    public static final String SUBSCRIPTION_CHANGED = "subscription.changed";
+    public static final String CREDIT_PURCHASE_CREATED = "credit.purchase.created";
+    public static final String CREDIT_PURCHASE_COMPLETED = "credit.purchase.completed";
+    public static final String INVOICE_CREATED = "invoice.created";
+    public static final String INVOICE_PAID = "invoice.paid";
 
     private KafkaTopicConstants() {
     }

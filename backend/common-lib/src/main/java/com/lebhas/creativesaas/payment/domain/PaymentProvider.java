@@ -85,6 +85,34 @@ public class PaymentProvider {
         return provider;
     }
 
+    public void update(
+            String name,
+            String code,
+            PaymentProviderType providerType,
+            boolean sandboxEnabled,
+            boolean liveEnabled,
+            int priority
+    ) {
+        this.name = normalizeRequired(name, "name");
+        this.code = normalizeCode(code);
+        this.providerType = require(providerType, "providerType");
+        this.sandboxEnabled = sandboxEnabled;
+        this.liveEnabled = liveEnabled;
+        this.priority = Math.max(priority, 0);
+    }
+
+    public void enable() {
+        this.enabled = true;
+    }
+
+    public void disable() {
+        this.enabled = false;
+    }
+
+    public void updatePriority(int priority) {
+        this.priority = Math.max(priority, 0);
+    }
+
     @PrePersist
     void onCreate() {
         Instant now = Instant.now();

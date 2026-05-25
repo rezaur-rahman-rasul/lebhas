@@ -79,6 +79,10 @@ public class RedisKeyBuilder {
         return "wallet:" + workspaceId;
     }
 
+    public String paymentSession(UUID paymentTransactionId) {
+        return "payment:session:" + paymentTransactionId;
+    }
+
     public String promptHash(String sha256) {
         return "prompt:hash:" + sha256;
     }

@@ -1,4 +1,4 @@
-import { DOCUMENT } from '@angular/common';
+﻿import { DOCUMENT } from '@angular/common';
 import { ChangeDetectionStrategy, Component, computed, inject, signal } from '@angular/core';
 import { Router, RouterLink } from '@angular/router';
 
@@ -57,16 +57,6 @@ interface TopPlatform {
   readonly color: string;
 }
 
-interface PricingPlan {
-  readonly name: string;
-  readonly price: string;
-  readonly period: string;
-  readonly description: string;
-  readonly features: readonly string[];
-  readonly action: string;
-  readonly featured?: boolean;
-}
-
 interface AboutPoint {
   readonly icon: string;
   readonly title: string;
@@ -82,7 +72,6 @@ interface HomeCopy {
   readonly nav: {
     readonly home: string;
     readonly features: string;
-    readonly pricing: string;
     readonly resources: string;
     readonly about: string;
     readonly login: string;
@@ -124,12 +113,6 @@ interface HomeCopy {
     readonly activities: readonly ActivityItem[];
     readonly chartTitle: string;
   };
-  readonly pricing: {
-    readonly eyebrow: string;
-    readonly title: string;
-    readonly description: string;
-    readonly plans: readonly PricingPlan[];
-  };
   readonly about: {
     readonly eyebrow: string;
     readonly title: string;
@@ -155,7 +138,6 @@ const HOME_COPY: Record<HomeLanguage, HomeCopy> = {
     nav: {
       home: 'Home',
       features: 'Features',
-      pricing: 'Pricing',
       resources: 'Resources',
       about: 'About Us',
       login: 'Login',
@@ -252,54 +234,6 @@ const HOME_COPY: Record<HomeLanguage, HomeCopy> = {
       ],
       chartTitle: 'Top Platforms',
     },
-    pricing: {
-      eyebrow: 'Pricing',
-      title: 'Plans for teams that need creative velocity',
-      description:
-        'Choose the workspace that matches your approval flow, campaign volume, and publishing needs.',
-      plans: [
-        {
-          name: 'Starter',
-          price: '$29',
-          period: '/month',
-          description: 'Best for solo marketers validating fast campaign production.',
-          features: [
-            '1 workspace',
-            '50 AI creative generations per month',
-            'Brand kit and prompt presets',
-            'Manual export for all supported formats',
-          ],
-          action: 'Start Starter',
-        },
-        {
-          name: 'Growth',
-          price: '$79',
-          period: '/month',
-          description: 'Built for growing teams running multi-platform campaign cycles.',
-          features: [
-            '5 workspaces with shared review flow',
-            '250 AI creative generations per month',
-            'Approval history and collaboration notes',
-            'Priority export queue and reusable templates',
-          ],
-          action: 'Choose Growth',
-          featured: true,
-        },
-        {
-          name: 'Enterprise',
-          price: 'Custom',
-          period: '',
-          description: 'For brands and agencies that need scale, governance, and support.',
-          features: [
-            'Unlimited workspaces',
-            'Custom generation volume and roles',
-            'Dedicated onboarding and security review',
-            'API and workflow integration support',
-          ],
-          action: 'Talk to Sales',
-        },
-      ],
-    },
     about: {
       eyebrow: 'About Us',
       title: 'Built for brands that need speed without losing control',
@@ -332,7 +266,7 @@ const HOME_COPY: Record<HomeLanguage, HomeCopy> = {
         { value: '1', label: 'Connected creative workspace' },
       ],
       primaryCta: 'Explore Workflow',
-      secondaryCta: 'View Pricing',
+      secondaryCta: 'Start Creating',
     },
     footer: 'LEBHAS - Create Ads Beyond Imagination. All rights reserved.',
   },
@@ -340,7 +274,6 @@ const HOME_COPY: Record<HomeLanguage, HomeCopy> = {
     nav: {
       home: 'হোম',
       features: 'ফিচার',
-      pricing: 'প্রাইসিং',
       resources: 'রিসোর্স',
       about: 'আমাদের সম্পর্কে',
       login: 'লগইন',
@@ -437,54 +370,6 @@ const HOME_COPY: Record<HomeLanguage, HomeCopy> = {
       ],
       chartTitle: 'শীর্ষ প্ল্যাটফর্ম',
     },
-    pricing: {
-      eyebrow: 'প্রাইসিং',
-      title: 'যে টিম দ্রুত ক্রিয়েটিভ চালাতে চায় তাদের জন্য পরিকল্পনা',
-      description:
-        'আপনার ওয়ার্কস্পেস, অনুমোদন প্রক্রিয়া এবং ক্যাম্পেইন ভলিউম অনুযায়ী উপযুক্ত প্ল্যান বেছে নিন।',
-      plans: [
-        {
-          name: 'Starter',
-          price: '$29',
-          period: '/মাস',
-          description: 'একজন মার্কেটারের দ্রুত ক্যাম্পেইন প্রোডাকশন যাচাইয়ের জন্য।',
-          features: [
-            '১টি ওয়ার্কস্পেস',
-            'প্রতি মাসে ৫০টি এআই ক্রিয়েটিভ জেনারেশন',
-            'ব্র্যান্ড কিট ও প্রম্পট প্রিসেট',
-            'সব সাপোর্টেড ফরম্যাটে ম্যানুয়াল এক্সপোর্ট',
-          ],
-          action: 'Starter শুরু করুন',
-        },
-        {
-          name: 'Growth',
-          price: '$79',
-          period: '/মাস',
-          description: 'বর্ধনশীল টিমের জন্য, যারা একাধিক প্ল্যাটফর্মে ক্যাম্পেইন চালায়।',
-          features: [
-            '৫টি ওয়ার্কস্পেস ও শেয়ারড রিভিউ ফ্লো',
-            'প্রতি মাসে ২৫০টি এআই ক্রিয়েটিভ জেনারেশন',
-            'অ্যাপ্রুভাল হিস্ট্রি ও কোলাবোরেশন নোট',
-            'প্রায়োরিটি এক্সপোর্ট কিউ ও পুনর্ব্যবহারযোগ্য টেমপ্লেট',
-          ],
-          action: 'Growth বেছে নিন',
-          featured: true,
-        },
-        {
-          name: 'Enterprise',
-          price: 'Custom',
-          period: '',
-          description: 'বড় ব্র্যান্ড ও এজেন্সির জন্য, যেখানে স্কেল ও গভর্নেন্স দরকার।',
-          features: [
-            'আনলিমিটেড ওয়ার্কস্পেস',
-            'কাস্টম জেনারেশন ভলিউম ও রোলস',
-            'ডেডিকেটেড অনবোর্ডিং ও সিকিউরিটি রিভিউ',
-            'API ও ওয়ার্কফ্লো ইন্টিগ্রেশন সাপোর্ট',
-          ],
-          action: 'সেলস টিমের সাথে কথা বলুন',
-        },
-      ],
-    },
     about: {
       eyebrow: 'আমাদের সম্পর্কে',
       title: 'যেসব ব্র্যান্ড গতি চায় কিন্তু নিয়ন্ত্রণ হারাতে চায় না, তাদের জন্য তৈরি',
@@ -517,7 +402,7 @@ const HOME_COPY: Record<HomeLanguage, HomeCopy> = {
         { value: '1', label: 'সংযুক্ত ক্রিয়েটিভ ওয়ার্কস্পেস' },
       ],
       primaryCta: 'ওয়ার্কফ্লো দেখুন',
-      secondaryCta: 'প্রাইসিং দেখুন',
+      secondaryCta: 'ক্রিয়েটিভ শুরু করুন',
     },
     footer: 'LEBHAS - Create Ads Beyond Imagination. সর্বস্বত্ব সংরক্ষিত।',
   },
@@ -549,7 +434,6 @@ export class HomeComponent {
   protected readonly navItems = computed<readonly NavItem[]>(() => [
     { label: this.copy().nav.home, href: '#home' },
     { label: this.copy().nav.features, href: '#features' },
-    { label: this.copy().nav.pricing, href: '#pricing' },
     { label: this.copy().nav.resources, href: '#workflow', hasDropdown: true },
     { label: this.copy().nav.about, href: '#about' },
   ]);
@@ -573,7 +457,6 @@ export class HomeComponent {
   protected readonly workflowSteps = computed(() => this.copy().workflow.steps);
   protected readonly workspaceMetrics = computed(() => this.copy().workspace.metrics);
   protected readonly activityItems = computed(() => this.copy().workspace.activities);
-  protected readonly pricingPlans = computed(() => this.copy().pricing.plans);
   protected readonly aboutPoints = computed(() => this.copy().about.points);
   protected readonly aboutStats = computed(() => this.copy().about.stats);
   protected readonly topPlatforms = TOP_PLATFORMS;
@@ -650,3 +533,5 @@ export class HomeComponent {
     });
   }
 }
+
+

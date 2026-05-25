@@ -91,6 +91,7 @@ export class AssetUploader implements OnDestroy {
   readonly uploading = input(false);
   readonly uploadProgress = input<number | null>(null);
   readonly fieldErrors = input<Readonly<Record<string, string>>>({});
+  readonly formError = input<string | null>(null);
 
   readonly submitted = output<AssetUploadSubmitPayload>();
   readonly closed = output<void>();

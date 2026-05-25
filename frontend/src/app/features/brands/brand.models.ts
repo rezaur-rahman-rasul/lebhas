@@ -1,4 +1,5 @@
 export type BrandStatus = 'ACTIVE' | 'ARCHIVED';
+export type BrandLanguagePreference = 'BANGLA' | 'ENGLISH' | 'BOTH';
 
 export interface Brand {
   readonly id: string;
@@ -17,6 +18,7 @@ export interface Brand {
   readonly instagramUrl: string | null;
   readonly linkedinUrl: string | null;
   readonly tiktokUrl: string | null;
+  readonly languagePreference: BrandLanguagePreference;
   readonly status: BrandStatus;
   readonly createdAt: string;
   readonly updatedAt: string;
@@ -36,6 +38,7 @@ export interface CreateBrandPayload {
   readonly instagramUrl: string | null;
   readonly linkedinUrl: string | null;
   readonly tiktokUrl: string | null;
+  readonly languagePreference: BrandLanguagePreference;
 }
 
 export interface UpdateBrandPayload extends CreateBrandPayload {

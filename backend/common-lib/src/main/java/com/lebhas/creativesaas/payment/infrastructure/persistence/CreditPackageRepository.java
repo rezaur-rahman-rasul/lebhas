@@ -12,4 +12,6 @@ public interface CreditPackageRepository extends JpaRepository<CreditPackage, UU
     Optional<CreditPackage> findByCode(String code);
 
     List<CreditPackage> findAllByActiveTrueOrderBySortOrderAscNameAsc();
+
+    List<CreditPackage> findAllByOrderBySortOrderAscNameAsc();
 }

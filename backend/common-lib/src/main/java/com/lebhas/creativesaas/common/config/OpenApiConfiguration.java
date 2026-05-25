@@ -103,6 +103,26 @@ public class OpenApiConfiguration {
     }
 
     @Bean
+    GroupedOpenApi paymentProviderApiGroup() {
+        return GroupedOpenApi.builder()
+                .group("master-payment-providers")
+                .pathsToMatch(
+                        "/api/v1/master/payment-providers/**",
+                        "/api/v1/master/payment-provider-configurations/**")
+                .build();
+    }
+
+    @Bean
+    GroupedOpenApi creditPackageApiGroup() {
+        return GroupedOpenApi.builder()
+                .group("credit-packages")
+                .pathsToMatch(
+                        "/api/v1/master/credit-packages/**",
+                        "/api/v1/credit-packages/**")
+                .build();
+    }
+
+    @Bean
     GroupedOpenApi masterAiPipelineApiGroup() {
         return GroupedOpenApi.builder()
                 .group("master-ai-pipelines")

@@ -140,9 +140,9 @@
           </ul>
         </div>
 
-        @if (validationMessage() || fieldErrors()['file'] || fieldErrors()['assetCategory']) {
+        @if (validationMessage() || fieldErrors()['file'] || fieldErrors()['assetCategory'] || formError()) {
           <div class="rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
-            {{ validationMessage() || fieldErrors()['file'] || fieldErrors()['assetCategory'] }}
+            {{ validationMessage() || fieldErrors()['file'] || fieldErrors()['assetCategory'] || formError() }}
           </div>
         }
 
@@ -186,7 +186,7 @@
             [loading]="uploading()"
             [disabled]="!canSubmit()"
           >
-            Upload asset
+            {{ formError() && selectedFile() ? 'Try upload again' : 'Upload asset' }}
           </app-button>
         </div>
       </form>

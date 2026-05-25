@@ -10,6 +10,10 @@
     }
   </div>
 
+  <p class="rounded-md border border-border bg-surface px-3 py-2 text-sm text-muted">
+    Creative quality mode is controlled by your current package.
+  </p>
+
   <div class="grid gap-4 lg:grid-cols-2">
     <app-card>
       <div class="space-y-2">
@@ -52,20 +56,12 @@
         <dd class="mt-1 break-all text-sm text-ink">{{ entry().projectCampaignId }}</dd>
       </div>
       <div>
-        <dt class="text-xs uppercase tracking-wide text-muted">AI provider</dt>
-        <dd class="mt-1 text-sm text-ink">{{ entry().aiProvider || '—' }}</dd>
-      </div>
-      <div>
-        <dt class="text-xs uppercase tracking-wide text-muted">AI model</dt>
-        <dd class="mt-1 text-sm text-ink">{{ entry().model || '—' }}</dd>
-      </div>
-      <div>
         <dt class="text-xs uppercase tracking-wide text-muted">Token usage</dt>
         <dd class="mt-1 text-sm text-ink">
           @if (entry().tokenUsage !== null) {
             {{ entry().tokenUsage }}
           } @else {
-            —
+            Not available
           }
         </dd>
       </div>

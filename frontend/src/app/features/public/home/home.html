@@ -408,53 +408,6 @@
       </article>
     </section>
 
-    <section id="pricing" class="home-container pricing-section">
-      <div class="section-header">
-        <div class="section-kicker">
-          <app-icon name="credit-card" [size]="15" />
-          <span>{{ copy().pricing.eyebrow }}</span>
-        </div>
-
-        <h2>{{ copy().pricing.title }}</h2>
-        <p>{{ copy().pricing.description }}</p>
-      </div>
-
-      <div class="pricing-grid">
-        @for (plan of pricingPlans(); track plan.name) {
-          <article class="pricing-card" [class.featured]="plan.featured">
-            <div class="plan-header">
-              <h3>{{ plan.name }}</h3>
-              @if (plan.featured) {
-                <span class="plan-badge">Popular</span>
-              }
-            </div>
-
-            <div class="plan-price-row">
-              <strong>{{ plan.price }}</strong>
-              @if (plan.period) {
-                <span>{{ plan.period }}</span>
-              }
-            </div>
-
-            <p class="plan-description">{{ plan.description }}</p>
-
-            <div class="plan-features">
-              @for (feature of plan.features; track feature) {
-                <div class="plan-feature">
-                  <app-icon name="circle-check" [size]="16" />
-                  <span>{{ feature }}</span>
-                </div>
-              }
-            </div>
-
-            <button type="button" class="plan-button" (click)="openLoginModal()">
-              {{ plan.action }}
-            </button>
-          </article>
-        }
-      </div>
-    </section>
-
     <section id="about" class="home-container about-section">
       <article class="about-panel">
         <div class="section-kicker">
@@ -482,7 +435,7 @@
           <button
             type="button"
             class="secondary-cta about-secondary"
-            (click)="scrollToSection('pricing')"
+            (click)="openLoginModal()"
           >
             {{ copy().about.secondaryCta }}
             <span>

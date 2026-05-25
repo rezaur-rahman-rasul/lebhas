@@ -1,5 +1,6 @@
 import { ChangeDetectionStrategy, Component, computed, effect, inject, signal } from '@angular/core';
 import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
+import { RouterLink } from '@angular/router';
 
 import { PermissionStore } from '@app/core/permissions/permission.store';
 import { WorkspaceStore } from '@app/core/workspace/workspace.store';
@@ -21,12 +22,25 @@ import {
 import { ProjectStore } from './project.store';
 
 type ProjectDialogMode = 'create' | 'edit' | null;
+const CAMPAIGN_OBJECTIVES: readonly string[] = [
+  'Product awareness',
+  'Sales conversion',
+  'New collection launch',
+  'Retargeting',
+];
+const TARGET_PLATFORMS: readonly string[] = [
+  'Multi-platform',
+  'Facebook + Instagram',
+  'TikTok',
+  'LinkedIn',
+];
 
 @Component({
   selector: 'app-projects',
   standalone: true,
   imports: [
     ReactiveFormsModule,
+    RouterLink,
     BadgeComponent,
     ButtonComponent,
     CardComponent,
@@ -51,6 +65,7 @@ export class ProjectsComponent {
   protected readonly selectedProjectId = signal<string | null>(null);
   protected readonly dialogMode = signal<ProjectDialogMode>(null);
   protected readonly attemptedSubmit = signal(false);
+  protected readonly formProductId = signal<string | null>(null);
 
   protected readonly canView = this.permissions.canViewProjects;
   protected readonly canCreate = this.permissions.canCreateProjects;
@@ -59,6 +74,8 @@ export class ProjectsComponent {
   protected readonly brands = this.brandStore.items;
   protected readonly products = this.productStore.items;
   protected readonly projects = this.store.items;
+  protected readonly campaignObjectives = CAMPAIGN_OBJECTIVES;
+  protected readonly targetPlatforms = TARGET_PLATFORMS;
   protected readonly selectedProject = computed(
     () => this.projects().find((project) => project.id === this.selectedProjectId()) ?? null,
   );
@@ -69,6 +86,14 @@ export class ProjectsComponent {
   protected readonly selectedBrand = computed(() => {
     const project = this.selectedProject();
     return this.brands().find((brand) => brand.id === project?.brandId) ?? null;
+  });
+  protected readonly formProduct = computed(() => {
+    const productId = this.formProductId();
+    return this.products().find((product) => product.id === productId) ?? null;
+  });
+  protected readonly formBrand = computed(() => {
+    const product = this.formProduct();
+    return this.brands().find((brand) => brand.id === product?.brandId) ?? null;
   });
 
   protected readonly form = this.formBuilder.group({
@@ -121,16 +146,18 @@ export class ProjectsComponent {
   }
 
   protected openCreateDialog(): void {
+    const defaultProductId = this.products()[0]?.id ?? '';
     this.attemptedSubmit.set(false);
     this.form.reset({
-      productServiceId: '',
+      productServiceId: defaultProductId,
       name: '',
       description: '',
-      campaignObjective: '',
-      targetPlatform: '',
-      campaignType: '',
+      campaignObjective: 'Product awareness',
+      targetPlatform: 'Multi-platform',
+      campaignType: 'Launch campaign',
       status: 'ACTIVE',
     });
+    this.formProductId.set(defaultProductId || null);
     this.dialogMode.set('create');
   }
 
@@ -150,11 +177,17 @@ export class ProjectsComponent {
       campaignType: project.campaignType ?? '',
       status: project.status,
     });
+    this.formProductId.set(project.productServiceId);
     this.dialogMode.set('edit');
   }
 
   protected closeDialog(): void {
     this.dialogMode.set(null);
+    this.formProductId.set(null);
+  }
+
+  protected updateFormProduct(event: Event): void {
+    this.formProductId.set((event.target as HTMLSelectElement).value || null);
   }
 
   protected async submit(): Promise<void> {
@@ -172,20 +205,24 @@ export class ProjectsComponent {
     const value = this.form.getRawValue();
     const payload = this.toPayload();
 
-    if (this.dialogMode() === 'create') {
-      const project = await this.store.create(workspaceId, value.productServiceId, payload);
-      this.selectedProjectId.set(project.id);
-    } else {
-      const project = this.selectedProject();
-      if (!project) {
-        return;
-      }
+    try {
+      if (this.dialogMode() === 'create') {
+        const project = await this.store.create(workspaceId, value.productServiceId, payload);
+        this.selectedProjectId.set(project.id);
+      } else {
+        const project = this.selectedProject();
+        if (!project) {
+          return;
+        }
 
-      const updatedProject = await this.store.update(workspaceId, project.id, {
-        ...payload,
-        status: value.status,
-      });
-      this.selectedProjectId.set(updatedProject.id);
+        const updatedProject = await this.store.update(workspaceId, project.id, {
+          ...payload,
+          status: value.status,
+        });
+        this.selectedProjectId.set(updatedProject.id);
+      }
+    } catch {
+      return;
     }
 
     this.closeDialog();

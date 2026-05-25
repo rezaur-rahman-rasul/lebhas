@@ -39,6 +39,10 @@ export class DashboardOverviewComponent {
   protected readonly role = this.auth.currentRole;
   protected readonly workspaceId = this.workspace.activeWorkspaceId;
   protected readonly workspaceLabel = this.workspace.workspaceLabel;
+  protected readonly activePlanLabel = this.workspace.activePlanLabel;
+  protected readonly subscriptionStatusLabel = this.workspace.subscriptionStatusLabel;
+  protected readonly remainingCreditsLabel = this.workspace.remainingCreditsLabel;
+  protected readonly firstProject = computed(() => this.projects.items()[0] ?? null);
 
   protected readonly description = computed(() => {
     const role = this.role();
@@ -69,15 +73,15 @@ export class DashboardOverviewComponent {
       { label: 'Brands', value: String(this.permissions.canViewBrands() ? this.brands.total() : 0), icon: 'badge-check' },
       { label: 'Products / Services', value: String(this.permissions.canViewProducts() ? this.products.total() : 0), icon: 'package-open' },
       { label: 'Projects / Campaigns', value: String(this.permissions.canViewProjects() ? this.projects.total() : 0), icon: 'folder-kanban' },
-      { label: 'Active workspace', value: this.workspaceId() ? '1' : '0', icon: 'building' },
-    ];
+        { label: 'Credits / limits', value: this.remainingCreditsLabel(), icon: 'gauge' },
+      ];
   });
 
   protected readonly quickActions = computed(() => {
     if (this.role() === 'MASTER') {
       return [
-        { title: 'Review workspaces', description: 'Check tenant readiness and active workspace access.', route: '/workspaces', icon: 'building-2' },
-        { title: 'Inspect users', description: 'Review admin and crew visibility across the shell foundation.', route: '/users', icon: 'users' },
+        { title: 'Review dashboard', description: 'Check tenant readiness and active workspace access.', route: '/dashboard', icon: 'layout-dashboard' },
+        { title: 'Review approvals', description: 'Inspect approval workflow readiness inside the active workspace.', route: '/approvals', icon: 'shield-check' },
       ];
     }
 
@@ -88,19 +92,31 @@ export class DashboardOverviewComponent {
       ];
     }
 
+    const project = this.firstProject();
+    const projectAssetsRoute = project ? `/projects/${project.id}/assets` : '/projects';
+    const projectPromptsRoute = project ? `/projects/${project.id}/prompts` : '/projects';
+
     return [
-      { title: 'Manage brands', description: 'Shape the brand layer that products inherit from.', route: '/brands', icon: 'badge-check' },
-      { title: 'Manage products', description: 'Keep product and service context ready for projects.', route: '/product-services', icon: 'package-open' },
-      { title: 'Manage projects', description: 'Define campaign containers before creative generation starts.', route: '/projects', icon: 'folder-kanban' },
+      { title: 'Create Brand', description: 'Start the brand layer for products and campaigns.', route: '/brands', icon: 'badge-check' },
+      { title: 'Create Product/Service', description: 'Attach a product or service to a brand.', route: '/product-services', icon: 'package-open' },
+      { title: 'Create Project', description: 'Prepare a campaign container for assets and prompts.', route: '/projects', icon: 'folder-kanban' },
+      { title: 'Upload Asset', description: project ? 'Add source media to the first project.' : 'Create or select a project first.', route: projectAssetsRoute, icon: 'upload-cloud' },
+      { title: 'Create Prompt', description: project ? 'Open prompt building for the first project.' : 'Create or select a project first.', route: projectPromptsRoute, icon: 'sparkles' },
     ];
   });
 
-  protected readonly recentActivity = [
-    'JWT auth flow and refresh interceptor are attached to protected routes.',
-    'Workspace selection persists across reloads and informs tenant-aware requests.',
-    'Brand, product, and project state now sit on signals stores.',
-    'Role-aware navigation adapts to MASTER, ADMIN, and CREW entry points.',
-  ] as const;
+  protected readonly hierarchy = computed(() => [
+    { label: 'Workspace', value: this.workspaceLabel(), route: '/dashboard', icon: 'building-2' },
+    { label: 'Brand', value: `${this.brands.total()} ready`, route: '/brands', icon: 'badge-check' },
+    { label: 'Product/Service', value: `${this.products.total()} linked`, route: '/product-services', icon: 'package-open' },
+    { label: 'Project/Campaign', value: `${this.projects.total()} active`, route: '/projects', icon: 'folder-kanban' },
+  ]);
+
+  protected readonly subscriptionSummaries = computed(() => [
+    { label: 'Package', value: this.activePlanLabel(), icon: 'credit-card' },
+    { label: 'Status', value: this.subscriptionStatusLabel(), icon: 'shield-check' },
+    { label: 'Credits / limits', value: this.remainingCreditsLabel(), icon: 'gauge' },
+  ]);
 
   constructor() {
     effect(() => {

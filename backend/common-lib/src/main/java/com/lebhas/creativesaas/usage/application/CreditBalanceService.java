@@ -79,6 +79,15 @@ public class CreditBalanceService {
         return new BalanceMovement(wallet, before, wallet.getBalance());
     }
 
+    BalanceMovement purchase(UUID workspaceId, BigDecimal amount) {
+        CreditWalletEntity wallet = initializeWallet(workspaceId);
+        BigDecimal before = wallet.getBalance();
+        wallet.addBalance(amount);
+        wallet = creditWalletRepository.save(wallet);
+        cache(wallet);
+        return new BalanceMovement(wallet, before, wallet.getBalance());
+    }
+
     BalanceMovement finalizeReservation(UUID workspaceId, BigDecimal amount) {
         CreditWalletEntity wallet = creditWalletRepository.findByWorkspaceIdAndDeletedFalse(requireWorkspaceId(workspaceId))
                 .orElseThrow(() -> new BusinessException(ErrorCode.CREDIT_WALLET_NOT_FOUND));

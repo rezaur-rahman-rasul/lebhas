@@ -98,6 +98,25 @@ public class SubscriptionOrder {
         return order;
     }
 
+    public void markPaymentPending(UUID paymentTransactionId) {
+        this.paymentTransactionId = PaymentTransaction.require(paymentTransactionId, "paymentTransactionId");
+        this.status = PaymentOrderStatus.PAYMENT_PENDING;
+    }
+
+    public void markPaid(Instant startsAt, Instant expiresAt) {
+        this.startsAt = startsAt;
+        this.expiresAt = expiresAt;
+        this.status = PaymentOrderStatus.PAID;
+    }
+
+    public void markFailed() {
+        this.status = PaymentOrderStatus.FAILED;
+    }
+
+    public void markCancelled() {
+        this.status = PaymentOrderStatus.CANCELLED;
+    }
+
     @PrePersist
     void onCreate() {
         Instant now = Instant.now();

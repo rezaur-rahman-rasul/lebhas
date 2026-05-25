@@ -1,15 +1,18 @@
 import { Injectable, computed, inject, signal } from '@angular/core';
 
+import { normalizeHttpError } from '@app/core/api/http-error';
+import { NotificationStateService } from '@app/core/state/notification-state.service';
 import {
   CreateProjectCampaignPayload,
   ProjectCampaign,
   UpdateProjectCampaignPayload,
 } from './project.models';
-import { ProjectCampaignService } from './project.service';
+import { ProjectApiService } from './project-api.service';
 
 @Injectable({ providedIn: 'root' })
 export class ProjectStore {
-  private readonly service = inject(ProjectCampaignService);
+  private readonly service = inject(ProjectApiService);
+  private readonly notifications = inject(NotificationStateService);
 
   private readonly itemsSignal = signal<readonly ProjectCampaign[]>([]);
   private readonly loadingSignal = signal(false);
@@ -39,9 +42,9 @@ export class ProjectStore {
       const projects = await this.service.list(workspaceId);
       this.itemsSignal.set(projects);
       this.loadedWorkspaceIdSignal.set(workspaceId);
-    } catch {
+    } catch (error) {
       this.itemsSignal.set([]);
-      this.errorSignal.set('Projects could not be loaded.');
+      this.errorSignal.set(normalizeHttpError(error).message || 'Projects could not be loaded.');
     } finally {
       this.loadingSignal.set(false);
     }
@@ -59,7 +62,11 @@ export class ProjectStore {
       const project = await this.service.create(workspaceId, productServiceId, payload);
       this.itemsSignal.update((items) => [project, ...items]);
       this.loadedWorkspaceIdSignal.set(workspaceId);
+      this.notifications.success('Project created', `${project.name} is ready for assets and prompts.`);
       return project;
+    } catch (error) {
+      this.errorSignal.set(normalizeHttpError(error).message);
+      throw error;
     } finally {
       this.savingSignal.set(false);
     }
@@ -76,7 +83,11 @@ export class ProjectStore {
     try {
       const project = await this.service.update(workspaceId, projectId, payload);
       this.itemsSignal.update((items) => items.map((item) => (item.id === project.id ? project : item)));
+      this.notifications.success('Project updated', `${project.name} changes were saved.`);
       return project;
+    } catch (error) {
+      this.errorSignal.set(normalizeHttpError(error).message);
+      throw error;
     } finally {
       this.savingSignal.set(false);
     }
@@ -89,6 +100,10 @@ export class ProjectStore {
     try {
       await this.service.remove(workspaceId, projectId);
       this.itemsSignal.update((items) => items.filter((item) => item.id !== projectId));
+      this.notifications.success('Project deleted', 'The project campaign was removed.');
+    } catch (error) {
+      this.errorSignal.set(normalizeHttpError(error).message);
+      throw error;
     } finally {
       this.savingSignal.set(false);
     }

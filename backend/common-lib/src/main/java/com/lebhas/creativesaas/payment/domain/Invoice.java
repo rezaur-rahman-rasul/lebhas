@@ -93,6 +93,19 @@ public class Invoice {
         return invoice;
     }
 
+    public void markPaid() {
+        if (this.status != InvoiceStatus.PAID) {
+            this.status = InvoiceStatus.PAID;
+            this.paidAt = Instant.now();
+        }
+    }
+
+    public void markCancelled() {
+        if (this.status != InvoiceStatus.PAID) {
+            this.status = InvoiceStatus.CANCELLED;
+        }
+    }
+
     @PrePersist
     void onCreate() {
         this.createdAt = Instant.now();

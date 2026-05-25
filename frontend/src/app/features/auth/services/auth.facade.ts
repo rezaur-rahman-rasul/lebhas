@@ -2,7 +2,7 @@ import { inject, Injectable } from '@angular/core';
 import { Router } from '@angular/router';
 
 import { normalizeHttpError } from '@app/core/api/http-error';
-import { AuthService } from '@app/core/auth/auth.service';
+import { AuthApiService } from '@app/core/auth/auth-api.service';
 import { CurrentUserStore } from '@app/core/auth/current-user.store';
 import { AuthActionFailure, AuthActionResult, AuthSession } from '@app/core/auth/auth.types';
 import { NotificationStateService } from '@app/core/state/notification-state.service';
@@ -15,7 +15,7 @@ import { RememberedProfilesStorage } from './remembered-profiles.storage';
 
 @Injectable({ providedIn: 'root' })
 export class AuthFacade {
-  private readonly authService = inject(AuthService);
+  private readonly authService = inject(AuthApiService);
   private readonly currentUserStore = inject(CurrentUserStore);
   private readonly notifications = inject(NotificationStateService);
   private readonly router = inject(Router);
@@ -235,12 +235,13 @@ export class AuthFacade {
 
   private async navigateToLoginSurface(returnUrl?: string): Promise<void> {
     const nextReturnUrl =
-      returnUrl && returnUrl !== '/' && !returnUrl.startsWith('/login')
+      returnUrl && returnUrl !== '/' && !returnUrl.startsWith('/?auth=login')
         ? returnUrl
         : undefined;
 
-    await this.router.navigate(['/login'], {
+    await this.router.navigate(['/'], {
       queryParams: {
+        auth: 'login',
         ...(nextReturnUrl ? { returnUrl: nextReturnUrl } : {}),
       },
     });

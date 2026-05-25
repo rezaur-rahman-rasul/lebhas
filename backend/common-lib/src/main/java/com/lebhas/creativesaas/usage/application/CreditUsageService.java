@@ -12,6 +12,7 @@ import com.lebhas.creativesaas.generation.application.CreditEstimationService;
 import com.lebhas.creativesaas.generation.event.CreditLifecycleEventDto;
 import com.lebhas.creativesaas.generation.event.GenerationEventProducer;
 import com.lebhas.creativesaas.usage.application.dto.CreditUsageCommand;
+import com.lebhas.creativesaas.usage.application.dto.CreditPurchaseCreditCommand;
 import com.lebhas.creativesaas.usage.application.dto.CreditUsageResult;
 import com.lebhas.creativesaas.usage.application.dto.CreditUsageSettlementCommand;
 import com.lebhas.creativesaas.usage.domain.CreditLedger;
@@ -60,6 +61,45 @@ public class CreditUsageService {
         this.workspaceUsageSummaryService = workspaceUsageSummaryService;
         this.creditEstimationService = creditEstimationService;
         this.generationEventProducerProvider = generationEventProducerProvider;
+    }
+
+    @Transactional
+    public CreditUsageResult addPurchasedCredits(CreditPurchaseCreditCommand command) {
+        UUID workspaceId = require(command.workspaceId(), "workspaceId");
+        BigDecimal amount = normalizePositive(command.creditsAmount(), "creditsAmount");
+        String referenceType = referenceType(command.referenceType());
+        UUID referenceId = require(command.referenceId(), "referenceId");
+
+        return creditBalanceService.withCreditLock(workspaceId, () -> {
+            CreditBalanceService.BalanceMovement movement = creditBalanceService.purchase(workspaceId, amount);
+            CreditTransactionEntity transaction = creditTransactionRepository.save(CreditTransactionEntity.create(
+                    workspaceId,
+                    CreditTransactionType.PURCHASE,
+                    amount,
+                    referenceType,
+                    referenceId,
+                    CreditTransactionStatus.COMPLETED));
+            CreditLedger ledger = creditLedgerService.append(
+                    workspaceId,
+                    null,
+                    null,
+                    null,
+                    CreditLedgerTransactionType.PURCHASE,
+                    amount,
+                    movement.balanceBefore(),
+                    movement.balanceAfter(),
+                    referenceType,
+                    referenceId,
+                    normalizeDescription(command.description(), "Credits purchased"),
+                    command.createdBy());
+            return creditUsageMapper.toUsageResult(
+                    ledger,
+                    transaction.getId(),
+                    movement.wallet(),
+                    amount,
+                    referenceType,
+                    referenceId);
+        });
     }
 
     @Transactional
@@ -277,6 +317,17 @@ public class CreditUsageService {
         String source = value == null || value.isBlank() ? fallback : value;
         String normalized = source.replaceAll("\\s+", " ").trim();
         return normalized.length() <= 1000 ? normalized : normalized.substring(0, 1000);
+    }
+
+    private BigDecimal normalizePositive(BigDecimal amount, String field) {
+        if (amount == null) {
+            throw new IllegalArgumentException(field + " must not be null");
+        }
+        BigDecimal normalized = amount.setScale(4, RoundingMode.HALF_UP);
+        if (normalized.signum() <= 0) {
+            throw new BusinessException(ErrorCode.VALIDATION_FAILED, field + " must be greater than zero");
+        }
+        return normalized;
     }
 
     private <T> T require(T value, String field) {

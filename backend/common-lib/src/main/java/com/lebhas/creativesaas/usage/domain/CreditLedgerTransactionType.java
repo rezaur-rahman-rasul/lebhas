@@ -1,6 +1,7 @@
 package com.lebhas.creativesaas.usage.domain;
 
 public enum CreditLedgerTransactionType {
+    PURCHASE,
     RESERVE,
     FINALIZE,
     REFUND,

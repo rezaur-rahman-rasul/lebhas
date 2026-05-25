@@ -1,8 +1,9 @@
 import { ChangeDetectionStrategy, Component, computed, inject, signal } from '@angular/core';
-import { ActivatedRoute, Router, RouterLink } from '@angular/router';
+import { ActivatedRoute, RouterLink } from '@angular/router';
 
 import { CurrentUserStore } from '@app/core/auth/current-user.store';
 import { WorkspaceStore } from '@app/core/workspace/workspace.store';
+import { FeatureLimit } from '@app/core/workspace/workspace.models';
 import { BrandStore } from '@app/features/brands/brand.store';
 import { ProductServiceStore } from '@app/features/product-services/product-service.store';
 import { ProjectStore } from '@app/features/projects/project.store';
@@ -16,6 +17,7 @@ import {
   Asset,
   AssetFilter,
   DEFAULT_ASSET_FILTERS,
+  formatFileSize,
   isPreviewableAsset,
 } from '../../models/asset.models';
 import { AssetStore } from '../../state/asset.store';
@@ -54,7 +56,6 @@ export class ProjectAssetsPage {
   private readonly brandStore = inject(BrandStore);
   private readonly productStore = inject(ProductServiceStore);
   private readonly projectStore = inject(ProjectStore);
-  private readonly router = inject(Router);
   private readonly route = inject(ActivatedRoute);
 
   private readonly uploaderOpenSignal = signal(false);
@@ -65,6 +66,7 @@ export class ProjectAssetsPage {
   private readonly pendingDeleteAssetSignal = signal<Asset | null>(null);
   private readonly downloadingAssetIdSignal = signal<string | null>(null);
   private readonly uploadFieldErrorsSignal = signal<Readonly<Record<string, string>>>({});
+  private readonly uploadErrorSignal = signal<string | null>(null);
 
   protected readonly uploaderOpen = this.uploaderOpenSignal.asReadonly();
   protected readonly previewOpen = this.previewOpenSignal.asReadonly();
@@ -74,6 +76,7 @@ export class ProjectAssetsPage {
   protected readonly pendingDeleteAsset = this.pendingDeleteAssetSignal.asReadonly();
   protected readonly downloadingAssetId = this.downloadingAssetIdSignal.asReadonly();
   protected readonly uploadFieldErrors = this.uploadFieldErrorsSignal.asReadonly();
+  protected readonly uploadError = this.uploadErrorSignal.asReadonly();
 
   protected readonly projectId = computed(() => this.route.snapshot.paramMap.get('projectId') ?? '');
   protected readonly project = computed(
@@ -91,6 +94,31 @@ export class ProjectAssetsPage {
   protected readonly assetCountLabel = computed(
     () => `${this.store.pagination().totalItems} asset${this.store.pagination().totalItems === 1 ? '' : 's'}`,
   );
+  protected readonly storageSummary = computed(() => {
+    const storageLimit = this.storageLimit();
+    const remainingBytes = this.workspace.usage()?.storageRemainingBytes;
+
+    if (!storageLimit && typeof remainingBytes !== 'number') {
+      return null;
+    }
+
+    const unit = storageLimit?.unit ?? 'bytes';
+    const used = storageLimit?.used ?? null;
+    const limit = storageLimit?.limit ?? null;
+    const remaining = storageLimit?.remaining ?? remainingBytes ?? null;
+    const percentage =
+      typeof used === 'number' && typeof limit === 'number' && limit > 0
+        ? Math.min(100, Math.max(0, Math.round((used / limit) * 100)))
+        : null;
+
+    return {
+      usedLabel: this.formatLimitValue(used, unit),
+      limitLabel: this.formatLimitValue(limit, unit),
+      remainingLabel: this.formatLimitValue(remaining, unit),
+      percentage,
+      message: storageLimit?.message ?? null,
+    };
+  });
   protected readonly skeletonItems = Array.from({ length: 6 }, (_, index) => index);
 
   constructor() {
@@ -114,16 +142,19 @@ export class ProjectAssetsPage {
 
   protected openUploader(): void {
     this.uploadFieldErrorsSignal.set({});
+    this.uploadErrorSignal.set(null);
     this.uploaderOpenSignal.set(true);
   }
 
   protected closeUploader(): void {
     this.uploadFieldErrorsSignal.set({});
+    this.uploadErrorSignal.set(null);
     this.uploaderOpenSignal.set(false);
   }
 
   protected async submitUpload(payload: AssetUploadSubmitPayload): Promise<void> {
     this.uploadFieldErrorsSignal.set({});
+    this.uploadErrorSignal.set(null);
     const result = await this.store.uploadAsset({
       ...payload,
       projectId: this.projectId(),
@@ -134,6 +165,7 @@ export class ProjectAssetsPage {
       await this.store.loadProjectAssets(this.projectId());
     } else {
       this.uploadFieldErrorsSignal.set(result.fieldErrors);
+      this.uploadErrorSignal.set(result.message ?? null);
     }
   }
 
@@ -186,7 +218,7 @@ export class ProjectAssetsPage {
   }
 
   protected openAssetDetail(asset: Asset): void {
-    void this.router.navigate(['/assets', asset.id]);
+    void this.openPreview(asset);
   }
 
   protected confirmDelete(asset: Asset): void {
@@ -224,5 +256,21 @@ export class ProjectAssetsPage {
 
   protected reloadAssets(): void {
     void this.store.loadProjectAssets(this.projectId());
+  }
+
+  private storageLimit(): FeatureLimit | null {
+    return (
+      this.workspace.featureLimit('assets.storage') ??
+      this.workspace.featureLimit('asset.storage') ??
+      this.workspace.featureLimit('storage')
+    );
+  }
+
+  private formatLimitValue(value: number | null | undefined, unit: string | null | undefined): string {
+    if (typeof value !== 'number') {
+      return 'Unavailable';
+    }
+
+    return unit === 'bytes' || !unit ? formatFileSize(value) : `${value} ${unit}`;
   }
 }

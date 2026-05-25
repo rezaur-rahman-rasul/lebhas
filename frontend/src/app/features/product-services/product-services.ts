@@ -1,5 +1,6 @@
 import { ChangeDetectionStrategy, Component, computed, effect, inject, signal } from '@angular/core';
 import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
+import { RouterLink } from '@angular/router';
 
 import { PermissionStore } from '@app/core/permissions/permission.store';
 import { WorkspaceStore } from '@app/core/workspace/workspace.store';
@@ -27,6 +28,7 @@ type ProductDialogMode = 'create' | 'edit' | null;
   standalone: true,
   imports: [
     ReactiveFormsModule,
+    RouterLink,
     BadgeComponent,
     ButtonComponent,
     CardComponent,
@@ -50,6 +52,7 @@ export class ProductServicesComponent {
   protected readonly selectedProductId = signal<string | null>(null);
   protected readonly dialogMode = signal<ProductDialogMode>(null);
   protected readonly attemptedSubmit = signal(false);
+  protected readonly formBrandId = signal<string | null>(null);
 
   protected readonly canView = this.permissions.canViewProducts;
   protected readonly canManage = this.permissions.canManageProducts;
@@ -62,6 +65,10 @@ export class ProductServicesComponent {
   protected readonly selectedBrand = computed(() => {
     const product = this.selectedProduct();
     return this.brands().find((brand) => brand.id === product?.brandId) ?? null;
+  });
+  protected readonly formBrand = computed(() => {
+    const brandId = this.formBrandId();
+    return this.brands().find((brand) => brand.id === brandId) ?? null;
   });
 
   protected readonly form = this.formBuilder.group({
@@ -110,9 +117,10 @@ export class ProductServicesComponent {
   }
 
   protected openCreateDialog(): void {
+    const defaultBrandId = this.brands()[0]?.id ?? '';
     this.attemptedSubmit.set(false);
     this.form.reset({
-      brandId: '',
+      brandId: defaultBrandId,
       name: '',
       description: '',
       category: '',
@@ -120,6 +128,7 @@ export class ProductServicesComponent {
       sellingPoints: '',
       status: 'ACTIVE',
     });
+    this.formBrandId.set(defaultBrandId || null);
     this.dialogMode.set('create');
   }
 
@@ -139,11 +148,17 @@ export class ProductServicesComponent {
       sellingPoints: product.sellingPoints ?? '',
       status: product.status,
     });
+    this.formBrandId.set(product.brandId);
     this.dialogMode.set('edit');
   }
 
   protected closeDialog(): void {
     this.dialogMode.set(null);
+    this.formBrandId.set(null);
+  }
+
+  protected updateFormBrand(event: Event): void {
+    this.formBrandId.set((event.target as HTMLSelectElement).value || null);
   }
 
   protected async submit(): Promise<void> {
@@ -161,20 +176,24 @@ export class ProductServicesComponent {
     const value = this.form.getRawValue();
     const payload = this.toPayload();
 
-    if (this.dialogMode() === 'create') {
-      const record = await this.store.create(workspaceId, value.brandId, payload);
-      this.selectedProductId.set(record.id);
-    } else {
-      const product = this.selectedProduct();
-      if (!product) {
-        return;
-      }
+    try {
+      if (this.dialogMode() === 'create') {
+        const record = await this.store.create(workspaceId, value.brandId, payload);
+        this.selectedProductId.set(record.id);
+      } else {
+        const product = this.selectedProduct();
+        if (!product) {
+          return;
+        }
 
-      const updatedProduct = await this.store.update(workspaceId, product.id, {
-        ...payload,
-        status: value.status,
-      });
-      this.selectedProductId.set(updatedProduct.id);
+        const updatedProduct = await this.store.update(workspaceId, product.id, {
+          ...payload,
+          status: value.status,
+        });
+        this.selectedProductId.set(updatedProduct.id);
+      }
+    } catch {
+      return;
     }
 
     this.closeDialog();

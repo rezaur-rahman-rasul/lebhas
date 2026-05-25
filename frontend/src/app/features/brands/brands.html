@@ -68,7 +68,7 @@
               <tr>
                 <th class="pb-3 pr-4 font-semibold">Brand</th>
                 <th class="pb-3 pr-4 font-semibold">Industry</th>
-                <th class="pb-3 pr-4 font-semibold">Audience</th>
+                <th class="pb-3 pr-4 font-semibold">Creative language</th>
                 <th class="pb-3 font-semibold">Status</th>
               </tr>
             </thead>
@@ -84,7 +84,7 @@
                     <p class="mt-1 text-sm text-muted">{{ brand.businessType || 'Business profile pending' }}</p>
                   </td>
                   <td class="py-4 pr-4 text-sm text-muted">{{ brand.industry || 'Unassigned' }}</td>
-                  <td class="py-4 pr-4 text-sm text-muted">{{ brand.targetAudience || 'Not set' }}</td>
+                  <td class="py-4 pr-4 text-sm text-muted">{{ languagePreferenceLabel(brand.languagePreference) }}</td>
                   <td class="py-4">
                     <app-badge [tone]="brand.status === 'ACTIVE' ? 'brand' : 'neutral'">
                       {{ brand.status }}
@@ -127,9 +127,14 @@
                 <p class="mt-2 text-sm font-medium text-ink">{{ brand.businessType || 'Pending' }}</p>
               </div>
               <div class="rounded-2xl border border-border bg-panel/35 p-4">
-                <p class="text-xs font-semibold uppercase tracking-[0.14em] text-muted">Primary CTA</p>
-                <p class="mt-2 text-sm font-medium text-ink">{{ brand.preferredCta || 'Pending' }}</p>
+                <p class="text-xs font-semibold uppercase tracking-[0.14em] text-muted">Creative language</p>
+                <p class="mt-2 text-sm font-medium text-ink">{{ languagePreferenceLabel(brand.languagePreference) }}</p>
               </div>
+            </div>
+
+            <div class="rounded-2xl border border-border bg-panel/35 p-4">
+              <p class="text-xs font-semibold uppercase tracking-[0.14em] text-muted">Target audience</p>
+              <p class="mt-2 text-sm leading-7 text-muted">{{ brand.targetAudience || 'Not set yet' }}</p>
             </div>
 
             <div class="grid gap-3 sm:grid-cols-2">
@@ -223,6 +228,21 @@
         [control]="form.controls.businessType"
       />
     </div>
+
+    <label class="block">
+      <span class="mb-2 block text-sm font-medium text-ink">Creative language preference</span>
+      <select
+        class="h-12 w-full rounded-xl border border-border bg-surface px-3 text-base text-ink shadow-sm outline-none transition focus:border-brand-500 focus:ring-4 focus:ring-brand-100/60"
+        formControlName="languagePreference"
+      >
+        @for (option of languagePreferences; track option.value) {
+          <option [value]="option.value">{{ option.label }}</option>
+        }
+      </select>
+      @if (fieldError('languagePreference')) {
+        <span class="mt-2 block text-sm text-alert-600">{{ fieldError('languagePreference') }}</span>
+      }
+    </label>
 
     <div class="grid gap-4 sm:grid-cols-2">
       <app-input label="Industry" placeholder="Fashion retail" [control]="form.controls.industry" />

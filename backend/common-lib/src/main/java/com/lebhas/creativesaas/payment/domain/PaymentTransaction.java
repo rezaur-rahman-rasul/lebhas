@@ -117,6 +117,32 @@ public class PaymentTransaction {
         return transaction;
     }
 
+    public void markPending(String providerSessionId, String providerTransactionId) {
+        this.providerSessionId = normalizeNullable(providerSessionId);
+        this.providerTransactionId = normalizeNullable(providerTransactionId);
+        this.status = PaymentTransactionStatus.PENDING;
+    }
+
+    public void markSuccess(String providerTransactionId) {
+        String normalizedProviderTransactionId = normalizeNullable(providerTransactionId);
+        if (normalizedProviderTransactionId != null) {
+            this.providerTransactionId = normalizedProviderTransactionId;
+        }
+        this.status = PaymentTransactionStatus.SUCCESS;
+        this.completedAt = Instant.now();
+    }
+
+    public void markFailed(String failureReason) {
+        this.status = PaymentTransactionStatus.FAILED;
+        this.failureReason = normalizeNullable(failureReason);
+        this.completedAt = Instant.now();
+    }
+
+    public void markCancelled() {
+        this.status = PaymentTransactionStatus.CANCELLED;
+        this.cancelledAt = Instant.now();
+    }
+
     @PrePersist
     void onCreate() {
         Instant now = Instant.now();

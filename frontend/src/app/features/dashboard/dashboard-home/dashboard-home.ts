@@ -1,7 +1,7 @@
 import { ChangeDetectionStrategy, Component, computed, inject } from '@angular/core';
 import { RouterLink } from '@angular/router';
 
-import { AuthStateService } from '@app/core/state/auth-state.service';
+import { CurrentUserStore } from '@app/core/auth/current-user.store';
 import { WorkspaceStore } from '@app/core/workspace/workspace.store';
 import { BadgeComponent } from '@app/shared/components/badge/badge';
 import { ButtonComponent } from '@app/shared/components/button/button';
@@ -27,7 +27,7 @@ import { SectionHeaderComponent } from '@app/shared/components/section-header/se
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class DashboardHomeComponent {
-  private readonly auth = inject(AuthStateService);
+  private readonly auth = inject(CurrentUserStore);
   private readonly workspace = inject(WorkspaceStore);
 
   protected readonly description = computed(() => {
@@ -43,10 +43,10 @@ export class DashboardHomeComponent {
   protected readonly primaryRoute = computed(() => {
     const role = this.auth.currentRole();
     return role === 'MASTER'
-      ? '/dashboard/workspaces'
+      ? '/dashboard'
       : role === 'CREW'
-        ? '/dashboard/assigned-projects'
-        : '/dashboard/brands';
+        ? '/projects'
+        : '/brands';
   });
 
   protected readonly metrics = computed(() => {
@@ -81,21 +81,21 @@ export class DashboardHomeComponent {
     const role = this.auth.currentRole();
     if (role === 'MASTER') {
       return [
-        { title: 'Review workspace access', description: 'Check tenant boundaries and support entry points.', route: '/dashboard/workspaces', icon: 'building-2' },
-        { title: 'Audit user roles', description: 'Confirm master, admin, and crew coverage.', route: '/dashboard/users', icon: 'users' },
+        { title: 'Review dashboard', description: 'Check tenant boundaries and active workspace context.', route: '/dashboard', icon: 'layout-dashboard' },
+        { title: 'Review approvals', description: 'Confirm approval workflow readiness.', route: '/approvals', icon: 'shield-check' },
       ];
     }
 
     if (role === 'CREW') {
       return [
-        { title: 'Open assigned projects', description: 'Move into the crew-facing workload surface.', route: '/dashboard/assigned-projects', icon: 'folder-kanban' },
-        { title: 'Check version queue', description: 'Review generated creative placeholders and status.', route: '/dashboard/generated-versions', icon: 'image' },
+        { title: 'Open assigned projects', description: 'Move into the crew-facing workload surface.', route: '/projects', icon: 'folder-kanban' },
+        { title: 'Review approvals', description: 'Review generated creative approval readiness.', route: '/approvals', icon: 'shield-check' },
       ];
     }
 
     return [
-      { title: 'Open brand foundation', description: 'Prepare brand-level setup inside the active workspace.', route: '/dashboard/brands', icon: 'badge-check' },
-      { title: 'Review product hierarchy', description: 'Shape products and services before request intake.', route: '/dashboard/products-services', icon: 'grid-2x2' },
+      { title: 'Open brand foundation', description: 'Prepare brand-level setup inside the active workspace.', route: '/brands', icon: 'badge-check' },
+      { title: 'Review product hierarchy', description: 'Shape products and services before request intake.', route: '/product-services', icon: 'grid-2x2' },
     ];
   });
 

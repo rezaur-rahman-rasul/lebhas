@@ -1,10 +1,6 @@
 import { Routes } from '@angular/router';
 
-import {
-  promptBuilderGuard,
-  promptHistoryGuard,
-  promptTemplatesGuard,
-} from '@app/core/guards/prompt-access.guard';
+import { promptBuilderGuard } from '@app/core/guards/prompt-access.guard';
 
 function sectionRoute(
   path: string,
@@ -53,100 +49,69 @@ export const DASHBOARD_ROUTES: Routes = [
       import('../assets/pages/project-assets/project-assets').then((m) => m.ProjectAssetsPage),
   },
   {
-    path: 'projects/:projectId/prompts/history',
-    canActivate: [promptHistoryGuard],
-    loadComponent: () =>
-      import('../prompts/history/prompt-history').then((m) => m.PromptHistoryPage),
-  },
-  {
     path: 'projects/:projectId/prompts',
     canActivate: [promptBuilderGuard],
     loadComponent: () =>
       import('../prompts/builder/prompt-builder').then((m) => m.PromptBuilderPage),
   },
-  {
-    path: 'prompt-templates',
-    canActivate: [promptTemplatesGuard],
-    loadComponent: () =>
-      import('../prompts/templates/prompt-templates').then((m) => m.PromptTemplatesPage),
-  },
-  {
-    path: 'assets',
-    loadChildren: () => import('../assets/assets.routes').then((m) => m.ASSET_ROUTES),
-  },
-  sectionRoute('workspaces', {
-    eyebrow: 'Master',
-    title: 'Workspaces',
-    description: 'Cross-tenant workspace access remains ready for a later master operations module.',
-    badge: 'MASTER',
-    badgeTone: 'red',
-    emptyIcon: 'building-2',
-    emptyTitle: 'Workspace management stays out of Day 2',
-    emptyDescription: 'The route exists so the master shell does not need restructuring when tenant operations land.',
-    cards: [
-      { title: 'Tenant roster', description: 'Prepare to list client and internal workspaces from one master surface.' },
-      { title: 'Support access', description: 'Keep master-level access ready for support and tenant handoff workflows.' },
-      { title: 'Workspace switching', description: 'The header already persists the active workspace selection.' },
-    ],
-  }),
-  sectionRoute('users', {
-    eyebrow: 'Master',
-    title: 'Users',
-    description: 'Foundation route for platform-wide user access and support visibility.',
-    badge: 'MASTER',
-    badgeTone: 'red',
-    emptyIcon: 'users',
-    emptyTitle: 'User administration stays outside Day 2',
-    emptyDescription: 'Navigation and access shape are ready, but user lifecycle modules are intentionally deferred.',
-    cards: [
-      { title: 'Admin roster', description: 'Prepare a clean list of workspace admins and system users.' },
-      { title: 'Role controls', description: 'Keep room for master, admin, and crew governance.' },
-      { title: 'Audit trail', description: 'Reserve space for future support and security actions.' },
-    ],
-  }),
-  sectionRoute('support-access', {
-    eyebrow: 'Master',
-    title: 'Support Access',
-    description: 'Protected placeholder for support entry into tenant workspaces.',
-    badge: 'MASTER',
-    badgeTone: 'red',
-    emptyIcon: 'life-buoy',
-    emptyTitle: 'Support access flows come later',
-    emptyDescription: 'This route exists so the shell and role map do not need redesign when support tooling lands.',
-    cards: [
-      { title: 'Escalation context', description: 'Track which tenant a support session is acting inside.' },
-      { title: 'Read-only defaults', description: 'Leave room for future restrictions before write access is allowed.' },
-      { title: 'Session logging', description: 'Coordinate with backend security and audit events later.' },
-    ],
-  }),
-  sectionRoute('creative-requests', {
-    eyebrow: 'Shared',
+  sectionRoute('projects/:projectId/creative-requests', {
+    eyebrow: 'Projects / Campaigns',
     title: 'Creative Requests',
-    description: 'Entry point for generation jobs and review queues inside the active workspace.',
+    description: 'Project-scoped creative request intake is reserved behind the campaign context.',
     badge: 'ADMIN / CREW',
     badgeTone: 'blue',
     emptyIcon: 'pencil-line',
-    emptyTitle: 'Request management is staged for later work',
-    emptyDescription: 'This foundation keeps the route ready while generation UI and approval flows stay out of Day 2.',
+    emptyTitle: 'Creative request intake is staged',
+    emptyDescription: 'Use this route as the stable campaign-level entry point when Day 6 request flows are consolidated.',
     cards: [
-      { title: 'Brief intake', description: 'Prepare a clear path from campaign brief to creative request.' },
-      { title: 'Assignment model', description: 'Support crew-level execution after routing logic arrives.' },
-      { title: 'Review readiness', description: 'Leave hooks for generated versions and approval states.' },
+      { title: 'Campaign context', description: 'Requests stay anchored to the selected project campaign.' },
+      { title: 'Asset readiness', description: 'Raw product media and prompt context remain upstream of request creation.' },
+      { title: 'Review path', description: 'Generated versions and approval workflow follow after request intake.' },
     ],
   }),
-  sectionRoute('generated-versions', {
+  sectionRoute('creative-requests/:creativeRequestId', {
     eyebrow: 'Shared',
-    title: 'Generated Versions',
-    description: 'Placeholder route for generated creative output lists and variant history.',
+    title: 'Creative Request Detail',
+    description: 'Stable detail route for one creative request inside the active workspace.',
+    badge: 'ADMIN / CREW',
+    badgeTone: 'blue',
+    emptyIcon: 'pencil-line',
+    emptyTitle: 'Request detail consolidation is staged',
+    emptyDescription: 'Existing Day 1 to Day 6 implementation can converge here without adding another request page.',
+    cards: [
+      { title: 'Brief context', description: 'Keep campaign, product, and prompt inputs visible on the request detail.' },
+      { title: 'Generation handoff', description: 'Generated versions remain downstream of the selected request.' },
+      { title: 'Approval readiness', description: 'Approval state can attach here when backend availability allows it.' },
+    ],
+  }),
+  sectionRoute('generated-versions/:generatedVersionId', {
+    eyebrow: 'Shared',
+    title: 'Generated Version Detail',
+    description: 'Stable detail route for one generated creative version.',
     badge: 'ADMIN / CREW',
     badgeTone: 'blue',
     emptyIcon: 'image',
-    emptyTitle: 'Generated output galleries are not in Day 2',
-    emptyDescription: 'The shell now reserves a stable place for version browsing and export controls later.',
+    emptyTitle: 'Generated version detail is staged',
+    emptyDescription: 'The route is reserved for existing generated output detail work without creating future modules.',
     cards: [
-      { title: 'Variant history', description: 'Generated versions will sit under creative requests in the hierarchy.' },
-      { title: 'Approval states', description: 'The route can later reflect pending, approved, and rejected variants.' },
-      { title: 'Export readiness', description: 'Downloads and sharing will connect here in later milestones.' },
+      { title: 'Creative output', description: 'A generated version belongs to a creative request.' },
+      { title: 'Approval state', description: 'Backend-provided approval availability should drive actions here.' },
+      { title: 'Export readiness', description: 'Downloads and sharing remain backend-context dependent.' },
+    ],
+  }),
+  sectionRoute('approvals', {
+    eyebrow: 'Approval Workflow',
+    title: 'Approvals',
+    description: 'Workspace-level approval queue route for existing review flow consolidation.',
+    badge: 'ADMIN / CREW',
+    badgeTone: 'blue',
+    emptyIcon: 'shield-check',
+    emptyTitle: 'Approval workflow is staged',
+    emptyDescription: 'Approval availability must come from backend context before actions are exposed.',
+    cards: [
+      { title: 'Review queue', description: 'Collect generated versions that require workspace approval.' },
+      { title: 'Permission-aware actions', description: 'Show approve, reject, share, and download actions only from backend capabilities.' },
+      { title: 'Current context', description: 'Keep workspace, brand, project, request, and version context visible.' },
     ],
   }),
   {

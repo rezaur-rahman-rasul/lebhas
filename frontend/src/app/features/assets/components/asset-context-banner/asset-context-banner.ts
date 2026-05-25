@@ -12,7 +12,7 @@ import { BadgeComponent } from '@app/shared/components/badge/badge';
 })
 export class AssetContextBannerComponent {
   readonly workspaceLabel = input('Workspace');
-  readonly brandName = input('—');
-  readonly productName = input('—');
-  readonly projectName = input('—');
+  readonly brandName = input('Not loaded');
+  readonly productName = input('Not loaded');
+  readonly projectName = input('Not loaded');
 }

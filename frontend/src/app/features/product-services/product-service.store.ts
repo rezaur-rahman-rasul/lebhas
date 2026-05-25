@@ -1,15 +1,18 @@
 import { Injectable, computed, inject, signal } from '@angular/core';
 
+import { normalizeHttpError } from '@app/core/api/http-error';
+import { NotificationStateService } from '@app/core/state/notification-state.service';
 import {
   CreateProductServicePayload,
   ProductServiceRecord,
   UpdateProductServicePayload,
 } from './product-service.models';
-import { ProductServiceCatalogService } from './product-service.service';
+import { ProductServiceApiService } from './product-service-api.service';
 
 @Injectable({ providedIn: 'root' })
 export class ProductServiceStore {
-  private readonly service = inject(ProductServiceCatalogService);
+  private readonly service = inject(ProductServiceApiService);
+  private readonly notifications = inject(NotificationStateService);
 
   private readonly itemsSignal = signal<readonly ProductServiceRecord[]>([]);
   private readonly loadingSignal = signal(false);
@@ -39,9 +42,9 @@ export class ProductServiceStore {
       const products = await this.service.list(workspaceId);
       this.itemsSignal.set(products);
       this.loadedWorkspaceIdSignal.set(workspaceId);
-    } catch {
+    } catch (error) {
       this.itemsSignal.set([]);
-      this.errorSignal.set('Product services could not be loaded.');
+      this.errorSignal.set(normalizeHttpError(error).message || 'Product services could not be loaded.');
     } finally {
       this.loadingSignal.set(false);
     }
@@ -59,7 +62,11 @@ export class ProductServiceStore {
       const productService = await this.service.create(workspaceId, brandId, payload);
       this.itemsSignal.update((items) => [productService, ...items]);
       this.loadedWorkspaceIdSignal.set(workspaceId);
+      this.notifications.success('Product/service created', `${productService.name} is linked to its brand.`);
       return productService;
+    } catch (error) {
+      this.errorSignal.set(normalizeHttpError(error).message);
+      throw error;
     } finally {
       this.savingSignal.set(false);
     }
@@ -78,7 +85,11 @@ export class ProductServiceStore {
       this.itemsSignal.update((items) =>
         items.map((item) => (item.id === productService.id ? productService : item)),
       );
+      this.notifications.success('Product/service updated', `${productService.name} changes were saved.`);
       return productService;
+    } catch (error) {
+      this.errorSignal.set(normalizeHttpError(error).message);
+      throw error;
     } finally {
       this.savingSignal.set(false);
     }
@@ -91,6 +102,10 @@ export class ProductServiceStore {
     try {
       await this.service.remove(workspaceId, productServiceId);
       this.itemsSignal.update((items) => items.filter((item) => item.id !== productServiceId));
+      this.notifications.success('Product/service deleted', 'The catalog item was removed.');
+    } catch (error) {
+      this.errorSignal.set(normalizeHttpError(error).message);
+      throw error;
     } finally {
       this.savingSignal.set(false);
     }

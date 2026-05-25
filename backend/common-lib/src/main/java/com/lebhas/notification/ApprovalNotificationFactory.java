@@ -74,6 +74,7 @@ public class ApprovalNotificationFactory {
             case APPROVAL_REJECTED -> "Approval rejected";
             case APPROVAL_CHANGES_REQUESTED -> "Changes requested";
             case APPROVAL_RESUBMITTED -> "Approval resubmitted";
+            default -> "Notification";
         };
     }
 
@@ -88,6 +89,7 @@ public class ApprovalNotificationFactory {
             case APPROVAL_REJECTED -> "Your approval request has been rejected.";
             case APPROVAL_CHANGES_REQUESTED -> "Changes were requested for your approval request.";
             case APPROVAL_RESUBMITTED -> "A creative approval has been resubmitted for review.";
+            default -> "You have a new notification.";
         };
     }
 }

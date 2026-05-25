@@ -3,6 +3,7 @@ import { Injectable, inject } from '@angular/core';
 import { firstValueFrom } from 'rxjs';
 
 import { ApiService } from '@app/core/api/api.service';
+import { unwrapApiResponse } from '@app/shared/utils/api-response';
 import {
   CreatePromptTemplateRequest,
   EnhancePromptRequest,
@@ -64,7 +65,7 @@ export class PromptApiService {
       ),
     );
 
-    return mapEnhancementViewDto(response.data);
+    return mapEnhancementViewDto(unwrapApiResponse(response));
   }
 
   async generateSuggestions(
@@ -81,7 +82,7 @@ export class PromptApiService {
       ),
     );
 
-    return mapSuggestionsViewDto(response.data);
+    return mapSuggestionsViewDto(unwrapApiResponse(response));
   }
 
   async listHistory(
@@ -110,7 +111,7 @@ export class PromptApiService {
       ),
     );
 
-    return mapPromptHistoryPageDto(response.data);
+    return mapPromptHistoryPageDto(unwrapApiResponse(response));
   }
 
   async listTemplates(
@@ -138,7 +139,7 @@ export class PromptApiService {
       ),
     );
 
-    return response.data.map(mapPromptTemplateViewDto);
+    return unwrapApiResponse(response).map(mapPromptTemplateViewDto);
   }
 
   async createTemplate(
@@ -154,7 +155,7 @@ export class PromptApiService {
       ),
     );
 
-    return mapPromptTemplateViewDto(response.data);
+    return mapPromptTemplateViewDto(unwrapApiResponse(response));
   }
 
   async updateTemplate(
@@ -171,7 +172,7 @@ export class PromptApiService {
       ),
     );
 
-    return mapPromptTemplateViewDto(response.data);
+    return mapPromptTemplateViewDto(unwrapApiResponse(response));
   }
 
   async deleteTemplate(workspaceId: string, templateId: string, context?: HttpContext): Promise<void> {

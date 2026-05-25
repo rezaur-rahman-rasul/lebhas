@@ -1,0 +1,9 @@
+
+<div class="rounded-lg border border-dashed border-border bg-surface p-6 text-center sm:p-8">
+  <div [class]="iconClasses()">
+    <app-icon [name]="icon()" [size]="22" />
+  </div>
+  <h3 class="mt-4 text-base font-semibold text-ink">{{ title() }}</h3>
+  <p class="mx-auto mt-2 max-w-md text-sm leading-6 text-muted">{{ description() }}</p>
+  <div class="mt-5 flex flex-wrap items-center justify-center gap-2"><ng-content /></div>
+</div>
