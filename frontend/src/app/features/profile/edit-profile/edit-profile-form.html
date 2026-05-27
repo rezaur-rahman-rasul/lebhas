@@ -1,0 +1,139 @@
+<app-page-header
+  eyebrow="Account"
+  title="Edit Profile"
+  description="Update your own profile details. Changes update the app header from the shared auth/profile state."
+>
+  <app-button type="button" variant="secondary" icon="arrow-left" ariaLabel="Back to profile" (click)="cancel()">
+    Back to Profile
+  </app-button>
+</app-page-header>
+
+@if (accessDenied()) {
+  <div class="mt-6">
+    <app-empty-state
+      icon="shield-alert"
+      tone="danger"
+      title="You do not have permission to view this profile."
+      description="Please contact your workspace admin if you need access."
+    />
+  </div>
+} @else {
+  <div class="mt-6 max-w-4xl">
+    @if (store.loading() && !profile()) {
+      <app-profile-loading-state label="Loading profile form" [cardCount]="1" [rowCount]="5" />
+    } @else if (store.error() && !profile()) {
+      <app-error-state title="Profile could not load" [description]="store.error()!">
+        <app-button type="button" variant="secondary" icon="rotate-cw" (click)="retry()">Try again</app-button>
+      </app-error-state>
+    } @else {
+      <app-card>
+        <form class="space-y-6" [formGroup]="form" (ngSubmit)="submit()" aria-label="Edit profile form">
+          <div>
+            <h2 class="text-lg font-semibold text-ink">Profile details</h2>
+            <p class="mt-1 text-sm leading-6 text-muted">
+              Use your real name and contact details so workspace teammates can identify you.
+            </p>
+          </div>
+
+          @if (store.error()) {
+            <div class="rounded-md border border-alert-500/30 bg-alert-500/10 px-3 py-2 text-sm text-alert-200">
+              {{ store.error() }}
+            </div>
+          }
+
+          @if (savedMessage()) {
+            <div class="rounded-md border border-success-500/30 bg-success-500/10 px-3 py-2 text-sm text-success-300">
+              {{ savedMessage() }}
+            </div>
+          }
+
+          <div class="grid gap-4 md:grid-cols-2">
+            <label class="text-sm">
+              <span class="mb-1 block font-medium text-ink">First name</span>
+              <input
+                class="profile-input"
+                formControlName="firstName"
+                autocomplete="given-name"
+                aria-describedby="firstName-error"
+              />
+              @if (form.controls.firstName.touched && form.controls.firstName.hasError('required')) {
+                <span id="firstName-error" class="mt-1 block text-xs text-alert-200">First name is required.</span>
+              }
+            </label>
+
+            <label class="text-sm">
+              <span class="mb-1 block font-medium text-ink">Last name</span>
+              <input class="profile-input" formControlName="lastName" autocomplete="family-name" />
+            </label>
+
+            <label class="text-sm md:col-span-2">
+              <span class="mb-1 block font-medium text-ink">Display name</span>
+              <input
+                class="profile-input"
+                formControlName="displayName"
+                autocomplete="name"
+                aria-describedby="displayName-error"
+              />
+              @if (form.controls.displayName.touched && form.controls.displayName.hasError('required')) {
+                <span id="displayName-error" class="mt-1 block text-xs text-alert-200">Display name is required.</span>
+              } @else if (form.controls.displayName.touched && form.controls.displayName.hasError('maxlength')) {
+                <span id="displayName-error" class="mt-1 block text-xs text-alert-200">Display name is too long.</span>
+              }
+            </label>
+
+            <label class="text-sm">
+              <span class="mb-1 block font-medium text-ink">Phone number</span>
+              <input
+                class="profile-input"
+                formControlName="phoneNumber"
+                autocomplete="tel"
+                aria-describedby="phone-error"
+              />
+              @if (form.controls.phoneNumber.touched && form.controls.phoneNumber.hasError('pattern')) {
+                <span id="phone-error" class="mt-1 block text-xs text-alert-200">Use a valid phone number format.</span>
+              }
+            </label>
+
+            <label class="text-sm">
+              <span class="mb-1 block font-medium text-ink">Job title</span>
+              <input class="profile-input" formControlName="jobTitle" autocomplete="organization-title" />
+            </label>
+
+            <label class="text-sm">
+              <span class="mb-1 block font-medium text-ink">Timezone</span>
+              <select class="profile-input" formControlName="timezone">
+                @for (timezone of timezones; track timezone) {
+                  <option [value]="timezone">{{ timezone }}</option>
+                }
+              </select>
+            </label>
+
+            <label class="text-sm">
+              <span class="mb-1 block font-medium text-ink">Locale</span>
+              <select class="profile-input" formControlName="locale">
+                @for (locale of locales; track locale) {
+                  <option [value]="locale">{{ locale }}</option>
+                }
+              </select>
+            </label>
+          </div>
+
+          <div class="flex flex-col-reverse gap-2 border-t border-border pt-5 sm:flex-row sm:justify-end">
+            <app-button type="button" variant="ghost" icon="x" ariaLabel="Cancel editing profile" (click)="cancel()">
+              Cancel
+            </app-button>
+            <app-button
+              type="submit"
+              icon="save"
+              [loading]="store.saving()"
+              [disabled]="form.invalid || store.saving()"
+              ariaLabel="Save profile"
+            >
+              Save Profile
+            </app-button>
+          </div>
+        </form>
+      </app-card>
+    }
+  </div>
+}

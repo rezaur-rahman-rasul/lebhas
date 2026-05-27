@@ -19,7 +19,12 @@ import com.lebhas.creativesaas.common.security.Permission;
 import com.lebhas.creativesaas.common.security.Role;
 import com.lebhas.creativesaas.common.security.context.CurrentUser;
 import com.lebhas.creativesaas.common.security.context.CurrentUserContext;
+import com.lebhas.creativesaas.creativerequest.domain.CreativeRequestEntity;
+import com.lebhas.creativesaas.creativerequest.infrastructure.persistence.CreativeRequestRepository;
 import com.lebhas.creativesaas.identity.application.WorkspaceAuthorizationService;
+import com.lebhas.creativesaas.profile.application.SafeProfileDisplayService;
+import com.lebhas.creativesaas.profile.application.dto.SafeProfileDisplayView;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -43,6 +48,8 @@ public class AiAnalyticsMonitoringQueryService {
     private final DynamicRoutingOptimizationService routingOptimizationService;
     private final CurrentUserContext currentUserContext;
     private final WorkspaceAuthorizationService workspaceAuthorizationService;
+    private SafeProfileDisplayService safeProfileDisplayService;
+    private CreativeRequestRepository creativeRequestRepository;
 
     public AiAnalyticsMonitoringQueryService(
             AiProviderHealthService providerHealthService,
@@ -62,6 +69,16 @@ public class AiAnalyticsMonitoringQueryService {
         this.routingOptimizationService = routingOptimizationService;
         this.currentUserContext = currentUserContext;
         this.workspaceAuthorizationService = workspaceAuthorizationService;
+    }
+
+    @Autowired(required = false)
+    public void setSafeProfileDisplayService(SafeProfileDisplayService safeProfileDisplayService) {
+        this.safeProfileDisplayService = safeProfileDisplayService;
+    }
+
+    @Autowired(required = false)
+    public void setCreativeRequestRepository(CreativeRequestRepository creativeRequestRepository) {
+        this.creativeRequestRepository = creativeRequestRepository;
     }
 
     @Transactional(readOnly = true)
@@ -203,6 +220,7 @@ public class AiAnalyticsMonitoringQueryService {
         return new AiFailureLogView(
                 failureLog.getId(),
                 failureLog.getCreativeRequestId(),
+                resolveFailureActorDisplay(failureLog.getCreativeRequestId()),
                 failureLog.getLayerId(),
                 failureLog.getProviderId(),
                 failureLog.getModelName(),
@@ -211,5 +229,19 @@ public class AiAnalyticsMonitoringQueryService {
                 failureLog.getRetryAttempt(),
                 failureLog.isFallbackTriggered(),
                 failureLog.getCreatedAt());
+    }
+
+    private SafeProfileDisplayView resolveFailureActorDisplay(UUID creativeRequestId) {
+        if (creativeRequestId == null || creativeRequestRepository == null || safeProfileDisplayService == null) {
+            return null;
+        }
+        return creativeRequestRepository.findById(creativeRequestId)
+                .filter(request -> !request.isDeleted())
+                .map(this::toFailureActorDisplay)
+                .orElse(null);
+    }
+
+    private SafeProfileDisplayView toFailureActorDisplay(CreativeRequestEntity request) {
+        return safeProfileDisplayService.forUserInWorkspace(request.getWorkspaceId(), request.getCreatedByUserId());
     }
 }

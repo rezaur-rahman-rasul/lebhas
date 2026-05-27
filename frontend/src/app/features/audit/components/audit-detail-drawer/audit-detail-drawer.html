@@ -1,0 +1,53 @@
+<app-drawer
+  [open]="open()"
+  title="Activity details"
+  description="Sensitive values are hidden before display."
+  ariaLabel="Audit activity detail drawer"
+  (closed)="closed.emit()"
+>
+  @if (auditLog(); as log) {
+    <div class="grid gap-5">
+      <div class="flex flex-wrap items-center gap-2">
+        <app-audit-severity-badge [severity]="log.severity" />
+        <span class="rounded-full border border-border bg-panel px-2.5 py-1 text-xs font-medium text-muted">
+          {{ friendlyAuditText(log.module) }}
+        </span>
+      </div>
+
+      <div>
+        <h2 class="text-lg font-semibold text-ink">{{ friendlyAuditText(log.action) }}</h2>
+        <p class="mt-2 text-sm leading-6 text-muted">
+          This audit event records an important workspace or system action.
+        </p>
+      </div>
+
+      <dl class="grid gap-4 text-sm">
+        <div>
+          <dt class="font-medium text-ink">Actor</dt>
+          <dd class="mt-1 text-muted">{{ actorLabel() }}</dd>
+        </div>
+        <div>
+          <dt class="font-medium text-ink">Reference</dt>
+          <dd class="mt-1 text-muted">{{ referenceLabel() }}</dd>
+        </div>
+        <div>
+          <dt class="font-medium text-ink">IP summary</dt>
+          <dd class="mt-1 text-muted">{{ ipSummary() }}</dd>
+        </div>
+        <div>
+          <dt class="font-medium text-ink">Device</dt>
+          <dd class="mt-1 text-muted">{{ userAgentSummary() }}</dd>
+        </div>
+        <div>
+          <dt class="font-medium text-ink">Created</dt>
+          <dd class="mt-1 text-muted">{{ log.createdAt }}</dd>
+        </div>
+      </dl>
+
+      <section>
+        <h3 class="text-sm font-semibold text-ink">Activity details</h3>
+        <pre class="mt-2 max-h-80 overflow-auto rounded-lg border border-border bg-panel p-4 text-xs leading-6 text-muted">{{ metadataPreview() }}</pre>
+      </section>
+    </div>
+  }
+</app-drawer>

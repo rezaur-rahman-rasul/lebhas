@@ -2,113 +2,124 @@
   [open]="open()"
   ariaLabel="Authentication"
   testId="login-modal"
-  panelClass="max-w-[72rem]"
-  contentClass="p-0"
+  panelClass="auth-dialog-shell w-[min(73.75rem,calc(100vw-1rem))] !h-[min(51.25rem,calc(100dvh-1rem))] !max-h-[calc(100dvh-1rem)] sm:w-[min(73.75rem,calc(100vw-3rem))] sm:!h-[min(51.25rem,calc(100dvh-2rem))] sm:!max-h-[calc(100dvh-2rem)]"
+  contentClass="h-full min-h-0 !overflow-hidden !p-0"
   (closed)="closed.emit()"
 >
-  <div class="grid overflow-hidden lg:grid-cols-[minmax(0,0.92fr)_minmax(0,1.08fr)]" data-testid="auth-dialog-split">
-    <section class="auth-dialog-panel bg-surface">
-      <div class="flex items-start justify-between gap-4">
-        <div>
+  <div
+    class="auth-dialog-split grid h-full min-h-0 overflow-hidden lg:grid-cols-[minmax(26rem,0.92fr)_minmax(30rem,1.08fr)]"
+    data-testid="auth-dialog-split"
+  >
+    <section class="auth-dialog-panel flex h-full min-h-0 flex-col bg-surface">
+      <div class="auth-dialog-header shrink-0">
+        <div class="max-w-[22rem]">
           <p class="text-xs font-semibold uppercase tracking-[0.18em] text-brand-600">
             Secure workspace access
           </p>
-          <h2 class="mt-3 text-2xl font-semibold text-ink">
+          <h2 id="auth-dialog-title" class="mt-3 text-2xl font-semibold text-ink">
             {{ activeTab() === 'login' ? 'Access your creative workspace' : 'Launch a new workspace account' }}
           </h2>
         </div>
       </div>
 
-      <div class="mt-6 inline-flex rounded-2xl border border-border bg-canvas/70 p-1">
+      <div class="auth-tab-switcher mt-4 inline-flex h-11 w-fit shrink-0 self-start rounded-2xl border border-border bg-canvas/70 p-1" role="tablist" aria-label="Authentication mode">
         <button
           type="button"
-          class="min-w-28 rounded-xl px-4 py-2.5 text-sm font-medium transition"
+          class="h-9 min-w-24 rounded-xl px-3 text-sm font-medium transition"
           [class]="activeTab() === 'login' ? 'bg-brand-600 text-white shadow-sm' : 'text-muted hover:text-ink'"
           data-testid="auth-tab-login"
+          role="tab"
+          [attr.aria-selected]="activeTab() === 'login'"
           (click)="setTab('login')"
         >
           Log in
         </button>
         <button
           type="button"
-          class="min-w-28 rounded-xl px-4 py-2.5 text-sm font-medium transition"
+          class="h-9 min-w-24 rounded-xl px-3 text-sm font-medium transition"
           [class]="activeTab() === 'register' ? 'bg-brand-600 text-white shadow-sm' : 'text-muted hover:text-ink'"
           data-testid="auth-tab-register"
+          role="tab"
+          [attr.aria-selected]="activeTab() === 'register'"
           (click)="setTab('register')"
         >
           Register
         </button>
       </div>
 
-      @if (activeTab() === 'login') {
-        <div class="mt-6 space-y-3" data-testid="social-auth">
-          @for (provider of socialProviders; track provider.id) {
-            <button
-              type="button"
-              class="social-auth-button flex w-full items-center justify-center gap-3 rounded-2xl border border-border bg-canvas/80 text-sm font-semibold text-ink transition hover:border-brand-500/35 hover:bg-brand-500/5"
-              [attr.data-testid]="'social-auth-' + provider.id"
-              (click)="socialLogin(provider.id)"
-            >
-              @switch (provider.id) {
-                @case ('google') {
-                  <svg class="h-5 w-5 shrink-0" viewBox="0 0 24 24" aria-hidden="true">
-                    <path
-                      fill="#EA4335"
-                      d="M12 10.2v3.84h5.38c-.23 1.24-1.66 3.64-5.38 3.64-3.24 0-5.88-2.68-5.88-5.98s2.64-5.98 5.88-5.98c1.84 0 3.08.78 3.79 1.45l2.59-2.5C16.95 6.34 14.68 5.2 12 5.2 7.48 5.2 3.8 8.88 3.8 13.4s3.68 8.2 8.2 8.2c4.73 0 7.86-3.32 7.86-8.01 0-.54-.05-.95-.12-1.36H12z"
-                    />
-                  </svg>
-                }
-                @case ('facebook') {
-                  <svg class="h-5 w-5 shrink-0" viewBox="0 0 24 24" aria-hidden="true">
-                    <path
-                      fill="#1877F2"
-                      d="M24 12.07C24 5.41 18.63 0 12 0S0 5.41 0 12.07c0 6.02 4.39 11.01 10.13 11.93v-8.44H7.08v-3.49h3.05V9.41c0-3.01 1.79-4.67 4.53-4.67 1.31 0 2.68.23 2.68.23v2.95h-1.51c-1.49 0-1.95.92-1.95 1.87v2.25h3.32l-.53 3.49h-2.79v8.44C19.61 23.08 24 18.09 24 12.07z"
-                    />
-                  </svg>
-                }
-                @case ('apple') {
-                  <svg class="h-5 w-5 shrink-0" viewBox="0 0 24 24" aria-hidden="true">
-                    <path
-                      fill="currentColor"
-                      d="M16.52 12.64c-.02-2.2 1.8-3.25 1.88-3.3-1.02-1.48-2.61-1.68-3.18-1.7-1.35-.14-2.64.8-3.32.8-.69 0-1.75-.78-2.88-.76-1.48.02-2.85.86-3.61 2.19-1.54 2.67-.39 6.62 1.1 8.79.73 1.05 1.6 2.23 2.74 2.19 1.1-.04 1.52-.71 2.85-.71 1.33 0 1.7.71 2.86.69 1.18-.02 1.93-1.07 2.65-2.12.84-1.22 1.18-2.4 1.2-2.46-.03-.01-2.3-.88-2.32-3.5zM14.28 4.56c.6-.73 1.01-1.74.9-2.75-.87.04-1.92.58-2.54 1.31-.56.65-1.05 1.7-.92 2.7.97.08 1.96-.5 2.56-1.26z"
-                    />
-                  </svg>
-                }
-              }
-
-              <span>{{ provider.label }}</span>
-            </button>
-          }
-        </div>
-
-        <div class="mt-6 flex items-center gap-3">
-          <span class="h-px flex-1 bg-border"></span>
-          <span class="text-xs font-semibold uppercase tracking-[0.14em] text-muted">Or continue with email</span>
-          <span class="h-px flex-1 bg-border"></span>
-        </div>
-      }
-
-      <div class="mt-7">
+      <div class="auth-dialog-form-scroll mt-4 min-h-0 flex-1 overflow-y-auto pr-1" data-testid="auth-dialog-form-scroll">
         @if (activeTab() === 'login') {
-          <app-login-form
-            [loading]="authLoading()"
-            [errorMessage]="loginError()"
-            [fieldErrors]="loginFieldErrors()"
-            (submitted)="submitLogin($event)"
-            (forgotPassword)="showForgotPasswordHelp()"
-          />
+          <div class="space-y-2.5" data-testid="social-auth">
+            @for (provider of socialProviders; track provider.id) {
+              <button
+                type="button"
+                class="social-auth-button flex w-full items-center justify-center gap-3 rounded-2xl border border-border bg-canvas/80 text-sm font-semibold text-ink transition hover:border-brand-500/35 hover:bg-brand-500/5"
+                [attr.data-testid]="'social-auth-' + provider.id"
+                (click)="socialLogin(provider.id)"
+              >
+                @switch (provider.id) {
+                  @case ('google') {
+                    <svg class="h-5 w-5 shrink-0" viewBox="0 0 24 24" aria-hidden="true">
+                      <path
+                        fill="#EA4335"
+                        d="M12 10.2v3.84h5.38c-.23 1.24-1.66 3.64-5.38 3.64-3.24 0-5.88-2.68-5.88-5.98s2.64-5.98 5.88-5.98c1.84 0 3.08.78 3.79 1.45l2.59-2.5C16.95 6.34 14.68 5.2 12 5.2 7.48 5.2 3.8 8.88 3.8 13.4s3.68 8.2 8.2 8.2c4.73 0 7.86-3.32 7.86-8.01 0-.54-.05-.95-.12-1.36H12z"
+                      />
+                    </svg>
+                  }
+                  @case ('facebook') {
+                    <svg class="h-5 w-5 shrink-0" viewBox="0 0 24 24" aria-hidden="true">
+                      <path
+                        fill="#1877F2"
+                        d="M24 12.07C24 5.41 18.63 0 12 0S0 5.41 0 12.07c0 6.02 4.39 11.01 10.13 11.93v-8.44H7.08v-3.49h3.05V9.41c0-3.01 1.79-4.67 4.53-4.67 1.31 0 2.68.23 2.68.23v2.95h-1.51c-1.49 0-1.95.92-1.95 1.87v2.25h3.32l-.53 3.49h-2.79v8.44C19.61 23.08 24 18.09 24 12.07z"
+                      />
+                    </svg>
+                  }
+                  @case ('apple') {
+                    <svg class="h-5 w-5 shrink-0" viewBox="0 0 24 24" aria-hidden="true">
+                      <path
+                        fill="currentColor"
+                        d="M16.52 12.64c-.02-2.2 1.8-3.25 1.88-3.3-1.02-1.48-2.61-1.68-3.18-1.7-1.35-.14-2.64.8-3.32.8-.69 0-1.75-.78-2.88-.76-1.48.02-2.85.86-3.61 2.19-1.54 2.67-.39 6.62 1.1 8.79.73 1.05 1.6 2.23 2.74 2.19 1.1-.04 1.52-.71 2.85-.71 1.33 0 1.7.71 2.86.69 1.18-.02 1.93-1.07 2.65-2.12.84-1.22 1.18-2.4 1.2-2.46-.03-.01-2.3-.88-2.32-3.5zM14.28 4.56c.6-.73 1.01-1.74.9-2.75-.87.04-1.92.58-2.54 1.31-.56.65-1.05 1.7-.92 2.7.97.08 1.96-.5 2.56-1.26z"
+                      />
+                    </svg>
+                  }
+                }
+
+                <span>{{ provider.label }}</span>
+              </button>
+            }
+          </div>
+
+          <div class="mt-4 flex items-center gap-3">
+            <span class="h-px flex-1 bg-border"></span>
+            <span class="text-xs font-semibold uppercase tracking-[0.14em] text-muted">Or continue with email</span>
+            <span class="h-px flex-1 bg-border"></span>
+          </div>
+        }
+
+        @if (activeTab() === 'login') {
+          <div class="auth-dialog-form-region mt-5" data-testid="auth-login-panel">
+            <app-login-form
+              [loading]="authLoading()"
+              [errorMessage]="loginError()"
+              [fieldErrors]="loginFieldErrors()"
+              (submitted)="submitLogin($event)"
+              (forgotPassword)="showForgotPasswordHelp()"
+            />
+          </div>
         } @else {
-          <app-register-form
-            [loading]="authLoading()"
-            [errorMessage]="registerError()"
-            [fieldErrors]="registerFieldErrors()"
-            (submitted)="submitRegister($event)"
-          />
+          <div class="auth-dialog-form-region" data-testid="auth-register-panel">
+            <app-register-form
+              [loading]="authLoading()"
+              [errorMessage]="registerError()"
+              [fieldErrors]="registerFieldErrors()"
+              (submitted)="submitRegister($event)"
+            />
+          </div>
         }
       </div>
     </section>
 
-    <section class="auth-dialog-visual relative overflow-hidden border-t border-border bg-[radial-gradient(circle_at_top_left,_rgba(22,166,121,0.24),_transparent_32%),radial-gradient(circle_at_bottom_right,_rgba(37,99,235,0.24),_transparent_34%),linear-gradient(180deg,rgba(6,11,23,0.98)_0%,rgba(15,23,42,1)_100%)] text-white lg:border-l lg:border-t-0">
+    <section class="auth-dialog-visual relative hidden h-full min-h-0 overflow-hidden border-border bg-[radial-gradient(circle_at_top_left,_rgba(22,166,121,0.24),_transparent_32%),radial-gradient(circle_at_bottom_right,_rgba(37,99,235,0.24),_transparent_34%),linear-gradient(180deg,rgba(6,11,23,0.98)_0%,rgba(15,23,42,1)_100%)] text-white lg:block lg:border-l">
       <div class="absolute inset-0 opacity-30 [background-image:linear-gradient(rgba(148,163,184,0.12)_1px,transparent_1px),linear-gradient(90deg,rgba(148,163,184,0.12)_1px,transparent_1px)] [background-size:2.75rem_2.75rem]"></div>
 
       <div class="relative z-10">

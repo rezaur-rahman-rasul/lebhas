@@ -1,4 +1,4 @@
-import { inject, Injectable } from '@angular/core';
+import { inject, Injectable, Injector } from '@angular/core';
 import { Router } from '@angular/router';
 
 import { normalizeHttpError } from '@app/core/api/http-error';
@@ -6,6 +6,7 @@ import { AuthApiService } from '@app/core/auth/auth-api.service';
 import { CurrentUserStore } from '@app/core/auth/current-user.store';
 import { AuthActionFailure, AuthActionResult, AuthSession } from '@app/core/auth/auth.types';
 import { NotificationStateService } from '@app/core/state/notification-state.service';
+import { ProfileStore } from '@app/features/profile/state/profile.store';
 import {
   LoginRequest,
   RefreshTokenRequest,
@@ -20,6 +21,7 @@ export class AuthFacade {
   private readonly notifications = inject(NotificationStateService);
   private readonly router = inject(Router);
   private readonly rememberedProfiles = inject(RememberedProfilesStorage);
+  private readonly injector = inject(Injector);
 
   private initialized = false;
   private initializeInFlight: Promise<void> | null = null;
@@ -54,11 +56,13 @@ export class AuthFacade {
 
   private async restoreSession(): Promise<void> {
     if (!this.currentUserStore.hasRestorableSession()) {
+      this.resetProfileState();
       this.currentUserStore.markAnonymous();
       return;
     }
 
     if (!this.currentUserStore.hasValidRefreshToken()) {
+      this.resetProfileState();
       this.currentUserStore.clearSession();
       return;
     }
@@ -72,9 +76,11 @@ export class AuthFacade {
       const currentUser = await this.authService.getCurrentUser();
       this.currentUserStore.patchCurrentUser(currentUser);
       this.rememberedProfiles.rememberUser(currentUser);
+      this.initializeProfileState();
     } catch {
       const refreshed = await this.tryRefresh({ redirectOnFailure: false, toastOnFailure: false });
       if (!refreshed) {
+        this.resetProfileState();
         this.currentUserStore.clearSession();
       }
     }
@@ -91,6 +97,7 @@ export class AuthFacade {
         this.currentUserStore.setSession(session, {
           persistent: options?.rememberMe ?? true,
         });
+        this.initializeProfileState();
         await this.router.navigateByUrl(returnUrl || '/dashboard');
       },
     );
@@ -100,10 +107,11 @@ export class AuthFacade {
     return this.runSessionAction(
       () => this.authService.register(payload),
       async (session) => {
-      this.currentUserStore.setSession(session, { persistent: true });
-      this.notifications.success('Workspace created', 'Your account is ready.');
-      await this.router.navigateByUrl('/dashboard');
-    },
+        this.currentUserStore.setSession(session, { persistent: true });
+        this.initializeProfileState();
+        this.notifications.success('Workspace created', 'Your account is ready.');
+        await this.router.navigateByUrl('/dashboard');
+      },
     );
   }
 
@@ -111,10 +119,11 @@ export class AuthFacade {
     return this.runSessionAction(
       () => this.authService.register(payload),
       async (session) => {
-      this.currentUserStore.setSession(session, { persistent: true });
-      this.notifications.success('Invitation accepted', 'You can start working immediately.');
-      await this.router.navigateByUrl('/dashboard');
-    },
+        this.currentUserStore.setSession(session, { persistent: true });
+        this.initializeProfileState();
+        this.notifications.success('Invitation accepted', 'You can start working immediately.');
+        await this.router.navigateByUrl('/dashboard');
+      },
     );
   }
 
@@ -132,6 +141,7 @@ export class AuthFacade {
       // Local session teardown still needs to complete.
     } finally {
       this.currentUserStore.clearSession();
+      this.resetProfileState();
       if (options?.notify) {
         this.notifications.info('Signed out', 'Your session has been closed.');
       }
@@ -174,6 +184,7 @@ export class AuthFacade {
         persistent: this.currentUserStore.persistentSession(),
       });
       this.rememberedProfiles.rememberUser(session.user);
+      this.initializeProfileState();
       return true;
     } catch {
       this.handleExpiredSession(options);
@@ -223,6 +234,7 @@ export class AuthFacade {
     readonly toastOnFailure?: boolean;
   }): void {
     this.currentUserStore.clearSession();
+    this.resetProfileState();
 
     if (options?.toastOnFailure ?? true) {
       this.notifications.error('Session expired', 'Please sign in again.');
@@ -245,5 +257,13 @@ export class AuthFacade {
         ...(nextReturnUrl ? { returnUrl: nextReturnUrl } : {}),
       },
     });
+  }
+
+  private initializeProfileState(): void {
+    void this.injector.get(ProfileStore).loadMyProfile();
+  }
+
+  private resetProfileState(): void {
+    this.injector.get(ProfileStore).reset();
   }
 }

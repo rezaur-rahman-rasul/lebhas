@@ -22,6 +22,9 @@ import com.lebhas.creativesaas.approval.domain.ApprovalRequest;
 import com.lebhas.creativesaas.approval.domain.ApprovalReview;
 import com.lebhas.creativesaas.approval.domain.ApprovalWorkflow;
 import com.lebhas.creativesaas.generatedversion.domain.GeneratedVersionEntity;
+import com.lebhas.creativesaas.profile.application.SafeProfileDisplayService;
+import com.lebhas.creativesaas.profile.application.dto.SafeProfileDisplayView;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
 
 import java.time.Instant;
@@ -30,6 +33,13 @@ import java.util.UUID;
 
 @Component
 public class ApprovalMapper {
+
+    private SafeProfileDisplayService safeProfileDisplayService;
+
+    @Autowired(required = false)
+    public void setSafeProfileDisplayService(SafeProfileDisplayService safeProfileDisplayService) {
+        this.safeProfileDisplayService = safeProfileDisplayService;
+    }
 
     public ApprovalWorkflowView toView(ApprovalWorkflow entity) {
         return new ApprovalWorkflowView(
@@ -74,7 +84,9 @@ public class ApprovalMapper {
                 entity.getGeneratedVersionId(),
                 entity.getProjectCampaignId(),
                 entity.getSubmittedBy(),
+                safeDisplay(entity.getWorkspaceId(), entity.getSubmittedBy()),
                 entity.getAssignedReviewerId(),
+                safeDisplay(entity.getWorkspaceId(), entity.getAssignedReviewerId()),
                 entity.getCurrentStatus(),
                 entity.getSubmittedAt(),
                 entity.getReviewedAt(),
@@ -92,7 +104,9 @@ public class ApprovalMapper {
                 entry.generatedVersionId(),
                 entry.projectCampaignId(),
                 entry.submittedBy(),
+                safeDisplay(entry.workspaceId(), entry.submittedBy()),
                 entry.assignedReviewerId(),
+                safeDisplay(entry.workspaceId(), entry.assignedReviewerId()),
                 entry.currentStatus(),
                 entry.submittedAt(),
                 entry.reviewedAt(),
@@ -109,6 +123,7 @@ public class ApprovalMapper {
                 entity.getWorkspaceId(),
                 entity.getApprovalRequestId(),
                 entity.getReviewerId(),
+                safeDisplay(entity.getWorkspaceId(), entity.getReviewerId()),
                 entity.getDecision(),
                 entity.getFeedback(),
                 entity.getReviewType(),
@@ -123,6 +138,7 @@ public class ApprovalMapper {
                 entity.getApprovalRequestId(),
                 entity.getGeneratedVersionId(),
                 entity.getCommentedBy(),
+                safeDisplay(entity.getWorkspaceId(), entity.getCommentedBy()),
                 entity.getCommentText(),
                 entity.isInternalOnly(),
                 entity.getCreatedAt(),
@@ -259,5 +275,9 @@ public class ApprovalMapper {
                         inReviewCount,
                         approvalRequestIds)),
                 Instant.now());
+    }
+
+    private SafeProfileDisplayView safeDisplay(UUID workspaceId, UUID userId) {
+        return safeProfileDisplayService == null ? null : safeProfileDisplayService.forUserInWorkspace(workspaceId, userId);
     }
 }

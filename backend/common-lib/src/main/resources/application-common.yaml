@@ -125,6 +125,7 @@ platform:
     rate-limit-namespace: creative-saas:rate-limits
     session-namespace: creative-saas:sessions
   kafka:
+    enabled: ${KAFKA_ENABLED:true}
     topic-prefix: ${KAFKA_TOPIC_PREFIX:}
   session:
     active-state-ttl: ${SESSION_ACTIVE_STATE_TTL:30m}
@@ -265,6 +266,10 @@ spring:
 logging:
   level:
     com.lebhas.creativesaas: DEBUG
+
+platform:
+  kafka:
+    enabled: ${KAFKA_ENABLED:false}
 
 ---
 spring:

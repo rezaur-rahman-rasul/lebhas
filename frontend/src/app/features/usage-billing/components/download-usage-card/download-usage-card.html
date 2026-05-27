@@ -1,0 +1,29 @@
+<app-card [interactive]="true">
+  <div class="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+    <div class="min-w-0">
+      <div class="flex flex-wrap items-center gap-2">
+        <h3 class="text-base font-semibold text-ink">Download usage</h3>
+        <app-status-badge tone="brand" [attr.aria-label]="'Download type ' + downloadLabel()">{{ downloadLabel() }}</app-status-badge>
+      </div>
+      <p class="mt-2 text-sm text-muted">Downloaded by {{ log().downloadedByName || log().downloadedBy || 'Unknown user' }}</p>
+    </div>
+    <p class="text-sm font-medium text-muted">{{ log().createdAt | date: 'medium' }}</p>
+  </div>
+
+  <dl class="mt-5 grid gap-3 text-sm sm:grid-cols-2 xl:grid-cols-3">
+    <div>
+      <dt class="text-xs text-muted">Generated version</dt>
+      <dd class="mt-1 truncate font-semibold text-ink">{{ log().generatedVersionId || 'Not provided' }}</dd>
+    </div>
+    <div>
+      <dt class="text-xs text-muted">Asset reference</dt>
+      <dd class="mt-1 truncate font-semibold text-ink">{{ log().assetId || 'Not provided' }}</dd>
+    </div>
+    @if (browserSummary()) {
+      <div>
+        <dt class="text-xs text-muted">Device/browser</dt>
+        <dd class="mt-1 font-semibold text-ink">{{ browserSummary() }}</dd>
+      </div>
+    }
+  </dl>
+</app-card>

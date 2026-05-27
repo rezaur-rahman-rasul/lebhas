@@ -1,0 +1,33 @@
+<app-card [interactive]="true">
+  <div class="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+    <div class="min-w-0">
+      <div class="flex flex-wrap items-center gap-2">
+        <h3 class="truncate text-base font-semibold text-ink">{{ provider().name }}</h3>
+        <app-status-badge [tone]="statusTone()" [attr.aria-label]="'Provider status: ' + statusLabel()">
+          {{ statusLabel() }}
+        </app-status-badge>
+      </div>
+      <p class="mt-1 text-sm text-muted">{{ provider().code }} · {{ provider().providerType }}</p>
+      <p class="mt-3 text-sm leading-6 text-muted">
+        Higher priority providers are tried first during payment session creation.
+      </p>
+    </div>
+
+    <div class="flex flex-wrap gap-2">
+      <app-button type="button" variant="secondary" size="sm" icon="settings" ariaLabel="Configure payment provider" (click)="configure.emit(provider())">
+        Configure
+      </app-button>
+      <app-button type="button" variant="ghost" size="sm" icon="pencil" ariaLabel="Edit payment provider" (click)="edit.emit(provider())">
+        Edit
+      </app-button>
+    </div>
+  </div>
+
+  <dl class="mt-5 grid gap-3 text-sm sm:grid-cols-2 xl:grid-cols-4">
+    <div><dt class="text-xs text-muted">Sandbox</dt><dd class="mt-1 font-semibold text-ink">{{ provider().sandboxEnabled ? 'Enabled' : 'Disabled' }}</dd></div>
+    <div><dt class="text-xs text-muted">Live</dt><dd class="mt-1 font-semibold text-ink">{{ provider().liveEnabled ? 'Enabled' : 'Disabled' }}</dd></div>
+    <div><dt class="text-xs text-muted">Priority</dt><dd class="mt-1 font-semibold text-ink">{{ provider().priority }}</dd></div>
+    <div><dt class="text-xs text-muted">Updated</dt><dd class="mt-1 font-semibold text-ink">{{ provider().updatedAt | date: 'medium' }}</dd></div>
+    <div><dt class="text-xs text-muted">Created</dt><dd class="mt-1 font-semibold text-ink">{{ provider().createdAt | date: 'medium' }}</dd></div>
+  </dl>
+</app-card>

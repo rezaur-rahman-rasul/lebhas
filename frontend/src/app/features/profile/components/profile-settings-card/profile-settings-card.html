@@ -1,0 +1,31 @@
+<app-card>
+  <section aria-labelledby="profile-settings-title">
+    <div class="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+      <div>
+        <p class="text-xs font-semibold uppercase tracking-wide text-brand-300">Preferences</p>
+        <h3 id="profile-settings-title" class="mt-1 text-lg font-semibold text-ink">Account settings</h3>
+      </div>
+
+      @if (editable()) {
+        <app-button type="button" variant="secondary" size="sm" icon="settings" (click)="editSettings.emit()">
+          Edit settings
+        </app-button>
+      }
+    </div>
+
+    <dl class="mt-5 grid gap-3 sm:grid-cols-3">
+      <div class="rounded-md border border-border bg-panel/50 p-3">
+        <dt class="text-xs uppercase tracking-wide text-muted">Language</dt>
+        <dd class="mt-1 font-medium text-ink">{{ languageLabel() }}</dd>
+      </div>
+      <div class="rounded-md border border-border bg-panel/50 p-3">
+        <dt class="text-xs uppercase tracking-wide text-muted">Theme</dt>
+        <dd class="mt-1 font-medium text-ink">{{ themeLabel() }}</dd>
+      </div>
+      <div class="rounded-md border border-border bg-panel/50 p-3">
+        <dt class="text-xs uppercase tracking-wide text-muted">Notifications</dt>
+        <dd class="mt-1 font-medium text-ink">{{ notificationSummary() }}</dd>
+      </div>
+    </dl>
+  </section>
+</app-card>

@@ -1,0 +1,120 @@
+<app-page-header
+  eyebrow="Master"
+  title="Provider configurations"
+  description="Manage sandbox and live configuration records without exposing saved secrets."
+>
+  @if (permissions.canManagePaymentProviders()) {
+    <app-button type="button" variant="secondary" icon="rotate-cw" [loading]="store.loading()" ariaLabel="Refresh provider configurations" (click)="refresh()">
+      Refresh
+    </app-button>
+    <app-button type="button" icon="plus" ariaLabel="Create provider configuration" (click)="openCreate()">
+      Add configuration
+    </app-button>
+  }
+</app-page-header>
+
+@if (accessDenied()) {
+  <div class="mt-6">
+    <app-empty-state
+      icon="shield-alert"
+      tone="danger"
+      title="You do not have access to payment provider settings."
+      description="Please contact the system owner if you need access."
+    />
+  </div>
+} @else {
+  <div class="mt-6 space-y-6">
+    <app-card>
+      <div class="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+        <div>
+          <h2 class="text-base font-semibold text-ink">Saved securely</h2>
+          <p class="mt-1 text-sm leading-6 text-muted">
+            API keys, secrets, and webhook secrets are password-style inputs and must never be shown after save.
+          </p>
+        </div>
+        <app-status-badge tone="blue">No webhook user UI</app-status-badge>
+      </div>
+    </app-card>
+
+    @if (store.loading() && !hasConfigurations()) {
+      <app-payment-loading-state label="Loading provider configurations" />
+    } @else if (store.error()) {
+      <app-error-state title="Provider configurations could not load" [description]="store.error()!">
+        <app-button type="button" variant="secondary" icon="rotate-cw" ariaLabel="Retry loading provider configurations" (click)="refresh()">
+          Try again
+        </app-button>
+      </app-error-state>
+    } @else if (!store.paymentProviders().length) {
+      <app-payment-empty-state
+        icon="credit-card"
+        title="No payment providers configured yet"
+        description="No payment providers configured yet. Add a provider to start accepting payments."
+        retryLabel="Refresh"
+        (retry)="refresh()"
+      />
+    } @else if (!hasConfigurations()) {
+      <app-payment-empty-state
+        icon="settings"
+        title="No provider configurations yet"
+        description="Create sandbox or live configuration after adding a payment provider."
+        retryLabel="Refresh"
+        (retry)="refresh()"
+      />
+    } @else {
+      <section class="grid gap-4 xl:grid-cols-2" aria-label="Provider configuration list">
+        @for (configuration of configurations(); track configuration.id) {
+          <app-card [interactive]="true">
+            <div class="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+              <div class="min-w-0">
+                <div class="flex flex-wrap items-center gap-2">
+                  <h3 class="truncate text-base font-semibold text-ink">{{ configuration.providerName }}</h3>
+                  <app-status-badge [tone]="configuration.isActive ? 'brand' : 'neutral'">
+                    {{ configuration.isActive ? 'Active' : 'Inactive' }}
+                  </app-status-badge>
+                  <app-status-badge tone="blue">{{ configuration.environmentType }}</app-status-badge>
+                </div>
+                <p class="mt-2 text-sm leading-6 text-muted">
+                  Credentials: Saved securely. Raw secrets are not displayed.
+                </p>
+              </div>
+              <div class="flex flex-wrap gap-2">
+                <app-button type="button" variant="secondary" size="sm" icon="pencil" ariaLabel="Edit provider configuration" (click)="openEdit(configuration)">
+                  Edit
+                </app-button>
+                <app-button type="button" variant="ghost" size="sm" [icon]="configuration.isActive ? 'pause-circle' : 'play-circle'" ariaLabel="Toggle provider configuration" (click)="toggleActive(configuration)">
+                  {{ configuration.isActive ? 'Deactivate' : 'Activate' }}
+                </app-button>
+              </div>
+            </div>
+
+            <dl class="mt-5 grid gap-3 text-sm sm:grid-cols-2">
+              <div><dt class="text-xs text-muted">API base URL</dt><dd class="mt-1 truncate font-semibold text-ink">{{ configuration.apiBaseUrl || 'Not provided' }}</dd></div>
+              <div><dt class="text-xs text-muted">Merchant ID</dt><dd class="mt-1 truncate font-semibold text-ink">{{ configuration.merchantId || 'Not provided' }}</dd></div>
+              <div><dt class="text-xs text-muted">Success URL</dt><dd class="mt-1 truncate font-semibold text-ink">{{ configuration.successUrl || 'Not provided' }}</dd></div>
+              <div><dt class="text-xs text-muted">Failure URL</dt><dd class="mt-1 truncate font-semibold text-ink">{{ configuration.failureUrl || 'Not provided' }}</dd></div>
+              <div><dt class="text-xs text-muted">Cancel URL</dt><dd class="mt-1 truncate font-semibold text-ink">{{ configuration.cancelUrl || 'Not provided' }}</dd></div>
+              <div><dt class="text-xs text-muted">Created</dt><dd class="mt-1 font-semibold text-ink">{{ configuration.createdAt | date: 'medium' }}</dd></div>
+              <div><dt class="text-xs text-muted">Updated</dt><dd class="mt-1 font-semibold text-ink">{{ configuration.updatedAt | date: 'medium' }}</dd></div>
+            </dl>
+          </app-card>
+        }
+      </section>
+    }
+  </div>
+}
+
+<app-drawer
+  [open]="drawerOpen()"
+  [title]="drawerTitle()"
+  description="Saved secrets stay hidden. Enter new secret values only when changing provider credentials."
+  ariaLabel="Provider configuration form"
+  (closed)="closeDrawer()"
+>
+  <app-provider-configuration-form
+    [providers]="store.paymentProviders()"
+    [configuration]="selectedConfiguration()"
+    [loading]="store.loading()"
+    (submitted)="saveConfiguration($event)"
+    (cancelled)="closeDrawer()"
+  />
+</app-drawer>

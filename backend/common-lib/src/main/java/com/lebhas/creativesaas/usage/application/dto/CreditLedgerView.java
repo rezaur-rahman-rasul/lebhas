@@ -1,6 +1,7 @@
 package com.lebhas.creativesaas.usage.application.dto;
 
 import com.lebhas.creativesaas.usage.domain.CreditLedgerTransactionType;
+import com.lebhas.creativesaas.profile.application.dto.SafeProfileDisplayView;
 
 import java.math.BigDecimal;
 import java.time.Instant;
@@ -20,6 +21,7 @@ public record CreditLedgerView(
         UUID referenceId,
         String description,
         UUID createdBy,
+        SafeProfileDisplayView createdByDisplay,
         Instant createdAt
 ) {
 }

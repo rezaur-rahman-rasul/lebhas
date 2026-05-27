@@ -103,3 +103,18 @@ The current foundation wires:
 - refresh-token session recovery
 - normalized API error handling
 - workspace list loading from `/api/v1/workspaces/me`
+
+## Final UI Consistency Rules
+
+- Logged-in pages render inside the shared dashboard shell and `dashboard-page-container`.
+- Master navigation is grouped as Overview, AI Operations, System Monitoring, Usage & Billing, and Payments.
+- Use the shared page header, error state, empty state, loading state, sidebar, and toast components as the only source of truth.
+- Toasts are deduplicated by message context and limited to two visible notifications below the topbar.
+- Backend-unavailable states should use friendly page-level copy with retry actions instead of raw exception text.
+
+## Theme Token Rules
+
+- Dark mode remains the default theme.
+- Light mode is driven by `src/styles.scss` CSS variables such as `--color-canvas`, `--color-surface`, `--color-border`, `--color-ink`, `--color-muted`, `--color-input`, and `--color-dropdown`.
+- Tailwind semantic colors map to those variables in `tailwind.config.js`; prefer `bg-surface`, `bg-panel`, `text-ink`, `text-muted`, and `border-border` over page-specific color patches.
+- Shared shell, sidebar, dropdown, form, error, empty, loading, button, and badge styles should consume these tokens so dark and light mode stay aligned.

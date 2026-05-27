@@ -1,3 +1,61 @@
 :host {
   display: block;
+  min-width: 0;
+}
+
+.brands-page-grid {
+  display: grid;
+  min-width: 0;
+  gap: 1.5rem;
+}
+
+@media (min-width: 1280px) {
+  .brands-page-grid {
+    grid-template-columns: minmax(0, 1fr) 23.75rem;
+    align-items: start;
+  }
+}
+
+.brand-skeleton-row,
+.brand-skeleton-line,
+.brand-skeleton-block,
+.brand-skeleton-panel {
+  position: relative;
+  overflow: hidden;
+  border-radius: 0.875rem;
+  background: rgb(148 163 184 / 0.14);
+}
+
+.brand-skeleton-row::after,
+.brand-skeleton-line::after,
+.brand-skeleton-block::after,
+.brand-skeleton-panel::after {
+  position: absolute;
+  inset: 0;
+  content: '';
+  transform: translateX(-100%);
+  animation: brand-shimmer 1.4s infinite;
+  background: linear-gradient(90deg, transparent, rgb(255 255 255 / 0.08), transparent);
+}
+
+.brand-skeleton-row {
+  min-height: 4.25rem;
+}
+
+.brand-skeleton-line {
+  height: 1rem;
+}
+
+.brand-skeleton-block {
+  min-height: 6.5rem;
+}
+
+.brand-skeleton-panel {
+  min-height: 5.75rem;
+}
+
+@keyframes brand-shimmer {
+  100% {
+    transform: translateX(100%);
+  }
 }

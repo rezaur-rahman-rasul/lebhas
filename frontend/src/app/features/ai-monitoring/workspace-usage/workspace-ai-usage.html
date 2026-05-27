@@ -1,0 +1,179 @@
+<app-page-header
+  eyebrow="AI monitoring"
+  title="Workspace AI usage"
+  description="Track backend-provided workspace AI usage, cost, credits, failures, and generation speed."
+>
+  <a routerLink="/ai-monitoring" class="text-sm font-medium text-brand-600 hover:text-brand-700">
+    AI dashboard
+  </a>
+  <app-status-badge tone="neutral">
+    @if (isMaster()) {
+      All workspaces
+    } @else {
+      Active workspace
+    }
+  </app-status-badge>
+  @if (permissions.canViewWorkspaceAiUsage()) {
+    <app-button
+      type="button"
+      variant="secondary"
+      icon="rotate-cw"
+      [loading]="store.loading()"
+      ariaLabel="Refresh workspace AI usage"
+      (click)="refresh()"
+    >
+      Refresh
+    </app-button>
+  }
+</app-page-header>
+
+@if (!permissions.canViewWorkspaceAiUsage()) {
+  <div class="mt-6">
+    <app-empty-state
+      icon="shield-alert"
+      tone="danger"
+      title="Workspace AI usage access is restricted"
+      description="You do not have permission to view workspace AI usage."
+    />
+  </div>
+} @else {
+  <div class="mt-6 space-y-6">
+    @if (store.loading() && !visibleUsage().length) {
+      <app-ai-monitoring-loading-state label="Loading workspace AI usage" />
+    } @else if (store.error()) {
+      <app-error-state title="Workspace AI usage could not load" [description]="store.error()!">
+        <app-button type="button" variant="secondary" icon="rotate-cw" (click)="refresh()">
+          Try again
+        </app-button>
+      </app-error-state>
+    } @else if (!visibleUsage().length) {
+      <app-ai-monitoring-empty-state
+        title="No AI usage data yet"
+        description="Once creatives are generated, analytics will appear here."
+        retryLabel="Refresh"
+        (retry)="refresh()"
+      />
+    } @else {
+      @if (highCostWorkspaces().length) {
+        <section class="rounded-lg border border-red-200 bg-red-50 p-4 text-red-900 dark:border-red-500/25 dark:bg-red-500/10 dark:text-red-100">
+          <h2 class="text-sm font-semibold">High-cost warning</h2>
+          <p class="mt-1 text-sm leading-6 text-red-800/80 dark:text-red-100/75">
+            AI cost increased unusually for this workspace.
+          </p>
+        </section>
+      }
+
+      <section class="grid gap-4 sm:grid-cols-2 xl:grid-cols-4" aria-label="Workspace AI usage summary">
+        <app-card>
+          <p class="text-sm font-medium text-muted">Generation requests</p>
+          <p class="mt-2 text-2xl font-semibold text-ink">{{ totalGenerationRequests() | number }}</p>
+        </app-card>
+        <app-card>
+          <p class="text-sm font-medium text-muted">Generated versions</p>
+          <p class="mt-2 text-2xl font-semibold text-ink">{{ totalGeneratedVersions() | number }}</p>
+        </app-card>
+        <app-card>
+          <p class="text-sm font-medium text-muted">Credits consumed</p>
+          <p class="mt-2 text-2xl font-semibold text-ink">{{ totalCreditsConsumed() | number }}</p>
+        </app-card>
+        <app-card>
+          <p class="text-sm font-medium text-muted">Estimated AI cost</p>
+          <p class="mt-2 text-2xl font-semibold text-ink">{{ totalEstimatedCost() | currency: 'USD' }}</p>
+        </app-card>
+        <app-card>
+          <p class="text-sm font-medium text-muted">Total failures</p>
+          <p class="mt-2 text-2xl font-semibold text-ink">{{ totalFailures() | number }}</p>
+        </app-card>
+        <app-card>
+          <p class="text-sm font-medium text-muted">Average generation time</p>
+          <p class="mt-2 text-2xl font-semibold text-ink">
+            @if (averageGenerationTime() !== null) {
+              {{ averageGenerationTime()! | number: '1.0-0' }} ms
+            } @else {
+              Not available
+            }
+          </p>
+        </app-card>
+        <app-card>
+          <p class="text-sm font-medium text-muted">Current scope</p>
+          <p class="mt-2 text-lg font-semibold text-ink">
+            @if (isMaster()) {
+              {{ visibleUsage().length | number }} workspace(s)
+            } @else {
+              {{ workspace.workspaceLabel() }}
+            }
+          </p>
+        </app-card>
+        <app-card>
+          <p class="text-sm font-medium text-muted">Package source</p>
+          <p class="mt-2 text-lg font-semibold text-ink">Backend reported</p>
+        </app-card>
+      </section>
+
+      <section class="grid gap-4 lg:grid-cols-2">
+        @for (usage of visibleUsage(); track usage.id) {
+          <app-card [interactive]="true">
+            <div class="flex items-start justify-between gap-4">
+              <div class="min-w-0">
+                <h2 class="truncate text-base font-semibold text-ink">{{ usage.workspaceName }}</h2>
+                <p class="mt-1 truncate text-sm text-muted">{{ usage.activePlan }}</p>
+              </div>
+              @if (usage.highCostWarning) {
+                <app-status-badge tone="red">High cost</app-status-badge>
+              } @else {
+                <app-status-badge tone="brand">Normal</app-status-badge>
+              }
+            </div>
+
+            <dl class="mt-5 grid grid-cols-2 gap-3 text-sm">
+              <div>
+                <dt class="text-xs text-muted">Requests</dt>
+                <dd class="mt-1 font-semibold text-ink">{{ usage.totalGenerationRequests | number }}</dd>
+              </div>
+              <div>
+                <dt class="text-xs text-muted">Versions</dt>
+                <dd class="mt-1 font-semibold text-ink">{{ usage.totalGeneratedVersions | number }}</dd>
+              </div>
+              <div>
+                <dt class="text-xs text-muted">Credits</dt>
+                <dd class="mt-1 font-semibold text-ink">{{ usage.totalCreditsConsumed | number }}</dd>
+              </div>
+              <div>
+                <dt class="text-xs text-muted">Cost</dt>
+                <dd class="mt-1 font-semibold text-ink">{{ usage.totalEstimatedCostUsd | currency: 'USD' }}</dd>
+              </div>
+              <div>
+                <dt class="text-xs text-muted">Failures</dt>
+                <dd class="mt-1 font-semibold text-ink">{{ usage.totalFailures | number }}</dd>
+              </div>
+              <div>
+                <dt class="text-xs text-muted">Avg time</dt>
+                <dd class="mt-1 font-semibold text-ink">{{ usage.avgGenerationTimeMs | number: '1.0-0' }} ms</dd>
+              </div>
+            </dl>
+
+            <p class="mt-5 text-xs text-muted">Updated {{ usage.updatedAt }}</p>
+          </app-card>
+        }
+      </section>
+
+      <section class="rounded-lg border border-border bg-surface p-5">
+        <h2 class="text-base font-semibold text-ink">Usage trend foundation</h2>
+        <p class="mt-1 text-sm leading-6 text-muted">
+          Recent backend usage updates are listed here. A chart can be added later if the project adopts a chart foundation.
+        </p>
+        <div class="mt-4 space-y-3">
+          @for (usage of usageTrendRows(); track usage.id) {
+            <div class="flex flex-col gap-2 rounded-md border border-border bg-panel p-3 sm:flex-row sm:items-center sm:justify-between">
+              <div class="min-w-0">
+                <p class="truncate text-sm font-medium text-ink">{{ usage.workspaceName }}</p>
+                <p class="text-xs text-muted">{{ usage.updatedAt }}</p>
+              </div>
+              <p class="text-sm font-semibold text-ink">{{ usage.totalEstimatedCostUsd | currency: 'USD' }}</p>
+            </div>
+          }
+        </div>
+      </section>
+    }
+  </div>
+}

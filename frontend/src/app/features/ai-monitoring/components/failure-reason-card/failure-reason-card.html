@@ -1,0 +1,30 @@
+<app-card [interactive]="true">
+  <div class="flex items-start justify-between gap-4">
+    <div class="min-w-0">
+      <p class="truncate text-sm font-semibold text-ink">{{ failure().layerName }}</p>
+      <p class="mt-1 truncate text-xs text-muted">{{ failure().providerName }} - {{ failure().modelName }}</p>
+    </div>
+    <app-status-badge tone="red">{{ failureType() }}</app-status-badge>
+  </div>
+
+  <p class="mt-4 text-sm leading-6 text-muted">{{ reason() }}</p>
+
+  <div class="mt-5 flex flex-wrap items-center gap-3 text-xs text-muted">
+    <span class="inline-flex items-center gap-1.5">
+      <app-icon name="rotate-cw" [size]="14" />
+      Retry {{ failure().retryAttempt }}
+    </span>
+    @if (failure().fallbackTriggered) {
+      <span class="inline-flex items-center gap-1.5 text-brand-700 dark:text-brand-100">
+        <app-icon name="route" [size]="14" />
+        {{ fallbackMessage() }}
+      </span>
+    } @else {
+      <span class="inline-flex items-center gap-1.5">
+        <app-icon name="route-off" [size]="14" />
+        {{ fallbackMessage() }}
+      </span>
+    }
+    <span>{{ failure().createdAt }}</span>
+  </div>
+</app-card>

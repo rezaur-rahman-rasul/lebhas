@@ -1,0 +1,74 @@
+<app-card>
+  <section class="profile-uploader" aria-labelledby="profile-photo-title">
+    <div class="flex flex-col gap-5 sm:flex-row sm:items-center">
+      <app-profile-avatar
+        [profile]="profile()"
+        [imageUrl]="displayImageUrl()"
+        size="xl"
+        [loading]="uploading() && !hasImage()"
+      />
+
+      <div class="min-w-0 flex-1">
+        <h3 id="profile-photo-title" class="text-base font-semibold text-ink">Profile photo</h3>
+        <p class="mt-1 text-sm leading-6 text-muted">
+          Upload a clear JPG, PNG, or WEBP image. The image is stored only through the secure backend upload flow.
+        </p>
+
+        @if (uploading()) {
+          <div class="mt-4" aria-label="Profile photo upload progress">
+            <div class="h-2 overflow-hidden rounded-full bg-panel">
+              <div class="h-full rounded-full bg-brand-500 transition-all" [style.width.%]="progressValue()"></div>
+            </div>
+            <p class="mt-2 text-xs text-muted">{{ progressValue() }}% uploaded</p>
+          </div>
+        }
+
+        @if (validationMessage() || error()) {
+          <p class="mt-3 rounded-md border border-alert-500/30 bg-alert-500/10 px-3 py-2 text-sm text-alert-200">
+            {{ validationMessage() || error() }}
+          </p>
+        }
+
+        <div class="mt-4 flex flex-col gap-2 sm:flex-row sm:flex-wrap">
+          <label
+            class="inline-flex h-10 cursor-pointer items-center justify-center gap-2 rounded-md bg-brand-600 px-4 text-sm font-medium text-white transition hover:bg-brand-700 focus-within:ring-2 focus-within:ring-brand-500 focus-within:ring-offset-2 focus-within:ring-offset-canvas"
+          >
+            <app-icon name="upload" [size]="18" />
+            Select image
+            <input
+              class="sr-only"
+              type="file"
+              accept="image/jpeg,image/png,image/webp"
+              aria-label="Select profile photo"
+              (change)="selectImage($event)"
+            />
+          </label>
+
+          @if (error()) {
+            <app-button
+              type="button"
+              variant="secondary"
+              icon="rotate-ccw"
+              ariaLabel="Retry profile photo upload"
+              (click)="retry()"
+            >
+              Retry
+            </app-button>
+          }
+
+          @if (hasImage() && canRemove()) {
+            <app-button
+              type="button"
+              variant="danger"
+              icon="trash-2"
+              ariaLabel="Remove profile photo"
+              (click)="remove()"
+            >
+              Remove photo
+            </app-button>
+          }
+        </div>
+      </div>
+    </div>
+  </section>
+</app-card>

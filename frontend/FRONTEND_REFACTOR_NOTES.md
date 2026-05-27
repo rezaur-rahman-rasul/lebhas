@@ -282,3 +282,282 @@ Batch 1 scope: audit and clean the existing Day 1 to Day 6 Angular frontend with
 - Admin/Crew UI no longer exposes provider/model details in the builder or history cards. The visible message is: `Creative quality mode is controlled by your current package.`
 - Prompt template saving reuses the existing `PromptTemplateStore`, `PromptApiService`, and `PromptTemplateForm`; the form can prefill from the current prompt output.
 - Prompt history and template tests were updated to match the backend-driven provider policy.
+
+## Batch 9 Day 5 Creative Request / Generated Version UI
+
+- Replaced the project creative-request placeholder route with an active project-scoped UI at `/projects/:projectId/creative-requests`.
+- Added one signal store for creative requests:
+  - `features/creative-requests/creative-request.store.ts`
+- Added one signal store for generated versions:
+  - `features/generated-versions/generated-version.store.ts`
+- The creative request flow uses a modal-guided form and shows:
+  - selected project context
+  - selected prompt from prompt history
+  - selected assets
+  - target platform
+  - requested format
+  - requested version count
+  - estimated credits only when backend context exposes it
+- Requested version validation reads workspace feature limits from backend-driven `WorkspaceStore`; no package names or numeric version limits are hardcoded.
+- Version-limit overflow shows the required friendly message:
+  - `Your current package allows X version(s) per request.`
+- Async generation states are normalized into user-friendly labels:
+  - Queued
+  - Generating
+  - Completed
+  - Failed
+  - Refunded
+- Generated version cards show preview, status, and capability-driven actions. Download/share availability comes from backend-provided capabilities.
+- Replaced the generated-version placeholder route with an active detail page at `/generated-versions/:generatedVersionId`.
+- Advanced generated-version metadata is kept in detail views instead of cluttering the card UI.
+
+## Batch 10 Day 6 Approval / Share / Download UI
+
+- Replaced the `/approvals` placeholder route with an active approval queue UI.
+- Added one signal store for approvals:
+  - `features/approvals/approval.store.ts`
+- Approval workflow availability now reads backend-driven workspace policy and feature toggles through `WorkspaceStore`; no frontend plan names or approval rules are hardcoded.
+- Approve, reject, and request-changes actions are shown only when backend capabilities and workspace policy allow them.
+- Approval comments use a modal flow so reviewers can act without leaving the queue.
+- Approval history is shown as a clean timeline with friendly status labels.
+- Sharing availability reads backend-driven `PlanFeaturePolicy` and generated-version capabilities. Disabled sharing shows a friendly package/subscription message instead of a technical error.
+- Share links and download links now use generated-version signed URL APIs:
+  - `GeneratedVersionApiService.getShareUrl`
+  - `GeneratedVersionApiService.getDownloadUrl`
+- Generated-version detail actions now call the signed URL helpers instead of rendering inert Share/Download controls.
+- No local filesystem assumptions, social publishing UI, payment UI, or Day 7+ billing screens were added.
+
+## Batch 11 Global UX Hardening
+
+- Shared dialogs now use mobile-safe viewport sizing, own their internal scroll area, and keep header/content structure accessible on small screens.
+- Shared drawers now restore focus, close on Escape, and expose dialog title/description IDs for assistive technology.
+- The protected dashboard shell now prevents horizontal page overflow and improves focus styling on sidebar controls.
+- Brand, product/service, and project rosters now render simple selectable cards on mobile while preserving existing table layouts for wider screens.
+- Asset upload is now usable on mobile with full-height overlay sizing, internal scrolling, accessible labels, and dark/light surface colors.
+- Creative-request generated-version actions now call signed backend share/download URL helpers from the existing generated-version store.
+- Technical backend limit text such as `PlanFeaturePolicy.maxGeneratedVersionsPerRequest` is normalized into ordinary-user package-limit copy.
+
+## Batch 12 Tests And Final Day 1 To Day 6 Refactor Notes
+
+- Added `src/app/frontend-refactor.batch-12.spec.ts` as a Day 1 to Day 6 refactor guard suite.
+- The new tests cover:
+  - active auth/workspace/permission foundation uniqueness
+  - no active `.component.*` or `.css` naming in Day 1 to Day 6 refactored code
+  - no active `*ngIf` or `*ngFor` templates
+  - public homepage default route and split login dialog
+  - dashboard quick actions
+  - brand language preference
+  - product brand selection
+  - project product/service selection
+  - asset upload mobile/accessibility foundation
+  - prompt builder responsive structure
+  - creative request version-limit copy and signed share/download behavior
+  - approval and public-share feature policy controls
+  - crew/admin/master visibility hooks
+  - workspace subscription, usage, feature policy, and dynamic limit loading
+  - loading, empty, error, retry, and inline validation foundations
+- Final shared component decisions:
+  - Keep shared UI primitives only where they reduce repeated markup or state handling.
+  - `app-dialog` and `app-drawer` own accessibility and mobile behavior.
+  - `app-empty-state`, `app-loading-state`, buttons, badges, page headers, and cards remain the common visual foundation.
+- Final state management decisions:
+  - Auth stays in `core/auth`.
+  - Workspace context, subscription, usage, and feature policy stay in `core/workspace`.
+  - Permissions stay in `core/permissions` and combine role/permission checks with workspace feature policy.
+  - Domain screens use one signal store per active domain where state is needed.
+- Final API service decisions:
+  - Active Day 1 to Day 6 domains use one API service per domain.
+  - API services unwrap the backend `ApiResponse<T>` through shared response utilities.
+  - Components do not own repeated backend response parsing.
+  - Signed URL flows are used for asset and generated-version preview/download/share.
+- Final UX simplification decisions:
+  - Keep navigation shallow and use modals/drawers when they reduce route churn.
+  - Keep forms short with required fields visible and advanced settings collapsed.
+  - Use card/list layouts for ordinary workflows and reserve tables for wider screens or data-heavy views.
+  - Keep hierarchy context visible across brand, product/service, project, asset, prompt, request, generated-version, and approval surfaces.
+- Dynamic backend behavior:
+  - No pricing package names, AI provider names, generated-version limits, approval availability, or sharing availability are hardcoded in active UI logic.
+  - Workspace subscription, plan feature policy, usage, limits, approval availability, and share availability remain backend-owned.
+  - Tests use mock dynamic backend responses only to prove policy wiring.
+- Intentionally not implemented in Day 1 to Day 6:
+  - Day 7+ billing/payment UI
+  - social publishing UI
+  - future monitoring/analytics modules
+  - Master setup screens for AI provider/pipeline configuration unless already present in inactive legacy areas
+  - full media library beyond the existing project-scoped asset workflow
+
+## Day 7 Batch 1 AI Monitoring Foundation
+
+- Added the Day 7 AI monitoring feature foundation under `features/ai-monitoring`.
+- Added protected routes:
+  - `/ai-monitoring`
+  - `/ai-monitoring/providers`
+  - `/ai-monitoring/layers`
+  - `/ai-monitoring/workspaces`
+  - `/ai-monitoring/quality`
+  - `/ai-monitoring/failures`
+- Extended the existing `PermissionStore`; no duplicate permission system was added.
+- Added AI monitoring permission hooks:
+  - `canViewAiMonitoring`
+  - `canViewProviderMetrics`
+  - `canViewLayerAnalytics`
+  - `canViewWorkspaceAiUsage`
+  - `canViewQualityScores`
+  - `canViewAiFailures`
+- Added lightweight shell pages only. They show friendly access-denied states and backend-driven data-policy copy without fake metrics.
+- Added Master navigation for AI Monitoring, Provider Health, Layer Analytics, Workspace AI Usage, and AI Failures.
+- Added Admin navigation for AI Usage and Quality Scores only when permission/policy allows.
+- CREW navigation remains hidden unless explicit AI monitoring permissions are present.
+- Added a thin `AiMonitoringApiService` and dynamic models for later Day 7 batches; no provider names, layer names, costs, quality values, limits, health statuses, or routing recommendations are hardcoded.
+- Payment, checkout, billing UI, social publishing, setup/editing screens, and Day 8+ modules were intentionally not added.
+
+## Day 7 Batch 2 AI Monitoring Models And API Service
+
+- Replaced the generic Batch 1 AI monitoring summary placeholder with strict Day 7 backend-aligned models.
+- Added enums:
+  - `ProviderHealthStatus`
+  - `AiFailureType`
+  - `QualityScoreLabel`
+- Added strict interfaces for:
+  - `AiProviderMetric`
+  - `AiProviderHealth`
+  - `AiLayerAnalytics`
+  - `WorkspaceAiUsage`
+  - `AiQualityScore`
+  - `AiFailureLog`
+  - `WorkspaceGenerationAnalytics`
+- Updated `AiMonitoringApiService` to expose one method per Day 7 backend endpoint.
+- The service reuses the centralized `ApiService` and shared `unwrapApiResponse`; no duplicate HTTP or `ApiResponse<T>` handling was added.
+- Provider names, layer names, model names, costs, quality values, statuses, limits, and recommendations remain backend-owned.
+
+## Day 7 Batch 3 AI Monitoring Signal Store
+
+- Added one AI monitoring signal store:
+  - `features/ai-monitoring/state/ai-monitoring.store.ts`
+- Store state includes provider metrics, provider health, layer analytics, workspace usage, quality scores, AI failures, date range, selected provider, selected layer, loading, and error.
+- Added computed analytics for healthy/degraded/down providers, total cost, average quality score, provider comparisons, highest-cost workspace, and recent failures.
+- Added master and workspace loader methods that reuse the single `AiMonitoringApiService`.
+- Store actions respect the existing `PermissionStore`; no duplicate permission or state system was added.
+- Friendly error mapping converts backend monitoring conditions into ordinary-user messages.
+- Initial state remains empty arrays and null filters. No fake analytics or hardcoded provider/layer values were introduced.
+
+## Day 7 Batch 4 AI Monitoring Shared Components
+
+- Added reusable AI monitoring presentation components under `features/ai-monitoring/components`.
+- Components reuse existing shared primitives such as `app-card`, `app-button`, `app-empty-state`, `app-loading-state`, `app-status-badge`, and `app-icon`.
+- Added cards and badges for provider health, provider metrics, layer cost, quality score, AI cost summary, routing mode, and failure reasons.
+- Added a keyboard-friendly AI analytics filter bar with date range, provider, layer, refresh, and clear controls.
+- Added AI monitoring empty/loading states with ordinary-user copy and skeleton card foundations.
+- Components are standalone, use `templateUrl`, `styleUrl`, SCSS, Tailwind utility classes, Lucide-backed icons, and Angular `@if`/`@for`.
+- Provider and layer names remain input/backend-driven. No fake analytics, payment UI, checkout UI, social publishing UI, or Day 8+ modules were added.
+
+## Day 7 Batch 5 AI Monitoring Main Dashboard
+
+- Implemented the `/ai-monitoring` Master/System Owner dashboard in `features/ai-monitoring/dashboard`.
+- The dashboard loads data through the single `AiMonitoringStore` and stays permission-aware through the existing `PermissionStore`.
+- Added summary cards for total AI requests, total AI cost, average quality score, average generation time, provider failure rate, best performing provider, cheapest provider, most reliable provider, and highest cost workspace.
+- Added dynamic routing comparison summaries for cheapest, fastest, best quality, most reliable, and best quality-to-cost provider using backend-provided metrics.
+- Routing policy editing is intentionally not exposed in this monitoring dashboard.
+- Backend routing recommendations are shown only when available; no frontend-only recommendation is invented.
+- Added filter foundation, refresh action, loading/empty/error/retry states, and recent failure previews with friendly wording.
+- The dashboard avoids Redis/Kafka terminology, hardcoded provider/layer names, fake analytics, payment UI, checkout UI, publishing UI, and Day 8+ modules.
+
+## Day 7 Batch 6 Provider Metrics And Health UI
+
+- Implemented provider health at `/ai-monitoring/providers`.
+- Added provider metrics at `/ai-monitoring/providers/metrics`.
+- Both pages load data through the existing `AiMonitoringStore`; no duplicate provider service, model, or store was added.
+- Provider Metrics shows backend-provided provider name, model, total requests, successful requests, failed requests, average latency, average cost, average quality score, uptime, last success, last failure, and status context.
+- Provider Health shows active, degraded, failed, and cooldown provider summaries, critical issues at the top, failure reason, recovery status, last checked time, fallback availability, and backend-provided recommended action.
+- Both pages are permission-aware through `PermissionStore`, include refresh/filter foundations, and support loading, empty, error, and retry states.
+- Detailed provider metrics use a table on desktop and cards on mobile; health details include cards plus a responsive detail table.
+- No provider names, setup/edit controls, routing policy editing, fake analytics, payment UI, checkout UI, publishing UI, or Day 8+ modules were added.
+
+## Day 7 Batch 7 Layer Analytics UI
+
+- Implemented the `/ai-monitoring/layers` layer analytics page.
+- The page uses `AiMonitoringStore` and the single `AiMonitoringApiService`; no duplicate layer service, model, or store was added.
+- Added permission-aware access through the existing `PermissionStore`.
+- Added backend-driven provider and layer filter foundations.
+- Added summary cards for total executions, total layer cost, average quality, and failure count.
+- Added layer cards plus a detailed table for layer name, layer type, selected provider, model name, total executions, success count, failure count, average execution time, average cost, and average quality score.
+- Added friendly issue summaries for costly, slow, and failing layers:
+  - This layer is costing more than expected.
+  - This layer is slower than usual.
+  - This layer failed several times recently.
+- Layer routing policy setup/editing is intentionally not exposed in this monitoring page.
+- No provider names, layer names, setup screens, fake analytics, payment UI, checkout UI, publishing UI, or Day 8+ modules were added.
+
+## Day 7 Batch 8 Workspace AI Usage And Quality Scores UI
+
+- Implemented `/ai-monitoring/workspaces` for workspace AI usage.
+- Implemented `/ai-monitoring/quality` for generated-version quality scores.
+- Both pages use `AiMonitoringStore`, `AiMonitoringApiService`, `PermissionStore`, and the existing `WorkspaceStore`; no duplicate workspace context logic was added.
+- MASTER loads all workspace usage and quality score data.
+- ADMIN and other permitted non-MASTER roles load only the active workspace by using the existing active workspace context.
+- Workspace usage shows workspace name, backend-provided active plan, generation requests, generated versions, credits consumed, estimated AI cost, failures, average generation time, update list foundation, and high-cost warnings.
+- Quality scores show generated-version references, overall score, text readability, product preservation, branding, Bangla typography, composition, notes, and created date.
+- Quality labels are displayed only when backend sends `qualityLabel`; the frontend does not invent score bands.
+- Loading, empty, error, retry, responsive cards, and friendly high-cost copy were added.
+- No hardcoded plan names, provider names, fake analytics, payment UI, checkout UI, publishing UI, or Day 8+ modules were added.
+
+## Day 7 Batch 9 AI Failure Recovery UI
+
+- Implemented `/ai-monitoring/failures`.
+- The page uses `AiMonitoringStore`, `AiMonitoringApiService`, `PermissionStore`, and existing `WorkspaceStore`; no duplicate failure service, model, or store was added.
+- MASTER loads all AI failures through the master failures endpoint.
+- ADMIN and other permitted non-MASTER roles load active-workspace generation analytics and show the backend-provided failures for that workspace.
+- Added provider/layer filter foundation, urgent-first sorting, summary cards, provider/layer grouping, responsive failure cards, and a detailed failure table.
+- Failure cards and tables show creative request reference, layer, provider, model, failure type, friendly failure reason, retry attempt, fallback status, and created date.
+- Failure type wording is ordinary-user-friendly:
+  - This tool took too long to respond.
+  - This tool is temporarily busy.
+  - This tool is currently unavailable.
+  - This tool returned an unusable result.
+  - Output quality was not good enough.
+  - This request exceeded the allowed AI cost.
+  - Something went wrong while generating this creative.
+- Fallback status uses the requested copy: Backup tool was used / No backup tool was used.
+- Manual retry actions are intentionally not implemented because no backend retry API exists in Day 7.
+- No provider names, layer names, fake retry flow, fake analytics, payment UI, checkout UI, publishing UI, or Day 8+ modules were added.
+
+## Day 7 Batch 10 Global UX Hardening
+
+- Hardened Day 7 AI monitoring screens/components only.
+- Desktop detail tables for provider health, layer analytics, and AI failures are hidden on smaller screens where responsive cards/lists already provide the same operational view.
+- Kept provider metrics as desktop table plus mobile cards.
+- Added ARIA labels to Day 7 provider status and routing mode badges.
+- Preserved keyboard-friendly date/provider/layer filter controls and refresh/clear actions.
+- Replaced technical monitoring phrases with friendly copy where they may surface in provider health or failure cards:
+  - This provider is slower than usual.
+  - This tool failed too many times recently.
+  - AI cost increased unusually for this workspace.
+- Failure cards no longer display raw backend failure text for known failure types; they use ordinary-user-friendly failure messages.
+- Existing loading, empty, error, and retry states remain consistent across Day 7 pages.
+- No Day 1 to Day 6 screens were changed, and no new design system, fake analytics, setup screens, payment UI, checkout UI, publishing UI, or Day 8+ modules were added.
+
+## Day 7 Batch 11 Frontend Tests
+
+- Added `features/ai-monitoring/ai-monitoring.day7.spec.ts`.
+- Covered Day 7 signal-store behavior with mock backend responses:
+  - cheapest provider
+  - fastest provider
+  - best quality provider
+  - date range filter state
+  - provider filter state
+  - workspace usage, quality scores, and workspace generation analytics loading
+- Added Day 7 UI guard coverage for:
+  - MASTER dashboard access
+  - CREW/no-permission hidden access state
+  - provider metrics rendering
+  - provider health status badge accessibility
+  - dynamic layer analytics rendering
+  - ADMIN workspace usage rendering
+  - quality scores and Bangla typography display
+  - AI failure list and fallback status copy
+  - loading, empty, error, and retry states
+  - mobile overflow-safe layout patterns
+  - no hardcoded provider names in production AI monitoring files
+  - no `*ngIf` or `*ngFor` in Day 7 templates
+  - AI monitoring API service using shared `ApiResponse<T>` unwrapping
+- Test mocks use sample backend values only inside the spec; production components remain backend-driven.

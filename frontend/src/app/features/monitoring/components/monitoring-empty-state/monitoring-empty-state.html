@@ -1,0 +1,10 @@
+<section
+  class="flex min-h-56 flex-col items-center justify-center rounded-lg border border-dashed border-border bg-surface px-6 py-10 text-center"
+  aria-live="polite"
+>
+  <span class="inline-flex size-11 items-center justify-center rounded-lg border border-border bg-panel text-muted">
+    <app-icon [name]="icon()" [size]="20" />
+  </span>
+  <h2 class="mt-4 text-base font-semibold text-ink">{{ title() }}</h2>
+  <p class="mt-2 max-w-md text-sm leading-6 text-muted">{{ description() }}</p>
+</section>

@@ -1,0 +1,105 @@
+<section
+  class="grid gap-3 rounded-lg border border-border bg-surface p-4 lg:grid-cols-[repeat(3,minmax(9rem,1fr))_repeat(2,minmax(8rem,0.8fr))_auto] lg:items-end"
+  aria-label="Audit log filters"
+>
+  <label class="grid gap-2 text-sm text-ink">
+    <span class="font-medium">Module</span>
+    <input
+      type="search"
+      class="h-10 min-w-0 rounded-md border border-border bg-panel px-3 text-sm text-ink outline-none transition placeholder:text-muted focus:border-brand-500 focus:ring-2 focus:ring-brand-500/30"
+      placeholder="Module"
+      [value]="selectedModule() || ''"
+      (input)="selectedModuleChange.emit(updateText($any($event.target).value))"
+    />
+  </label>
+
+  <label class="grid gap-2 text-sm text-ink">
+    <span class="font-medium">Action</span>
+    <input
+      type="search"
+      class="h-10 min-w-0 rounded-md border border-border bg-panel px-3 text-sm text-ink outline-none transition placeholder:text-muted focus:border-brand-500 focus:ring-2 focus:ring-brand-500/30"
+      placeholder="Action"
+      [value]="selectedAction() || ''"
+      (input)="selectedActionChange.emit(updateText($any($event.target).value))"
+    />
+  </label>
+
+  <label class="grid gap-2 text-sm text-ink">
+    <span class="font-medium">Actor</span>
+    <input
+      type="search"
+      class="h-10 min-w-0 rounded-md border border-border bg-panel px-3 text-sm text-ink outline-none transition placeholder:text-muted focus:border-brand-500 focus:ring-2 focus:ring-brand-500/30"
+      placeholder="User or member ID"
+      [value]="selectedActor() || ''"
+      (input)="selectedActorChange.emit(updateText($any($event.target).value))"
+    />
+  </label>
+
+  <label class="grid gap-2 text-sm text-ink">
+    <span class="font-medium">Severity</span>
+    <select
+      class="h-10 min-w-0 rounded-md border border-border bg-panel px-3 text-sm text-ink outline-none transition focus:border-brand-500 focus:ring-2 focus:ring-brand-500/30"
+      [value]="selectedSeverity() || ''"
+      (change)="selectedSeverityChange.emit($any($event.target).value || null)"
+    >
+      <option value="">All levels</option>
+      @for (severity of severities; track severity) {
+        <option [value]="severity">{{ severity }}</option>
+      }
+    </select>
+  </label>
+
+  <div class="grid gap-2 sm:grid-cols-2 lg:grid-cols-1">
+    <label class="grid gap-2 text-sm text-ink">
+      <span class="font-medium">From</span>
+      <input
+        type="date"
+        class="h-10 min-w-0 rounded-md border border-border bg-panel px-3 text-sm text-ink outline-none transition focus:border-brand-500 focus:ring-2 focus:ring-brand-500/30"
+        [value]="selectedDateRange()?.from || ''"
+        (change)="updateFrom($any($event.target).value)"
+      />
+    </label>
+    <label class="grid gap-2 text-sm text-ink lg:hidden">
+      <span class="font-medium">To</span>
+      <input
+        type="date"
+        class="h-10 min-w-0 rounded-md border border-border bg-panel px-3 text-sm text-ink outline-none transition focus:border-brand-500 focus:ring-2 focus:ring-brand-500/30"
+        [value]="selectedDateRange()?.to || ''"
+        (change)="updateTo($any($event.target).value)"
+      />
+    </label>
+  </div>
+
+  <div class="flex flex-col gap-2 sm:flex-row lg:flex-col">
+    <label class="hidden gap-2 text-sm text-ink lg:grid">
+      <span class="font-medium">To</span>
+      <input
+        type="date"
+        class="h-10 min-w-0 rounded-md border border-border bg-panel px-3 text-sm text-ink outline-none transition focus:border-brand-500 focus:ring-2 focus:ring-brand-500/30"
+        [value]="selectedDateRange()?.to || ''"
+        (change)="updateTo($any($event.target).value)"
+      />
+    </label>
+    <div class="flex gap-2">
+      <app-button
+        type="button"
+        variant="secondary"
+        icon="rotate-cw"
+        [loading]="loading()"
+        ariaLabel="Refresh audit logs"
+        (click)="refresh.emit()"
+      >
+        Refresh
+      </app-button>
+      <app-button
+        type="button"
+        variant="ghost"
+        icon="x"
+        ariaLabel="Clear audit filters"
+        (click)="clear.emit()"
+      >
+        Clear
+      </app-button>
+    </div>
+  </div>
+</section>

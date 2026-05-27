@@ -1,0 +1,123 @@
+<app-page-header
+  eyebrow="Master"
+  title="Payment providers"
+  description="Manage backend-supported payment providers and their payment session priority."
+>
+  @if (permissions.canManagePaymentProviders()) {
+    <app-button type="button" variant="secondary" icon="rotate-cw" [loading]="store.loading()" ariaLabel="Refresh payment providers" (click)="refresh()">
+      Refresh
+    </app-button>
+    <app-button type="button" icon="plus" ariaLabel="Create payment provider" (click)="openCreate()">
+      Add provider
+    </app-button>
+  }
+</app-page-header>
+
+@if (accessDenied()) {
+  <div class="mt-6">
+    <app-empty-state
+      icon="shield-alert"
+      tone="danger"
+      title="You do not have access to payment provider settings."
+      description="Please contact the system owner if you need access."
+    />
+  </div>
+} @else {
+  <div class="mt-6 space-y-6">
+    <app-card>
+      <div class="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+        <div>
+          <p class="text-sm text-muted">Active providers</p>
+          <p class="mt-1 text-2xl font-semibold text-ink">{{ store.activeProviders().length }}</p>
+        </div>
+        <div>
+          <p class="text-sm text-muted">Disabled providers</p>
+          <p class="mt-1 text-2xl font-semibold text-ink">{{ store.disabledProviders().length }}</p>
+        </div>
+        <div>
+          <p class="text-sm text-muted">Sandbox ready</p>
+          <p class="mt-1 text-2xl font-semibold text-ink">{{ store.sandboxProviders().length }}</p>
+        </div>
+        <div>
+          <p class="text-sm text-muted">Live ready</p>
+          <p class="mt-1 text-2xl font-semibold text-ink">{{ store.liveProviders().length }}</p>
+        </div>
+      </div>
+      <p class="mt-4 text-sm leading-6 text-muted">
+        Higher priority providers are tried first during payment session creation.
+      </p>
+    </app-card>
+
+    @if (store.loading() && !hasProviders()) {
+      <app-payment-loading-state label="Loading payment providers" />
+    } @else if (store.error()) {
+      <app-error-state title="Payment providers could not load" [description]="store.error()!">
+        <app-button type="button" variant="secondary" icon="rotate-cw" ariaLabel="Retry loading payment providers" (click)="refresh()">
+          Try again
+        </app-button>
+      </app-error-state>
+    } @else if (!hasProviders()) {
+      <app-payment-empty-state
+        icon="credit-card"
+        title="No payment providers configured yet"
+        description="No payment providers configured yet. Add a provider to start accepting payments."
+        retryLabel="Refresh"
+        (retry)="refresh()"
+      />
+    } @else {
+      <section class="grid gap-4 xl:grid-cols-2" aria-label="Payment provider list">
+        @for (provider of providers(); track provider.id) {
+          <div class="space-y-3">
+            <app-payment-provider-card
+              [provider]="provider"
+              (edit)="openEdit($event)"
+              (configure)="openEdit($event)"
+            />
+            <div class="flex justify-end">
+              <app-button
+                type="button"
+                [variant]="provider.isEnabled ? 'danger' : 'secondary'"
+                size="sm"
+                [icon]="provider.isEnabled ? 'pause-circle' : 'play-circle'"
+                [attr.aria-label]="provider.isEnabled ? 'Disable payment provider' : 'Enable payment provider'"
+                (click)="requestToggleProvider(provider)"
+              >
+                {{ provider.isEnabled ? 'Disable' : 'Enable' }}
+              </app-button>
+            </div>
+          </div>
+        }
+      </section>
+    }
+  </div>
+}
+
+@if (pendingDisableProvider()) {
+  <app-card>
+    <div class="fixed inset-x-4 bottom-4 z-50 mx-auto max-w-xl rounded-lg border border-red-200 bg-surface p-5 shadow-panel dark:border-red-500/25">
+      <h2 class="text-base font-semibold text-ink">Disable active provider?</h2>
+      <p class="mt-2 text-sm leading-6 text-muted">
+        Disabling {{ pendingDisableProvider()!.name }} may stop payment sessions from using this provider.
+      </p>
+      <div class="mt-4 flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
+        <app-button type="button" variant="ghost" icon="x" ariaLabel="Cancel disabling provider" (click)="cancelDisable()">Cancel</app-button>
+        <app-button type="button" variant="danger" icon="pause-circle" ariaLabel="Confirm disabling provider" (click)="confirmDisable()">Disable provider</app-button>
+      </div>
+    </div>
+  </app-card>
+}
+
+<app-drawer
+  [open]="drawerOpen()"
+  [title]="drawerTitle()"
+  description="Provider records are saved by backend APIs. Do not enter provider secrets here."
+  ariaLabel="Payment provider form"
+  (closed)="closeDrawer()"
+>
+  <app-payment-provider-form
+    [provider]="selectedProvider()"
+    [loading]="store.loading()"
+    (submitted)="saveProvider($event)"
+    (cancelled)="closeDrawer()"
+  />
+</app-drawer>

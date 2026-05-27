@@ -1,0 +1,103 @@
+<section class="mx-auto flex w-full max-w-7xl flex-col gap-6 px-4 py-6 sm:px-6 lg:px-8">
+  <app-page-header
+    eyebrow="Workspace updates"
+    title="Notifications"
+    description="Important updates for creative requests, approvals, payments, usage, and system alerts."
+  >
+    @if (!accessDenied()) {
+      <app-unread-count-pill [count]="unreadCount()" />
+      @if (permissions.canManageNotificationPreferences()) {
+        <a
+          class="inline-flex h-10 items-center justify-center gap-2 rounded-md border border-border bg-surface px-4 text-sm font-medium text-ink transition hover:bg-panel focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500"
+          routerLink="/notifications/preferences"
+          aria-label="Open notification preferences"
+        >
+          <span class="truncate">
+          Preferences
+          </span>
+        </a>
+      }
+      <app-button
+        type="button"
+        variant="secondary"
+        icon="circle-check"
+        [disabled]="unreadCount() === 0 || store.loading()"
+        ariaLabel="Mark all notifications as read"
+        (click)="markAllAsRead()"
+      >
+        Mark all as read
+      </app-button>
+    }
+  </app-page-header>
+
+  @if (accessDenied()) {
+    <app-notification-empty-state
+      icon="lock-keyhole"
+      title="You do not have access to notifications."
+      description="Please contact your workspace admin if you need access."
+    />
+  } @else {
+    <app-notification-filter-bar
+      [selectedType]="store.selectedType()"
+      [selectedPriority]="store.selectedPriority()"
+      [unreadOnly]="store.unreadOnly()"
+      [selectedDate]="selectedDate()"
+      [loading]="store.loading()"
+      (selectedTypeChange)="updateType($event)"
+      (selectedPriorityChange)="updatePriority($event)"
+      (unreadOnlyChange)="updateUnreadOnly($event)"
+      (selectedDateChange)="updateDate($event)"
+      (refresh)="refresh()"
+      (clear)="clearFilters()"
+    />
+
+    @if (store.error()) {
+      <app-error-state
+        title="Notifications could not be loaded"
+        [description]="store.error() || 'Please try again.'"
+      >
+        <app-button
+          type="button"
+          variant="secondary"
+          icon="rotate-cw"
+          ariaLabel="Retry loading notifications"
+          (click)="clearError(); refresh()"
+        >
+          Retry
+        </app-button>
+      </app-error-state>
+    }
+
+    @if (referenceMessage()) {
+      <p class="rounded-lg border border-border bg-panel px-4 py-3 text-sm text-muted" role="status">
+        {{ referenceMessage() }}
+      </p>
+    }
+
+    @if (store.loading() && !hasNotifications()) {
+      <app-notification-loading-state />
+    } @else if (!hasNotifications()) {
+      <app-notification-empty-state />
+    } @else {
+      <section class="grid gap-3" aria-label="Notification list">
+        @if (criticalCount() > 0) {
+          <div class="flex flex-wrap items-center gap-2 rounded-lg border border-alert-500/20 bg-alert-500/10 px-4 py-3">
+            <app-notification-type-icon [notificationType]="'SYSTEM_ALERT'" />
+            <p class="text-sm text-ink">
+              {{ criticalCount() }} notification{{ criticalCount() === 1 ? '' : 's' }} need attention.
+            </p>
+          </div>
+        }
+
+        @for (notification of store.notifications(); track notification.id) {
+          <app-notification-card
+            [notification]="notification"
+            [markingRead]="store.loading()"
+            (markAsRead)="markAsRead($event)"
+            (referenceSelected)="openReference($event)"
+          />
+        }
+      </section>
+    }
+  }
+</section>

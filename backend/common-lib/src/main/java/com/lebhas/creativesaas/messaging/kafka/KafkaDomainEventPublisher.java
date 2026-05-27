@@ -1,12 +1,14 @@
 package com.lebhas.creativesaas.messaging.kafka;
 
 import com.lebhas.creativesaas.common.exception.KafkaPublishingException;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.kafka.core.KafkaTemplate;
 import org.springframework.stereotype.Component;
 import org.springframework.util.StringUtils;
 
 @Component
+@ConditionalOnProperty(prefix = "platform.kafka", name = "enabled", havingValue = "true", matchIfMissing = true)
 public class KafkaDomainEventPublisher implements DomainEventPublisher {
 
     private final KafkaTemplate<String, Object> kafkaTemplate;

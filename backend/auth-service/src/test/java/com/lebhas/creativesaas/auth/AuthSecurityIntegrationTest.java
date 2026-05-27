@@ -5,6 +5,10 @@ import com.lebhas.creativesaas.identity.domain.UserEntity;
 import com.lebhas.creativesaas.identity.domain.UserStatus;
 import com.lebhas.creativesaas.identity.infrastructure.persistence.RefreshTokenRepository;
 import com.lebhas.creativesaas.identity.infrastructure.persistence.UserRepository;
+import com.lebhas.creativesaas.profile.domain.PreferredLanguage;
+import com.lebhas.creativesaas.profile.domain.ThemePreference;
+import com.lebhas.creativesaas.profile.infrastructure.persistence.UserAccountSettingsRepository;
+import com.lebhas.creativesaas.profile.infrastructure.persistence.UserProfileRepository;
 import io.restassured.RestAssured;
 import io.restassured.http.ContentType;
 import org.junit.jupiter.api.BeforeEach;
@@ -25,6 +29,7 @@ import org.testcontainers.junit.jupiter.Testcontainers;
 import java.util.Map;
 
 import static io.restassured.RestAssured.given;
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.hamcrest.Matchers.equalTo;
 
 @Testcontainers(disabledWithoutDocker = true)
@@ -64,6 +69,12 @@ class AuthSecurityIntegrationTest {
     private RefreshTokenRepository refreshTokenRepository;
 
     @Autowired
+    private UserProfileRepository userProfileRepository;
+
+    @Autowired
+    private UserAccountSettingsRepository userAccountSettingsRepository;
+
+    @Autowired
     private PasswordEncoder passwordEncoder;
 
     @Autowired
@@ -72,6 +83,8 @@ class AuthSecurityIntegrationTest {
     @BeforeEach
     void setUp() {
         refreshTokenRepository.deleteAll();
+        userProfileRepository.deleteAll();
+        userAccountSettingsRepository.deleteAll();
         userRepository.deleteAll();
         redisTemplate.getConnectionFactory().getConnection().serverCommands().flushAll();
         RestAssured.baseURI = "http://localhost";
@@ -141,5 +154,41 @@ class AuthSecurityIntegrationTest {
                 .then()
                 .statusCode(429)
                 .body("errors[0].code", equalTo("AUTH-429-01"));
+    }
+
+    @Test
+    void shouldProvisionProfileAndAccountSettingsAfterRegistration() {
+        given()
+                .contentType(ContentType.JSON)
+                .body(Map.of(
+                        "firstName", "Ariana",
+                        "lastName", "Rahman",
+                        "email", "ariana@example.com",
+                        "phone", "+8801700000000",
+                        "password", "CorrectPassword!1"))
+                .when()
+                .post("/api/v1/auth/register")
+                .then()
+                .statusCode(200)
+                .body("success", equalTo(true))
+                .body("data.user.email", equalTo("ariana@example.com"));
+
+        UserEntity user = userRepository.findByEmailIgnoreCaseAndDeletedFalse("ariana@example.com")
+                .orElseThrow();
+
+        var profile = userProfileRepository.findByUserIdAndDeletedFalse(user.getId()).orElseThrow();
+        assertThat(profile.getUserId()).isEqualTo(user.getId());
+        assertThat(profile.getFirstName()).isEqualTo("Ariana");
+        assertThat(profile.getLastName()).isEqualTo("Rahman");
+        assertThat(profile.getDisplayName()).isEqualTo("Ariana Rahman");
+        assertThat(profile.getPhoneNumber()).isEqualTo("+8801700000000");
+
+        var settings = userAccountSettingsRepository.findByUserIdAndDeletedFalse(user.getId()).orElseThrow();
+        assertThat(settings.getUserId()).isEqualTo(user.getId());
+        assertThat(settings.getPreferredLanguage()).isEqualTo(PreferredLanguage.BOTH);
+        assertThat(settings.getThemePreference()).isEqualTo(ThemePreference.SYSTEM);
+        assertThat(settings.isNotificationEmailEnabled()).isTrue();
+        assertThat(settings.isNotificationInAppEnabled()).isTrue();
+        assertThat(settings.isMarketingEmailEnabled()).isFalse();
     }
 }

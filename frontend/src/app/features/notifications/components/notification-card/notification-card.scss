@@ -1,0 +1,25 @@
+:host {
+  display: block;
+  min-width: 0;
+}
+
+.notification-card {
+  min-width: 0;
+}
+
+.notification-card--unread {
+  position: relative;
+}
+
+.notification-card--unread::before {
+  position: absolute;
+  inset: 0 auto 0 -1.25rem;
+  width: 0.25rem;
+  border-radius: 999px;
+  background: rgb(37 99 235);
+  content: '';
+}
+
+.notification-card--critical::before {
+  background: rgb(220 38 38);
+}

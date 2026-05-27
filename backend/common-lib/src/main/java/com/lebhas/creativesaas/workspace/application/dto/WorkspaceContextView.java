@@ -5,6 +5,7 @@ import com.lebhas.creativesaas.common.security.Role;
 import com.lebhas.creativesaas.pricing.application.dto.PlanFeaturePolicyView;
 import com.lebhas.creativesaas.pricing.application.dto.PricingPlanView;
 import com.lebhas.creativesaas.pricing.application.dto.WorkspaceSubscriptionView;
+import com.lebhas.creativesaas.profile.application.dto.SafeProfileDisplayView;
 
 import java.math.BigDecimal;
 import java.time.Instant;
@@ -14,6 +15,7 @@ import java.util.UUID;
 public record WorkspaceContextView(
         UUID workspaceId,
         String workspaceName,
+        SafeProfileDisplayView currentUser,
         Role role,
         Set<Permission> permissions,
         boolean canDownloadCreative,

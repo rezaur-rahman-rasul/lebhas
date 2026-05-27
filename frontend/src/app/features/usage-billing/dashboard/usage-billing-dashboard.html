@@ -1,0 +1,224 @@
+<app-page-header
+  eyebrow="Workspace"
+  title="Usage & Billing"
+  description="Track credits, package limits, monthly usage, and recent activity for the active workspace."
+>
+  <a routerLink="/dashboard" class="text-sm font-medium text-brand-600 hover:text-brand-700">
+    Dashboard
+  </a>
+  <app-status-badge tone="neutral">{{ workspace.workspaceLabel() }}</app-status-badge>
+  @if (permissions.canViewUsageBilling()) {
+    <app-button
+      type="button"
+      variant="secondary"
+      icon="rotate-cw"
+      [loading]="store.loading()"
+      ariaLabel="Refresh usage and billing dashboard"
+      (click)="refresh()"
+    >
+      Refresh
+    </app-button>
+  }
+</app-page-header>
+
+@if (accessDenied()) {
+  <div class="mt-6">
+    <app-empty-state
+      icon="shield-alert"
+      tone="danger"
+      title="You do not have access to usage and billing."
+      description="Please contact your workspace admin if you need access."
+    />
+  </div>
+} @else if (!activeWorkspaceId()) {
+  <div class="mt-6">
+    <app-usage-empty-state
+      icon="building-2"
+      title="Select a workspace"
+      description="Choose a workspace to view its usage, credits, and package limits."
+    />
+  </div>
+} @else {
+  <div class="mt-6 space-y-6">
+    <app-usage-filter-bar
+      [selectedMonth]="store.selectedMonth()"
+      [selectedUsageType]="store.selectedUsageType()"
+      [selectedTransactionType]="store.selectedTransactionType()"
+      [loading]="store.loading()"
+      (selectedMonthChange)="updateMonth($event)"
+      (selectedUsageTypeChange)="updateUsageType($event)"
+      (selectedTransactionTypeChange)="updateTransactionType($event)"
+      (refresh)="refresh()"
+      (clear)="clearFilters()"
+    />
+
+    @if (store.loading() && !currentUsage()) {
+      <app-usage-loading-state />
+    } @else if (store.error()) {
+      <app-error-state title="Usage and billing data could not load" [description]="store.error()!">
+        <app-button type="button" variant="secondary" icon="rotate-cw" ariaLabel="Retry loading usage and billing data" (click)="refresh()">
+          Try again
+        </app-button>
+      </app-error-state>
+    } @else if (!currentUsage()) {
+      <app-usage-empty-state retryLabel="Refresh" (retry)="refresh()" />
+    } @else {
+      <section class="grid gap-4 xl:grid-cols-[minmax(0,1fr)_24rem]" aria-label="Current package and credit summary">
+        <app-credit-balance-card
+          [summary]="currentUsage()!"
+          [availableCredits]="store.availableCredits()"
+        />
+
+        <app-card>
+          <div class="flex items-start justify-between gap-4">
+            <div class="min-w-0">
+              <p class="text-sm font-medium text-muted">Active package</p>
+              <h2 class="mt-2 text-xl font-semibold text-ink">{{ activePackageName() }}</h2>
+              <p class="mt-2 text-sm leading-6 text-muted">
+                Subscription status: {{ subscriptionStatus() }}
+              </p>
+              <p class="mt-4 text-sm leading-6 text-muted">
+                {{ planUtilizationNote() }}
+              </p>
+            </div>
+            <app-status-badge tone="brand">Current month</app-status-badge>
+          </div>
+
+          @if (creditLimitExceeded()) {
+            <p class="mt-5 rounded-md border border-red-200 bg-red-50 p-3 text-sm text-red-900 dark:border-red-500/25 dark:bg-red-500/10 dark:text-red-100">
+              Your monthly credit limit has been reached.
+            </p>
+          } @else if (store.isCreditLimitNear()) {
+            <p class="mt-5 rounded-md border border-amber-200 bg-amber-50 p-3 text-sm text-amber-900 dark:border-amber-500/25 dark:bg-amber-500/10 dark:text-amber-100">
+              You are close to your current package limit.
+            </p>
+          }
+        </app-card>
+      </section>
+
+      <section class="grid gap-4 sm:grid-cols-2 xl:grid-cols-4" aria-label="Current month usage">
+        @for (tile of summaryTiles(); track tile.label) {
+          <app-usage-summary-card
+            [label]="tile.label"
+            [value]="tile.value"
+            [format]="tile.format"
+            [icon]="tile.icon"
+            [helperText]="tile.helperText"
+            [tone]="tile.tone"
+          />
+        }
+      </section>
+
+      @if (canShowPackageLimits()) {
+        <section class="grid gap-4 xl:grid-cols-[minmax(0,1fr)_24rem]" aria-label="Package limits">
+          <app-plan-utilization-card
+            [packageName]="activePackageName()"
+            [generatedVersionUsage]="generatedVersionLimit()"
+            [creditUsage]="creditLimit()"
+            [storageUsage]="storageLimit()"
+            [publicShareAvailable]="publicShareAvailable()"
+            [approvalAvailable]="approvalAvailable()"
+            [videoGenerationAvailable]="videoGenerationAvailable()"
+          />
+
+          <app-card>
+            <h2 class="text-base font-semibold text-ink">Quick limit view</h2>
+            <p class="mt-1 text-sm leading-6 text-muted">
+              Simple progress bars show how close this workspace is to backend-provided package limits.
+            </p>
+
+            <div class="mt-5 space-y-5">
+              @if (creditLimit()) {
+                <app-usage-progress-bar
+                  label="Credit usage"
+                  [current]="creditLimit()!.used"
+                  [limit]="creditLimit()!.limit"
+                  [percent]="store.creditUsagePercent()"
+                  [nearLimit]="store.isCreditLimitNear()"
+                  [exceeded]="creditLimitExceeded()"
+                />
+              }
+
+              @if (storageLimit()) {
+                <app-usage-progress-bar
+                  label="Storage usage"
+                  [current]="storageLimit()!.used"
+                  [limit]="storageLimit()!.limit"
+                  [percent]="store.storageUsagePercent()"
+                  [nearLimit]="store.isStorageLimitNear()"
+                  [exceeded]="isExceeded(storageLimit())"
+                />
+              }
+
+              @if (generatedVersionLimit()) {
+                <app-usage-progress-bar
+                  label="Generated versions"
+                  [current]="generatedVersionLimit()!.used"
+                  [limit]="generatedVersionLimit()!.limit"
+                  [percent]="store.generatedVersionUsagePercent()"
+                  [nearLimit]="store.generatedVersionUsagePercent() !== null && store.generatedVersionUsagePercent()! >= 80"
+                  [exceeded]="generatedVersionLimitExceeded()"
+                />
+              }
+            </div>
+          </app-card>
+        </section>
+      }
+
+      <section class="grid gap-6 xl:grid-cols-2" aria-label="Recent usage activity">
+        <div class="space-y-3">
+          <div class="flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
+            <div>
+              <h2 class="text-base font-semibold text-ink">Credit history</h2>
+              <p class="mt-1 text-sm text-muted">Recent credit reservations, final charges, and refunds.</p>
+            </div>
+          </div>
+
+          @if (!canShowCreditHistory()) {
+            <app-usage-empty-state
+              icon="shield-alert"
+              title="You do not have access to usage and billing."
+              description="Please contact your workspace admin if you need access."
+            />
+          } @else if (store.recentTransactions().length) {
+            <div class="space-y-3">
+              @for (transaction of store.recentTransactions(); track transaction.id) {
+                <app-credit-ledger-card [entry]="transaction" />
+              }
+            </div>
+          } @else {
+            <app-usage-empty-state
+              title="No credit history yet"
+              description="Credit reservations, final charges, and refunds will appear after creative generation starts."
+            />
+          }
+        </div>
+
+        <div class="space-y-3">
+          <div class="flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
+            <div>
+              <h2 class="text-base font-semibold text-ink">Usage history</h2>
+              <p class="mt-1 text-sm text-muted">Recent usage charges and workspace activity.</p>
+            </div>
+          </div>
+
+          @if (store.recentUsageLogs().length) {
+            <div class="space-y-3">
+              @for (usageLog of store.recentUsageLogs(); track usageLog.id) {
+                <app-usage-log-card [log]="usageLog" />
+              }
+            </div>
+          } @else {
+            <app-usage-empty-state />
+          }
+        </div>
+      </section>
+
+      @if (!hasUsageData()) {
+        <app-usage-empty-state />
+      }
+
+      <app-credit-lifecycle-timeline />
+    }
+  </div>
+}

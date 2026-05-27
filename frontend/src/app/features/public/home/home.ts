@@ -6,9 +6,9 @@ import { CurrentUserStore } from '@app/core/auth/current-user.store';
 import { ThemeStore } from '@app/core/theme/theme.store';
 import { AuthDialogComponent } from '@app/features/auth/components/auth-dialog/auth-dialog';
 import { IconComponent } from '@app/shared/components/icon/icon';
-import { ThemeToggleComponent } from '@app/shared/components/theme-toggle/theme-toggle';
 
 type HomeLanguage = 'en' | 'bn';
+type AuthTab = 'login' | 'register';
 
 interface NavItem {
   readonly label: string;
@@ -411,7 +411,7 @@ const HOME_COPY: Record<HomeLanguage, HomeCopy> = {
 @Component({
   selector: 'app-home',
   standalone: true,
-  imports: [AuthDialogComponent, IconComponent, RouterLink, ThemeToggleComponent],
+  imports: [AuthDialogComponent, IconComponent, RouterLink],
   templateUrl: './home.html',
   styleUrl: './home.scss',
   changeDetection: ChangeDetectionStrategy.OnPush,
@@ -426,10 +426,15 @@ export class HomeComponent {
   protected readonly isAuthenticated = this.auth.isAuthenticated;
   protected readonly currentTheme = this.themeStore.theme;
   protected readonly loginModalOpen = signal(false);
+  protected readonly authInitialTab = signal<AuthTab>('login');
   protected readonly menuOpen = signal(false);
   protected readonly language = signal<HomeLanguage>('en');
 
   protected readonly copy = computed(() => HOME_COPY[this.language()]);
+  protected readonly themeToggleIcon = computed(() => (this.currentTheme() === 'dark' ? 'sun' : 'moon'));
+  protected readonly themeToggleLabel = computed(() =>
+    this.currentTheme() === 'dark' ? 'Switch to light mode' : 'Switch to dark mode',
+  );
 
   protected readonly navItems = computed<readonly NavItem[]>(() => [
     { label: this.copy().nav.home, href: '#home' },
@@ -498,6 +503,19 @@ export class HomeComponent {
       return;
     }
 
+    this.authInitialTab.set('login');
+    this.loginModalOpen.set(true);
+  }
+
+  protected openRegisterModal(): void {
+    this.closeMenu();
+
+    if (this.isAuthenticated()) {
+      void this.router.navigateByUrl('/dashboard');
+      return;
+    }
+
+    this.authInitialTab.set('register');
     this.loginModalOpen.set(true);
   }
 

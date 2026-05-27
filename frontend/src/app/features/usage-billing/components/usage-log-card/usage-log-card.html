@@ -1,0 +1,30 @@
+<app-card [interactive]="true">
+  <div class="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+    <div class="min-w-0">
+      <div class="flex flex-wrap items-center gap-2">
+        <h3 class="text-base font-semibold text-ink">Usage history</h3>
+        <app-status-badge tone="blue" [attr.aria-label]="'Usage type ' + usageLabel()">{{ usageLabel() }}</app-status-badge>
+      </div>
+      <p class="mt-2 text-sm text-muted">Package: {{ log().pricingPlanName || 'From backend' }}</p>
+    </div>
+    <div class="text-left sm:text-right">
+      <p class="text-lg font-semibold text-ink">{{ log().creditsCharged | number: '1.0-2' }} credits</p>
+      <p class="mt-1 text-sm text-muted">{{ log().estimatedCostUsd | currency: 'USD' : 'symbol' : '1.2-2' }}</p>
+    </div>
+  </div>
+
+  <dl class="mt-5 grid gap-3 text-sm sm:grid-cols-2 xl:grid-cols-3">
+    <div>
+      <dt class="text-xs text-muted">Reference type</dt>
+      <dd class="mt-1 font-semibold text-ink">{{ log().referenceType || 'Usage' }}</dd>
+    </div>
+    <div>
+      <dt class="text-xs text-muted">Reference ID</dt>
+      <dd class="mt-1 truncate font-semibold text-ink">{{ log().referenceId || 'Not provided' }}</dd>
+    </div>
+    <div>
+      <dt class="text-xs text-muted">Created date</dt>
+      <dd class="mt-1 font-semibold text-ink">{{ log().createdAt | date: 'medium' }}</dd>
+    </div>
+  </dl>
+</app-card>

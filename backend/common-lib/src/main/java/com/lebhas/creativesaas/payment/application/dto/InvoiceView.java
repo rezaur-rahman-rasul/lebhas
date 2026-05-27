@@ -2,6 +2,7 @@ package com.lebhas.creativesaas.payment.application.dto;
 
 import com.lebhas.creativesaas.payment.domain.InvoiceStatus;
 import com.lebhas.creativesaas.payment.domain.InvoiceType;
+import com.lebhas.creativesaas.profile.application.dto.SafeProfileDisplayView;
 
 import java.math.BigDecimal;
 import java.time.Instant;
@@ -11,6 +12,7 @@ public record InvoiceView(
         UUID id,
         UUID workspaceId,
         UUID paymentTransactionId,
+        SafeProfileDisplayView userDisplay,
         String invoiceNumber,
         InvoiceType invoiceType,
         BigDecimal amount,

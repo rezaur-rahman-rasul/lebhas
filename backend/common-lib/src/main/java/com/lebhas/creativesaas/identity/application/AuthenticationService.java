@@ -27,6 +27,8 @@ import com.lebhas.creativesaas.identity.domain.WorkspaceMembershipEntity;
 import com.lebhas.creativesaas.identity.domain.WorkspaceMembershipStatus;
 import com.lebhas.creativesaas.identity.infrastructure.persistence.UserRepository;
 import com.lebhas.creativesaas.identity.infrastructure.persistence.WorkspaceMembershipRepository;
+import com.lebhas.creativesaas.profile.application.UserAccountSettingsProvisioningService;
+import com.lebhas.creativesaas.profile.application.UserProfileProvisioningService;
 import com.lebhas.creativesaas.redis.RedisLockService;
 import com.lebhas.creativesaas.redis.RedisRealtimeStateService;
 import com.lebhas.creativesaas.redis.RedisSessionService;
@@ -77,6 +79,8 @@ public class AuthenticationService {
     private final RedisRealtimeStateService redisRealtimeStateService;
     private final DomainEventPublisher domainEventPublisher;
     private final SessionProperties sessionProperties;
+    private final UserProfileProvisioningService userProfileProvisioningService;
+    private final UserAccountSettingsProvisioningService userAccountSettingsProvisioningService;
 
     public AuthenticationService(
             AuthenticationManager authenticationManager,
@@ -100,7 +104,9 @@ public class AuthenticationService {
             RedisLockService redisLockService,
             RedisRealtimeStateService redisRealtimeStateService,
             DomainEventPublisher domainEventPublisher,
-            SessionProperties sessionProperties
+            SessionProperties sessionProperties,
+            UserProfileProvisioningService userProfileProvisioningService,
+            UserAccountSettingsProvisioningService userAccountSettingsProvisioningService
     ) {
         this.authenticationManager = authenticationManager;
         this.userRepository = userRepository;
@@ -124,6 +130,8 @@ public class AuthenticationService {
         this.redisRealtimeStateService = redisRealtimeStateService;
         this.domainEventPublisher = domainEventPublisher;
         this.sessionProperties = sessionProperties;
+        this.userProfileProvisioningService = userProfileProvisioningService;
+        this.userAccountSettingsProvisioningService = userAccountSettingsProvisioningService;
     }
 
     @Transactional
@@ -141,6 +149,7 @@ public class AuthenticationService {
             role = pendingInvitation.invitation().getRole();
             UserEntity invitedUser = createUser(command, normalizedEmail, role);
             userRepository.save(invitedUser);
+            provisionProfileDefaults(invitedUser);
             workspaceMembershipRepository.save(WorkspaceMembershipEntity.create(
                     workspaceId,
                     invitedUser.getId(),
@@ -157,6 +166,7 @@ public class AuthenticationService {
 
         UserEntity user = createUser(command, normalizedEmail, role);
         userRepository.save(user);
+        provisionProfileDefaults(user);
         WorkspaceProvisioningService.ProvisionedWorkspace provisionedWorkspace = workspaceProvisioningService.provisionOwnedWorkspace(
                 user.getId(),
                 new WorkspaceProvisioningService.WorkspaceSeed(
@@ -368,6 +378,11 @@ public class AuthenticationService {
                 role,
                 UserStatus.ACTIVE,
                 false);
+    }
+
+    private void provisionProfileDefaults(UserEntity user) {
+        userProfileProvisioningService.provisionIfMissing(user);
+        userAccountSettingsProvisioningService.provisionIfMissing(user);
     }
 
     private WorkspaceMembershipEntity resolveLoginMembership(UUID userId, UUID requestedWorkspaceId) {

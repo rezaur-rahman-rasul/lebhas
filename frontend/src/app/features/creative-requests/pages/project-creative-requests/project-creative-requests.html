@@ -1,0 +1,351 @@
+<app-page-header
+  eyebrow="Creative requests"
+  [title]="project()?.name ?? 'Project creative requests'"
+  description="Create campaign creative requests and review generated versions without leaving the project."
+>
+  <a routerLink="/projects" class="text-sm font-medium text-brand-600 hover:text-brand-700">Projects</a>
+  <app-badge tone="neutral">{{ requestCountLabel() }}</app-badge>
+  @if (project()) {
+    <app-button icon="plus" (click)="openDrawer()">Create request</app-button>
+  }
+</app-page-header>
+
+@if (!hasWorkspaceContext()) {
+  <div class="mt-6">
+    <app-empty-state
+      icon="building-2"
+      title="Workspace context required"
+      description="Select a workspace before creating creative requests."
+    />
+  </div>
+} @else if (initializing()) {
+  <div class="mt-6 grid gap-4 lg:grid-cols-2">
+    @for (item of [0, 1, 2, 3]; track item) {
+      <div class="h-56 animate-pulse rounded-2xl border border-border bg-panel"></div>
+    }
+  </div>
+} @else if (!project()) {
+  <div class="mt-6">
+    <app-empty-state
+      icon="folder-open"
+      title="Project context missing"
+      description="Open creative requests from a valid project campaign."
+    />
+  </div>
+} @else {
+  <section class="mt-6 rounded-2xl border border-border bg-panel p-4">
+    <p class="text-xs font-semibold uppercase tracking-[0.18em] text-muted">Current context</p>
+    <div class="mt-3 flex flex-wrap gap-2">
+      <app-badge tone="brand">Workspace: {{ workspace.workspaceLabel() }}</app-badge>
+      <app-badge tone="neutral">Brand: {{ brand()?.name ?? 'Not loaded' }}</app-badge>
+      <app-badge tone="blue">Product: {{ product()?.name ?? 'Not loaded' }}</app-badge>
+      <app-badge tone="neutral">Project: {{ project()?.name ?? 'Not loaded' }}</app-badge>
+    </div>
+  </section>
+
+  @if (requestStore.error()) {
+    <div class="mt-6">
+      <app-empty-state
+        icon="circle-alert"
+        tone="danger"
+        title="Creative requests could not be loaded"
+        [description]="requestStore.error()!"
+      >
+        <app-button variant="secondary" icon="refresh-cw" (click)="reloadRequests()">Retry</app-button>
+      </app-empty-state>
+    </div>
+  }
+
+  <section class="mt-6 grid gap-6 xl:grid-cols-[minmax(0,0.85fr)_minmax(0,1.15fr)]">
+    <div class="min-w-0 space-y-4">
+      <div class="flex items-center justify-between gap-3">
+        <h2 class="text-base font-semibold text-ink">Requests</h2>
+        <app-button size="sm" variant="secondary" icon="plus" (click)="openDrawer()">New request</app-button>
+      </div>
+
+      @if (requestStore.loading() && !requestStore.hasRequests()) {
+        @for (item of [0, 1, 2]; track item) {
+          <div class="h-40 animate-pulse rounded-2xl border border-border bg-panel"></div>
+        }
+      } @else if (requestStore.hasRequests()) {
+        <div class="space-y-3">
+          @for (request of requestStore.requests(); track request.id) {
+            <article
+              class="rounded-2xl border border-border bg-panel p-4 transition hover:border-brand-300"
+              [class.ring-2]="requestStore.selectedRequest()?.id === request.id"
+              [class.ring-brand-200]="requestStore.selectedRequest()?.id === request.id"
+            >
+              <div class="flex flex-wrap items-start justify-between gap-3">
+                <div class="min-w-0">
+                  <h3 class="truncate text-sm font-semibold text-ink">{{ request.title }}</h3>
+                  <p class="mt-1 line-clamp-2 text-sm text-muted">
+                    {{ request.brief || 'No brief added.' }}
+                  </p>
+                </div>
+                <app-badge [tone]="creativeRequestStatusTone(request.status)">
+                  {{ creativeRequestStatusLabel(request.status) }}
+                </app-badge>
+              </div>
+              <dl class="mt-4 grid gap-2 text-sm sm:grid-cols-2">
+                <div>
+                  <dt class="text-muted">Platform</dt>
+                  <dd class="font-medium text-ink">{{ request.targetPlatform || 'Not selected' }}</dd>
+                </div>
+                <div>
+                  <dt class="text-muted">Requested versions</dt>
+                  <dd class="font-medium text-ink">{{ request.requestedVersions ?? 'Pending' }}</dd>
+                </div>
+              </dl>
+              <app-button class="mt-4" size="sm" variant="secondary" icon="image" (click)="loadVersions(request)">
+                View versions
+              </app-button>
+            </article>
+          }
+        </div>
+      } @else {
+        <app-empty-state
+          icon="pencil-line"
+          title="No creative requests yet"
+          description="Create one guided request for this project when the prompt and assets are ready."
+        >
+          <app-button icon="plus" (click)="openDrawer()">Create first request</app-button>
+        </app-empty-state>
+      }
+    </div>
+
+    <div class="min-w-0 space-y-4">
+      <div class="flex items-center justify-between gap-3">
+        <h2 class="text-base font-semibold text-ink">Generated versions</h2>
+        @if (requestStore.selectedRequest()) {
+          <app-badge tone="neutral">{{ requestStore.selectedRequest()!.title }}</app-badge>
+        }
+      </div>
+
+      @if (!requestStore.selectedRequest()) {
+        <app-empty-state
+          icon="image"
+          title="Select a request"
+          description="Choose a creative request to review generated versions."
+        />
+      } @else if (versionStore.loading()) {
+        <div class="grid gap-4 md:grid-cols-2">
+          @for (item of [0, 1, 2, 3]; track item) {
+            <div class="h-64 animate-pulse rounded-2xl border border-border bg-panel"></div>
+          }
+        </div>
+      } @else if (versionStore.error()) {
+        <app-empty-state
+          icon="circle-alert"
+          tone="danger"
+          title="Generated versions could not be loaded"
+          [description]="versionStore.error()!"
+        >
+          <app-button
+            variant="secondary"
+            icon="refresh-cw"
+            (click)="versionStore.loadByCreativeRequest(requestStore.selectedRequest()!.id)"
+          >
+            Retry
+          </app-button>
+        </app-empty-state>
+      } @else if (versionStore.versions().length) {
+        <div class="grid gap-4 md:grid-cols-2">
+          @for (version of versionStore.versions(); track version.id) {
+            <article class="overflow-hidden rounded-2xl border border-border bg-panel">
+              <div class="grid aspect-video place-items-center bg-slate-100 dark:bg-slate-900">
+                @if (version.previewUrl) {
+                  <img [src]="version.previewUrl" [alt]="'Generated version ' + (version.versionNumber ?? '')" class="h-full w-full object-cover" />
+                } @else {
+                  <span class="text-sm text-muted">Preview pending</span>
+                }
+              </div>
+              <div class="space-y-3 p-4">
+                <div class="flex items-center justify-between gap-3">
+                  <h3 class="text-sm font-semibold text-ink">Version {{ version.versionNumber ?? 'pending' }}</h3>
+                  <app-badge [tone]="generatedVersionStatusTone(version.status)">
+                    {{ generatedVersionStatusLabel(version.status) }}
+                  </app-badge>
+                </div>
+                <div class="flex flex-wrap gap-2">
+                  @if (version.capabilities?.canDownload) {
+                    <app-button
+                      size="sm"
+                      variant="secondary"
+                      icon="download"
+                      [loading]="downloadingVersionId() === version.id"
+                      (click)="downloadVersion(version)"
+                    >
+                      Download
+                    </app-button>
+                  }
+                  @if (version.capabilities?.canShare) {
+                    <app-button
+                      size="sm"
+                      variant="secondary"
+                      icon="share-2"
+                      [disabled]="!shareAvailable()"
+                      (click)="openShareDialog(version)"
+                    >
+                      Share
+                    </app-button>
+                  }
+                  <app-button size="sm" variant="ghost" icon="info" (click)="openVersionDetail(version)">Details</app-button>
+                </div>
+              </div>
+            </article>
+          }
+        </div>
+      } @else {
+        <app-empty-state
+          icon="clock"
+          title="No generated versions yet"
+          description="Generation may still be queued. Refresh this request after a moment."
+        />
+      }
+    </div>
+  </section>
+}
+
+<app-modal-shell
+  [open]="drawerOpen()"
+  title="Create creative request"
+  description="Confirm prompt, assets, format, and version count for this project."
+  (closed)="closeDrawer()"
+>
+  <form class="space-y-5" [formGroup]="form" (ngSubmit)="submitRequest()">
+    <div class="grid gap-4 md:grid-cols-2">
+      <div class="space-y-2 md:col-span-2">
+        <label class="text-sm font-medium text-ink" for="title">Request title</label>
+        <input id="title" formControlName="title" class="h-11 w-full rounded-md border border-border bg-white px-3 text-sm text-ink outline-none focus:border-brand-500 focus:ring-2 focus:ring-brand-100" />
+      </div>
+
+      <div class="space-y-2">
+        <label class="text-sm font-medium text-ink" for="promptId">Selected prompt</label>
+        <select id="promptId" formControlName="promptId" class="h-11 w-full rounded-md border border-border bg-white px-3 text-sm text-ink outline-none focus:border-brand-500 focus:ring-2 focus:ring-brand-100">
+          <option value="">No saved prompt selected</option>
+          @for (prompt of promptHistoryStore.history(); track prompt.id) {
+            <option [value]="prompt.id">{{ prompt.sourcePrompt }}</option>
+          }
+        </select>
+      </div>
+
+      <div class="space-y-2">
+        <label class="text-sm font-medium text-ink" for="targetPlatform">Target platform</label>
+        <input id="targetPlatform" formControlName="targetPlatform" class="h-11 w-full rounded-md border border-border bg-white px-3 text-sm text-ink outline-none focus:border-brand-500 focus:ring-2 focus:ring-brand-100" />
+      </div>
+
+      <div class="space-y-2">
+        <label class="text-sm font-medium text-ink" for="requestedFormat">Requested format</label>
+        <select id="requestedFormat" formControlName="requestedFormat" class="h-11 w-full rounded-md border border-border bg-white px-3 text-sm text-ink outline-none focus:border-brand-500 focus:ring-2 focus:ring-brand-100">
+          @for (format of requestFormats; track format) {
+            <option [value]="format">{{ format }}</option>
+          }
+        </select>
+      </div>
+
+      <div class="space-y-2">
+        <label class="text-sm font-medium text-ink" for="requestedVersions">Requested versions</label>
+        <input id="requestedVersions" type="number" min="1" formControlName="requestedVersions" class="h-11 w-full rounded-md border border-border bg-white px-3 text-sm text-ink outline-none focus:border-brand-500 focus:ring-2 focus:ring-brand-100" />
+        @if (versionLimitMessage()) {
+          <p class="text-sm text-red-600">{{ versionLimitMessage() }} Upgrade your package when you need more.</p>
+        } @else if (versionLimit() !== null) {
+          <p class="text-sm text-muted">Your current package allows {{ versionLimit() }} version(s) per request.</p>
+        }
+      </div>
+    </div>
+
+    <div class="space-y-2">
+      <label class="text-sm font-medium text-ink" for="brief">Brief</label>
+      <textarea id="brief" rows="4" formControlName="brief" class="w-full rounded-md border border-border bg-white px-3 py-3 text-sm text-ink outline-none focus:border-brand-500 focus:ring-2 focus:ring-brand-100"></textarea>
+    </div>
+
+    <div class="space-y-3">
+      <div class="flex items-center justify-between gap-3">
+        <p class="text-sm font-medium text-ink">Selected assets</p>
+        <app-badge tone="neutral">{{ selectedAssetIds().length }} selected</app-badge>
+      </div>
+      <div class="grid max-h-56 gap-2 overflow-y-auto sm:grid-cols-2">
+        @for (asset of assetStore.assets(); track asset.id) {
+          <label class="flex items-center gap-3 rounded-lg border border-border px-3 py-2 text-sm text-ink">
+            <input type="checkbox" [checked]="isAssetSelected(asset.id)" (change)="toggleAsset(asset.id)" />
+            <span class="truncate">{{ asset.displayName }}</span>
+          </label>
+        }
+      </div>
+    </div>
+
+    <div class="rounded-xl border border-border bg-surface px-4 py-3 text-sm text-muted">
+      Estimated credits: {{ estimatedCreditsLabel() }}
+    </div>
+
+    <div class="flex justify-end gap-3">
+      <app-button type="button" variant="ghost" (click)="closeDrawer()">Cancel</app-button>
+      <app-button type="submit" icon="sparkles" [loading]="requestStore.saving()" [disabled]="!!versionLimitMessage()">
+        Queue generation
+      </app-button>
+    </div>
+  </form>
+</app-modal-shell>
+
+<app-modal-shell
+  [open]="versionDetailOpen()"
+  title="Generated version details"
+  description="Advanced metadata for the selected generated version."
+  (closed)="closeVersionDetail()"
+>
+  @if (selectedVersion(); as version) {
+    <dl class="grid gap-3 text-sm sm:grid-cols-2">
+      <div>
+        <dt class="text-muted">Status</dt>
+        <dd class="font-medium text-ink">{{ generatedVersionStatusLabel(version.status) }}</dd>
+      </div>
+      <div>
+        <dt class="text-muted">Version</dt>
+        <dd class="font-medium text-ink">{{ version.versionNumber ?? 'Pending' }}</dd>
+      </div>
+      @for (item of (version.metadata ?? {}) | keyvalue; track item.key) {
+        <div>
+          <dt class="text-muted">{{ item.key }}</dt>
+          <dd class="break-all font-medium text-ink">{{ item.value }}</dd>
+        </div>
+      }
+    </dl>
+  }
+</app-modal-shell>
+
+<app-modal-shell
+  [open]="shareDialogOpen()"
+  title="Share generated creative"
+  description="Use the backend signed share link while it is active."
+  (closed)="closeShareDialog()"
+>
+  @if (shareUnavailableMessage()) {
+    <app-empty-state
+      icon="lock"
+      title="Sharing is unavailable"
+      [description]="shareUnavailableMessage()!"
+    />
+  } @else if (shareLoading()) {
+    <div class="rounded-2xl border border-border bg-panel p-4 text-sm text-muted">
+      Preparing secure share link...
+    </div>
+  } @else if (shareLink()) {
+    <div class="space-y-4">
+      <div class="rounded-2xl border border-border bg-panel p-4">
+        <p class="break-all text-sm font-medium text-ink">{{ shareLink() }}</p>
+        @if (shareExpiresAt()) {
+          <p class="mt-2 text-xs text-muted">Expires {{ shareExpiresAt() }}</p>
+        }
+      </div>
+      <div class="flex justify-end">
+        <app-button icon="copy" (click)="copyShareLink()">Copy link</app-button>
+      </div>
+    </div>
+  } @else {
+    <app-empty-state
+      icon="link"
+      title="Share link unavailable"
+      description="The link may have expired or your workspace may not have access to sharing for this creative."
+    />
+  }
+</app-modal-shell>

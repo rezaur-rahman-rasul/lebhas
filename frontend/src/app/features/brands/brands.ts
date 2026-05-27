@@ -1,4 +1,4 @@
-import { ChangeDetectionStrategy, Component, computed, effect, inject, signal } from '@angular/core';
+import { ChangeDetectionStrategy, Component, effect, inject, signal } from '@angular/core';
 import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
 
 import { PermissionStore } from '@app/core/permissions/permission.store';
@@ -8,7 +8,6 @@ import { ButtonComponent } from '@app/shared/components/button/button';
 import { CardComponent } from '@app/shared/components/card/card';
 import { EmptyStateComponent } from '@app/shared/components/empty-state/empty-state';
 import { InputComponent } from '@app/shared/components/input/input';
-import { LoadingComponent } from '@app/shared/components/loading/loading';
 import { ModalComponent } from '@app/shared/components/modal/modal';
 import { SectionHeaderComponent } from '@app/shared/components/section-header/section-header';
 import {
@@ -40,7 +39,6 @@ const LANGUAGE_PREFERENCES: readonly {
     CardComponent,
     EmptyStateComponent,
     InputComponent,
-    LoadingComponent,
     ModalComponent,
     SectionHeaderComponent,
   ],
@@ -54,18 +52,17 @@ export class BrandsComponent {
   private readonly permissions = inject(PermissionStore);
   protected readonly store = inject(BrandStore);
 
-  protected readonly selectedBrandId = signal<string | null>(null);
   protected readonly dialogMode = signal<BrandDialogMode>(null);
   protected readonly attemptedSubmit = signal(false);
+  protected readonly skeletonRows = [0, 1, 2, 3] as const;
 
   protected readonly canView = this.permissions.canViewBrands;
   protected readonly canManage = this.permissions.canManageBrands;
   protected readonly workspaceId = this.workspace.activeWorkspaceId;
   protected readonly brands = this.store.items;
+  protected readonly selectedBrandId = this.store.selectedBrandId;
+  protected readonly selectedBrand = this.store.selectedBrand;
   protected readonly languagePreferences = LANGUAGE_PREFERENCES;
-  protected readonly selectedBrand = computed(
-    () => this.brands().find((brand) => brand.id === this.selectedBrandId()) ?? null,
-  );
 
   protected readonly form = this.formBuilder.group({
     name: ['', [Validators.required]],
@@ -90,26 +87,14 @@ export class BrandsComponent {
       const workspaceId = this.workspaceId();
       if (workspaceId && this.canView()) {
         void this.store.load(workspaceId);
-      }
-    });
-
-    effect(() => {
-      const brands = this.brands();
-      const currentSelection = this.selectedBrandId();
-
-      if (brands.length === 0) {
-        this.selectedBrandId.set(null);
         return;
       }
-
-      if (!currentSelection || !brands.some((brand) => brand.id === currentSelection)) {
-        this.selectedBrandId.set(brands[0].id);
-      }
+      this.store.reset();
     });
   }
 
   protected selectBrand(brandId: string): void {
-    this.selectedBrandId.set(brandId);
+    this.store.selectBrand(brandId);
   }
 
   protected openCreateDialog(): void {
@@ -181,8 +166,7 @@ export class BrandsComponent {
 
     try {
       if (this.dialogMode() === 'create') {
-        const brand = await this.store.create(workspaceId, payload);
-        this.selectedBrandId.set(brand.id);
+        await this.store.create(workspaceId, payload);
       } else {
         const brand = this.selectedBrand();
         if (!brand) {
@@ -193,7 +177,7 @@ export class BrandsComponent {
           ...payload,
           status: this.form.getRawValue().status,
         });
-        this.selectedBrandId.set(updatedBrand.id);
+        this.store.selectBrand(updatedBrand.id);
       }
     } catch {
       return;

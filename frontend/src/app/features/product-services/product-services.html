@@ -6,7 +6,9 @@
   @if (canManage()) {
     <app-button
       icon="plus"
+      aria-label="Create Product / Service"
       [disabled]="brands().length === 0"
+      [attr.title]="brands().length === 0 ? 'Create a brand first.' : null"
       [testId]="'product-create-button'"
       (click)="openCreateDialog()"
     >
@@ -28,52 +30,93 @@
     <app-empty-state
       icon="shield-alert"
       title="Product access is restricted"
-      description="Your current role does not include product viewing permission in this workspace."
+      description="You do not have permission to manage products or services."
     />
   </div>
-} @else if (store.loading()) {
-  <div class="mt-6">
-    <app-loading label="Loading product services" />
-  </div>
-} @else if (store.error()) {
-  <div class="mt-6">
-    <app-empty-state
-      icon="triangle-alert"
-      title="Product services could not be loaded"
-      [description]="store.error()!"
-    >
-      <app-button variant="secondary" icon="refresh-cw" (click)="store.load(workspaceId()!, { force: true })">
-        Retry
-      </app-button>
-    </app-empty-state>
-  </div>
 } @else {
-  <div class="mt-6 grid gap-6 xl:grid-cols-[minmax(0,1.08fr)_22rem]">
+  <div class="product-services-page-grid mt-6">
     <app-card>
       <div class="flex items-center justify-between gap-3">
         <div>
           <h2 class="text-base font-semibold text-ink">Catalog roster</h2>
-          <p class="mt-1 text-sm text-muted">{{ store.total() }} linked products and services</p>
+          <p class="mt-1 text-sm text-muted">{{ store.catalogRosterSubtitle() }}</p>
         </div>
         <app-badge tone="blue">Brand -> Product</app-badge>
       </div>
 
-      @if (products().length === 0) {
+      @if (store.loading()) {
+        <div class="mt-5 grid gap-3" aria-label="Loading product service roster">
+          @for (row of skeletonRows; track row) {
+            <div class="product-service-skeleton-row"></div>
+          }
+        </div>
+      } @else if (store.error()) {
+        <div class="mt-5">
+          <app-empty-state
+            icon="triangle-alert"
+            title="Product services could not be loaded"
+            [description]="store.error()!"
+          >
+            <app-button variant="secondary" icon="refresh-cw" (click)="store.load(workspaceId()!, { force: true })">
+              Retry
+            </app-button>
+          </app-empty-state>
+        </div>
+      } @else if (products().length === 0 && brandStore.loading()) {
+        <div class="mt-5 grid gap-3" aria-label="Loading brand relationship context">
+          @for (row of skeletonRows; track row) {
+            <div class="product-service-skeleton-row"></div>
+          }
+        </div>
+      } @else if (products().length === 0 && brands().length === 0) {
+        <div class="mt-5">
+          <app-empty-state
+            icon="badge-check"
+            title="Create a brand first"
+            description="Create a brand first before adding products or services."
+          >
+            <a routerLink="/brands">
+              <app-button variant="secondary" icon="badge-check">Create Brand First</app-button>
+            </a>
+          </app-empty-state>
+        </div>
+      } @else if (products().length === 0) {
         <div class="mt-5">
           <app-empty-state
             icon="package-open"
-            title="No product services yet"
-            description="Create a catalog item once the brand layer is ready."
-          >
-            @if (brands().length === 0) {
-              <a routerLink="/brands">
-                <app-button variant="secondary" icon="badge-check">Create Brand First</app-button>
-              </a>
-            }
-          </app-empty-state>
+            title="No products or services yet"
+            description="Create a product or service once the brand layer is ready."
+          />
         </div>
       } @else {
-        <div class="mt-5 overflow-x-auto">
+        <div class="mt-5 grid gap-3 md:hidden">
+          @for (product of products(); track product.id) {
+            <button
+              type="button"
+              class="rounded-xl border border-border bg-surface p-4 text-left transition hover:border-brand-300 hover:bg-panel focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500"
+              [class.border-brand-500]="selectedProductId() === product.id"
+              [attr.aria-current]="selectedProductId() === product.id ? 'true' : null"
+              [attr.aria-label]="'Select product or service ' + product.name"
+              (click)="selectProduct(product.id)"
+            >
+              <div class="flex items-start justify-between gap-3">
+                <div class="min-w-0">
+                  <p class="truncate font-semibold text-ink">{{ product.name }}</p>
+                  <p class="mt-1 text-sm text-muted">{{ product.description || 'Description pending' }}</p>
+                </div>
+                <app-badge [tone]="product.status === 'ACTIVE' ? 'brand' : 'neutral'">
+                  {{ product.status }}
+                </app-badge>
+              </div>
+              <div class="mt-4 grid gap-2 text-sm text-muted">
+                <p><span class="font-medium text-ink">Brand:</span> {{ brandName(product.brandId) }}</p>
+                <p><span class="font-medium text-ink">Category:</span> {{ product.category || 'Unassigned' }}</p>
+              </div>
+            </button>
+          }
+        </div>
+
+        <div class="mt-5 hidden overflow-x-auto md:block">
           <table class="min-w-full divide-y divide-border text-left">
             <thead class="text-xs uppercase tracking-[0.14em] text-muted">
               <tr>
@@ -86,9 +129,13 @@
             <tbody class="divide-y divide-border">
               @for (product of products(); track product.id) {
                 <tr
-                  class="cursor-pointer transition hover:bg-panel/30"
+                  class="cursor-pointer transition hover:bg-panel/30 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500"
+                  tabindex="0"
                   [class.bg-brand-500/8]="selectedProductId() === product.id"
+                  [attr.aria-current]="selectedProductId() === product.id ? 'true' : null"
                   (click)="selectProduct(product.id)"
+                  (keydown.enter)="selectProduct(product.id)"
+                  (keydown.space)="selectProduct(product.id)"
                 >
                   <td class="py-4 pr-4">
                     <p class="font-semibold text-ink">{{ product.name }}</p>
@@ -123,7 +170,16 @@
           }
         </div>
 
-        @if (selectedProduct(); as product) {
+        @if (store.loading()) {
+          <div class="mt-5 grid gap-3" aria-label="Loading product service detail">
+            <div class="product-service-skeleton-line w-40"></div>
+            <div class="product-service-skeleton-block"></div>
+            <div class="grid gap-3 sm:grid-cols-2">
+              <div class="product-service-skeleton-panel"></div>
+              <div class="product-service-skeleton-panel"></div>
+            </div>
+          </div>
+        } @else if (selectedProduct(); as product) {
           <div class="mt-5 space-y-4">
             <div>
               <h3 class="text-xl font-semibold text-ink">{{ product.name }}</h3>
@@ -169,7 +225,7 @@
             <app-empty-state
               icon="mouse-pointer-click"
               title="Select a catalog item"
-              description="Choose a product or service from the roster to inspect its linked brand and campaign context."
+              description="Select a catalog item to see details."
             />
           </div>
         }
@@ -177,9 +233,9 @@
 
       <app-card>
         <p class="text-xs font-semibold uppercase tracking-[0.16em] text-brand-500">Relationship rule</p>
-        <h2 class="mt-2 text-base font-semibold text-ink">Every product service must belong to a brand</h2>
+        <h2 class="mt-2 text-base font-semibold text-ink">Every product or service must belong to a brand</h2>
         <p class="mt-3 text-sm leading-7 text-muted">
-          Project campaigns are created under a product service, so the brand link is required before campaign planning can begin.
+          Project campaigns are created under a product or service, so the brand link is required before campaign planning can begin.
         </p>
       </app-card>
     </div>
@@ -196,79 +252,81 @@
   testId="product-form-modal"
   (closed)="closeDialog()"
 >
-  <form class="grid gap-4" [formGroup]="form" (ngSubmit)="submit()">
-    <label class="block">
-      <span class="mb-2 block text-sm font-medium text-ink">Brand</span>
-      <select
-        class="h-12 w-full rounded-xl border border-border bg-surface px-3 text-base text-ink shadow-sm outline-none transition focus:border-brand-500 focus:ring-4 focus:ring-brand-100/60"
-        data-testid="product-brand-select"
-        formControlName="brandId"
-        (change)="updateFormBrand($event)"
-      >
-        <option value="">Select brand</option>
-        @for (brand of brands(); track brand.id) {
-          <option [value]="brand.id">{{ brand.name }}</option>
-        }
-      </select>
-      @if (fieldError('brandId')) {
-        <span class="mt-2 block text-sm text-alert-600">{{ fieldError('brandId') }}</span>
-      }
-    </label>
-
-    @if (formBrand(); as brand) {
-      <div class="rounded-xl border border-border bg-panel/35 p-4">
-        <p class="text-xs font-semibold uppercase tracking-[0.14em] text-muted">Selected brand context</p>
-        <p class="mt-2 text-sm font-semibold text-ink">{{ brand.name }}</p>
-        <p class="mt-1 text-sm text-muted">{{ brand.industry || 'Industry pending' }}</p>
-      </div>
-    }
-
-    <div class="grid gap-4 sm:grid-cols-2">
-      <app-input
-        label="Name"
-        placeholder="Summer capsule collection"
-        [testId]="'product-name-input'"
-        [control]="form.controls.name"
-        [error]="fieldError('name')"
-      />
-      <app-input label="Category" placeholder="Apparel" [control]="form.controls.category" />
-    </div>
-
-    <app-input
-      label="Description"
-      placeholder="Core product line for the seasonal campaign"
-      [control]="form.controls.description"
-    />
-
-    <div class="grid gap-4 sm:grid-cols-2">
-      <app-input
-        label="Target audience"
-        placeholder="Style-conscious professionals"
-        [control]="form.controls.targetAudience"
-      />
-      <app-input
-        label="Selling points"
-        placeholder="Breathable fabric, premium cut, delivery ready"
-        [control]="form.controls.sellingPoints"
-      />
-    </div>
-
-    @if (dialogMode() === 'edit') {
+  <form class="admin-modal-form" [formGroup]="form" (ngSubmit)="submit()">
+    <div class="admin-modal-body">
       <label class="block">
-        <span class="mb-2 block text-sm font-medium text-ink">Status</span>
+        <span class="mb-2 block text-sm font-medium text-ink">Brand</span>
         <select
           class="h-12 w-full rounded-xl border border-border bg-surface px-3 text-base text-ink shadow-sm outline-none transition focus:border-brand-500 focus:ring-4 focus:ring-brand-100/60"
-          formControlName="status"
+          data-testid="product-brand-select"
+          formControlName="brandId"
+          (change)="updateFormBrand($event)"
         >
-          <option value="ACTIVE">ACTIVE</option>
-          <option value="ARCHIVED">ARCHIVED</option>
+          <option value="">Select brand</option>
+          @for (brand of brands(); track brand.id) {
+            <option [value]="brand.id">{{ brand.name }}</option>
+          }
         </select>
+        @if (fieldError('brandId')) {
+          <span class="mt-2 block text-sm text-alert-600">{{ fieldError('brandId') }}</span>
+        }
       </label>
-    }
 
-    <div class="flex flex-col-reverse gap-3 pt-2 sm:flex-row sm:justify-end">
+      @if (formBrand(); as brand) {
+        <div class="rounded-xl border border-border bg-panel/35 p-4">
+          <p class="text-xs font-semibold uppercase tracking-[0.14em] text-muted">Selected brand context</p>
+          <p class="mt-2 text-sm font-semibold text-ink">{{ brand.name }}</p>
+          <p class="mt-1 text-sm text-muted">{{ brand.industry || 'Industry pending' }}</p>
+        </div>
+      }
+
+      <div class="grid gap-4 sm:grid-cols-2">
+        <app-input
+          label="Name"
+          placeholder="Summer capsule collection"
+          [testId]="'product-name-input'"
+          [control]="form.controls.name"
+          [error]="fieldError('name')"
+        />
+        <app-input label="Category" placeholder="Apparel" [control]="form.controls.category" />
+      </div>
+
+      <app-input
+        label="Description"
+        placeholder="Core product line for the seasonal campaign"
+        [control]="form.controls.description"
+      />
+
+      <div class="grid gap-4 sm:grid-cols-2">
+        <app-input
+          label="Target audience"
+          placeholder="Style-conscious professionals"
+          [control]="form.controls.targetAudience"
+        />
+        <app-input
+          label="Selling points"
+          placeholder="Breathable fabric, premium cut, delivery ready"
+          [control]="form.controls.sellingPoints"
+        />
+      </div>
+
+      @if (dialogMode() === 'edit') {
+        <label class="block">
+          <span class="mb-2 block text-sm font-medium text-ink">Status</span>
+          <select
+            class="h-12 w-full rounded-xl border border-border bg-surface px-3 text-base text-ink shadow-sm outline-none transition focus:border-brand-500 focus:ring-4 focus:ring-brand-100/60"
+            formControlName="status"
+          >
+            <option value="ACTIVE">ACTIVE</option>
+            <option value="ARCHIVED">ARCHIVED</option>
+          </select>
+        </label>
+      }
+    </div>
+
+    <div class="admin-modal-footer">
       <app-button variant="secondary" type="button" (click)="closeDialog()">Cancel</app-button>
-      <app-button type="submit" [loading]="store.saving()" [testId]="'product-submit'">
+      <app-button type="submit" [disabled]="brands().length === 0" [loading]="store.saving()" [testId]="'product-submit'">
         {{ dialogMode() === 'create' ? 'Create Product / Service' : 'Save Changes' }}
       </app-button>
     </div>

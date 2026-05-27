@@ -1,0 +1,27 @@
+<app-card>
+  <form class="space-y-5" [formGroup]="form" (ngSubmit)="submit()" aria-label="Credit package form">
+    <div>
+      <h3 class="text-base font-semibold text-ink">Credit package</h3>
+      <p class="mt-1 text-sm leading-6 text-muted">
+        Backend calculates the final purchase amount. This form only sends package setup values.
+      </p>
+    </div>
+
+    <div class="grid gap-4 md:grid-cols-2">
+      <label class="text-sm"><span class="mb-1 block font-medium text-ink">Package name</span><input class="h-10 w-full rounded-md border border-border bg-canvas px-3 text-sm text-ink focus:border-brand-500 focus:outline-none focus:ring-2 focus:ring-brand-500/30" formControlName="name" /></label>
+      <label class="text-sm"><span class="mb-1 block font-medium text-ink">Package code</span><input class="h-10 w-full rounded-md border border-border bg-canvas px-3 text-sm text-ink focus:border-brand-500 focus:outline-none focus:ring-2 focus:ring-brand-500/30" formControlName="code" /></label>
+      <label class="text-sm"><span class="mb-1 block font-medium text-ink">Credits</span><input class="h-10 w-full rounded-md border border-border bg-canvas px-3 text-sm text-ink focus:border-brand-500 focus:outline-none focus:ring-2 focus:ring-brand-500/30" type="number" min="0" formControlName="credits" /></label>
+      <label class="text-sm"><span class="mb-1 block font-medium text-ink">Bonus credits</span><input class="h-10 w-full rounded-md border border-border bg-canvas px-3 text-sm text-ink focus:border-brand-500 focus:outline-none focus:ring-2 focus:ring-brand-500/30" type="number" min="0" formControlName="bonusCredits" /></label>
+      <label class="text-sm"><span class="mb-1 block font-medium text-ink">Price</span><input class="h-10 w-full rounded-md border border-border bg-canvas px-3 text-sm text-ink focus:border-brand-500 focus:outline-none focus:ring-2 focus:ring-brand-500/30" type="number" min="0" step="0.01" formControlName="price" /></label>
+      <label class="text-sm"><span class="mb-1 block font-medium text-ink">Currency</span><input class="h-10 w-full rounded-md border border-border bg-canvas px-3 text-sm text-ink focus:border-brand-500 focus:outline-none focus:ring-2 focus:ring-brand-500/30" formControlName="currency" /></label>
+      <label class="text-sm"><span class="mb-1 block font-medium text-ink">Sort order</span><input class="h-10 w-full rounded-md border border-border bg-canvas px-3 text-sm text-ink focus:border-brand-500 focus:outline-none focus:ring-2 focus:ring-brand-500/30" type="number" min="0" formControlName="sortOrder" /></label>
+    </div>
+
+    <label class="flex items-center gap-2 text-sm text-ink"><input type="checkbox" formControlName="isActive" /> Active</label>
+
+    <div class="flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
+      <app-button type="button" variant="ghost" icon="x" ariaLabel="Cancel credit package form" (click)="cancelled.emit()">Cancel</app-button>
+      <app-button type="submit" icon="save" [loading]="loading()" ariaLabel="Save credit package">{{ submitLabel() }}</app-button>
+    </div>
+  </form>
+</app-card>

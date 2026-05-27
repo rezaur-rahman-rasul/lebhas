@@ -1,0 +1,31 @@
+<app-card [interactive]="true">
+  <div class="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+    <div class="min-w-0">
+      <div class="flex flex-wrap items-center gap-2">
+        <h3 class="text-base font-semibold text-ink">Share usage</h3>
+        @if (status()) {
+          <app-status-badge [tone]="statusTone()" [attr.aria-label]="'Share link status ' + statusLabel()">{{ statusLabel() }}</app-status-badge>
+        }
+      </div>
+      <p class="mt-2 text-sm text-muted">Accessed by {{ log().accessedByName || log().accessedByUserId || 'Guest visitor' }}</p>
+    </div>
+    <p class="text-sm font-medium text-muted">{{ log().createdAt | date: 'medium' }}</p>
+  </div>
+
+  <dl class="mt-5 grid gap-3 text-sm sm:grid-cols-2 xl:grid-cols-3">
+    <div>
+      <dt class="text-xs text-muted">Share link</dt>
+      <dd class="mt-1 truncate font-semibold text-ink">{{ log().shareLinkId || 'Not provided' }}</dd>
+    </div>
+    <div>
+      <dt class="text-xs text-muted">Generated version</dt>
+      <dd class="mt-1 truncate font-semibold text-ink">{{ log().generatedVersionId || 'Not provided' }}</dd>
+    </div>
+    @if (log().referrer) {
+      <div>
+        <dt class="text-xs text-muted">Referrer</dt>
+        <dd class="mt-1 truncate font-semibold text-ink">{{ log().referrer }}</dd>
+      </div>
+    }
+  </dl>
+</app-card>

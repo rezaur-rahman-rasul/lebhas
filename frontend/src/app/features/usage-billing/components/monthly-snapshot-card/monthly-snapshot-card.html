@@ -1,0 +1,44 @@
+<app-card [interactive]="true">
+  <div class="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+    <div class="min-w-0">
+      <h3 class="text-base font-semibold text-ink">{{ snapshot().usageMonth }}</h3>
+      <p class="mt-1 text-sm text-muted">Package: {{ snapshot().pricingPlanName || 'From backend' }}</p>
+    </div>
+    <p class="text-sm font-medium text-muted">Created {{ snapshot().createdAt | date: 'mediumDate' }}</p>
+  </div>
+
+  <dl class="mt-5 grid gap-3 text-sm sm:grid-cols-2 xl:grid-cols-4">
+    <div>
+      <dt class="text-xs text-muted">Subscription</dt>
+      <dd class="mt-1 truncate font-semibold text-ink">{{ snapshot().subscriptionId || 'Not provided' }}</dd>
+    </div>
+    <div>
+      <dt class="text-xs text-muted">Used credits</dt>
+      <dd class="mt-1 font-semibold text-ink">{{ snapshot().usedCredits | number: '1.0-2' }}</dd>
+    </div>
+    <div>
+      <dt class="text-xs text-muted">Generated versions</dt>
+      <dd class="mt-1 font-semibold text-ink">{{ snapshot().generatedVersions | number }}</dd>
+    </div>
+    <div>
+      <dt class="text-xs text-muted">Creative requests</dt>
+      <dd class="mt-1 font-semibold text-ink">{{ snapshot().creativeRequests | number }}</dd>
+    </div>
+    <div>
+      <dt class="text-xs text-muted">Estimated AI cost</dt>
+      <dd class="mt-1 font-semibold text-ink">{{ snapshot().aiCostUsd | currency: 'USD' : 'symbol' : '1.2-2' }}</dd>
+    </div>
+    <div>
+      <dt class="text-xs text-muted">Storage</dt>
+      <dd class="mt-1 font-semibold text-ink">{{ formatBytes(snapshot().storageBytes) }}</dd>
+    </div>
+    <div>
+      <dt class="text-xs text-muted">Downloads</dt>
+      <dd class="mt-1 font-semibold text-ink">{{ snapshot().downloads | number }}</dd>
+    </div>
+    <div>
+      <dt class="text-xs text-muted">Public shares</dt>
+      <dd class="mt-1 font-semibold text-ink">{{ snapshot().publicShares | number }}</dd>
+    </div>
+  </dl>
+</app-card>

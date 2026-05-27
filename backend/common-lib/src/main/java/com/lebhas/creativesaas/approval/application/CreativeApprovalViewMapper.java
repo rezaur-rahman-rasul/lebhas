@@ -6,11 +6,23 @@ import com.lebhas.creativesaas.approval.application.dto.CreativeReviewCommentVie
 import com.lebhas.creativesaas.approval.domain.CreativeApprovalEntity;
 import com.lebhas.creativesaas.approval.domain.CreativeApprovalHistoryEntity;
 import com.lebhas.creativesaas.approval.domain.CreativeReviewCommentEntity;
+import com.lebhas.creativesaas.profile.application.SafeProfileDisplayService;
+import com.lebhas.creativesaas.profile.application.dto.SafeProfileDisplayView;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
+
+import java.util.UUID;
 
 @Component
 @Deprecated(forRemoval = true)
 public class CreativeApprovalViewMapper {
+
+    private SafeProfileDisplayService safeProfileDisplayService;
+
+    @Autowired(required = false)
+    public void setSafeProfileDisplayService(SafeProfileDisplayService safeProfileDisplayService) {
+        this.safeProfileDisplayService = safeProfileDisplayService;
+    }
 
     public CreativeApprovalView toApprovalView(CreativeApprovalEntity approval) {
         return new CreativeApprovalView(
@@ -19,7 +31,9 @@ public class CreativeApprovalViewMapper {
                 approval.getCreativeOutputId(),
                 approval.getGenerationRequestId(),
                 approval.getSubmittedBy(),
+                safeDisplay(approval.getWorkspaceId(), approval.getSubmittedBy()),
                 approval.getReviewedBy(),
+                safeDisplay(approval.getWorkspaceId(), approval.getReviewedBy()),
                 approval.getStatus(),
                 approval.getPriority(),
                 approval.getSubmittedAt(),
@@ -40,6 +54,7 @@ public class CreativeApprovalViewMapper {
                 comment.getApprovalId(),
                 comment.getCreativeOutputId(),
                 comment.getAuthorId(),
+                safeDisplay(comment.getWorkspaceId(), comment.getAuthorId()),
                 comment.getComment(),
                 comment.getCommentType(),
                 comment.getCreatedAt(),
@@ -58,5 +73,9 @@ public class CreativeApprovalViewMapper {
                 history.getActorId(),
                 history.getNote(),
                 history.getCreatedAt());
+    }
+
+    private SafeProfileDisplayView safeDisplay(UUID workspaceId, UUID userId) {
+        return safeProfileDisplayService == null ? null : safeProfileDisplayService.forUserInWorkspace(workspaceId, userId);
     }
 }

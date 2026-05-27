@@ -1,0 +1,24 @@
+<article class="grid grid-cols-[2.5rem_1fr] gap-3">
+  <div class="flex flex-col items-center">
+    <span class="inline-flex size-9 items-center justify-center rounded-md border border-border bg-panel text-muted">
+      <app-icon [name]="icon()" [size]="17" />
+    </span>
+    @if (!isLast()) {
+      <span class="mt-2 w-px flex-1 bg-border" aria-hidden="true"></span>
+    }
+  </div>
+
+  <div class="min-w-0 pb-6">
+    <div class="flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between">
+      <p class="text-xs font-medium uppercase tracking-wide text-muted">{{ typeLabel() }}</p>
+      <time class="text-xs text-muted">{{ activity().createdAt }}</time>
+    </div>
+    <h3 class="mt-1 line-clamp-2 text-sm font-semibold text-ink">{{ activity().title }}</h3>
+    @if (activity().description) {
+      <p class="mt-1 line-clamp-3 text-sm leading-6 text-muted">{{ activity().description }}</p>
+    }
+    <p class="mt-2 truncate text-xs text-muted">
+      {{ actorLabel() }} · {{ referenceLabel() }}
+    </p>
+  </div>
+</article>

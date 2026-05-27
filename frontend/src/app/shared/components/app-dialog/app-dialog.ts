@@ -44,7 +44,7 @@ export class ModalComponent {
   protected readonly descriptionId = `${this.modalId}-description`;
   protected readonly panelClasses = computed(() =>
     [
-      'relative z-10 max-h-[calc(100vh-2rem)] w-full overflow-hidden rounded-2xl border border-border bg-surface-elevated shadow-panel outline-none',
+      'relative z-10 flex max-h-[calc(100dvh-1rem)] w-full flex-col overflow-hidden rounded-2xl border border-border bg-surface-elevated shadow-panel outline-none sm:max-h-[calc(100dvh-2rem)]',
       this.panelClass(),
     ]
       .filter(Boolean)
@@ -52,7 +52,9 @@ export class ModalComponent {
   );
   protected readonly contentPaddingClasses = computed(() =>
     [
-      this.title() || this.description() ? 'border-t border-border p-5 sm:p-6' : 'p-5 sm:p-6',
+      this.title() || this.description()
+        ? 'min-h-0 overflow-y-auto p-4 sm:p-6'
+        : 'min-h-0 overflow-y-auto p-4 sm:p-6',
       this.contentClass(),
     ]
       .filter(Boolean)

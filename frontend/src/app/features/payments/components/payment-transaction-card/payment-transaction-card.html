@@ -1,0 +1,27 @@
+<app-card [interactive]="true">
+  <div class="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+    <div class="min-w-0">
+      <div class="flex flex-wrap items-center gap-2">
+        <app-payment-purpose-badge [purpose]="transaction().paymentPurpose" />
+        <app-payment-status-badge [status]="transaction().status" />
+      </div>
+      <h3 class="mt-3 text-base font-semibold text-ink">
+        {{ transaction().amount | currency: transaction().currency : 'symbol' : '1.2-2' }}
+      </h3>
+      <p class="mt-1 text-sm text-muted">{{ transaction().providerName || 'Provider from backend' }}</p>
+    </div>
+  </div>
+
+  <dl class="mt-5 grid gap-3 text-sm sm:grid-cols-2 xl:grid-cols-3">
+    <div><dt class="text-xs text-muted">Reference</dt><dd class="mt-1 truncate font-semibold text-ink">{{ transaction().referenceType || 'Payment' }} {{ transaction().referenceId || '' }}</dd></div>
+    <div><dt class="text-xs text-muted">Provider transaction</dt><dd class="mt-1 font-semibold text-ink">{{ maskedProviderTransactionId() }}</dd></div>
+    <div><dt class="text-xs text-muted">Initiated</dt><dd class="mt-1 font-semibold text-ink">{{ transaction().initiatedAt || transaction().createdAt | date: 'medium' }}</dd></div>
+    <div><dt class="text-xs text-muted">Completed</dt><dd class="mt-1 font-semibold text-ink">{{ transaction().completedAt ? (transaction().completedAt | date: 'medium') : 'Not completed' }}</dd></div>
+  </dl>
+
+  @if (transaction().failureReason) {
+    <p class="mt-4 rounded-md border border-red-200 bg-red-50 p-3 text-sm text-red-900 dark:border-red-500/25 dark:bg-red-500/10 dark:text-red-100">
+      {{ transaction().failureReason }}
+    </p>
+  }
+</app-card>

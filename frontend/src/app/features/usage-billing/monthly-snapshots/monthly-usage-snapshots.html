@@ -1,0 +1,115 @@
+<app-page-header
+  eyebrow="Usage & Billing"
+  title="Monthly usage snapshots"
+  description="Review simple monthly usage reports for credits, creatives, storage, downloads, and public shares."
+>
+  <a routerLink="/usage-billing" class="text-sm font-medium text-brand-600 hover:text-brand-700">
+    Usage & Billing
+  </a>
+  <app-status-badge tone="neutral">{{ workspace.workspaceLabel() }}</app-status-badge>
+  @if (permissions.canViewUsageBilling()) {
+    <app-button
+      type="button"
+      variant="secondary"
+      icon="rotate-cw"
+      [loading]="store.loading()"
+      ariaLabel="Refresh monthly usage snapshots"
+      (click)="refresh()"
+    >
+      Refresh
+    </app-button>
+  }
+</app-page-header>
+
+@if (accessDenied()) {
+  <div class="mt-6">
+    <app-empty-state
+      icon="shield-alert"
+      tone="danger"
+      title="You do not have access to usage and billing."
+      description="Please contact your workspace admin if you need access."
+    />
+  </div>
+} @else if (!activeWorkspaceId()) {
+  <div class="mt-6">
+    <app-usage-empty-state icon="building-2" title="Select a workspace" description="Choose a workspace to view monthly usage snapshots." />
+  </div>
+} @else {
+  <div class="mt-6 space-y-6">
+    <app-usage-filter-bar
+      [selectedMonth]="store.selectedMonth()"
+      [selectedUsageType]="store.selectedUsageType()"
+      [selectedTransactionType]="store.selectedTransactionType()"
+      [loading]="store.loading()"
+      [showUsageType]="false"
+      [showTransactionType]="false"
+      (selectedMonthChange)="updateMonth($event)"
+      (selectedUsageTypeChange)="updateUsageType($event)"
+      (selectedTransactionTypeChange)="updateTransactionType($event)"
+      (refresh)="refresh()"
+      (clear)="clearFilters()"
+    />
+
+    @if (store.loading() && !hasSnapshots()) {
+      <app-usage-loading-state label="Loading monthly usage snapshots" [cardCount]="3" [listCount]="5" />
+    } @else if (store.error()) {
+      <app-error-state title="Monthly usage snapshots could not load" [description]="store.error()!">
+        <app-button type="button" variant="secondary" icon="rotate-cw" ariaLabel="Retry loading monthly usage snapshots" (click)="refresh()">
+          Try again
+        </app-button>
+      </app-error-state>
+    } @else if (!hasSnapshots()) {
+      <app-usage-empty-state
+        title="No monthly usage snapshots yet"
+        description="No usage history yet. Once creatives are generated, downloaded, or shared, usage will appear here."
+        retryLabel="Refresh"
+        (retry)="refresh()"
+      />
+    } @else {
+      <section aria-label="Monthly usage snapshot reports">
+        <div class="grid gap-4 lg:hidden">
+          @for (snapshot of snapshots(); track snapshotTrackBy(snapshot)) {
+            <app-monthly-snapshot-card [snapshot]="snapshot" />
+          }
+        </div>
+
+        <app-card class="hidden lg:block" [padded]="false">
+          <div class="overflow-x-auto">
+            <table class="min-w-full divide-y divide-border text-sm">
+              <thead class="bg-panel text-left text-xs font-medium uppercase tracking-[0.08em] text-muted">
+                <tr>
+                  <th scope="col" class="px-5 py-3">Month</th>
+                  <th scope="col" class="px-5 py-3">Pricing plan</th>
+                  <th scope="col" class="px-5 py-3">Subscription</th>
+                  <th scope="col" class="px-5 py-3">Used credits</th>
+                  <th scope="col" class="px-5 py-3">Generated versions</th>
+                  <th scope="col" class="px-5 py-3">Creative requests</th>
+                  <th scope="col" class="px-5 py-3">AI cost</th>
+                  <th scope="col" class="px-5 py-3">Storage</th>
+                  <th scope="col" class="px-5 py-3">Downloads</th>
+                  <th scope="col" class="px-5 py-3">Public shares</th>
+                </tr>
+              </thead>
+              <tbody class="divide-y divide-border">
+                @for (snapshot of snapshots(); track snapshot.id) {
+                  <tr class="align-top">
+                    <td class="px-5 py-4 font-semibold text-ink">{{ snapshot.usageMonth }}</td>
+                    <td class="px-5 py-4 text-ink">{{ snapshot.pricingPlanName || 'From backend' }}</td>
+                    <td class="px-5 py-4 max-w-[12rem] truncate text-muted">{{ snapshot.subscriptionId || 'Not provided' }}</td>
+                    <td class="px-5 py-4 text-ink">{{ snapshot.usedCredits | number: '1.0-2' }}</td>
+                    <td class="px-5 py-4 text-ink">{{ snapshot.generatedVersions | number }}</td>
+                    <td class="px-5 py-4 text-ink">{{ snapshot.creativeRequests | number }}</td>
+                    <td class="px-5 py-4 text-ink">{{ snapshot.aiCostUsd | currency: 'USD' : 'symbol' : '1.2-2' }}</td>
+                    <td class="px-5 py-4 text-muted">{{ formatBytes(snapshot.storageBytes) }}</td>
+                    <td class="px-5 py-4 text-ink">{{ snapshot.downloads | number }}</td>
+                    <td class="px-5 py-4 text-ink">{{ snapshot.publicShares | number }}</td>
+                  </tr>
+                }
+              </tbody>
+            </table>
+          </div>
+        </app-card>
+      </section>
+    }
+  </div>
+}

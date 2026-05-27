@@ -9,7 +9,7 @@ import { ChangeDetectionStrategy, Component } from '@angular/core';
 })
 export class AuthFooterComponent {
   protected readonly footerItems = [
-    'Lebhas Creative Maker',
+    'Lebhas - Brand Attire',
     'Create Ads Beyond Imagination',
     'Dhaka, Bangladesh',
   ];

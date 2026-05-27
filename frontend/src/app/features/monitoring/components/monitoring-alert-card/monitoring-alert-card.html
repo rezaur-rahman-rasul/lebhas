@@ -1,0 +1,48 @@
+<app-card [interactive]="true">
+  <article class="min-w-0" [attr.aria-label]="typeLabel() + ': ' + alert().title">
+    <div class="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+      <div class="min-w-0">
+        <p class="text-xs font-medium uppercase tracking-wide text-muted">{{ typeLabel() }}</p>
+        <h3 class="mt-1 line-clamp-2 text-base font-semibold text-ink">{{ alert().title }}</h3>
+      </div>
+      <div class="flex shrink-0 flex-wrap gap-2">
+        <app-monitoring-severity-badge [severity]="alert().severity" />
+        <span
+          class="rounded-full border px-2.5 py-1 text-xs font-medium"
+          [class.border-emerald-500/30]="alert().resolved"
+          [class.bg-emerald-500/10]="alert().resolved"
+          [class.text-emerald-700]="alert().resolved"
+          [class.dark:text-emerald-300]="alert().resolved"
+          [class.border-amber-500/30]="!alert().resolved"
+          [class.bg-amber-500/10]="!alert().resolved"
+          [class.text-amber-700]="!alert().resolved"
+          [class.dark:text-amber-300]="!alert().resolved"
+          [attr.aria-label]="alert().resolved ? 'Resolved alert' : 'Unresolved alert'"
+        >
+          {{ alert().resolved ? 'Resolved' : 'Needs attention' }}
+        </span>
+      </div>
+    </div>
+
+    <p class="mt-4 line-clamp-3 text-sm leading-6 text-muted">{{ description() }}</p>
+
+    <dl class="mt-4 grid gap-3 text-xs text-muted sm:grid-cols-2 lg:grid-cols-4">
+      <div class="min-w-0">
+        <dt class="font-medium text-ink">Workspace</dt>
+        <dd class="mt-1 truncate">{{ workspaceLabel() }}</dd>
+      </div>
+      <div class="min-w-0">
+        <dt class="font-medium text-ink">Provider</dt>
+        <dd class="mt-1 truncate">{{ providerLabel() }}</dd>
+      </div>
+      <div class="min-w-0">
+        <dt class="font-medium text-ink">Created</dt>
+        <dd class="mt-1 truncate">{{ alert().createdAt }}</dd>
+      </div>
+      <div class="min-w-0">
+        <dt class="font-medium text-ink">Resolved</dt>
+        <dd class="mt-1 truncate">{{ alert().resolvedAt || 'Not resolved yet' }}</dd>
+      </div>
+    </dl>
+  </article>
+</app-card>

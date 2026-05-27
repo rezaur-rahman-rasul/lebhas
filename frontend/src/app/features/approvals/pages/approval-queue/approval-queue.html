@@ -1,0 +1,219 @@
+<app-page-header
+  eyebrow="Approval workflow"
+  title="Approvals"
+  description="Review generated versions, approve work, and manage share or download access."
+>
+  <app-badge tone="neutral">{{ workspace.workspaceLabel() }}</app-badge>
+  @if (approvalUnavailableMessage()) {
+    <app-badge tone="red">Approval unavailable</app-badge>
+  }
+</app-page-header>
+
+@if (approvalUnavailableMessage()) {
+  <div class="mt-6">
+    <app-empty-state
+      icon="shield-check"
+      tone="danger"
+      title="Approval workflow is not available"
+      [description]="approvalUnavailableMessage()!"
+    />
+  </div>
+}
+
+@if (store.loading()) {
+  <div class="mt-6 grid gap-4 lg:grid-cols-2">
+    @for (item of [0, 1, 2, 3]; track item) {
+      <div class="h-56 animate-pulse rounded-2xl border border-border bg-panel"></div>
+    }
+  </div>
+} @else if (store.error()) {
+  <div class="mt-6">
+    <app-empty-state
+      icon="circle-alert"
+      tone="danger"
+      title="Approvals could not be loaded"
+      description="We could not load this data. Please try again."
+    >
+      <app-button variant="secondary" icon="refresh-cw" (click)="reload()">Retry</app-button>
+    </app-empty-state>
+  </div>
+} @else if (!store.hasApprovals()) {
+  <div class="mt-6">
+    <app-empty-state
+      icon="shield-check"
+      title="No approvals waiting"
+      description="Generated versions that need review will appear here."
+    />
+  </div>
+} @else {
+  <section class="mt-6 grid gap-6 xl:grid-cols-[minmax(0,1fr)_24rem]">
+    <div class="min-w-0 space-y-4">
+      @for (approval of store.approvals(); track approval.id) {
+        <article
+          class="overflow-hidden rounded-2xl border border-border bg-panel"
+          [class.ring-2]="store.selectedApproval()?.id === approval.id"
+          [class.ring-brand-200]="store.selectedApproval()?.id === approval.id"
+        >
+          <div class="grid gap-4 p-4 md:grid-cols-[12rem_minmax(0,1fr)]">
+            <button
+              type="button"
+              class="grid aspect-video place-items-center overflow-hidden rounded-xl bg-slate-100 text-sm text-muted dark:bg-slate-900"
+              (click)="selectApproval(approval)"
+              [attr.aria-label]="'Select approval ' + approval.id"
+            >
+              @if (approval.previewUrl) {
+                <img [src]="approval.previewUrl" [alt]="approval.title || 'Approval preview'" class="h-full w-full object-cover" />
+              } @else {
+                Preview pending
+              }
+            </button>
+
+            <div class="min-w-0 space-y-4">
+              <div class="flex flex-wrap items-start justify-between gap-3">
+                <div class="min-w-0">
+                  <h2 class="truncate text-base font-semibold text-ink">{{ approval.title || 'Generated version review' }}</h2>
+                  <p class="mt-1 text-sm text-muted">Generated version {{ approval.generatedVersionId }}</p>
+                </div>
+                <app-badge [tone]="approvalStatusTone(approval.status)">
+                  {{ approvalStatusLabel(approval.status) }}
+                </app-badge>
+              </div>
+
+              <div class="flex flex-wrap gap-2">
+                @if (canApprove(approval)) {
+                  <app-button size="sm" icon="check" (click)="openComment('APPROVE', approval)">Approve</app-button>
+                }
+                @if (canReject(approval)) {
+                  <app-button size="sm" variant="danger" icon="x" (click)="openComment('REJECT', approval)">Reject</app-button>
+                  <app-button size="sm" variant="secondary" icon="message-square" (click)="openComment('REQUEST_CHANGES', approval)">Request changes</app-button>
+                }
+                @if (canShare(approval)) {
+                  <app-button size="sm" variant="secondary" icon="share-2" (click)="openShare(approval)">Share</app-button>
+                } @else if (approval.capabilities?.canShare) {
+                  <app-button size="sm" variant="secondary" icon="share-2" [disabled]="true">Share unavailable</app-button>
+                }
+                @if (canDownload(approval)) {
+                  <app-button
+                    size="sm"
+                    variant="secondary"
+                    icon="download"
+                    [loading]="downloadingId() === approval.id"
+                    (click)="download(approval)"
+                  >
+                    Download
+                  </app-button>
+                }
+              </div>
+
+              @if (!canApprove(approval) && !canReject(approval) && approvalUnavailableMessage()) {
+                <p class="rounded-lg border border-border bg-surface px-3 py-2 text-sm text-muted">
+                  {{ approvalUnavailableMessage() }}
+                </p>
+              }
+            </div>
+          </div>
+        </article>
+      }
+    </div>
+
+    <aside class="min-w-0 rounded-2xl border border-border bg-panel p-4">
+      @if (store.selectedApproval(); as selected) {
+        <div class="space-y-5">
+          <div>
+            <p class="text-xs font-semibold uppercase tracking-[0.18em] text-muted">Selected approval</p>
+            <h3 class="mt-2 text-base font-semibold text-ink">{{ selected.title || selected.id }}</h3>
+            <app-badge class="mt-2 inline-flex" [tone]="approvalStatusTone(selected.status)">
+              {{ approvalStatusLabel(selected.status) }}
+            </app-badge>
+          </div>
+
+          <div>
+            <h4 class="text-sm font-semibold text-ink">Approval history</h4>
+            @if (selected.history?.length) {
+              <ol class="mt-3 space-y-3">
+                @for (item of selected.history; track item.id ?? item.createdAt) {
+                  <li class="rounded-lg border border-border bg-surface px-3 py-2">
+                    <div class="flex items-center justify-between gap-3">
+                      <span class="text-sm font-medium text-ink">{{ approvalStatusLabel(item.status) }}</span>
+                      <span class="text-xs text-muted">{{ item.createdAt }}</span>
+                    </div>
+                    @if (item.note) {
+                      <p class="mt-2 text-sm text-muted">{{ item.note }}</p>
+                    }
+                    @if (item.actorName) {
+                      <p class="mt-1 text-xs text-muted">{{ item.actorName }}</p>
+                    }
+                  </li>
+                }
+              </ol>
+            } @else {
+              <p class="mt-2 text-sm text-muted">No approval comments yet.</p>
+            }
+          </div>
+        </div>
+      } @else {
+        <app-empty-state
+          icon="mouse-pointer-2"
+          title="Select an approval"
+          description="Choose a generated version to inspect status and review history."
+        />
+      }
+    </aside>
+  </section>
+}
+
+<app-modal-shell
+  [open]="commentOpen()"
+  title="Review comment"
+  description="Add a short note before saving this approval decision."
+  (closed)="closeComment()"
+>
+  <div class="space-y-4">
+    <textarea
+      rows="5"
+      class="w-full rounded-md border border-border bg-white px-3 py-3 text-sm text-ink outline-none focus:border-brand-500 focus:ring-2 focus:ring-brand-100"
+      [formControl]="noteControl"
+      placeholder="Add a helpful comment for the team."
+    ></textarea>
+    <div class="flex justify-end gap-3">
+      <app-button variant="ghost" (click)="closeComment()">Cancel</app-button>
+      <app-button icon="check" [loading]="store.deciding()" (click)="submitDecision()">Save decision</app-button>
+    </div>
+  </div>
+</app-modal-shell>
+
+<app-modal-shell
+  [open]="shareOpen()"
+  title="Share generated version"
+  description="Create or copy the public share link when sharing is available."
+  (closed)="closeShare()"
+>
+  @if (shareUnavailableMessage()) {
+    <app-empty-state
+      icon="share-2"
+      tone="danger"
+      title="Sharing is not available"
+      [description]="shareUnavailableMessage()!"
+    />
+  } @else if (shareLoading()) {
+    <p class="text-sm text-muted">Preparing share link...</p>
+  } @else if (shareLink(); as link) {
+    <div class="space-y-4">
+      <div class="rounded-lg border border-border bg-surface px-3 py-3">
+        <p class="break-all text-sm text-ink">{{ link.url }}</p>
+        @if (link.expiresAt) {
+          <p class="mt-2 text-xs text-muted">Expires: {{ link.expiresAt }}</p>
+        }
+      </div>
+      <div class="flex justify-end gap-3">
+        <app-button variant="secondary" icon="copy" (click)="copyShareLink()">Copy link</app-button>
+      </div>
+    </div>
+  } @else {
+    <app-empty-state
+      icon="circle-alert"
+      title="Share link unavailable"
+      description="The share link may have expired or is not ready yet."
+    />
+  }
+</app-modal-shell>

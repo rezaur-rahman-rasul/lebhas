@@ -1,0 +1,44 @@
+<app-card [interactive]="true">
+  <div class="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+    <div class="min-w-0">
+      <div class="flex flex-wrap items-center gap-2">
+        <h3 class="truncate text-base font-semibold text-ink">{{ creditPackage().name }}</h3>
+        <app-status-badge [tone]="creditPackage().isActive ? 'brand' : 'neutral'">
+          {{ creditPackage().isActive ? 'Active' : 'Inactive' }}
+        </app-status-badge>
+      </div>
+      <p class="mt-1 text-sm text-muted">{{ creditPackage().code }}</p>
+    </div>
+    <div class="flex flex-wrap items-center gap-2">
+      <app-button
+        type="button"
+        variant="ghost"
+        size="sm"
+        icon="pencil"
+        ariaLabel="Edit credit package"
+        (click)="edit.emit(creditPackage())"
+      >
+        Edit
+      </app-button>
+      <app-button
+        type="button"
+        [variant]="creditPackage().isActive ? 'danger' : 'secondary'"
+        size="sm"
+        [icon]="creditPackage().isActive ? 'pause-circle' : 'play-circle'"
+        [attr.aria-label]="creditPackage().isActive ? 'Deactivate credit package' : 'Activate credit package'"
+        (click)="toggleActive.emit(creditPackage())"
+      >
+        {{ creditPackage().isActive ? 'Deactivate' : 'Activate' }}
+      </app-button>
+    </div>
+  </div>
+
+  <dl class="mt-5 grid gap-3 text-sm sm:grid-cols-2 xl:grid-cols-4">
+    <div><dt class="text-xs text-muted">Credits</dt><dd class="mt-1 font-semibold text-ink">{{ creditPackage().credits | number }}</dd></div>
+    <div><dt class="text-xs text-muted">Bonus credits</dt><dd class="mt-1 font-semibold text-ink">{{ creditPackage().bonusCredits | number }}</dd></div>
+    <div><dt class="text-xs text-muted">Price</dt><dd class="mt-1 font-semibold text-ink">{{ creditPackage().price | currency: creditPackage().currency : 'symbol' : '1.2-2' }}</dd></div>
+    <div><dt class="text-xs text-muted">Currency</dt><dd class="mt-1 font-semibold text-ink">{{ creditPackage().currency }}</dd></div>
+    <div><dt class="text-xs text-muted">Sort order</dt><dd class="mt-1 font-semibold text-ink">{{ creditPackage().sortOrder }}</dd></div>
+    <div><dt class="text-xs text-muted">Updated</dt><dd class="mt-1 font-semibold text-ink">{{ creditPackage().updatedAt | date: 'medium' }}</dd></div>
+  </dl>
+</app-card>

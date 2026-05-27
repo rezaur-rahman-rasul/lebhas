@@ -1,0 +1,147 @@
+<app-page-header
+  eyebrow="Generated version"
+  title="Generated creative detail"
+  description="Review one generated creative version, its preview, status, and available actions."
+>
+  <a routerLink="/projects" class="text-sm font-medium text-brand-600 hover:text-brand-700">Projects</a>
+  @if (store.selectedVersion(); as version) {
+    <app-badge [tone]="generatedVersionStatusTone(version.status)">
+      {{ generatedVersionStatusLabel(version.status) }}
+    </app-badge>
+  }
+</app-page-header>
+
+@if (store.loading()) {
+  <div class="mt-6 grid gap-6 lg:grid-cols-[minmax(0,1fr)_22rem]">
+    <div class="h-96 animate-pulse rounded-2xl border border-border bg-panel"></div>
+    <div class="h-96 animate-pulse rounded-2xl border border-border bg-panel"></div>
+  </div>
+} @else if (store.error()) {
+  <div class="mt-6">
+    <app-empty-state
+      icon="circle-alert"
+      tone="danger"
+      title="Generated version could not be loaded"
+      [description]="store.error()!"
+    >
+      <app-button variant="secondary" icon="refresh-cw" (click)="reload()">Retry</app-button>
+    </app-empty-state>
+  </div>
+} @else if (store.selectedVersion(); as version) {
+  <section class="mt-6 grid gap-6 lg:grid-cols-[minmax(0,1fr)_22rem]">
+    <app-card>
+      <div class="space-y-4">
+        <div class="overflow-hidden rounded-2xl border border-border bg-slate-100 dark:bg-slate-900">
+          <div class="grid aspect-video place-items-center">
+            @if (version.previewUrl) {
+              <img [src]="version.previewUrl" [alt]="'Generated version ' + (version.versionNumber ?? '')" class="h-full w-full object-contain" />
+            } @else {
+              <p class="text-sm text-muted">Preview will appear when generation is completed.</p>
+            }
+          </div>
+        </div>
+
+        <div class="flex flex-wrap gap-2">
+          @if (version.capabilities?.canDownload) {
+            <app-button icon="download" [loading]="downloading()" (click)="download(version)">Download</app-button>
+          }
+          @if (version.capabilities?.canShare) {
+            <app-button variant="secondary" icon="share-2" [disabled]="!shareAvailable()" (click)="openShareDialog(version)">
+              Share
+            </app-button>
+          } @else if (shareUnavailableMessage()) {
+            <app-button variant="secondary" icon="share-2" [disabled]="true">Share unavailable</app-button>
+          }
+        </div>
+      </div>
+    </app-card>
+
+    <app-card>
+      <div class="space-y-5">
+        <div>
+          <p class="text-xs font-semibold uppercase tracking-[0.18em] text-muted">Status</p>
+          <div class="mt-2 flex items-center gap-2">
+            <app-badge [tone]="generatedVersionStatusTone(version.status)">
+              {{ generatedVersionStatusLabel(version.status) }}
+            </app-badge>
+            <span class="text-sm text-muted">Version {{ version.versionNumber ?? 'pending' }}</span>
+          </div>
+        </div>
+
+        <dl class="grid gap-3 text-sm">
+          <div>
+            <dt class="text-muted">Generated version ID</dt>
+            <dd class="break-all font-medium text-ink">{{ version.id }}</dd>
+          </div>
+          <div>
+            <dt class="text-muted">Creative request</dt>
+            <dd class="break-all font-medium text-ink">{{ version.creativeRequestId }}</dd>
+          </div>
+          <div>
+            <dt class="text-muted">Created</dt>
+            <dd class="font-medium text-ink">{{ version.createdAt }}</dd>
+          </div>
+        </dl>
+
+        @if (version.metadata) {
+          <div>
+            <h3 class="text-sm font-semibold text-ink">Advanced metadata</h3>
+            <dl class="mt-3 grid gap-3 text-sm">
+              @for (item of version.metadata | keyvalue; track item.key) {
+                <div>
+                  <dt class="text-muted">{{ item.key }}</dt>
+                  <dd class="break-all font-medium text-ink">{{ item.value }}</dd>
+                </div>
+              }
+            </dl>
+          </div>
+        }
+      </div>
+    </app-card>
+  </section>
+} @else {
+  <div class="mt-6">
+    <app-empty-state
+      icon="image"
+      title="Generated version not found"
+      description="Open a valid generated version from a creative request."
+    />
+  </div>
+}
+
+<app-modal-shell
+  [open]="shareDialogOpen()"
+  title="Share generated creative"
+  description="Use the backend signed share link below while it is active."
+  (closed)="closeShareDialog()"
+>
+  @if (shareUnavailableMessage()) {
+    <app-empty-state
+      icon="lock"
+      title="Sharing is unavailable"
+      [description]="shareUnavailableMessage()!"
+    />
+  } @else if (shareLoading()) {
+    <div class="rounded-2xl border border-border bg-panel-muted p-4 text-sm text-muted">
+      Preparing secure share link...
+    </div>
+  } @else if (shareLink()) {
+    <div class="space-y-4">
+      <div class="rounded-2xl border border-border bg-panel-muted p-4">
+        <p class="break-all text-sm font-medium text-ink">{{ shareLink() }}</p>
+        @if (shareExpiresAt()) {
+          <p class="mt-2 text-xs text-muted">Expires {{ shareExpiresAt() }}</p>
+        }
+      </div>
+      <div class="flex justify-end">
+        <app-button icon="copy" (click)="copyShareLink()">Copy link</app-button>
+      </div>
+    </div>
+  } @else {
+    <app-empty-state
+      icon="link"
+      title="Share link unavailable"
+      description="The link may have expired or your workspace may not have access to sharing for this creative."
+    />
+  }
+</app-modal-shell>

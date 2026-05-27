@@ -1,0 +1,30 @@
+<app-card [interactive]="true">
+  <div class="min-w-0">
+    <p class="truncate text-sm font-semibold text-ink">{{ layer().layerName }}</p>
+    <p class="mt-1 truncate text-xs text-muted">{{ layer().layerType }}</p>
+  </div>
+
+  <div class="mt-5">
+    <p class="text-2xl font-semibold text-ink">{{ estimatedCost() | currency: 'USD' }}</p>
+    <p class="mt-1 text-xs text-muted">Estimated layer cost</p>
+  </div>
+
+  <dl class="mt-5 grid grid-cols-2 gap-3 text-sm">
+    <div>
+      <dt class="text-xs text-muted">Executions</dt>
+      <dd class="mt-1 font-semibold text-ink">{{ layer().totalExecutions }}</dd>
+    </div>
+    <div>
+      <dt class="text-xs text-muted">Failed</dt>
+      <dd class="mt-1 font-semibold text-ink">{{ layer().failedExecutions }}</dd>
+    </div>
+    <div>
+      <dt class="text-xs text-muted">Avg time</dt>
+      <dd class="mt-1 font-semibold text-ink">{{ layer().avgExecutionTimeMs }} ms</dd>
+    </div>
+    <div>
+      <dt class="text-xs text-muted">Quality</dt>
+      <dd class="mt-1 font-semibold text-ink">{{ layer().avgQualityScore }}</dd>
+    </div>
+  </dl>
+</app-card>

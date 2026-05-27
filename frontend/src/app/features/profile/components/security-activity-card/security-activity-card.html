@@ -1,0 +1,34 @@
+<app-card [interactive]="true">
+  <article class="flex min-w-0 gap-3" [attr.aria-label]="activityLabel()">
+    <span [class]="iconClasses()">
+      <app-icon [name]="iconName()" [size]="18" />
+    </span>
+
+    <div class="min-w-0 flex-1">
+      <div class="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
+        <div class="min-w-0">
+          <h3 class="truncate text-base font-semibold text-ink">{{ activityLabel() }}</h3>
+          <p class="mt-1 truncate text-sm text-muted">{{ activity().deviceSummary || 'Unknown device' }}</p>
+        </div>
+        <span [class]="badgeClasses()">
+          {{ statusLabel() }}
+        </span>
+      </div>
+
+      <dl class="mt-4 grid gap-3 text-xs text-muted sm:grid-cols-3">
+        <div class="min-w-0">
+          <dt class="font-medium text-ink">Location</dt>
+          <dd class="mt-1 truncate">{{ activity().ipAddressMasked || 'Masked address' }}</dd>
+        </div>
+        <div class="min-w-0">
+          <dt class="font-medium text-ink">Date</dt>
+          <dd class="mt-1 truncate">{{ activity().createdAt }}</dd>
+        </div>
+        <div class="min-w-0">
+          <dt class="font-medium text-ink">Details</dt>
+          <dd class="mt-1 truncate">{{ activity().failureReason || 'No issue reported' }}</dd>
+        </div>
+      </dl>
+    </div>
+  </article>
+</app-card>

@@ -1,0 +1,89 @@
+<div
+  class="sidebar-shell"
+  data-testid="dashboard-sidebar"
+  [class.sidebar-shell--compact]="compact()"
+  [class.sidebar-shell--mobile-open]="mobileOpen()"
+>
+  <header class="sidebar-header">
+    <a
+      routerLink="/dashboard"
+      class="sidebar-brand"
+      aria-label="Lebhas - Brand Attire dashboard"
+      (click)="selectItem()"
+    >
+      <span class="sidebar-logo">
+        <app-brand-logo size="sm" [elevated]="false" />
+      </span>
+      @if (!compact()) {
+        <span class="sidebar-brand-copy">
+          <span class="sidebar-brand-title" [title]="displayProjectName()">
+            {{ displayProjectName() }}
+          </span>
+          <span class="sidebar-brand-subtitle" [title]="displayWorkspaceName()">
+            {{ displayWorkspaceName() }}
+          </span>
+        </span>
+      }
+    </a>
+
+    <button
+      type="button"
+      class="sidebar-close"
+      aria-label="Close sidebar"
+      (click)="closeRequested.emit()"
+    >
+      <app-icon name="x" [size]="18" />
+    </button>
+  </header>
+
+  <nav class="sidebar-nav" aria-label="Sidebar navigation">
+    @for (group of navigationGroups(); track group.label) {
+      <section class="sidebar-nav-group" [attr.aria-label]="group.label">
+        @if (!compact()) {
+          <p class="sidebar-group-label">{{ group.label }}</p>
+        }
+
+        @for (item of group.items; track item.route) {
+          <a
+            [routerLink]="item.route"
+            class="sidebar-link"
+            [class.sidebar-link--active]="isActive(item)"
+            [attr.aria-current]="isActive(item) ? 'page' : null"
+            [attr.aria-label]="compact() ? item.label : null"
+            [attr.title]="compact() ? item.label : null"
+            [attr.data-testid]="'sidebar-link-' + item.label.toLowerCase().replaceAll('/', '-').replaceAll(' ', '-')"
+            (click)="selectItem()"
+          >
+            <span class="sidebar-link-icon">
+              <app-icon [name]="item.icon" [size]="18" />
+            </span>
+            @if (!compact()) {
+              <span class="sidebar-link-label">{{ item.label }}</span>
+            }
+          </a>
+        }
+      </section>
+    }
+  </nav>
+
+  <footer class="sidebar-footer">
+    <section class="access-scope-card" aria-label="Access scope">
+      @if (!compact()) {
+        <div class="access-scope-main">
+          <div class="access-scope-copy">
+            <p class="access-scope-label">ACCESS SCOPE</p>
+            <p class="access-scope-role" [title]="roleBadgeLabel()">{{ roleBadgeLabel() }}</p>
+            <p class="access-scope-workspace" [title]="displayWorkspaceName()">
+              {{ displayWorkspaceName() }}
+            </p>
+          </div>
+          <app-badge [tone]="roleBadgeTone()">{{ roleBadgeLabel() }}</app-badge>
+        </div>
+      } @else {
+        <div class="access-scope-compact" [title]="'Access scope: ' + roleBadgeLabel()">
+          <span>{{ compactRoleLabel() }}</span>
+        </div>
+      }
+    </section>
+  </footer>
+</div>

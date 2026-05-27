@@ -1,0 +1,7 @@
+<app-status-badge
+  [tone]="tone()"
+  role="status"
+  [attr.aria-label]="'Provider status: ' + label()"
+>
+  {{ label() }}
+</app-status-badge>

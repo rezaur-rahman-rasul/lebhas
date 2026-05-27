@@ -1,0 +1,73 @@
+<section class="mx-auto flex w-full max-w-7xl flex-col gap-6 px-4 py-6 sm:px-6 lg:px-8">
+  <app-page-header
+    eyebrow="Monitoring alerts"
+    title="Monitoring Alerts"
+    description="Review system alerts with friendly explanations and sensitive details hidden."
+  >
+    @if (!accessDenied()) {
+      <a
+        class="inline-flex h-10 items-center justify-center rounded-md border border-border bg-surface px-4 text-sm font-medium text-ink transition hover:bg-panel focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500"
+        routerLink="/master/monitoring"
+        aria-label="Back to monitoring dashboard"
+      >
+        Dashboard
+      </a>
+      <app-button
+        type="button"
+        variant="secondary"
+        icon="rotate-cw"
+        [loading]="store.loading()"
+        ariaLabel="Refresh monitoring alerts"
+        (click)="refresh()"
+      >
+        Refresh
+      </app-button>
+    }
+  </app-page-header>
+
+  @if (accessDenied()) {
+    <app-monitoring-empty-state
+      icon="lock-keyhole"
+      title="You do not have access to system monitoring."
+      description="Please contact the system owner if you need access."
+    />
+  } @else {
+    <app-monitoring-filter-bar
+      [selectedAlertType]="store.selectedAlertType()"
+      [selectedSeverity]="store.selectedSeverity()"
+      [unresolvedOnly]="store.unresolvedOnly()"
+      [loading]="store.loading()"
+      (selectedAlertTypeChange)="updateAlertType($event)"
+      (selectedSeverityChange)="updateSeverity($event)"
+      (unresolvedOnlyChange)="updateUnresolvedOnly($event)"
+      (refresh)="refresh()"
+      (clear)="clearFilters()"
+    />
+
+    @if (store.error()) {
+      <app-error-state title="Monitoring alerts could not be loaded" [description]="store.error() || 'Please try again.'">
+        <app-button
+          type="button"
+          variant="secondary"
+          icon="rotate-cw"
+          ariaLabel="Retry loading monitoring alerts"
+          (click)="clearError(); refresh()"
+        >
+          Retry
+        </app-button>
+      </app-error-state>
+    }
+
+    @if (store.loading() && !hasAlerts()) {
+      <app-monitoring-loading-state label="Loading monitoring alerts" [cardCount]="4" />
+    } @else if (!hasAlerts()) {
+      <app-monitoring-empty-state />
+    } @else {
+      <section class="grid gap-3" aria-label="Monitoring alert list">
+        @for (alert of sortedAlerts(); track alert.id) {
+          <app-monitoring-alert-card [alert]="alert" />
+        }
+      </section>
+    }
+  }
+</section>

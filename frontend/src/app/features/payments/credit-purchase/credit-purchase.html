@@ -1,0 +1,203 @@
+<app-page-header
+  eyebrow="Workspace"
+  title="Buy credits"
+  description="Choose a backend-priced credit package and continue to the secure payment provider when the backend creates a payment session."
+>
+  @if (!accessDenied()) {
+    <app-button
+      type="button"
+      variant="secondary"
+      icon="rotate-cw"
+      [loading]="store.loading() || usageBilling.loading()"
+      ariaLabel="Refresh credit packages"
+      (click)="refresh()"
+    >
+      Refresh
+    </app-button>
+  }
+</app-page-header>
+
+@if (accessDenied()) {
+  <div class="mt-6">
+    <app-empty-state
+      icon="shield-alert"
+      tone="danger"
+      title="You do not have access to buy credits."
+      description="Please contact your workspace admin if you need access."
+    />
+  </div>
+} @else {
+  <div class="mt-6 space-y-6">
+    <section class="grid gap-4 lg:grid-cols-3" aria-label="Credit purchase summary">
+      <app-card>
+        <p class="text-sm text-muted">Current credit balance</p>
+        <p class="mt-2 text-3xl font-semibold text-ink">
+          @if (currentCreditBalance() !== null) {
+            {{ currentCreditBalance() | number }}
+          } @else {
+            Usage details unavailable
+          }
+        </p>
+        <p class="mt-3 text-sm leading-6 text-muted">Credits are used when generating creatives.</p>
+      </app-card>
+
+      <app-card>
+        <p class="text-sm text-muted">Available packages</p>
+        <p class="mt-2 text-3xl font-semibold text-ink">{{ creditPackages().length }}</p>
+        <p class="mt-3 text-sm leading-6 text-muted">
+          Package credits, bonus credits, prices, and currency are loaded from backend configuration.
+        </p>
+      </app-card>
+
+      <app-card>
+        <p class="text-sm text-muted">Payment safety</p>
+        <p class="mt-2 text-base font-semibold text-ink">Backend calculates the final amount</p>
+        <p class="mt-3 text-sm leading-6 text-muted">
+          This page sends only the selected package ID and waits for the backend payment session.
+        </p>
+      </app-card>
+    </section>
+
+    <section class="grid gap-4 xl:grid-cols-[minmax(0,1fr)_360px]" aria-label="Credit package purchase">
+      <div class="space-y-6">
+        <div>
+          <h2 class="text-lg font-semibold text-ink">Available credit packages</h2>
+          <p class="mt-1 text-sm text-muted">Choose a package returned by backend. No discounts are invented here.</p>
+        </div>
+
+        @if (store.loading() && !hasCreditPackages()) {
+          <app-payment-loading-state label="Loading credit packages" />
+        } @else if (store.error()) {
+          <app-error-state title="Credit packages could not load" [description]="store.error()!">
+            <app-button
+              type="button"
+              variant="secondary"
+              icon="rotate-cw"
+              ariaLabel="Retry loading credit packages"
+              (click)="refresh()"
+            >
+              Try again
+            </app-button>
+          </app-error-state>
+        } @else if (!hasCreditPackages()) {
+          <app-payment-empty-state
+            icon="package-open"
+            title="No credit packages are available right now"
+            description="No credit packages are available right now. Please check again later."
+            retryLabel="Refresh"
+            (retry)="refresh()"
+          />
+        } @else {
+          <div class="grid gap-4 xl:grid-cols-2">
+            @for (creditPackage of creditPackages(); track creditPackage.id) {
+              <app-credit-purchase-card
+                [creditPackage]="creditPackage"
+                [selected]="selectedCreditPackage()?.id === creditPackage.id"
+                (selectPackage)="selectCreditPackage($event)"
+              />
+            }
+          </div>
+        }
+      </div>
+
+      <aside class="space-y-4" aria-label="Selected credit package summary">
+        <app-card>
+          <h2 class="text-lg font-semibold text-ink">Selected package summary</h2>
+          <p class="mt-2 text-sm leading-6 text-muted">
+            The backend creates the payment session and remains the source of truth for final payment amount.
+          </p>
+
+          @if (selectedSummary()) {
+            <dl class="mt-5 space-y-3 text-sm">
+              <div class="flex items-center justify-between gap-4">
+                <dt class="text-muted">Package</dt>
+                <dd class="truncate font-semibold text-ink">{{ selectedSummary()?.packageName }}</dd>
+              </div>
+              <div class="flex items-center justify-between gap-4">
+                <dt class="text-muted">Credits</dt>
+                <dd class="font-semibold text-ink">{{ selectedSummary()?.credits | number }}</dd>
+              </div>
+              <div class="flex items-center justify-between gap-4">
+                <dt class="text-muted">Bonus credits</dt>
+                <dd class="font-semibold text-ink">{{ selectedSummary()?.bonusCredits | number }}</dd>
+              </div>
+              <div class="flex items-center justify-between gap-4">
+                <dt class="text-muted">Backend price</dt>
+                <dd class="font-semibold text-ink">
+                  {{ selectedSummary()?.amount | currency: selectedSummary()?.currency : 'symbol' : '1.2-2' }}
+                </dd>
+              </div>
+            </dl>
+
+            <app-button
+              class="mt-5 block"
+              type="button"
+              icon="wallet-cards"
+              [loading]="store.loading()"
+              [disabled]="!canStartPayment()"
+              [fullWidth]="true"
+              ariaLabel="Create credit purchase payment session"
+              (click)="buyCredits()"
+            >
+              Buy credits
+            </app-button>
+          } @else {
+            <div class="mt-5 rounded-lg border border-dashed border-border bg-panel p-4 text-sm text-muted">
+              Select a backend-provided credit package to start a secure payment session.
+            </div>
+          }
+        </app-card>
+
+        @if (paymentSession()) {
+          <app-card>
+            <div class="flex items-start justify-between gap-3">
+              <div>
+                <h2 class="text-lg font-semibold text-ink">Payment session ready</h2>
+                <p class="mt-1 text-sm text-muted">Continue to the payment provider to complete payment.</p>
+              </div>
+              <app-payment-status-badge [status]="paymentSession()!.paymentStatus" />
+            </div>
+
+            <dl class="mt-5 space-y-3 text-sm">
+              <div class="flex items-center justify-between gap-4">
+                <dt class="text-muted">Provider</dt>
+                <dd class="truncate font-semibold text-ink">{{ paymentSession()?.providerName ?? 'Provider selected by backend' }}</dd>
+              </div>
+              <div class="flex items-center justify-between gap-4">
+                <dt class="text-muted">Transaction</dt>
+                <dd class="truncate font-semibold text-ink">{{ paymentSession()?.paymentTransactionId }}</dd>
+              </div>
+              <div class="flex items-center justify-between gap-4">
+                <dt class="text-muted">Session expires</dt>
+                <dd class="font-semibold text-ink">
+                  @if (paymentSession()?.expiresAt) {
+                    {{ paymentSession()?.expiresAt | date: 'short' }}
+                  } @else {
+                    Not provided
+                  }
+                </dd>
+              </div>
+            </dl>
+
+            @if (paymentSession()?.paymentRedirectUrl) {
+              <app-button
+                class="mt-5 block"
+                type="button"
+                icon="external-link"
+                [fullWidth]="true"
+                ariaLabel="Continue to payment"
+                (click)="continueToPayment()"
+              >
+                Continue to Payment
+              </app-button>
+            } @else {
+              <p class="mt-5 rounded-lg border border-border bg-panel p-3 text-sm text-muted">
+                Payment redirect is not available yet. Please try again or contact support if the issue continues.
+              </p>
+            }
+          </app-card>
+        }
+      </aside>
+    </section>
+  </div>
+}

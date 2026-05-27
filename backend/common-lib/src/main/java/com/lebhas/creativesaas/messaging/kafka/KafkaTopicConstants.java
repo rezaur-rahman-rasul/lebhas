@@ -7,6 +7,14 @@ public final class KafkaTopicConstants {
     public static final String AUTH_REFRESH_COMPLETED = "auth.refresh.completed";
     public static final String MASTER_SUPPORT_ENTERED = "master.support.entered";
     public static final String MASTER_SUPPORT_EXITED = "master.support.exited";
+    public static final String PROFILE_UPDATED = "profile.updated";
+    public static final String PROFILE_IMAGE_UPLOAD_REQUESTED = "profile.image.upload.requested";
+    public static final String PROFILE_SETTINGS_UPDATED = "profile.settings.updated";
+    public static final String PROFILE_PASSWORD_CHANGED = "profile.password.changed";
+    public static final String PROFILE_IMAGE_UPDATED = "profile.image.updated";
+    public static final String PROFILE_IMAGE_REMOVED = "profile.image.removed";
+    public static final String PROFILE_SESSION_REVOKED = "profile.session.revoked";
+    public static final String PROFILE_SECURITY_ACTIVITY_CREATED = "profile.security.activity.created";
     public static final String BRAND_CREATED = "brand.created";
     public static final String BRAND_UPDATED = "brand.updated";
     public static final String BRAND_DELETED = "brand.deleted";

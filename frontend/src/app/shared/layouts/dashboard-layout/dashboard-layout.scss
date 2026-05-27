@@ -1,1 +1,87 @@
 
+:host {
+  display: block;
+}
+
+.dashboard-topbar {
+  min-height: 4rem;
+}
+
+.dashboard-workspace-switcher {
+  width: clamp(14rem, 20vw, 20rem);
+  height: 2.5rem;
+  flex: 0 0 auto;
+}
+
+.workspace-option {
+  display: flex;
+  min-height: 2.5rem;
+  width: 100%;
+  min-width: 0;
+  align-items: center;
+  gap: 0.75rem;
+  border-radius: 0.375rem;
+  padding: 0 0.75rem;
+  color: rgb(var(--color-muted));
+  font-size: 0.875rem;
+  font-weight: 600;
+  transition:
+    background-color 160ms ease,
+    color 160ms ease;
+
+  &:hover,
+  &[aria-selected='true'] {
+    background: rgb(var(--color-panel));
+    color: rgb(var(--color-ink));
+  }
+
+  &:focus-visible {
+    outline: 2px solid rgb(22 166 121);
+    outline-offset: 2px;
+  }
+}
+
+:host-context(.light) .dashboard-topbar,
+:host-context([data-theme='light']) .dashboard-topbar {
+  background: rgb(248 250 252 / 0.94);
+  border-bottom-color: rgb(var(--color-border));
+  box-shadow: 0 10px 28px rgba(15, 23, 42, 0.05);
+}
+
+:host-context(.light) .dashboard-workspace-switcher [role='listbox'],
+:host-context([data-theme='light']) .dashboard-workspace-switcher [role='listbox'],
+:host-context(.light) [aria-label='Available workspaces'],
+:host-context([data-theme='light']) [aria-label='Available workspaces'] {
+  background: rgb(var(--color-dropdown));
+  border-color: rgb(var(--color-border));
+  box-shadow: 0 24px 60px rgba(15, 23, 42, 0.16);
+}
+
+:host-context(.light) .workspace-option,
+:host-context([data-theme='light']) .workspace-option {
+  color: rgb(51 65 85);
+}
+
+:host-context(.light) .workspace-option:hover,
+:host-context(.light) .workspace-option[aria-selected='true'],
+:host-context([data-theme='light']) .workspace-option:hover,
+:host-context([data-theme='light']) .workspace-option[aria-selected='true'] {
+  background: rgb(220 252 231);
+  color: rgb(6 95 70);
+}
+
+.dashboard-profile-slot {
+  min-width: 2.75rem;
+  flex: 0 0 auto;
+}
+
+.dashboard-page-container {
+  width: min(100%, 112rem);
+  margin-inline: auto;
+}
+
+@media (min-width: 640px) {
+  .dashboard-profile-slot {
+    width: max-content;
+  }
+}

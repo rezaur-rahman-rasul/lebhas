@@ -1,0 +1,24 @@
+<app-card [interactive]="true">
+  <article class="min-w-0" [attr.aria-label]="serviceLabel() + ' is ' + statusLabel()">
+    <div class="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+      <div class="min-w-0">
+        <p class="text-xs font-medium uppercase tracking-wide text-muted">{{ healthEvent().serviceName }}</p>
+        <h3 class="mt-1 truncate text-base font-semibold text-ink">{{ serviceLabel() }}</h3>
+      </div>
+      <app-service-health-badge [status]="healthEvent().status" />
+    </div>
+
+    <p class="mt-4 line-clamp-3 text-sm leading-6 text-muted">{{ serviceExplanation() }}</p>
+
+    <dl class="mt-4 grid gap-3 text-xs text-muted sm:grid-cols-2">
+      <div class="min-w-0">
+        <dt class="font-medium text-ink">Status</dt>
+        <dd class="mt-1 truncate">{{ statusLabel() }}</dd>
+      </div>
+      <div class="min-w-0">
+        <dt class="font-medium text-ink">Last checked</dt>
+        <dd class="mt-1 truncate">{{ healthEvent().createdAt }}</dd>
+      </div>
+    </dl>
+  </article>
+</app-card>

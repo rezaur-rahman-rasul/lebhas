@@ -1,0 +1,28 @@
+<section class="space-y-4" [attr.aria-label]="label()" aria-busy="true">
+  <div class="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
+    @for (item of skeletonCards.slice(0, cardCount()); track item) {
+      <div class="h-40 animate-pulse rounded-lg border border-border bg-surface p-5">
+        <div class="flex items-center gap-4">
+          <div class="size-14 rounded-full bg-panel"></div>
+          <div class="flex-1 space-y-2">
+            <div class="h-4 w-32 rounded bg-panel"></div>
+            <div class="h-3 w-48 max-w-full rounded bg-panel"></div>
+          </div>
+        </div>
+        <div class="mt-6 space-y-2">
+          <div class="h-3 rounded bg-panel"></div>
+          <div class="h-3 w-2/3 rounded bg-panel"></div>
+        </div>
+      </div>
+    }
+  </div>
+
+  <div class="rounded-lg border border-border bg-surface p-5">
+    <div class="mb-4 h-4 w-36 rounded bg-panel"></div>
+    <div class="space-y-3">
+      @for (item of skeletonRows.slice(0, rowCount()); track item) {
+        <div class="h-12 animate-pulse rounded-md bg-panel"></div>
+      }
+    </div>
+  </div>
+</section>

@@ -1,0 +1,284 @@
+<app-page-header
+  eyebrow="Workspace"
+  title="Subscription"
+  description="Choose a backend-priced package and continue to the secure payment provider when the backend creates a payment session."
+>
+  @if (!accessDenied()) {
+    <app-button
+      type="button"
+      variant="secondary"
+      icon="rotate-cw"
+      [loading]="workspace.loading()"
+      ariaLabel="Refresh subscription information"
+      (click)="retry()"
+    >
+      Refresh
+    </app-button>
+  }
+</app-page-header>
+
+@if (accessDenied()) {
+  <div class="mt-6">
+    <app-empty-state
+      icon="shield-alert"
+      tone="danger"
+      title="You do not have access to manage subscriptions."
+      description="Please contact your workspace admin if you need access."
+    />
+  </div>
+} @else {
+  <div class="mt-6 space-y-6">
+    @if (workspace.loading() && !currentSubscription()) {
+      <app-payment-loading-state label="Loading subscription information" />
+    } @else if (workspace.error()) {
+      <app-error-state
+        title="Subscription information could not load"
+        description="We could not load your subscription information. Please try again."
+      >
+        <app-button
+          type="button"
+          variant="secondary"
+          icon="rotate-cw"
+          ariaLabel="Retry loading subscription information"
+          (click)="retry()"
+        >
+          Try again
+        </app-button>
+      </app-error-state>
+    } @else {
+      <section class="grid gap-4 xl:grid-cols-[minmax(0,1fr)_360px]" aria-label="Subscription purchase">
+        <div class="space-y-6">
+          <app-card>
+            <div class="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+              <div class="min-w-0">
+                <p class="text-xs font-semibold uppercase tracking-[0.16em] text-brand-300">Current package</p>
+                <h2 class="mt-2 truncate text-xl font-semibold text-ink">
+                  {{ currentSubscription()?.pricingPlanName ?? 'Package details unavailable' }}
+                </h2>
+                <p class="mt-2 text-sm leading-6 text-muted">
+                  Workspace package and status come from backend subscription context.
+                </p>
+              </div>
+              @if (currentSubscription()?.status) {
+                <span
+                  class="inline-flex rounded-full border border-border bg-panel px-3 py-1 text-xs font-semibold text-ink"
+                  aria-label="Current subscription status"
+                >
+                  {{ currentSubscription()?.status }}
+                </span>
+              }
+            </div>
+
+            <dl class="mt-5 grid gap-3 text-sm sm:grid-cols-3">
+              <div class="rounded-lg bg-panel p-3">
+                <dt class="text-xs text-muted">Billing cycle</dt>
+                <dd class="mt-1 font-semibold text-ink">{{ currentSubscription()?.billingCycle ?? 'Unknown' }}</dd>
+              </div>
+              <div class="rounded-lg bg-panel p-3">
+                <dt class="text-xs text-muted">Trial or expiry date</dt>
+                <dd class="mt-1 font-semibold text-ink">
+                  @if (currentSubscription()?.expiresAt) {
+                    {{ currentSubscription()?.expiresAt | date: 'mediumDate' }}
+                  } @else {
+                    Not provided
+                  }
+                </dd>
+              </div>
+              <div class="rounded-lg bg-panel p-3">
+                <dt class="text-xs text-muted">Workspace</dt>
+                <dd class="mt-1 truncate font-semibold text-ink">{{ workspace.workspaceLabel() }}</dd>
+              </div>
+            </dl>
+          </app-card>
+
+          <app-card>
+            <div class="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
+              <div>
+                <h2 class="text-lg font-semibold text-ink">Choose billing cycle</h2>
+                <p class="mt-1 text-sm text-muted">Changing the cycle only changes the selection sent to backend.</p>
+              </div>
+              <app-billing-cycle-toggle
+                [selected]="selectedCycle()"
+                [disabled]="store.loading()"
+                (selectedChange)="setBillingCycle($event)"
+              />
+            </div>
+          </app-card>
+
+          <section aria-labelledby="subscription-packages-title">
+            <div class="mb-4 flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
+              <div>
+                <h2 id="subscription-packages-title" class="text-lg font-semibold text-ink">Available packages</h2>
+                <p class="mt-1 text-sm text-muted">
+                  Package names, features, limits, and prices are shown exactly as returned by backend.
+                </p>
+              </div>
+            </div>
+
+            @if (store.loading() && !hasPlans()) {
+              <app-payment-loading-state label="Loading subscription packages" />
+            } @else if (store.error()) {
+              <app-error-state title="Payment session could not start" [description]="store.error()!">
+                <app-button
+                  type="button"
+                  variant="secondary"
+                  icon="rotate-cw"
+                  ariaLabel="Clear payment error"
+                  (click)="store.clearError()"
+                >
+                  Try again
+                </app-button>
+              </app-error-state>
+            } @else if (!hasPlans()) {
+              <app-payment-empty-state
+                icon="package-open"
+                title="No subscription packages are available right now"
+                description="No subscription packages are available right now. Please check again later."
+                retryLabel="Refresh"
+                (retry)="retry()"
+              />
+            } @else {
+              <div class="grid gap-4 xl:grid-cols-2">
+                @for (plan of plans(); track plan.id) {
+                  <app-subscription-plan-card
+                    [plan]="plan"
+                    [selected]="selectedPlan()?.id === plan.id"
+                    (selectPlan)="selectPlan($event)"
+                  />
+                }
+              </div>
+            }
+          </section>
+        </div>
+
+        <aside class="space-y-4" aria-label="Selected subscription summary">
+          <app-card>
+            <h2 class="text-lg font-semibold text-ink">Selected package summary</h2>
+            <p class="mt-2 text-sm leading-6 text-muted">
+              The final payment amount is calculated by backend when the payment session starts.
+            </p>
+
+            @if (selectedSummary()) {
+              <dl class="mt-5 space-y-3 text-sm">
+                <div class="flex items-center justify-between gap-4">
+                  <dt class="text-muted">Package</dt>
+                  <dd class="truncate font-semibold text-ink">{{ selectedSummary()?.packageName }}</dd>
+                </div>
+                <div class="flex items-center justify-between gap-4">
+                  <dt class="text-muted">Billing cycle</dt>
+                  <dd class="font-semibold text-ink">{{ selectedSummary()?.billingCycle }}</dd>
+                </div>
+                <div class="flex items-center justify-between gap-4">
+                  <dt class="text-muted">Backend price</dt>
+                  <dd class="font-semibold text-ink">
+                    {{ selectedSummary()?.amount | currency: selectedSummary()?.currency : 'symbol' : '1.2-2' }}
+                  </dd>
+                </div>
+              </dl>
+
+              <div class="mt-5 grid gap-2">
+                <app-button
+                  type="button"
+                  [variant]="selectedAction() === 'purchase' ? 'primary' : 'secondary'"
+                  [disabled]="store.loading()"
+                  [fullWidth]="true"
+                  ariaLabel="Start subscription purchase"
+                  (click)="setAction('purchase')"
+                >
+                  Start subscription
+                </app-button>
+                <app-button
+                  type="button"
+                  [variant]="selectedAction() === 'upgrade' ? 'primary' : 'secondary'"
+                  [disabled]="store.loading()"
+                  [fullWidth]="true"
+                  ariaLabel="Upgrade subscription"
+                  (click)="setAction('upgrade')"
+                >
+                  Upgrade subscription
+                </app-button>
+                <app-button
+                  type="button"
+                  [variant]="selectedAction() === 'renew' ? 'primary' : 'secondary'"
+                  [disabled]="store.loading()"
+                  [fullWidth]="true"
+                  ariaLabel="Renew subscription"
+                  (click)="setAction('renew')"
+                >
+                  Renew subscription
+                </app-button>
+              </div>
+
+              <app-button
+                class="mt-4 block"
+                type="button"
+                icon="credit-card"
+                [loading]="store.loading()"
+                [disabled]="!canStartPayment()"
+                [fullWidth]="true"
+                ariaLabel="Create secure payment session"
+                (click)="startPayment()"
+              >
+                {{ actionLabel(selectedAction()) }}
+              </app-button>
+            } @else {
+              <div class="mt-5 rounded-lg border border-dashed border-border bg-panel p-4 text-sm text-muted">
+                Select a backend-provided package to start a secure payment session.
+              </div>
+            }
+          </app-card>
+
+          @if (paymentSession()) {
+            <app-card>
+              <div class="flex items-start justify-between gap-3">
+                <div>
+                  <h2 class="text-lg font-semibold text-ink">Payment session ready</h2>
+                  <p class="mt-1 text-sm text-muted">Continue to the payment provider to complete payment.</p>
+                </div>
+                <app-payment-status-badge [status]="paymentSession()!.paymentStatus" />
+              </div>
+
+              <dl class="mt-5 space-y-3 text-sm">
+                <div class="flex items-center justify-between gap-4">
+                  <dt class="text-muted">Provider</dt>
+                  <dd class="truncate font-semibold text-ink">{{ paymentSession()?.providerName ?? 'Provider selected by backend' }}</dd>
+                </div>
+                <div class="flex items-center justify-between gap-4">
+                  <dt class="text-muted">Transaction</dt>
+                  <dd class="truncate font-semibold text-ink">{{ paymentSession()?.paymentTransactionId }}</dd>
+                </div>
+                <div class="flex items-center justify-between gap-4">
+                  <dt class="text-muted">Session expires</dt>
+                  <dd class="font-semibold text-ink">
+                    @if (paymentSession()?.expiresAt) {
+                      {{ paymentSession()?.expiresAt | date: 'short' }}
+                    } @else {
+                      Not provided
+                    }
+                  </dd>
+                </div>
+              </dl>
+
+              @if (paymentSession()?.paymentRedirectUrl) {
+                <app-button
+                  class="mt-5 block"
+                  type="button"
+                  icon="external-link"
+                  [fullWidth]="true"
+                  ariaLabel="Continue to payment"
+                  (click)="continueToPayment()"
+                >
+                  Continue to Payment
+                </app-button>
+              } @else {
+                <p class="mt-5 rounded-lg border border-border bg-panel p-3 text-sm text-muted">
+                  Payment redirect is not available yet. Please try again or contact support if the issue continues.
+                </p>
+              }
+            </app-card>
+          }
+        </aside>
+      </section>
+    }
+  </div>
+}

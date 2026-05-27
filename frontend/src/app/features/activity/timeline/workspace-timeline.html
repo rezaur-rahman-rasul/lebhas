@@ -1,0 +1,68 @@
+<section class="mx-auto flex w-full max-w-5xl flex-col gap-6 px-4 py-6 sm:px-6 lg:px-8">
+  <app-page-header
+    eyebrow="Workspace timeline"
+    title="Workspace Timeline"
+    description="A simplified timeline of important workspace events."
+  >
+    @if (!accessDenied()) {
+      <a
+        class="inline-flex h-10 items-center justify-center rounded-md border border-border bg-surface px-4 text-sm font-medium text-ink transition hover:bg-panel focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500"
+        routerLink="/activity-feed"
+        aria-label="Back to activity feed"
+      >
+        Activity feed
+      </a>
+      <app-button
+        type="button"
+        variant="secondary"
+        icon="rotate-cw"
+        [loading]="store.loading()"
+        ariaLabel="Refresh workspace timeline"
+        (click)="refresh()"
+      >
+        Refresh
+      </app-button>
+    }
+  </app-page-header>
+
+  @if (accessDenied()) {
+    <app-activity-empty-state
+      icon="lock-keyhole"
+      title="You do not have access to workspace activity."
+      description="Please contact your workspace admin if you need access."
+    />
+  } @else {
+    @if (store.error()) {
+      <app-error-state title="Timeline could not be loaded" [description]="store.error() || 'Please try again.'">
+        <app-button
+          type="button"
+          variant="secondary"
+          icon="rotate-cw"
+          ariaLabel="Retry loading workspace timeline"
+          (click)="clearError(); refresh()"
+        >
+          Retry
+        </app-button>
+      </app-error-state>
+    }
+
+    @if (store.loading() && !hasActivities()) {
+      <app-activity-loading-state label="Loading workspace timeline" />
+    } @else if (!hasActivities()) {
+      <app-activity-empty-state />
+    } @else {
+      <section class="rounded-lg border border-border bg-surface p-5" aria-label="Workspace activity timeline">
+        @for (group of groupedActivities(); track group.date) {
+          <section class="grid gap-4">
+            <h2 class="text-sm font-semibold uppercase tracking-wide text-muted">{{ group.date }}</h2>
+            <div>
+              @for (activity of group.activities; track activity.id; let last = $last) {
+                <app-timeline-item [activity]="activity" [isLast]="last" />
+              }
+            </div>
+          </section>
+        }
+      </section>
+    }
+  }
+</section>

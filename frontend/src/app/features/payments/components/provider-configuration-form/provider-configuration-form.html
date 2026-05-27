@@ -1,0 +1,81 @@
+<app-card>
+  <form class="space-y-5" [formGroup]="form" (ngSubmit)="submit()" aria-label="Provider configuration form">
+    <div>
+      <h3 class="text-base font-semibold text-ink">Provider configuration</h3>
+      <p class="mt-1 text-sm leading-6 text-muted">
+        Secrets are sent only when saved. Saved values should be shown as Saved securely, never as raw credentials.
+      </p>
+    </div>
+
+    <div class="grid gap-4 md:grid-cols-2">
+      <label class="text-sm">
+        <span class="mb-1 block font-medium text-ink">Provider</span>
+        <select class="h-10 w-full rounded-md border border-border bg-canvas px-3 text-sm text-ink focus:border-brand-500 focus:outline-none focus:ring-2 focus:ring-brand-500/30" formControlName="providerId">
+          <option value="">Select provider</option>
+          @for (provider of providers(); track provider.id) {
+            <option [value]="provider.id">{{ provider.name }}</option>
+          }
+        </select>
+        @if (form.controls.providerId.touched && form.controls.providerId.invalid) {
+          <span class="mt-1 block text-xs text-red-600">Provider is required.</span>
+        }
+      </label>
+
+      <label class="text-sm">
+        <span class="mb-1 block font-medium text-ink">Environment</span>
+        <select class="h-10 w-full rounded-md border border-border bg-canvas px-3 text-sm text-ink focus:border-brand-500 focus:outline-none focus:ring-2 focus:ring-brand-500/30" formControlName="environmentType">
+          @for (type of environmentTypes; track type) {
+            <option [value]="type">{{ type }}</option>
+          }
+        </select>
+      </label>
+
+      <label class="text-sm md:col-span-2">
+        <span class="mb-1 block font-medium text-ink">API base URL</span>
+        <input class="h-10 w-full rounded-md border border-border bg-canvas px-3 text-sm text-ink focus:border-brand-500 focus:outline-none focus:ring-2 focus:ring-brand-500/30" formControlName="apiBaseUrl" autocomplete="off" />
+      </label>
+
+      <label class="text-sm">
+        <span class="mb-1 block font-medium text-ink">Merchant ID</span>
+        <input class="h-10 w-full rounded-md border border-border bg-canvas px-3 text-sm text-ink focus:border-brand-500 focus:outline-none focus:ring-2 focus:ring-brand-500/30" formControlName="merchantId" autocomplete="off" />
+      </label>
+
+      <label class="text-sm">
+        <span class="mb-1 block font-medium text-ink">Success URL</span>
+        <input class="h-10 w-full rounded-md border border-border bg-canvas px-3 text-sm text-ink focus:border-brand-500 focus:outline-none focus:ring-2 focus:ring-brand-500/30" formControlName="successUrl" autocomplete="off" />
+      </label>
+
+      <label class="text-sm">
+        <span class="mb-1 block font-medium text-ink">Failure URL</span>
+        <input class="h-10 w-full rounded-md border border-border bg-canvas px-3 text-sm text-ink focus:border-brand-500 focus:outline-none focus:ring-2 focus:ring-brand-500/30" formControlName="failureUrl" autocomplete="off" />
+      </label>
+
+      <label class="text-sm">
+        <span class="mb-1 block font-medium text-ink">Cancel URL</span>
+        <input class="h-10 w-full rounded-md border border-border bg-canvas px-3 text-sm text-ink focus:border-brand-500 focus:outline-none focus:ring-2 focus:ring-brand-500/30" formControlName="cancelUrl" autocomplete="off" />
+      </label>
+
+      <label class="text-sm">
+        <span class="mb-1 block font-medium text-ink">API key</span>
+        <input class="h-10 w-full rounded-md border border-border bg-canvas px-3 text-sm text-ink focus:border-brand-500 focus:outline-none focus:ring-2 focus:ring-brand-500/30" type="password" formControlName="apiKey" autocomplete="new-password" placeholder="Saved securely" />
+      </label>
+
+      <label class="text-sm">
+        <span class="mb-1 block font-medium text-ink">Secret</span>
+        <input class="h-10 w-full rounded-md border border-border bg-canvas px-3 text-sm text-ink focus:border-brand-500 focus:outline-none focus:ring-2 focus:ring-brand-500/30" type="password" formControlName="secret" autocomplete="new-password" placeholder="Saved securely" />
+      </label>
+
+      <label class="text-sm">
+        <span class="mb-1 block font-medium text-ink">Webhook secret</span>
+        <input class="h-10 w-full rounded-md border border-border bg-canvas px-3 text-sm text-ink focus:border-brand-500 focus:outline-none focus:ring-2 focus:ring-brand-500/30" type="password" formControlName="webhookSecret" autocomplete="new-password" placeholder="Saved securely" />
+      </label>
+    </div>
+
+    <label class="flex items-center gap-2 text-sm text-ink"><input type="checkbox" formControlName="isActive" /> Active</label>
+
+    <div class="flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
+      <app-button type="button" variant="ghost" icon="x" ariaLabel="Cancel provider configuration form" (click)="cancelled.emit()">Cancel</app-button>
+      <app-button type="submit" icon="save" [loading]="loading()" ariaLabel="Save provider configuration">Save configuration</app-button>
+    </div>
+  </form>
+</app-card>

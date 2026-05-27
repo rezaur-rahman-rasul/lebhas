@@ -1,0 +1,64 @@
+<section class="mx-auto flex w-full max-w-7xl flex-col gap-6 px-4 py-6 sm:px-6 lg:px-8">
+  <app-page-header
+    eyebrow="System health"
+    title="System Health"
+    description="Service status for database, cache/state, event processing, storage, payments, and AI foundations."
+  >
+    @if (!accessDenied()) {
+      <a
+        class="inline-flex h-10 items-center justify-center rounded-md border border-border bg-surface px-4 text-sm font-medium text-ink transition hover:bg-panel focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500"
+        routerLink="/master/monitoring"
+        aria-label="Back to monitoring dashboard"
+      >
+        Dashboard
+      </a>
+      <app-button
+        type="button"
+        variant="secondary"
+        icon="rotate-cw"
+        [loading]="store.loading()"
+        ariaLabel="Refresh system health"
+        (click)="refresh()"
+      >
+        Refresh
+      </app-button>
+    }
+  </app-page-header>
+
+  @if (accessDenied()) {
+    <app-monitoring-empty-state
+      icon="lock-keyhole"
+      title="You do not have access to system monitoring."
+      description="Please contact the system owner if you need access."
+    />
+  } @else {
+    @if (store.error()) {
+      <app-error-state title="System health could not be loaded" [description]="store.error() || 'Please try again.'">
+        <app-button
+          type="button"
+          variant="secondary"
+          icon="rotate-cw"
+          ariaLabel="Retry loading system health"
+          (click)="clearError(); refresh()"
+        >
+          Retry
+        </app-button>
+      </app-error-state>
+    }
+
+    @if (store.loading() && !hasHealthData()) {
+      <app-monitoring-loading-state label="Loading system health" [cardCount]="6" />
+    } @else if (!hasHealthData()) {
+      <app-monitoring-empty-state
+        title="No system health data yet"
+        description="Service health will appear here once backend monitoring reports it."
+      />
+    } @else {
+      <section class="grid gap-4 md:grid-cols-2 xl:grid-cols-3" aria-label="System health services">
+        @for (health of store.systemHealth(); track health.id) {
+          <app-health-status-card [healthEvent]="health" />
+        }
+      </section>
+    }
+  }
+</section>

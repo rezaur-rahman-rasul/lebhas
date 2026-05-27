@@ -1,0 +1,14 @@
+:host {
+  display: block;
+  min-width: 0;
+}
+
+section,
+app-card,
+app-invoice-card,
+app-payment-empty-state,
+app-payment-loading-state,
+app-error-state {
+  display: block;
+  min-width: 0;
+}

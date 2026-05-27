@@ -7,19 +7,22 @@
   ></button>
 
   <aside
+    #panel
     [class]="panelClasses()"
     role="dialog"
     aria-modal="true"
     tabindex="-1"
     [attr.aria-label]="title() ? null : ariaLabel()"
+    [attr.aria-labelledby]="title() ? titleId : null"
+    [attr.aria-describedby]="description() ? descriptionId : null"
   >
     <header class="flex items-start justify-between gap-4 border-b border-border px-5 py-4">
       <div class="min-w-0">
         @if (title()) {
-          <h2 class="text-lg font-semibold text-ink">{{ title() }}</h2>
+          <h2 [id]="titleId" class="text-lg font-semibold text-ink">{{ title() }}</h2>
         }
         @if (description()) {
-          <p class="mt-1 text-sm leading-6 text-muted">{{ description() }}</p>
+          <p [id]="descriptionId" class="mt-1 text-sm leading-6 text-muted">{{ description() }}</p>
         }
       </div>
       <button

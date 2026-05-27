@@ -1,0 +1,64 @@
+<section
+  class="grid gap-3 rounded-lg border border-border bg-surface p-4 md:grid-cols-[minmax(12rem,1fr)_minmax(10rem,0.8fr)_auto] md:items-end"
+  aria-label="Monitoring filters"
+>
+  <label class="grid gap-2 text-sm text-ink">
+    <span class="font-medium">Alert type</span>
+    <select
+      class="h-10 min-w-0 rounded-md border border-border bg-panel px-3 text-sm text-ink outline-none transition focus:border-brand-500 focus:ring-2 focus:ring-brand-500/30"
+      [value]="selectedAlertType() || ''"
+      (change)="selectedAlertTypeChange.emit($any($event.target).value || null)"
+    >
+      <option value="">All alerts</option>
+      @for (type of alertTypes; track type) {
+        <option [value]="type">{{ friendlyAlertType(type) }}</option>
+      }
+    </select>
+  </label>
+
+  <label class="grid gap-2 text-sm text-ink">
+    <span class="font-medium">Severity</span>
+    <select
+      class="h-10 min-w-0 rounded-md border border-border bg-panel px-3 text-sm text-ink outline-none transition focus:border-brand-500 focus:ring-2 focus:ring-brand-500/30"
+      [value]="selectedSeverity() || ''"
+      (change)="selectedSeverityChange.emit($any($event.target).value || null)"
+    >
+      <option value="">All levels</option>
+      @for (severity of severities; track severity) {
+        <option [value]="severity">{{ monitoringSeverityLabel(severity) }}</option>
+      }
+    </select>
+  </label>
+
+  <div class="flex flex-col gap-2 sm:flex-row md:justify-end">
+    <label class="inline-flex h-10 items-center gap-2 rounded-md border border-border bg-panel px-3 text-sm text-ink">
+      <input
+        type="checkbox"
+        class="size-4 rounded border-border bg-surface text-brand-600 focus:ring-brand-500"
+        [checked]="unresolvedOnly()"
+        [attr.aria-label]="'Show unresolved alerts only'"
+        (change)="unresolvedOnlyChange.emit($any($event.target).checked)"
+      />
+      <span>Needs attention only</span>
+    </label>
+    <app-button
+      type="button"
+      variant="secondary"
+      icon="rotate-cw"
+      [loading]="loading()"
+      ariaLabel="Refresh monitoring"
+      (click)="refresh.emit()"
+    >
+      Refresh
+    </app-button>
+    <app-button
+      type="button"
+      variant="ghost"
+      icon="x"
+      ariaLabel="Clear monitoring filters"
+      (click)="clear.emit()"
+    >
+      Clear
+    </app-button>
+  </div>
+</section>

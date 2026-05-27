@@ -1,0 +1,17 @@
+<div class="inline-flex rounded-lg border border-border bg-surface p-1" role="radiogroup" aria-label="Billing cycle">
+  @for (cycle of cycles; track cycle) {
+    <button
+      type="button"
+      class="rounded-md px-4 py-2 text-sm font-medium transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500 disabled:cursor-not-allowed disabled:opacity-60"
+      [class.bg-panel]="selected() === cycle"
+      [class.text-ink]="selected() === cycle"
+      [class.text-muted]="selected() !== cycle"
+      [disabled]="disabled()"
+      [attr.aria-checked]="selected() === cycle"
+      role="radio"
+      (click)="select(cycle)"
+    >
+      {{ label(cycle) }}
+    </button>
+  }
+</div>

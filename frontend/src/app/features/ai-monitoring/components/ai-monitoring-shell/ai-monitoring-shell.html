@@ -1,0 +1,40 @@
+<app-page-header [eyebrow]="eyebrow()" [title]="title()" [description]="description()">
+  <a routerLink="/dashboard" class="text-sm font-medium text-brand-600 hover:text-brand-700">
+    Dashboard
+  </a>
+  <app-badge tone="neutral">{{ badge() }}</app-badge>
+</app-page-header>
+
+@if (!allowed()) {
+  <div class="mt-6">
+    <app-empty-state
+      icon="shield-alert"
+      tone="danger"
+      [title]="accessTitle()"
+      [description]="accessDescription()"
+    />
+  </div>
+} @else {
+  <section class="mt-6 grid gap-4 lg:grid-cols-[minmax(0,1fr)_22rem]">
+    <div class="rounded-2xl border border-border bg-panel p-5">
+      <div class="flex items-start gap-4">
+        <div class="grid h-11 w-11 shrink-0 place-items-center rounded-xl bg-brand-500/12 text-brand-700 dark:bg-brand-500/20 dark:text-brand-100">
+          <app-icon [name]="icon()" [size]="20" />
+        </div>
+        <div class="min-w-0">
+          <h2 class="text-base font-semibold text-ink">{{ title() }}</h2>
+          <p class="mt-2 text-sm leading-6 text-muted">
+            Live monitoring data will appear here when the backend AI monitoring endpoint returns this section.
+          </p>
+        </div>
+      </div>
+    </div>
+
+    <aside class="rounded-2xl border border-border bg-panel p-5">
+      <p class="text-xs font-semibold uppercase tracking-[0.16em] text-muted">Data policy</p>
+      <p class="mt-3 text-sm leading-6 text-muted">
+        Provider names, layer names, costs, quality scores, limits, health status, and routing recommendations are backend-owned.
+      </p>
+    </aside>
+  </section>
+}

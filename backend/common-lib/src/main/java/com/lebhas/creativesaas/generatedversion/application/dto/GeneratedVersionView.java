@@ -3,6 +3,7 @@ package com.lebhas.creativesaas.generatedversion.application.dto;
 import com.lebhas.creativesaas.generatedversion.domain.ApprovalStatus;
 import com.lebhas.creativesaas.generatedversion.domain.GeneratedVersionStatus;
 import com.lebhas.creativesaas.generatedversion.domain.GenerationStatus;
+import com.lebhas.creativesaas.profile.application.dto.SafeProfileDisplayView;
 
 import java.time.Instant;
 import java.util.UUID;
@@ -22,6 +23,7 @@ public record GeneratedVersionView(
         String generatedByProvider,
         String generatedByModel,
         UUID createdByUserId,
+        SafeProfileDisplayView createdByDisplay,
         GeneratedVersionStatus status,
         Instant createdAt,
         Instant updatedAt

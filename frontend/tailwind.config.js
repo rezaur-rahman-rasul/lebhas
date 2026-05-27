@@ -13,6 +13,10 @@ module.exports = {
         ink: 'rgb(var(--color-ink) / <alpha-value>)',
         muted: 'rgb(var(--color-muted) / <alpha-value>)',
         border: 'rgb(var(--color-border) / <alpha-value>)',
+        'border-strong': 'rgb(var(--color-border-strong) / <alpha-value>)',
+        icon: 'rgb(var(--color-icon) / <alpha-value>)',
+        input: 'rgb(var(--color-input) / <alpha-value>)',
+        dropdown: 'rgb(var(--color-dropdown) / <alpha-value>)',
         brand: {
           50: '#eefdf7',
           100: '#d6faec',

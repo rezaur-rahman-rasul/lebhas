@@ -1,0 +1,96 @@
+<app-page-header
+  eyebrow="Account"
+  title="Account Settings"
+  description="Manage language, theme, and notification preferences for your account."
+>
+  <app-button type="button" variant="secondary" icon="arrow-left" ariaLabel="Back to profile" (click)="cancel()">
+    Back to Profile
+  </app-button>
+</app-page-header>
+
+@if (accessDenied()) {
+  <div class="mt-6">
+    <app-empty-state
+      icon="shield-alert"
+      tone="danger"
+      title="You do not have permission to perform this action."
+      description="Please contact your workspace admin if you need access."
+    />
+  </div>
+} @else {
+  <div class="mt-6 max-w-4xl">
+    @if (store.loading() && !store.accountSettings()) {
+      <app-profile-loading-state label="Loading account settings" [cardCount]="1" [rowCount]="4" />
+    } @else if (store.error() && !store.accountSettings()) {
+      <app-error-state title="Settings could not load" [description]="store.error()!">
+        <app-button type="button" variant="secondary" icon="rotate-cw" (click)="retry()">Try again</app-button>
+      </app-error-state>
+    } @else {
+      <app-card>
+        <form class="space-y-6" [formGroup]="form" (ngSubmit)="submit()" aria-label="Account settings form">
+          @if (store.error()) {
+            <div class="rounded-md border border-alert-500/30 bg-alert-500/10 px-3 py-2 text-sm text-alert-200">
+              {{ store.error() }}
+            </div>
+          }
+          @if (successMessage()) {
+            <div class="rounded-md border border-success-500/30 bg-success-500/10 px-3 py-2 text-sm text-success-300">
+              {{ successMessage() }}
+            </div>
+          }
+
+          <div class="grid gap-4 md:grid-cols-2">
+            <label class="text-sm">
+              <span class="mb-1 block font-medium text-ink">Preferred language</span>
+              <select class="profile-input" formControlName="preferredLanguage">
+                @for (language of languages; track language) {
+                  <option [value]="language">{{ languageLabel(language) }}</option>
+                }
+              </select>
+            </label>
+
+            <label class="text-sm">
+              <span class="mb-1 block font-medium text-ink">Theme preference</span>
+              <select class="profile-input" formControlName="themePreference">
+                @for (themeOption of themes; track themeOption) {
+                  <option [value]="themeOption">{{ themeLabel(themeOption) }}</option>
+                }
+              </select>
+            </label>
+          </div>
+
+          <div class="rounded-lg border border-border bg-panel/50 p-4">
+            <h2 class="text-base font-semibold text-ink">Notification preferences</h2>
+            <p class="mt-1 text-sm leading-6 text-muted">
+              These preferences only affect account notifications. They do not change brand language used for creative generation.
+            </p>
+
+            <div class="mt-4 grid gap-3">
+              <label class="flex items-center justify-between gap-4 rounded-md border border-border bg-surface px-3 py-3 text-sm">
+                <span class="font-medium text-ink">Email notifications</span>
+                <input type="checkbox" formControlName="notificationEmailEnabled" aria-label="Enable email notifications" />
+              </label>
+              <label class="flex items-center justify-between gap-4 rounded-md border border-border bg-surface px-3 py-3 text-sm">
+                <span class="font-medium text-ink">In-app notifications</span>
+                <input type="checkbox" formControlName="notificationInAppEnabled" aria-label="Enable in-app notifications" />
+              </label>
+              <label class="flex items-center justify-between gap-4 rounded-md border border-border bg-surface px-3 py-3 text-sm">
+                <span class="font-medium text-ink">Marketing emails</span>
+                <input type="checkbox" formControlName="marketingEmailEnabled" aria-label="Enable marketing emails" />
+              </label>
+            </div>
+          </div>
+
+          <div class="flex flex-col-reverse gap-2 border-t border-border pt-5 sm:flex-row sm:justify-end">
+            <app-button type="button" variant="ghost" icon="x" ariaLabel="Cancel settings update" (click)="cancel()">
+              Cancel
+            </app-button>
+            <app-button type="submit" icon="save" [loading]="store.saving()" [disabled]="store.saving()" ariaLabel="Save account settings">
+              Save Settings
+            </app-button>
+          </div>
+        </form>
+      </app-card>
+    }
+  </div>
+}

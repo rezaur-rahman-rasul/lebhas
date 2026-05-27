@@ -1,0 +1,50 @@
+<app-card [interactive]="true">
+  <div class="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+    <div class="min-w-0">
+      <div class="flex flex-wrap items-center gap-2">
+        <h3 class="truncate text-base font-semibold text-ink">{{ plan().name }}</h3>
+        @if (selected()) {
+          <app-status-badge tone="brand" aria-label="Selected subscription package">Selected</app-status-badge>
+        }
+      </div>
+      @if (plan().description) {
+        <p class="mt-2 text-sm leading-6 text-muted">{{ plan().description }}</p>
+      }
+    </div>
+    <p class="text-xl font-semibold text-ink">{{ plan().price | currency: plan().currency : 'symbol' : '1.2-2' }}</p>
+  </div>
+
+  <dl class="mt-5 grid gap-3 text-sm sm:grid-cols-2">
+    <div><dt class="text-xs text-muted">Billing cycle</dt><dd class="mt-1 font-semibold text-ink">{{ plan().billingCycle }}</dd></div>
+    <div><dt class="text-xs text-muted">Package code</dt><dd class="mt-1 font-semibold text-ink">{{ plan().code }}</dd></div>
+  </dl>
+
+  @if (limitEntries().length) {
+    <div class="mt-5">
+      <h4 class="text-sm font-semibold text-ink">Package limits</h4>
+      <dl class="mt-3 grid gap-2 text-sm sm:grid-cols-2">
+        @for (limit of limitEntries(); track limit[0]) {
+          <div class="rounded-md bg-panel p-3">
+            <dt class="text-xs text-muted">{{ limit[0] }}</dt>
+            <dd class="mt-1 font-semibold text-ink">{{ limit[1] }}</dd>
+          </div>
+        }
+      </dl>
+    </div>
+  }
+
+  @if (featureEntries().length) {
+    <div class="mt-5">
+      <h4 class="text-sm font-semibold text-ink">Package features</h4>
+      <div class="mt-3 flex flex-wrap gap-2">
+        @for (feature of featureEntries(); track feature[0]) {
+          <app-status-badge [tone]="feature[1] ? 'brand' : 'neutral'">{{ feature[0] }}</app-status-badge>
+        }
+      </div>
+    </div>
+  }
+
+  <app-button class="mt-5 block" type="button" [variant]="selected() ? 'secondary' : 'primary'" icon="check" [fullWidth]="true" ariaLabel="Select subscription package" (click)="selectPlan.emit(plan())">
+    {{ selected() ? 'Selected package' : 'Select package' }}
+  </app-button>
+</app-card>

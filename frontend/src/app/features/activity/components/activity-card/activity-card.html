@@ -1,0 +1,44 @@
+<app-card [interactive]="true">
+  <article class="min-w-0" [attr.aria-label]="typeLabel() + ': ' + activity().title">
+    <div class="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+      <div class="min-w-0">
+        <app-activity-type-badge [activityType]="activity().activityType" />
+        <h3 class="mt-3 line-clamp-2 text-base font-semibold text-ink">{{ activity().title }}</h3>
+        @if (activity().description) {
+          <p class="mt-2 line-clamp-3 text-sm leading-6 text-muted">{{ activity().description }}</p>
+        }
+      </div>
+      <p class="shrink-0 text-sm text-muted">{{ activity().createdAt }}</p>
+    </div>
+
+    <dl class="mt-4 grid gap-3 text-xs text-muted sm:grid-cols-3">
+      <div class="min-w-0">
+        <dt class="font-medium text-ink">Actor</dt>
+        <dd class="mt-1 truncate">{{ actorLabel() }}</dd>
+      </div>
+      <div class="min-w-0">
+        <dt class="font-medium text-ink">Reference</dt>
+        <dd class="mt-1 truncate">{{ referenceLabel() }}</dd>
+      </div>
+      <div class="min-w-0">
+        <dt class="font-medium text-ink">Details</dt>
+        <dd class="mt-1 truncate">{{ metadataSummary() }}</dd>
+      </div>
+    </dl>
+
+    @if (showDetailAction()) {
+      <div class="mt-4 flex justify-end">
+        <app-button
+          type="button"
+          variant="ghost"
+          size="sm"
+          icon="arrow-up-right"
+          ariaLabel="Open activity details"
+          (click)="detailSelected.emit(activity())"
+        >
+          View details
+        </app-button>
+      </div>
+    }
+  </article>
+</app-card>

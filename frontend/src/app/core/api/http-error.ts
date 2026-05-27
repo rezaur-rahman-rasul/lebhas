@@ -42,6 +42,10 @@ function friendlyHttpMessage(
     return 'You do not have permission to perform this action.';
   }
 
+  if (status === 404) {
+    return 'This data is not available yet. Please try again later.';
+  }
+
   const rawMessage = body?.message || fallbackMessage || 'Request failed';
   const errorText = [rawMessage, ...(body?.errors ?? []).map((error) => `${error.code ?? ''} ${error.message}`)]
     .join(' ')
@@ -51,9 +55,22 @@ function friendlyHttpMessage(
     return 'Your workspace storage is full. Please remove old files or upgrade your package.';
   }
 
-  if (errorText.includes('plan limit') || errorText.includes('limit exceeded')) {
+  if (
+    errorText.includes('planfeaturepolicy.maxgeneratedversionsperrequest') ||
+    errorText.includes('maxgeneratedversionsperrequest') ||
+    errorText.includes('plan limit') ||
+    errorText.includes('limit exceeded')
+  ) {
     const explicitLimit = errorText.match(/\b\d+\b/)?.[0] ?? 'the allowed number of';
     return `Your current package allows only ${explicitLimit} creative version(s) for this request.`;
+  }
+
+  if (
+    (status >= 500 && !body?.message) ||
+    errorText.includes('unexpected server error') ||
+    errorText.includes('internal server error')
+  ) {
+    return 'We could not load this data. Please try again.';
   }
 
   return rawMessage;

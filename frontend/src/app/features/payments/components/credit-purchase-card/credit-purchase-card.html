@@ -1,0 +1,27 @@
+<app-card [interactive]="true">
+  <div class="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+    <div class="min-w-0">
+      <div class="flex flex-wrap items-center gap-2">
+        <h3 class="truncate text-base font-semibold text-ink">{{ creditPackage().name }}</h3>
+        @if (creditPackage().bestValue) {
+          <app-status-badge tone="brand">Best value</app-status-badge>
+        }
+        @if (selected()) {
+          <app-status-badge tone="blue">Selected</app-status-badge>
+        }
+      </div>
+      <p class="mt-2 text-sm leading-6 text-muted">Credits are used when generating creatives.</p>
+    </div>
+    <p class="text-xl font-semibold text-ink">{{ creditPackage().price | currency: creditPackage().currency : 'symbol' : '1.2-2' }}</p>
+  </div>
+
+  <dl class="mt-5 grid gap-3 text-sm sm:grid-cols-3">
+    <div><dt class="text-xs text-muted">Credits</dt><dd class="mt-1 font-semibold text-ink">{{ creditPackage().credits | number }}</dd></div>
+    <div><dt class="text-xs text-muted">Bonus credits</dt><dd class="mt-1 font-semibold text-ink">{{ creditPackage().bonusCredits | number }}</dd></div>
+    <div><dt class="text-xs text-muted">Total</dt><dd class="mt-1 font-semibold text-ink">{{ totalCredits() | number }}</dd></div>
+  </dl>
+
+  <app-button class="mt-5 block" type="button" [variant]="selected() ? 'secondary' : 'primary'" icon="wallet-cards" [fullWidth]="true" ariaLabel="Select credit package" (click)="selectPackage.emit(creditPackage())">
+    {{ selected() ? 'Selected package' : 'Select credits' }}
+  </app-button>
+</app-card>

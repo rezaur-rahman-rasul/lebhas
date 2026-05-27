@@ -1,0 +1,64 @@
+<app-card>
+  <div class="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+    <div class="min-w-0">
+      <p class="text-sm font-medium text-muted">Package limits</p>
+      <h3 class="mt-1 text-xl font-semibold text-ink">
+        {{ packageName() || 'Package from backend' }}
+      </h3>
+      <p class="mt-2 max-w-2xl text-sm leading-6 text-muted">
+        Usage and availability are shown from your current package. Contact admin or upgrade from billing section when available.
+      </p>
+    </div>
+    <span class="grid h-11 w-11 shrink-0 place-items-center rounded-lg bg-brand-100 text-brand-700 dark:bg-brand-500/20 dark:text-brand-100" aria-hidden="true">
+      <app-icon name="package-check" [size]="20" />
+    </span>
+  </div>
+
+  <div class="mt-6 space-y-4">
+    @if (generatedVersionUsage()) {
+      <app-usage-progress-bar
+        label="Generated versions"
+        [current]="generatedVersionUsage()!.used"
+        [limit]="generatedVersionUsage()!.limit"
+        [percent]="percent(generatedVersionUsage())"
+        [nearLimit]="isNearLimit(generatedVersionUsage())"
+        [exceeded]="isExceeded(generatedVersionUsage())"
+      />
+    }
+
+    @if (creditUsage()) {
+      <app-usage-progress-bar
+        label="Credit usage"
+        [current]="creditUsage()!.used"
+        [limit]="creditUsage()!.limit"
+        [percent]="percent(creditUsage())"
+        [nearLimit]="isNearLimit(creditUsage())"
+        [exceeded]="isExceeded(creditUsage())"
+      />
+    }
+
+    @if (storageUsage()) {
+      <app-usage-progress-bar
+        label="Storage usage"
+        [current]="storageUsage()!.used"
+        [limit]="storageUsage()!.limit"
+        [percent]="percent(storageUsage())"
+        [nearLimit]="isNearLimit(storageUsage())"
+        [exceeded]="isExceeded(storageUsage())"
+      />
+    }
+  </div>
+
+  @if (featureRows().length) {
+    <div class="mt-6 grid gap-3 sm:grid-cols-3">
+      @for (feature of featureRows(); track feature.label) {
+        <div class="flex items-center justify-between gap-3 rounded-lg bg-panel p-3">
+          <span class="text-sm font-medium text-ink">{{ feature.label }}</span>
+          <app-status-badge [tone]="feature.available ? 'brand' : 'neutral'" [attr.aria-label]="feature.label + ' availability'">
+            {{ feature.available ? 'Available' : 'Not available' }}
+          </app-status-badge>
+        </div>
+      }
+    </div>
+  }
+</app-card>

@@ -1,0 +1,30 @@
+<app-card [interactive]="true">
+  <div class="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+    <div class="min-w-0">
+      <div class="flex flex-wrap items-center gap-2">
+        <h3 class="truncate text-base font-semibold text-ink">{{ invoice().invoiceNumber }}</h3>
+        <app-payment-status-badge [status]="invoice().status" />
+      </div>
+      <p class="mt-1 text-sm text-muted">{{ invoice().invoiceType }}</p>
+    </div>
+    <div class="text-left sm:text-right">
+      <p class="text-xl font-semibold text-ink">{{ invoice().amount | currency: invoice().currency : 'symbol' : '1.2-2' }}</p>
+      <p class="mt-1 text-xs text-muted">{{ invoice().currency }}</p>
+    </div>
+  </div>
+
+  <dl class="mt-5 grid gap-3 text-sm sm:grid-cols-2 xl:grid-cols-4">
+    <div><dt class="text-xs text-muted">Issued date</dt><dd class="mt-1 font-semibold text-ink">{{ invoice().issuedAt ? (invoice().issuedAt | date: 'medium') : 'Not issued' }}</dd></div>
+    <div><dt class="text-xs text-muted">Paid date</dt><dd class="mt-1 font-semibold text-ink">{{ invoice().paidAt ? (invoice().paidAt | date: 'medium') : 'Not paid' }}</dd></div>
+    <div><dt class="text-xs text-muted">Payment reference</dt><dd class="mt-1 truncate font-semibold text-ink">{{ invoice().paymentTransactionId || 'Not linked' }}</dd></div>
+    <div><dt class="text-xs text-muted">Created</dt><dd class="mt-1 font-semibold text-ink">{{ invoice().createdAt | date: 'medium' }}</dd></div>
+  </dl>
+
+  @if (downloadAvailable()) {
+    <div class="mt-5">
+      <app-button type="button" variant="secondary" icon="download" ariaLabel="Download invoice" (click)="download.emit(invoice())">
+        Download invoice
+      </app-button>
+    </div>
+  }
+</app-card>

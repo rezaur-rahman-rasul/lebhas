@@ -1,0 +1,200 @@
+<app-page-header
+  eyebrow="AI monitoring"
+  title="Layer analytics"
+  description="Understand backend-provided AI layer cost, speed, quality, and failure patterns without changing routing policy."
+>
+  <a routerLink="/ai-monitoring" class="text-sm font-medium text-brand-600 hover:text-brand-700">
+    AI dashboard
+  </a>
+  <app-status-badge tone="neutral">Layer analytics</app-status-badge>
+  @if (permissions.canViewLayerAnalytics()) {
+    <app-button
+      type="button"
+      variant="secondary"
+      icon="rotate-cw"
+      [loading]="store.loading()"
+      ariaLabel="Refresh layer analytics"
+      (click)="refresh()"
+    >
+      Refresh
+    </app-button>
+  }
+</app-page-header>
+
+@if (!permissions.canViewLayerAnalytics()) {
+  <div class="mt-6">
+    <app-empty-state
+      icon="shield-alert"
+      tone="danger"
+      title="Layer analytics access is restricted"
+      description="You do not have permission to view AI layer analytics."
+    />
+  </div>
+} @else {
+  <div class="mt-6 space-y-6">
+    <app-ai-analytics-filter-bar
+      [dateRange]="store.selectedDateRange()"
+      [providers]="providerOptions()"
+      [layers]="layerOptions()"
+      [selectedProvider]="store.selectedProvider()"
+      [selectedLayer]="store.selectedLayer()"
+      [loading]="store.loading()"
+      (dateRangeChange)="store.setDateRange($event)"
+      (selectedProviderChange)="store.setSelectedProvider($event)"
+      (selectedLayerChange)="store.setSelectedLayer($event)"
+      (refresh)="refresh()"
+      (clear)="store.clearFilters()"
+    />
+
+    @if (store.loading() && !store.layerAnalytics().length) {
+      <app-ai-monitoring-loading-state label="Loading layer analytics" />
+    } @else if (store.error()) {
+      <app-error-state title="Layer analytics could not load" [description]="store.error()!">
+        <app-button type="button" variant="secondary" icon="rotate-cw" (click)="refresh()">
+          Try again
+        </app-button>
+      </app-error-state>
+    } @else if (!filteredLayers().length) {
+      <app-ai-monitoring-empty-state
+        title="No layer analytics yet"
+        description="Layer cost, quality, and performance data will appear here when backend monitoring reports executions."
+        retryLabel="Refresh"
+        (retry)="refresh()"
+      />
+    } @else {
+      <section class="grid gap-4 sm:grid-cols-2 xl:grid-cols-4" aria-label="Layer analytics summary">
+        <app-card>
+          <p class="text-sm font-medium text-muted">Total executions</p>
+          <p class="mt-2 text-2xl font-semibold text-ink">{{ totalExecutions() | number }}</p>
+          <p class="mt-2 text-xs text-muted">{{ successfulExecutions() | number }} completed successfully.</p>
+        </app-card>
+        <app-card>
+          <p class="text-sm font-medium text-muted">Total layer cost</p>
+          <p class="mt-2 text-2xl font-semibold text-ink">{{ totalCost() | currency: 'USD' }}</p>
+          <p class="mt-2 text-xs text-muted">Estimated from backend layer execution costs.</p>
+        </app-card>
+        <app-card>
+          <p class="text-sm font-medium text-muted">Average quality</p>
+          <p class="mt-2 text-2xl font-semibold text-ink">
+            @if (averageQuality() !== null) {
+              {{ averageQuality()! | number: '1.0-2' }}
+            } @else {
+              Not available
+            }
+          </p>
+          <p class="mt-2 text-xs text-muted">Quality contribution across selected layers.</p>
+        </app-card>
+        <app-card>
+          <p class="text-sm font-medium text-muted">Failure count</p>
+          <p class="mt-2 text-2xl font-semibold text-ink">{{ failureCount() | number }}</p>
+          <p class="mt-2 text-xs text-muted">Failed layer executions in this view.</p>
+        </app-card>
+      </section>
+
+      @if (costlyLayers().length || slowLayers().length || failingLayers().length) {
+        <section class="grid gap-4 lg:grid-cols-3" aria-label="Layer issue summary">
+          <app-card>
+            <h2 class="text-sm font-semibold text-ink">Cost attention</h2>
+            @if (costlyLayers().length) {
+              <div class="mt-4 space-y-3">
+                @for (layer of costlyLayers(); track layer.id) {
+                  <div class="rounded-md border border-border bg-panel p-3">
+                    <p class="truncate text-sm font-medium text-ink">{{ layer.layerName }}</p>
+                    <p class="mt-1 text-sm text-muted">This layer is costing more than expected.</p>
+                    <p class="mt-2 text-xs text-muted">{{ layerCost(layer) | currency: 'USD' }}</p>
+                  </div>
+                }
+              </div>
+            } @else {
+              <p class="mt-3 text-sm text-muted">No high-cost layer signal reported yet.</p>
+            }
+          </app-card>
+
+          <app-card>
+            <h2 class="text-sm font-semibold text-ink">Speed attention</h2>
+            @if (slowLayers().length) {
+              <div class="mt-4 space-y-3">
+                @for (layer of slowLayers(); track layer.id) {
+                  <div class="rounded-md border border-border bg-panel p-3">
+                    <p class="truncate text-sm font-medium text-ink">{{ layer.layerName }}</p>
+                    <p class="mt-1 text-sm text-muted">This layer is slower than usual.</p>
+                    <p class="mt-2 text-xs text-muted">{{ layer.avgExecutionTimeMs | number: '1.0-0' }} ms average</p>
+                  </div>
+                }
+              </div>
+            } @else {
+              <p class="mt-3 text-sm text-muted">No slow layer signal reported yet.</p>
+            }
+          </app-card>
+
+          <app-card>
+            <h2 class="text-sm font-semibold text-ink">Failure attention</h2>
+            @if (failingLayers().length) {
+              <div class="mt-4 space-y-3">
+                @for (layer of failingLayers(); track layer.id) {
+                  <div class="rounded-md border border-border bg-panel p-3">
+                    <p class="truncate text-sm font-medium text-ink">{{ layer.layerName }}</p>
+                    <p class="mt-1 text-sm text-muted">This layer failed several times recently.</p>
+                    <p class="mt-2 text-xs text-muted">{{ layer.failedExecutions | number }} failed executions</p>
+                  </div>
+                }
+              </div>
+            } @else {
+              <p class="mt-3 text-sm text-muted">No failing layer signal reported yet.</p>
+            }
+          </app-card>
+        </section>
+      }
+
+      <section class="grid gap-4 lg:grid-cols-2 xl:grid-cols-3">
+        @for (layer of filteredLayers(); track layer.id) {
+          <app-layer-cost-card [layer]="layer" />
+        }
+      </section>
+
+      <section class="hidden overflow-hidden rounded-lg border border-border bg-surface lg:block" aria-label="Layer analytics details">
+        <div class="overflow-x-auto">
+          <table class="min-w-full divide-y divide-border text-sm">
+            <thead class="bg-panel text-left text-xs uppercase tracking-[0.12em] text-muted">
+              <tr>
+                <th class="px-4 py-3 font-semibold">Layer</th>
+                <th class="px-4 py-3 font-semibold">Type</th>
+                <th class="px-4 py-3 font-semibold">Provider</th>
+                <th class="px-4 py-3 font-semibold">Model</th>
+                <th class="px-4 py-3 font-semibold">Executions</th>
+                <th class="px-4 py-3 font-semibold">Success</th>
+                <th class="px-4 py-3 font-semibold">Failure</th>
+                <th class="px-4 py-3 font-semibold">Avg time</th>
+                <th class="px-4 py-3 font-semibold">Avg cost</th>
+                <th class="px-4 py-3 font-semibold">Avg quality</th>
+              </tr>
+            </thead>
+            <tbody class="divide-y divide-border">
+              @for (layer of filteredLayers(); track layer.id) {
+                <tr class="align-top">
+                  <td class="px-4 py-3 font-medium text-ink">{{ layer.layerName }}</td>
+                  <td class="px-4 py-3 text-muted">{{ layer.layerType }}</td>
+                  <td class="px-4 py-3 text-muted">{{ layer.providerName }}</td>
+                  <td class="px-4 py-3 text-muted">{{ layer.modelName }}</td>
+                  <td class="px-4 py-3 text-ink">{{ layer.totalExecutions | number }}</td>
+                  <td class="px-4 py-3 text-ink">{{ layer.successfulExecutions | number }}</td>
+                  <td class="px-4 py-3 text-ink">{{ layer.failedExecutions | number }}</td>
+                  <td class="px-4 py-3 text-ink">{{ layer.avgExecutionTimeMs | number: '1.0-0' }} ms</td>
+                  <td class="px-4 py-3 text-ink">{{ layer.avgExecutionCostUsd | currency: 'USD' }}</td>
+                  <td class="px-4 py-3 text-ink">{{ layer.avgQualityScore | number: '1.0-2' }}</td>
+                </tr>
+              }
+            </tbody>
+          </table>
+        </div>
+      </section>
+
+      <section class="rounded-lg border border-border bg-panel p-4">
+        <p class="text-sm font-semibold text-ink">Routing policy is monitoring-only here</p>
+        <p class="mt-2 text-sm leading-6 text-muted">
+          This page explains layer cost, speed, quality, and failure signals. Layer routing setup and editing are intentionally not available in Day 7 monitoring.
+        </p>
+      </section>
+    }
+  </div>
+}

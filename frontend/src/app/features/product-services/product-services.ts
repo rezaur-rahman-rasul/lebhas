@@ -9,7 +9,6 @@ import { ButtonComponent } from '@app/shared/components/button/button';
 import { CardComponent } from '@app/shared/components/card/card';
 import { EmptyStateComponent } from '@app/shared/components/empty-state/empty-state';
 import { InputComponent } from '@app/shared/components/input/input';
-import { LoadingComponent } from '@app/shared/components/loading/loading';
 import { ModalComponent } from '@app/shared/components/modal/modal';
 import { SectionHeaderComponent } from '@app/shared/components/section-header/section-header';
 import { BrandStore } from '../brands/brand.store';
@@ -34,7 +33,6 @@ type ProductDialogMode = 'create' | 'edit' | null;
     CardComponent,
     EmptyStateComponent,
     InputComponent,
-    LoadingComponent,
     ModalComponent,
     SectionHeaderComponent,
   ],
@@ -49,19 +47,18 @@ export class ProductServicesComponent {
   protected readonly brandStore = inject(BrandStore);
   protected readonly store = inject(ProductServiceStore);
 
-  protected readonly selectedProductId = signal<string | null>(null);
   protected readonly dialogMode = signal<ProductDialogMode>(null);
   protected readonly attemptedSubmit = signal(false);
   protected readonly formBrandId = signal<string | null>(null);
+  protected readonly skeletonRows = [1, 2, 3, 4];
 
   protected readonly canView = this.permissions.canViewProducts;
   protected readonly canManage = this.permissions.canManageProducts;
   protected readonly workspaceId = this.workspace.activeWorkspaceId;
   protected readonly brands = this.brandStore.items;
   protected readonly products = this.store.items;
-  protected readonly selectedProduct = computed(
-    () => this.products().find((product) => product.id === this.selectedProductId()) ?? null,
-  );
+  protected readonly selectedProductId = this.store.selectedProductServiceId;
+  protected readonly selectedProduct = this.store.selectedProductService;
   protected readonly selectedBrand = computed(() => {
     const product = this.selectedProduct();
     return this.brands().find((brand) => brand.id === product?.brandId) ?? null;
@@ -96,27 +93,17 @@ export class ProductServicesComponent {
         void this.store.load(workspaceId);
       }
     });
-
-    effect(() => {
-      const products = this.products();
-      const currentSelection = this.selectedProductId();
-
-      if (products.length === 0) {
-        this.selectedProductId.set(null);
-        return;
-      }
-
-      if (!currentSelection || !products.some((product) => product.id === currentSelection)) {
-        this.selectedProductId.set(products[0].id);
-      }
-    });
   }
 
   protected selectProduct(productId: string): void {
-    this.selectedProductId.set(productId);
+    this.store.selectProductService(productId);
   }
 
   protected openCreateDialog(): void {
+    if (this.brands().length === 0) {
+      return;
+    }
+
     const defaultBrandId = this.brands()[0]?.id ?? '';
     this.attemptedSubmit.set(false);
     this.form.reset({
@@ -179,7 +166,7 @@ export class ProductServicesComponent {
     try {
       if (this.dialogMode() === 'create') {
         const record = await this.store.create(workspaceId, value.brandId, payload);
-        this.selectedProductId.set(record.id);
+        this.store.selectProductService(record.id);
       } else {
         const product = this.selectedProduct();
         if (!product) {
@@ -190,7 +177,7 @@ export class ProductServicesComponent {
           ...payload,
           status: value.status,
         });
-        this.selectedProductId.set(updatedProduct.id);
+        this.store.selectProductService(updatedProduct.id);
       }
     } catch {
       return;

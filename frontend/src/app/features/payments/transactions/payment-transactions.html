@@ -1,0 +1,152 @@
+<app-page-header
+  [eyebrow]="isMasterRoute ? 'Master' : 'Workspace'"
+  title="Payment history"
+  description="Review payment attempts, provider status, and backend-confirmed transaction details."
+>
+  @if (!accessDenied()) {
+    <app-button
+      type="button"
+      variant="secondary"
+      icon="rotate-cw"
+      [loading]="store.loading()"
+      ariaLabel="Refresh payment history"
+      (click)="refresh()"
+    >
+      Refresh
+    </app-button>
+  }
+</app-page-header>
+
+@if (accessDenied()) {
+  <div class="mt-6">
+    <app-empty-state
+      icon="shield-alert"
+      tone="danger"
+      title="You do not have access to payment history."
+      description="Please contact your workspace admin if you need access."
+    />
+  </div>
+} @else {
+  <div class="mt-6 space-y-6">
+    <section class="payment-summary-grid" aria-label="Payment transaction summary">
+      @for (card of summaryCards(); track card.key) {
+        <app-card [padded]="false">
+          <article class="payment-summary-card">
+            <p class="payment-summary-card__label">{{ card.label }}</p>
+            <p class="payment-summary-card__value">{{ card.value }}</p>
+            <p class="payment-summary-card__description">{{ card.description }}</p>
+          </article>
+        </app-card>
+      }
+    </section>
+
+    <app-card>
+      <div class="grid gap-4 md:grid-cols-2 xl:grid-cols-5">
+        <label class="text-sm">
+          <span class="mb-1 block font-medium text-ink">Status</span>
+          <select
+            class="h-10 w-full rounded-md border border-border bg-canvas px-3 text-sm text-ink focus:border-brand-500 focus:outline-none focus:ring-2 focus:ring-brand-500/30"
+            [value]="selectedStatus() ?? ''"
+            aria-label="Filter payments by status"
+            (change)="updateStatus($event)"
+          >
+            <option value="">All statuses</option>
+            @for (status of statusOptions; track status) {
+              <option [value]="status">{{ status }}</option>
+            }
+          </select>
+        </label>
+
+        <label class="text-sm">
+          <span class="mb-1 block font-medium text-ink">Purpose</span>
+          <select
+            class="h-10 w-full rounded-md border border-border bg-canvas px-3 text-sm text-ink focus:border-brand-500 focus:outline-none focus:ring-2 focus:ring-brand-500/30"
+            [value]="selectedPurpose() ?? ''"
+            aria-label="Filter payments by purpose"
+            (change)="updatePurpose($event)"
+          >
+            <option value="">All purposes</option>
+            @for (purpose of purposeOptions; track purpose) {
+              <option [value]="purpose">{{ purpose }}</option>
+            }
+          </select>
+        </label>
+
+        <label class="text-sm">
+          <span class="mb-1 block font-medium text-ink">From</span>
+          <input
+            type="date"
+            class="h-10 w-full rounded-md border border-border bg-canvas px-3 text-sm text-ink focus:border-brand-500 focus:outline-none focus:ring-2 focus:ring-brand-500/30"
+            [value]="fromDate() ?? ''"
+            aria-label="Filter payments from date"
+            (change)="updateFromDate($event)"
+          />
+        </label>
+
+        <label class="text-sm">
+          <span class="mb-1 block font-medium text-ink">To</span>
+          <input
+            type="date"
+            class="h-10 w-full rounded-md border border-border bg-canvas px-3 text-sm text-ink focus:border-brand-500 focus:outline-none focus:ring-2 focus:ring-brand-500/30"
+            [value]="toDate() ?? ''"
+            aria-label="Filter payments to date"
+            (change)="updateToDate($event)"
+          />
+        </label>
+
+        <div class="flex items-end">
+          <app-button
+            type="button"
+            variant="ghost"
+            icon="x"
+            [fullWidth]="true"
+            ariaLabel="Clear payment filters"
+            (click)="clearFilters()"
+          >
+            Clear
+          </app-button>
+        </div>
+      </div>
+    </app-card>
+
+    @if (isMasterRoute) {
+      <app-card>
+        <h2 class="text-lg font-semibold text-ink">Master payment transaction foundation</h2>
+        <p class="mt-2 text-sm leading-6 text-muted">
+          A global Master payment transaction API is not exposed in the current frontend payment service. No fake
+          master transactions are shown here.
+        </p>
+      </app-card>
+    }
+
+    @if (store.loading() && !transactions().length) {
+      <app-payment-loading-state label="Loading payment history" />
+    } @else if (store.error()) {
+      <app-error-state title="Payment history could not load" [description]="store.error()!">
+        <app-button
+          type="button"
+          variant="secondary"
+          icon="rotate-cw"
+          ariaLabel="Retry loading payment history"
+          (click)="refresh()"
+        >
+          Try again
+        </app-button>
+      </app-error-state>
+    } @else if (!hasTransactions()) {
+      <app-payment-empty-state
+        icon="receipt-text"
+        title="No payment history yet"
+        description="No payment history yet. Your successful payments will appear here."
+        retryLabel="Refresh"
+        (retry)="refresh()"
+      />
+    } @else {
+      <section class="grid gap-4" aria-label="Payment transaction list">
+        @for (transaction of filteredTransactions(); track transaction.id) {
+          <app-payment-transaction-card [transaction]="transaction" />
+        }
+      </section>
+    }
+  </div>
+}

@@ -1,0 +1,76 @@
+<section class="rounded-lg border border-border bg-surface p-4" aria-label="Notification filters">
+  <div class="grid gap-3 md:grid-cols-2 xl:grid-cols-[auto_1fr_1fr_1fr_auto_auto]">
+    <label class="flex min-h-10 items-center gap-2 rounded-md border border-border bg-canvas px-3 text-sm text-ink">
+      <input
+        class="size-4 rounded border-border text-brand-600 focus:ring-brand-500"
+        type="checkbox"
+        [checked]="unreadOnly()"
+        aria-label="Show unread notifications only"
+        (change)="unreadOnlyChange.emit($any($event.target).checked)"
+      />
+      <span>Unread only</span>
+    </label>
+
+    <label class="min-w-0 text-sm">
+      <span class="mb-1 block font-medium text-ink">Notification type</span>
+      <select
+        class="h-10 w-full rounded-md border border-border bg-canvas px-3 text-sm text-ink outline-none transition focus:border-brand-500 focus:ring-2 focus:ring-brand-500/30"
+        [value]="selectedType() || ''"
+        aria-label="Filter by notification type"
+        (change)="updateType($any($event.target).value)"
+      >
+        <option value="">All notifications</option>
+        @for (type of notificationTypes; track type) {
+          <option [value]="type">{{ typeLabel(type) }}</option>
+        }
+      </select>
+    </label>
+
+    <label class="min-w-0 text-sm">
+      <span class="mb-1 block font-medium text-ink">Priority</span>
+      <select
+        class="h-10 w-full rounded-md border border-border bg-canvas px-3 text-sm text-ink outline-none transition focus:border-brand-500 focus:ring-2 focus:ring-brand-500/30"
+        [value]="selectedPriority() || ''"
+        aria-label="Filter by priority"
+        (change)="updatePriority($any($event.target).value)"
+      >
+        <option value="">All priorities</option>
+        @for (priority of priorities; track priority) {
+          <option [value]="priority">{{ priorityLabel(priority) }}</option>
+        }
+      </select>
+    </label>
+
+    <label class="min-w-0 text-sm">
+      <span class="mb-1 block font-medium text-ink">Date</span>
+      <input
+        class="h-10 w-full rounded-md border border-border bg-canvas px-3 text-sm text-ink outline-none transition focus:border-brand-500 focus:ring-2 focus:ring-brand-500/30"
+        type="date"
+        [value]="selectedDate() || ''"
+        aria-label="Filter notifications by date"
+        (change)="updateDate($any($event.target).value)"
+      />
+    </label>
+
+    <app-button
+      type="button"
+      variant="secondary"
+      icon="rotate-cw"
+      [loading]="loading()"
+      ariaLabel="Refresh notifications"
+      (click)="refresh.emit()"
+    >
+      Refresh
+    </app-button>
+
+    <app-button
+      type="button"
+      variant="ghost"
+      icon="x"
+      ariaLabel="Clear notification filters"
+      (click)="clear.emit()"
+    >
+      Clear
+    </app-button>
+  </div>
+</section>

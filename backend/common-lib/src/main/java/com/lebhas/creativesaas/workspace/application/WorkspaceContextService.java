@@ -7,6 +7,7 @@ import com.lebhas.creativesaas.identity.application.WorkspaceAuthorizationServic
 import com.lebhas.creativesaas.pricing.application.WorkspacePlanContextService;
 import com.lebhas.creativesaas.pricing.application.dto.PlanFeaturePolicyView;
 import com.lebhas.creativesaas.pricing.application.dto.WorkspacePlanContextView;
+import com.lebhas.creativesaas.profile.application.SafeProfileDisplayService;
 import com.lebhas.creativesaas.redis.RedisPermissionVersionService;
 import com.lebhas.creativesaas.redis.RedisRealtimeStateService;
 import com.lebhas.creativesaas.redis.RedisSessionService;
@@ -29,6 +30,7 @@ public class WorkspaceContextService {
     private final MasterSupportModeService masterSupportModeService;
     private final WorkspacePlanContextService workspacePlanContextService;
     private final SessionProperties sessionProperties;
+    private final SafeProfileDisplayService safeProfileDisplayService;
 
     public WorkspaceContextService(
             WorkspaceAuthorizationService workspaceAuthorizationService,
@@ -37,7 +39,8 @@ public class WorkspaceContextService {
             RedisRealtimeStateService redisRealtimeStateService,
             MasterSupportModeService masterSupportModeService,
             WorkspacePlanContextService workspacePlanContextService,
-            SessionProperties sessionProperties
+            SessionProperties sessionProperties,
+            SafeProfileDisplayService safeProfileDisplayService
     ) {
         this.workspaceAuthorizationService = workspaceAuthorizationService;
         this.redisWorkspaceContextCache = redisWorkspaceContextCache;
@@ -46,6 +49,7 @@ public class WorkspaceContextService {
         this.masterSupportModeService = masterSupportModeService;
         this.workspacePlanContextService = workspacePlanContextService;
         this.sessionProperties = sessionProperties;
+        this.safeProfileDisplayService = safeProfileDisplayService;
     }
 
     @Transactional(readOnly = true)
@@ -86,6 +90,7 @@ public class WorkspaceContextService {
         return new WorkspaceContextView(
                 access.workspace().getId(),
                 access.workspace().getName(),
+                safeProfileDisplayService.forUserInWorkspace(access.workspace().getId(), access.currentUser().userId()),
                 access.effectiveRole(),
                 access.permissions(),
                 snapshot.canDownloadCreative(),

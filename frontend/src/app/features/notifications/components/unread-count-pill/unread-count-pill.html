@@ -1,0 +1,11 @@
+@if (count() > 0) {
+  <span
+    class="inline-flex min-w-6 items-center justify-center rounded-full bg-brand-600 px-2 py-0.5 text-xs font-semibold text-white"
+    [class.size-5]="compact()"
+    [class.px-0]="compact()"
+    [attr.aria-label]="label()"
+    role="status"
+  >
+    {{ displayCount() }}
+  </span>
+}

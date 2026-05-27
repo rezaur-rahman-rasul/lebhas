@@ -1,0 +1,79 @@
+<section
+  class="rounded-lg border border-border bg-surface p-4"
+  aria-label="AI monitoring filters"
+>
+  <div class="grid gap-3 md:grid-cols-2 xl:grid-cols-[1fr_1fr_1fr_1fr_auto_auto]">
+    <label class="min-w-0 text-sm">
+      <span class="mb-1 block font-medium text-ink">From</span>
+      <input
+        class="h-10 w-full rounded-md border border-border bg-canvas px-3 text-sm text-ink outline-none transition focus:border-brand-500 focus:ring-2 focus:ring-brand-500/30"
+        type="date"
+        [value]="dateRange().from || ''"
+        aria-label="Filter AI analytics from date"
+        (change)="updateFrom($any($event.target).value)"
+      />
+    </label>
+
+    <label class="min-w-0 text-sm">
+      <span class="mb-1 block font-medium text-ink">To</span>
+      <input
+        class="h-10 w-full rounded-md border border-border bg-canvas px-3 text-sm text-ink outline-none transition focus:border-brand-500 focus:ring-2 focus:ring-brand-500/30"
+        type="date"
+        [value]="dateRange().to || ''"
+        aria-label="Filter AI analytics to date"
+        (change)="updateTo($any($event.target).value)"
+      />
+    </label>
+
+    <label class="min-w-0 text-sm">
+      <span class="mb-1 block font-medium text-ink">Provider</span>
+      <select
+        class="h-10 w-full rounded-md border border-border bg-canvas px-3 text-sm text-ink outline-none transition focus:border-brand-500 focus:ring-2 focus:ring-brand-500/30"
+        [value]="selectedProvider() || ''"
+        aria-label="Filter by AI provider"
+        (change)="updateProvider($any($event.target).value)"
+      >
+        <option value="">All providers</option>
+        @for (provider of providers(); track provider.id) {
+          <option [value]="provider.id">{{ provider.label }}</option>
+        }
+      </select>
+    </label>
+
+    <label class="min-w-0 text-sm">
+      <span class="mb-1 block font-medium text-ink">Layer</span>
+      <select
+        class="h-10 w-full rounded-md border border-border bg-canvas px-3 text-sm text-ink outline-none transition focus:border-brand-500 focus:ring-2 focus:ring-brand-500/30"
+        [value]="selectedLayer() || ''"
+        aria-label="Filter by AI layer"
+        (change)="updateLayer($any($event.target).value)"
+      >
+        <option value="">All layers</option>
+        @for (layer of layers(); track layer.id) {
+          <option [value]="layer.id">{{ layer.label }}</option>
+        }
+      </select>
+    </label>
+
+    <app-button
+      type="button"
+      variant="secondary"
+      icon="rotate-cw"
+      [loading]="loading()"
+      ariaLabel="Refresh AI monitoring analytics"
+      (click)="refresh.emit()"
+    >
+      Refresh
+    </app-button>
+
+    <app-button
+      type="button"
+      variant="ghost"
+      icon="x"
+      ariaLabel="Clear AI monitoring filters"
+      (click)="clear.emit()"
+    >
+      Clear
+    </app-button>
+  </div>
+</section>

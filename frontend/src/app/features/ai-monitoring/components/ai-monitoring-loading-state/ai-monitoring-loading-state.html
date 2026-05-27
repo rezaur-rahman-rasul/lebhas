@@ -1,0 +1,15 @@
+<div class="space-y-4" role="status" aria-live="polite">
+  <app-loading-state [label]="label()" />
+  <div class="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+    @for (item of skeletonItems(); track item) {
+      <div class="rounded-lg border border-border bg-surface p-5">
+        <div class="h-4 w-2/3 animate-pulse rounded bg-panel"></div>
+        <div class="mt-4 h-8 w-1/2 animate-pulse rounded bg-panel"></div>
+        <div class="mt-5 space-y-2">
+          <div class="h-3 animate-pulse rounded bg-panel"></div>
+          <div class="h-3 w-5/6 animate-pulse rounded bg-panel"></div>
+        </div>
+      </div>
+    }
+  </div>
+</div>

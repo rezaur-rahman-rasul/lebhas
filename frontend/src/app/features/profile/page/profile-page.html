@@ -1,0 +1,226 @@
+<app-page-header
+  eyebrow="Account"
+  title="Profile"
+  description="Manage your profile details and review recent account activity."
+>
+  @if (!accessDenied()) {
+    <div class="flex flex-col gap-2 sm:flex-row">
+      <app-button
+        type="button"
+        variant="secondary"
+        icon="rotate-cw"
+        [loading]="store.loading()"
+        ariaLabel="Refresh profile"
+        (click)="retry()"
+      >
+        Refresh
+      </app-button>
+      @if (canEdit()) {
+        <app-button type="button" icon="pencil" ariaLabel="Edit profile" (click)="goToEditProfile()">
+          Edit Profile
+        </app-button>
+      }
+    </div>
+  }
+</app-page-header>
+
+@if (accessDenied()) {
+  <div class="mt-6">
+    <app-empty-state
+      icon="shield-alert"
+      tone="danger"
+      title="You do not have permission to view this profile."
+      description="Please contact your workspace admin if you need access."
+    />
+  </div>
+} @else {
+  <div class="mt-6 space-y-6">
+    @if (store.loading() && !profile()) {
+      <app-profile-loading-state label="Loading profile" />
+    } @else if (store.error() && !profile()) {
+      <app-error-state title="Profile could not load" [description]="store.error()!">
+        <app-button
+          type="button"
+          variant="secondary"
+          icon="rotate-cw"
+          ariaLabel="Retry loading profile"
+          (click)="retry()"
+        >
+          Try again
+        </app-button>
+      </app-error-state>
+    } @else if (!profile()) {
+      <app-profile-empty-state
+        icon="user-circle"
+        title="Profile details are unavailable"
+        message="We could not load your profile details right now."
+      />
+    } @else {
+      <section class="grid gap-6 xl:grid-cols-[minmax(0,1fr)_380px]" aria-label="Profile overview">
+        <div class="space-y-6">
+          <app-profile-summary-card
+            [profile]="profile()!"
+            [role]="role()"
+            [workspaceName]="workspaceName()"
+            [showActions]="false"
+          />
+
+          <app-card>
+            <section aria-labelledby="profile-information-title">
+              <div class="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+                <div>
+                  <p class="text-xs font-semibold uppercase tracking-wide text-brand-300">Information</p>
+                  <h2 id="profile-information-title" class="mt-1 text-lg font-semibold text-ink">Profile information</h2>
+                </div>
+                @if (canEdit()) {
+                  <app-button type="button" variant="secondary" size="sm" icon="pencil" (click)="goToEditProfile()">
+                    Edit Profile
+                  </app-button>
+                }
+              </div>
+
+              <dl class="mt-5 grid gap-3 sm:grid-cols-2">
+                <div class="rounded-md border border-border bg-panel/50 p-3">
+                  <dt class="text-xs uppercase tracking-wide text-muted">First name</dt>
+                  <dd class="mt-1 truncate font-medium text-ink">{{ profile()!.firstName || 'Not added yet' }}</dd>
+                </div>
+                <div class="rounded-md border border-border bg-panel/50 p-3">
+                  <dt class="text-xs uppercase tracking-wide text-muted">Last name</dt>
+                  <dd class="mt-1 truncate font-medium text-ink">{{ profile()!.lastName || 'Not added yet' }}</dd>
+                </div>
+                <div class="rounded-md border border-border bg-panel/50 p-3">
+                  <dt class="text-xs uppercase tracking-wide text-muted">Display name</dt>
+                  <dd class="mt-1 truncate font-medium text-ink">{{ profile()!.displayName || store.displayName() }}</dd>
+                </div>
+                <div class="rounded-md border border-border bg-panel/50 p-3">
+                  <dt class="text-xs uppercase tracking-wide text-muted">Phone number</dt>
+                  <dd class="mt-1 truncate font-medium text-ink">{{ profile()!.phoneNumber || 'Not added yet' }}</dd>
+                </div>
+                <div class="rounded-md border border-border bg-panel/50 p-3">
+                  <dt class="text-xs uppercase tracking-wide text-muted">Job title</dt>
+                  <dd class="mt-1 truncate font-medium text-ink">{{ profile()!.jobTitle || 'Not added yet' }}</dd>
+                </div>
+                <div class="rounded-md border border-border bg-panel/50 p-3">
+                  <dt class="text-xs uppercase tracking-wide text-muted">Timezone</dt>
+                  <dd class="mt-1 truncate font-medium text-ink">{{ profile()!.timezone || 'Not set' }}</dd>
+                </div>
+                <div class="rounded-md border border-border bg-panel/50 p-3">
+                  <dt class="text-xs uppercase tracking-wide text-muted">Locale</dt>
+                  <dd class="mt-1 truncate font-medium text-ink">{{ profile()!.locale || 'Not set' }}</dd>
+                </div>
+                <div class="rounded-md border border-border bg-panel/50 p-3">
+                  <dt class="text-xs uppercase tracking-wide text-muted">Updated</dt>
+                  <dd class="mt-1 truncate font-medium text-ink">{{ profile()!.updatedAt | date: 'medium' }}</dd>
+                </div>
+              </dl>
+            </section>
+          </app-card>
+
+          @if (settings()) {
+            <app-profile-settings-card
+              [settings]="settings()!"
+              [editable]="true"
+              (editSettings)="goToSettings()"
+            />
+          }
+
+          <app-card>
+            <section aria-labelledby="security-summary-title">
+              <div class="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+                <div>
+                  <p class="text-xs font-semibold uppercase tracking-wide text-brand-300">Security</p>
+                  <h2 id="security-summary-title" class="mt-1 text-lg font-semibold text-ink">Security summary</h2>
+                  <p class="mt-1 text-sm text-muted">Review recent activity and manage account access from the security pages.</p>
+                </div>
+                <div class="flex flex-col gap-2 sm:flex-row">
+                  <app-button type="button" variant="secondary" size="sm" icon="lock-keyhole" (click)="goToChangePassword()">
+                    Change Password
+                  </app-button>
+                  <app-button type="button" variant="ghost" size="sm" icon="monitor-smartphone" (click)="goToSessions()">
+                    Manage Sessions
+                  </app-button>
+                </div>
+              </div>
+
+              <div class="mt-5 rounded-md border border-border bg-panel/50 p-3">
+                <p class="text-xs uppercase tracking-wide text-muted">Password</p>
+                <p class="mt-1 text-sm font-medium text-ink">Password last changed will appear here when backend returns it.</p>
+              </div>
+
+              <div class="mt-5 space-y-3">
+                @if (hasSecurityActivity()) {
+                  @for (activity of recentSecurityActivity(); track activity.createdAt + activity.activityType) {
+                    <app-security-activity-card [activity]="activity" />
+                  }
+                } @else {
+                  <app-profile-empty-state
+                    icon="shield-check"
+                    title="No security activity yet"
+                    message="Recent sign-ins and profile changes will appear here."
+                  />
+                }
+              </div>
+
+              <div class="mt-5 flex justify-end">
+                <app-button type="button" variant="secondary" size="sm" icon="shield" (click)="goToSecurityActivity()">
+                  View Security Activity
+                </app-button>
+              </div>
+            </section>
+          </app-card>
+        </div>
+
+        <aside class="space-y-6" aria-label="Profile actions">
+          <app-profile-image-uploader
+            [profile]="profile()!"
+            [uploading]="store.uploading()"
+            [progress]="store.imageUploadProgress()"
+            [error]="store.error()"
+            [canRemove]="canManageImage() && store.hasProfileImage()"
+            (imageSelected)="requestPhotoUpload($event)"
+            (removeImage)="removeProfileImage()"
+            (retryUpload)="photoMessage.set(null)"
+          />
+
+          @if (photoMessage()) {
+            <app-card>
+              <p class="text-sm leading-6 text-muted">{{ photoMessage() }}</p>
+            </app-card>
+          }
+
+          <app-card>
+            <h2 class="text-lg font-semibold text-ink">Quick actions</h2>
+            <div class="mt-4 grid gap-2">
+              <app-button type="button" icon="pencil" [fullWidth]="true" (click)="goToEditProfile()">
+                Edit Profile
+              </app-button>
+              <app-button type="button" variant="secondary" icon="lock-keyhole" [fullWidth]="true" (click)="goToChangePassword()">
+                Change Password
+              </app-button>
+              <app-button type="button" variant="secondary" icon="settings" [fullWidth]="true" (click)="goToSettings()">
+                Account Settings
+              </app-button>
+              <app-button type="button" variant="secondary" icon="monitor-smartphone" [fullWidth]="true" (click)="goToSessions()">
+                Manage Sessions
+              </app-button>
+              <app-button type="button" variant="secondary" icon="upload" [fullWidth]="true" [disabled]="true">
+                Update Profile Photo
+              </app-button>
+              <app-button
+                type="button"
+                variant="danger"
+                icon="trash-2"
+                [fullWidth]="true"
+                [disabled]="!canManageImage() || !store.hasProfileImage() || removingPhoto()"
+                [loading]="removingPhoto()"
+                (click)="removeProfileImage()"
+              >
+                Remove Profile Photo
+              </app-button>
+            </div>
+          </app-card>
+        </aside>
+      </section>
+    }
+  </div>
+}

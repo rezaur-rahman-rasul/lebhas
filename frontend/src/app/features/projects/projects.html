@@ -7,6 +7,7 @@
     <app-button
       icon="plus"
       [disabled]="products().length === 0"
+      [attr.title]="products().length === 0 ? 'Create a product or service first.' : null"
       [testId]="'project-create-button'"
       (click)="openCreateDialog()"
     >
@@ -73,7 +74,36 @@
           </app-empty-state>
         </div>
       } @else {
-        <div class="mt-5 overflow-x-auto">
+        <div class="mt-5 grid gap-3 md:hidden">
+          @for (project of projects(); track project.id) {
+            <button
+              type="button"
+              class="rounded-xl border border-border bg-surface p-4 text-left transition hover:border-brand-300 hover:bg-panel focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500"
+              [class.border-brand-500]="selectedProjectId() === project.id"
+              [attr.aria-label]="'Select project or campaign ' + project.name"
+              (click)="selectProject(project.id)"
+            >
+              <div class="flex items-start justify-between gap-3">
+                <div class="min-w-0">
+                  <p class="truncate font-semibold text-ink">{{ project.name }}</p>
+                  <p class="mt-1 text-sm text-muted">{{ project.campaignObjective || 'Objective pending' }}</p>
+                </div>
+                <app-badge [tone]="project.status === 'ACTIVE' ? 'brand' : 'neutral'">
+                  {{ project.status }}
+                </app-badge>
+              </div>
+              <div class="mt-4 grid gap-2 text-sm text-muted">
+                <p><span class="font-medium text-ink">Product / Service:</span> {{ productName(project.productServiceId) }}</p>
+                @if (!isProductLinked(project.productServiceId)) {
+                  <p class="text-alert-600">Link this project to a product/service before creative generation.</p>
+                }
+                <p><span class="font-medium text-ink">Platform:</span> {{ project.targetPlatform || 'Multi-platform' }}</p>
+              </div>
+            </button>
+          }
+        </div>
+
+        <div class="mt-5 hidden overflow-x-auto md:block">
           <table class="min-w-full divide-y divide-border text-left">
             <thead class="text-xs uppercase tracking-[0.14em] text-muted">
               <tr>
@@ -143,6 +173,15 @@
               </div>
             </div>
 
+            @if (!isProductLinked(project.productServiceId)) {
+              <div class="rounded-2xl border border-alert-600/30 bg-alert-600/10 p-4">
+                <p class="text-sm font-semibold text-alert-600">Product not linked</p>
+                <p class="mt-2 text-sm leading-6 text-muted">
+                  Link this project to a product/service before creative generation.
+                </p>
+              </div>
+            }
+
             <div class="grid gap-3 sm:grid-cols-2">
               <div class="rounded-2xl border border-border bg-panel/35 p-4">
                 <p class="text-xs font-semibold uppercase tracking-[0.14em] text-muted">Target platform</p>
@@ -183,9 +222,9 @@
 
       <app-card>
         <p class="text-xs font-semibold uppercase tracking-[0.16em] text-brand-500">Relationship rule</p>
-        <h2 class="mt-2 text-base font-semibold text-ink">Every project campaign must belong to a product service</h2>
+        <h2 class="mt-2 text-base font-semibold text-ink">Every project campaign must belong to a product or service</h2>
         <p class="mt-3 text-sm leading-7 text-muted">
-          This preserves the hierarchy from workspace to brand to product before creative requests and generated versions arrive later.
+          This preserves the hierarchy from Workspace to Brand to Product/Service to Project/Campaign before creative requests and generated versions arrive later.
         </p>
       </app-card>
     </div>
@@ -202,7 +241,8 @@
   testId="project-form-modal"
   (closed)="closeDialog()"
 >
-  <form class="grid gap-4" [formGroup]="form" (ngSubmit)="submit()">
+  <form class="admin-modal-form" [formGroup]="form" (ngSubmit)="submit()">
+    <div class="admin-modal-body">
     <label class="block">
       <span class="mb-2 block text-sm font-medium text-ink">Product / Service</span>
       <select
@@ -213,7 +253,7 @@
       >
         <option value="">Select product or service</option>
         @for (product of products(); track product.id) {
-          <option [value]="product.id">{{ product.name }} · {{ brandName(product.brandId) }}</option>
+          <option [value]="product.id">{{ product.name }} - {{ brandName(product.brandId) }}</option>
         }
       </select>
       @if (fieldError('productServiceId')) {
@@ -295,9 +335,11 @@
       </label>
     }
 
-    <div class="flex flex-col-reverse gap-3 pt-2 sm:flex-row sm:justify-end">
+    </div>
+
+    <div class="admin-modal-footer">
       <app-button variant="secondary" type="button" (click)="closeDialog()">Cancel</app-button>
-      <app-button type="submit" [loading]="store.saving()" [testId]="'project-submit'">
+      <app-button type="submit" [disabled]="products().length === 0" [loading]="store.saving()" [testId]="'project-submit'">
         {{ dialogMode() === 'create' ? 'Create Project / Campaign' : 'Save Changes' }}
       </app-button>
     </div>

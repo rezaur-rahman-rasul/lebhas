@@ -2,6 +2,7 @@ package com.lebhas.creativesaas.creativerequest.application.dto;
 
 import com.lebhas.creativesaas.brand.domain.BrandLanguagePreference;
 import com.lebhas.creativesaas.creativerequest.domain.CreativeRequestStatus;
+import com.lebhas.creativesaas.profile.application.dto.SafeProfileDisplayView;
 
 import java.time.Instant;
 import java.util.List;
@@ -14,6 +15,7 @@ public record CreativeRequestView(
         UUID productServiceId,
         UUID projectCampaignId,
         UUID requestedBy,
+        SafeProfileDisplayView requestedByDisplay,
         String requestName,
         String sourcePrompt,
         String enhancedPrompt,

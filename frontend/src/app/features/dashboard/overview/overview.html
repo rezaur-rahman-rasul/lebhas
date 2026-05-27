@@ -4,33 +4,96 @@
   }
 </app-section-header>
 
-@if (role() !== 'MASTER' && !workspaceId()) {
+@if (showSkeleton()) {
+  <section class="mt-5 grid gap-3 md:grid-cols-2 xl:grid-cols-5" aria-label="Loading quick actions">
+    @for (item of skeletonItems; track item) {
+      <div class="dashboard-skeleton-card"></div>
+    }
+  </section>
+
+  <section class="mt-5 grid gap-4 lg:grid-cols-[minmax(0,1fr)_22rem]" aria-label="Loading dashboard details">
+    <app-card>
+      <div class="dashboard-skeleton-line w-48"></div>
+      <div class="mt-5 grid gap-3 md:grid-cols-4">
+        @for (item of hierarchySkeletonItems; track item) {
+          <div class="dashboard-skeleton-panel"></div>
+        }
+      </div>
+    </app-card>
+    <app-card>
+      <div class="dashboard-skeleton-line w-40"></div>
+      <div class="mt-5 grid gap-3">
+        @for (item of hierarchySkeletonItems.slice(0, 3); track item) {
+          <div class="dashboard-skeleton-row"></div>
+        }
+      </div>
+    </app-card>
+  </section>
+} @else if (showDashboardError()) {
+  <div class="mt-6">
+    <app-empty-state
+      icon="circle-alert"
+      title="Dashboard details could not be loaded"
+      [description]="dashboard.friendlyError() || 'Please try again.'"
+    >
+      <app-button type="button" icon="rotate-cw" (click)="retry()">Retry</app-button>
+    </app-empty-state>
+  </div>
+} @else if (showWorkspaceError()) {
   <div class="mt-6">
     <app-empty-state
       icon="building-2"
-      title="Workspace context is missing"
-      description="Select or restore an active workspace before opening the management surfaces."
+      title="We could not load your workspace"
+      description="Please try again or select another workspace from the top bar."
     />
   </div>
 } @else {
   <section class="mt-5 grid gap-3 md:grid-cols-2 xl:grid-cols-5">
     @for (action of quickActions(); track action.title) {
-      <a [routerLink]="action.route" class="min-w-0">
-        <app-card [interactive]="true">
-          <div class="flex h-full min-h-28 flex-col justify-between gap-3">
-            <div class="flex items-center justify-between gap-3">
-              <div class="grid h-10 w-10 shrink-0 place-items-center rounded-lg bg-brand-500/12 text-brand-700 dark:bg-brand-500/20 dark:text-brand-100">
-                <app-icon [name]="action.icon" [size]="18" />
+      @if (!action.enabled) {
+        <button
+          type="button"
+          class="quick-action-card quick-action-card--disabled min-w-0"
+          [attr.aria-disabled]="true"
+          [attr.aria-label]="action.title + ' unavailable. ' + action.disabledReason"
+          [title]="action.disabledReason"
+          (click)="showDisabledActionToast(action)"
+        >
+          <app-card>
+            <div class="flex h-full min-h-28 flex-col justify-between gap-3">
+              <div class="flex items-center justify-between gap-3">
+                <div class="quick-action-icon quick-action-icon--disabled">
+                  <app-icon [name]="action.icon" [size]="18" />
+                </div>
+                @if (action.badgeLabel) {
+                  <app-badge tone="neutral">{{ action.badgeLabel }}</app-badge>
+                }
               </div>
-              <app-icon name="arrow-up-right" [size]="16" />
+              <div>
+                <h2 class="text-sm font-semibold text-ink">{{ action.title }}</h2>
+                <p class="mt-1 line-clamp-2 text-xs leading-5 text-muted">{{ action.description }}</p>
+              </div>
             </div>
-            <div>
-              <h2 class="text-sm font-semibold text-ink">{{ action.title }}</h2>
-              <p class="mt-1 line-clamp-2 text-xs leading-5 text-muted">{{ action.description }}</p>
+          </app-card>
+        </button>
+      } @else {
+        <a [routerLink]="action.route" class="quick-action-card min-w-0">
+          <app-card [interactive]="true">
+            <div class="flex h-full min-h-28 flex-col justify-between gap-3">
+              <div class="flex items-center justify-between gap-3">
+                <div class="quick-action-icon">
+                  <app-icon [name]="action.icon" [size]="18" />
+                </div>
+                <app-icon name="arrow-up-right" [size]="16" />
+              </div>
+              <div>
+                <h2 class="text-sm font-semibold text-ink">{{ action.title }}</h2>
+                <p class="mt-1 line-clamp-2 text-xs leading-5 text-muted">{{ action.description }}</p>
+              </div>
             </div>
-          </div>
-        </app-card>
-      </a>
+          </app-card>
+        </a>
+      }
     }
   </section>
 
@@ -43,6 +106,15 @@
         </div>
         <app-badge tone="blue">{{ role() || 'ADMIN' }}</app-badge>
       </div>
+
+      @if (hasProjectLinkWarning()) {
+        <div class="mt-5 rounded-lg border border-alert-600/30 bg-alert-600/10 p-4">
+          <p class="text-sm font-semibold text-alert-600">Project needs product link</p>
+          <p class="mt-2 text-sm leading-6 text-muted">
+            One project exists, but it is not linked to a product or service.
+          </p>
+        </div>
+      }
 
       <div class="mt-5 grid gap-3 md:grid-cols-4">
         @for (item of hierarchy(); track item.label; let last = $last) {

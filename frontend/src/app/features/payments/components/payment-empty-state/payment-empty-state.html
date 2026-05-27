@@ -1,0 +1,7 @@
+<app-empty-state [icon]="icon()" [title]="title()" [description]="description()">
+  @if (retryLabel()) {
+    <app-button type="button" variant="secondary" icon="rotate-cw" ariaLabel="Refresh payment data" (click)="retry.emit()">
+      {{ retryLabel() }}
+    </app-button>
+  }
+</app-empty-state>

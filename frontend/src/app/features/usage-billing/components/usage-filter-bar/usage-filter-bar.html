@@ -1,0 +1,69 @@
+<section class="rounded-lg border border-border bg-surface p-4" aria-label="Usage and billing filters">
+  <div class="grid gap-3 md:grid-cols-2 xl:grid-cols-[1fr_1fr_1fr_auto_auto]">
+    <label class="min-w-0 text-sm">
+      <span class="mb-1 block font-medium text-ink">Month</span>
+      <input
+        class="h-10 w-full rounded-md border border-border bg-canvas px-3 text-sm text-ink outline-none transition focus:border-brand-500 focus:ring-2 focus:ring-brand-500/30"
+        type="month"
+        [value]="selectedMonth() || ''"
+        aria-label="Filter usage by month"
+        (change)="updateMonth($any($event.target).value)"
+      />
+    </label>
+
+    @if (showUsageType()) {
+      <label class="min-w-0 text-sm">
+        <span class="mb-1 block font-medium text-ink">Usage type</span>
+        <select
+          class="h-10 w-full rounded-md border border-border bg-canvas px-3 text-sm text-ink outline-none transition focus:border-brand-500 focus:ring-2 focus:ring-brand-500/30"
+          [value]="selectedUsageType() || ''"
+          aria-label="Filter by usage type"
+          (change)="updateUsageType($any($event.target).value)"
+        >
+          <option value="">All usage</option>
+          @for (usageType of usageTypes; track usageType) {
+            <option [value]="usageType">{{ label(usageType) }}</option>
+          }
+        </select>
+      </label>
+    }
+
+    @if (showTransactionType()) {
+      <label class="min-w-0 text-sm">
+        <span class="mb-1 block font-medium text-ink">Transaction type</span>
+        <select
+          class="h-10 w-full rounded-md border border-border bg-canvas px-3 text-sm text-ink outline-none transition focus:border-brand-500 focus:ring-2 focus:ring-brand-500/30"
+          [value]="selectedTransactionType() || ''"
+          aria-label="Filter by credit transaction type"
+          (change)="updateTransactionType($any($event.target).value)"
+        >
+          <option value="">All transactions</option>
+          @for (transactionType of transactionTypes; track transactionType) {
+            <option [value]="transactionType">{{ label(transactionType) }}</option>
+          }
+        </select>
+      </label>
+    }
+
+    <app-button
+      type="button"
+      variant="secondary"
+      icon="rotate-cw"
+      [loading]="loading()"
+      ariaLabel="Refresh usage and billing data"
+      (click)="refresh.emit()"
+    >
+      Refresh
+    </app-button>
+
+    <app-button
+      type="button"
+      variant="ghost"
+      icon="x"
+      ariaLabel="Clear usage and billing filters"
+      (click)="clear.emit()"
+    >
+      Clear
+    </app-button>
+  </div>
+</section>

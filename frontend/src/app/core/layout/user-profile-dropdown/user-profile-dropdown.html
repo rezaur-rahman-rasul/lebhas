@@ -2,22 +2,14 @@
     <div class="relative">
       <button
         type="button"
-        class="flex items-center gap-3 rounded-md border border-border bg-surface px-2 py-1.5 transition hover:bg-panel"
+        class="user-profile-trigger"
         data-testid="user-menu-trigger"
         (click)="open.update((value) => !value)"
         aria-haspopup="menu"
+        aria-label="Open user menu"
         [attr.aria-expanded]="open()"
       >
-        <app-avatar [name]="userStore.displayName()" />
-        <div class="hidden min-w-0 text-left sm:block">
-          <p class="truncate text-sm font-semibold text-ink">{{ userStore.displayName() }}</p>
-          <p class="truncate text-xs text-muted">{{ userStore.currentUser()?.email }}</p>
-        </div>
-        <app-icon
-          name="chevron-down"
-          [size]="16"
-          className="hidden text-muted sm:block"
-        />
+        <app-avatar [name]="displayName()" [avatarUrl]="avatarUrl()" size="md" />
       </button>
 
       @if (open()) {
@@ -26,10 +18,10 @@
           role="menu"
         >
           <div class="flex items-start gap-3">
-            <app-avatar [name]="userStore.displayName()" />
+            <app-avatar [name]="displayName()" [avatarUrl]="avatarUrl()" />
             <div class="min-w-0 flex-1">
-              <p class="truncate text-sm font-semibold text-ink">{{ userStore.displayName() }}</p>
-              <p class="truncate text-sm text-muted">{{ userStore.currentUser()?.email }}</p>
+              <p class="truncate text-sm font-semibold text-ink">{{ displayName() }}</p>
+              <p class="truncate text-sm text-muted">{{ displayEmail() }}</p>
             </div>
             <app-badge [tone]="badgeTone()">{{ userStore.currentRole() }}</app-badge>
           </div>
@@ -42,15 +34,62 @@
             }
           </div>
 
-          <button
-            type="button"
-            class="mt-4 flex h-10 w-full items-center justify-between rounded-md px-3 text-sm font-medium text-muted transition hover:bg-panel hover:text-ink"
-            data-testid="logout-button"
-            (click)="logout()"
-          >
-            <span>Logout</span>
-            <app-icon name="log-out" [size]="17" />
-          </button>
+          <div class="mt-4 border-t border-border pt-3">
+            <button
+              type="button"
+              class="user-menu-action"
+              data-testid="user-menu-profile"
+              role="menuitem"
+              (click)="goToProfile()"
+            >
+              <span class="flex items-center gap-2">
+                <app-icon name="user-round" [size]="17" />
+                My Profile
+              </span>
+              <app-icon name="chevron-right" [size]="15" />
+            </button>
+
+            <button
+              type="button"
+              class="user-menu-action"
+              data-testid="user-menu-settings"
+              role="menuitem"
+              (click)="goToSettings()"
+            >
+              <span class="flex items-center gap-2">
+                <app-icon name="settings" [size]="17" />
+                Account Settings
+              </span>
+              <app-icon name="chevron-right" [size]="15" />
+            </button>
+
+            <button
+              type="button"
+              class="user-menu-action"
+              data-testid="user-menu-security"
+              role="menuitem"
+              (click)="goToSecurityActivity()"
+            >
+              <span class="flex items-center gap-2">
+                <app-icon name="shield-check" [size]="17" />
+                Security Activity
+              </span>
+              <app-icon name="chevron-right" [size]="15" />
+            </button>
+
+            <button
+              type="button"
+              class="user-menu-action text-muted hover:text-ink"
+              data-testid="logout-button"
+              role="menuitem"
+              (click)="logout()"
+            >
+              <span class="flex items-center gap-2">
+                <app-icon name="log-out" [size]="17" />
+                Logout
+              </span>
+            </button>
+          </div>
         </div>
       }
     </div>

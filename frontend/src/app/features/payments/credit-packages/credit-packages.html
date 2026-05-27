@@ -1,0 +1,104 @@
+<app-page-header
+  eyebrow="Master"
+  title="Credit packages"
+  description="Manage backend-priced credit packages that workspaces can use when credit purchase pages are available."
+>
+  @if (permissions.canManageCreditPackages()) {
+    <app-button
+      type="button"
+      variant="secondary"
+      icon="rotate-cw"
+      [loading]="store.loading()"
+      ariaLabel="Refresh credit packages"
+      (click)="refresh()"
+    >
+      Refresh
+    </app-button>
+    <app-button type="button" icon="plus" ariaLabel="Create credit package" (click)="openCreate()">
+      Add package
+    </app-button>
+  }
+</app-page-header>
+
+@if (accessDenied()) {
+  <div class="mt-6">
+    <app-empty-state
+      icon="shield-alert"
+      tone="danger"
+      title="You do not have access to credit package settings."
+      description="Please contact the system owner if you need access."
+    />
+  </div>
+} @else {
+  <div class="mt-6 space-y-6">
+    <app-card>
+      <div class="grid gap-4 sm:grid-cols-3">
+        <div>
+          <p class="text-sm text-muted">Total packages</p>
+          <p class="mt-1 text-2xl font-semibold text-ink">{{ creditPackages().length }}</p>
+        </div>
+        <div>
+          <p class="text-sm text-muted">Active packages</p>
+          <p class="mt-1 text-2xl font-semibold text-ink">{{ store.activeCreditPackages().length }}</p>
+        </div>
+        <div>
+          <p class="text-sm text-muted">Inactive packages</p>
+          <p class="mt-1 text-2xl font-semibold text-ink">{{ inactiveCreditPackages().length }}</p>
+        </div>
+      </div>
+      <p class="mt-4 text-sm leading-6 text-muted">
+        Package names, credit amounts, bonus credits, prices, and currencies are loaded from backend configuration.
+        The frontend does not calculate final purchase amounts.
+      </p>
+    </app-card>
+
+    @if (store.loading() && !hasCreditPackages()) {
+      <app-payment-loading-state label="Loading credit packages" />
+    } @else if (store.error()) {
+      <app-error-state title="Credit packages could not load" [description]="store.error()!">
+        <app-button
+          type="button"
+          variant="secondary"
+          icon="rotate-cw"
+          ariaLabel="Retry loading credit packages"
+          (click)="refresh()"
+        >
+          Try again
+        </app-button>
+      </app-error-state>
+    } @else if (!hasCreditPackages()) {
+      <app-payment-empty-state
+        icon="package-plus"
+        title="No credit packages configured yet"
+        description="No credit packages configured yet. Add a package so workspaces can buy credits."
+        retryLabel="Refresh"
+        (retry)="refresh()"
+      />
+    } @else {
+      <section class="grid gap-4 xl:grid-cols-2" aria-label="Credit package list">
+        @for (creditPackage of creditPackages(); track creditPackage.id) {
+          <app-credit-package-card
+            [creditPackage]="creditPackage"
+            (edit)="openEdit($event)"
+            (toggleActive)="toggleCreditPackage($event)"
+          />
+        }
+      </section>
+    }
+  </div>
+}
+
+<app-drawer
+  [open]="drawerOpen()"
+  [title]="drawerTitle()"
+  description="Backend remains the source of truth for payment amount, credits, and purchase sessions."
+  ariaLabel="Credit package form"
+  (closed)="closeDrawer()"
+>
+  <app-credit-package-form
+    [creditPackage]="selectedCreditPackage()"
+    [loading]="store.loading()"
+    (submitted)="saveCreditPackage($event)"
+    (cancelled)="closeDrawer()"
+  />
+</app-drawer>

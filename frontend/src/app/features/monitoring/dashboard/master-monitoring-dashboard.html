@@ -1,0 +1,143 @@
+<section class="mx-auto flex w-full max-w-7xl flex-col gap-6 px-4 py-6 sm:px-6 lg:px-8">
+  <app-page-header
+    eyebrow="Master monitoring"
+    title="System Monitoring"
+    description="A clear operational view of services, alerts, AI activity, payments, and workspace health."
+  >
+    @if (!accessDenied()) {
+      <a
+        class="inline-flex h-10 items-center justify-center rounded-md border border-border bg-surface px-4 text-sm font-medium text-ink transition hover:bg-panel focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500"
+        routerLink="/master/monitoring/system-health"
+        aria-label="Open system health"
+      >
+        System health
+      </a>
+      <a
+        class="inline-flex h-10 items-center justify-center rounded-md border border-border bg-surface px-4 text-sm font-medium text-ink transition hover:bg-panel focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500"
+        routerLink="/master/monitoring/alerts"
+        aria-label="Open monitoring alerts"
+      >
+        Alerts
+      </a>
+      <app-button
+        type="button"
+        variant="secondary"
+        icon="rotate-cw"
+        [loading]="store.loading()"
+        ariaLabel="Refresh monitoring dashboard"
+        (click)="refresh()"
+      >
+        Refresh
+      </app-button>
+    }
+  </app-page-header>
+
+  @if (accessDenied()) {
+    <app-monitoring-empty-state
+      icon="lock-keyhole"
+      title="You do not have access to system monitoring."
+      description="Please contact the system owner if you need access."
+    />
+  } @else {
+    @if (store.error()) {
+      <app-error-state title="Monitoring could not be loaded" [description]="store.error() || 'Please try again.'">
+        <app-button
+          type="button"
+          variant="secondary"
+          icon="rotate-cw"
+          ariaLabel="Retry loading monitoring dashboard"
+          (click)="clearError(); refresh()"
+        >
+          Retry
+        </app-button>
+      </app-error-state>
+    }
+
+    @if (store.loading() && !hasHealthData() && !hasAlerts()) {
+      <app-monitoring-loading-state [cardCount]="4" />
+    } @else {
+      <section class="grid gap-4 sm:grid-cols-2 xl:grid-cols-4" aria-label="Monitoring summary">
+        <app-monitoring-summary-card
+          title="Healthy services"
+          [value]="store.healthyServices().length"
+          description="Services currently working normally."
+          icon="circle-check"
+          tone="healthy"
+        />
+        <app-monitoring-summary-card
+          title="Needs attention"
+          [value]="store.degradedServices().length"
+          description="Services slower than usual."
+          icon="triangle-alert"
+          tone="warning"
+        />
+        <app-monitoring-summary-card
+          title="Not available"
+          [value]="store.downServices().length"
+          description="Services that need immediate review."
+          icon="circle-alert"
+          tone="critical"
+        />
+        <app-monitoring-summary-card
+          title="Active alerts"
+          [value]="store.unresolvedAlerts().length"
+          description="Open monitoring alerts across the platform."
+          icon="bell"
+          tone="warning"
+        />
+      </section>
+
+      <section class="grid gap-4 lg:grid-cols-3" aria-label="Operational summaries">
+        <app-monitoring-summary-card
+          title="AI provider health"
+          [value]="summaryValue(store.aiProviderSummary(), 'healthyProviders')"
+          description="Healthy AI tools reported by backend monitoring."
+          icon="activity"
+        />
+        <app-monitoring-summary-card
+          title="Payment failures"
+          [value]="summaryValue(store.paymentSummary(), 'failedPayments')"
+          description="Recent failed payment confirmations from backend monitoring."
+          icon="credit-card"
+          tone="warning"
+        />
+        <app-monitoring-summary-card
+          title="Affected workspaces"
+          [value]="summaryValue(store.workspaceSummary(), 'affectedWorkspaces')"
+          description="Workspaces currently flagged by monitoring."
+          icon="building-2"
+        />
+      </section>
+
+      @if (hasHealthData()) {
+        <section class="grid gap-4 lg:grid-cols-2 xl:grid-cols-4" aria-label="Service health">
+          @for (health of store.systemHealth(); track health.id) {
+            <app-health-status-card [healthEvent]="health" />
+          }
+        </section>
+      } @else {
+        <app-monitoring-empty-state
+          title="No service health data yet"
+          description="System health will appear here once backend monitoring reports it."
+        />
+      }
+
+      <section class="grid gap-4" aria-label="Recent critical alerts">
+        <div class="flex items-center justify-between gap-3">
+          <h2 class="text-base font-semibold text-ink">Recent alerts needing attention</h2>
+          <a class="text-sm font-medium text-brand-600 hover:text-brand-700" routerLink="/master/monitoring/alerts">
+            View all
+          </a>
+        </div>
+
+        @if (recentCriticalAlerts().length) {
+          @for (alert of recentCriticalAlerts(); track alert.id) {
+            <app-monitoring-alert-card [alert]="alert" />
+          }
+        } @else {
+          <app-monitoring-empty-state />
+        }
+      </section>
+    }
+  }
+</section>

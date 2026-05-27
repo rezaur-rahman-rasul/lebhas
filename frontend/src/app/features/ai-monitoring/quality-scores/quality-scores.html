@@ -1,0 +1,146 @@
+<app-page-header
+  eyebrow="AI monitoring"
+  title="Quality scores"
+  description="Review backend-provided creative quality scores using simple labels and clear visual cards."
+>
+  <a routerLink="/ai-monitoring" class="text-sm font-medium text-brand-600 hover:text-brand-700">
+    AI dashboard
+  </a>
+  <app-status-badge tone="neutral">
+    @if (isMaster()) {
+      All workspaces
+    } @else {
+      Active workspace
+    }
+  </app-status-badge>
+  @if (permissions.canViewQualityScores()) {
+    <app-button
+      type="button"
+      variant="secondary"
+      icon="rotate-cw"
+      [loading]="store.loading()"
+      ariaLabel="Refresh quality scores"
+      (click)="refresh()"
+    >
+      Refresh
+    </app-button>
+  }
+</app-page-header>
+
+@if (!permissions.canViewQualityScores()) {
+  <div class="mt-6">
+    <app-empty-state
+      icon="shield-alert"
+      tone="danger"
+      title="Quality score access is restricted"
+      description="You do not have permission to view AI creative quality scores."
+    />
+  </div>
+} @else {
+  <div class="mt-6 space-y-6">
+    @if (store.loading() && !visibleScores().length) {
+      <app-ai-monitoring-loading-state label="Loading quality scores" />
+    } @else if (store.error()) {
+      <app-error-state title="Quality scores could not load" [description]="store.error()!">
+        <app-button type="button" variant="secondary" icon="rotate-cw" (click)="refresh()">
+          Try again
+        </app-button>
+      </app-error-state>
+    } @else if (!visibleScores().length) {
+      <app-ai-monitoring-empty-state
+        title="No quality scores yet"
+        description="Once creatives are generated, quality scores will appear here."
+        retryLabel="Refresh"
+        (retry)="refresh()"
+      />
+    } @else {
+      <section class="grid gap-4 sm:grid-cols-2 xl:grid-cols-4" aria-label="Quality score summary">
+        <app-card>
+          <p class="text-sm font-medium text-muted">Scored creatives</p>
+          <p class="mt-2 text-2xl font-semibold text-ink">{{ visibleScores().length | number }}</p>
+        </app-card>
+        <app-card>
+          <p class="text-sm font-medium text-muted">Average overall score</p>
+          <p class="mt-2 text-2xl font-semibold text-ink">
+            @if (averageOverallScore() !== null) {
+              {{ averageOverallScore()! | number: '1.0-2' }}
+            } @else {
+              Not available
+            }
+          </p>
+        </app-card>
+        <app-card>
+          <p class="text-sm font-medium text-muted">Bangla typography score</p>
+          <p class="mt-2 text-2xl font-semibold text-ink">
+            @if (averageBanglaTypographyScore() !== null) {
+              {{ averageBanglaTypographyScore()! | number: '1.0-2' }}
+            } @else {
+              Not available
+            }
+          </p>
+        </app-card>
+        <app-card>
+          <p class="text-sm font-medium text-muted">Current scope</p>
+          <p class="mt-2 text-lg font-semibold text-ink">
+            @if (isMaster()) {
+              All permitted workspaces
+            } @else {
+              {{ workspace.workspaceLabel() }}
+            }
+          </p>
+        </app-card>
+      </section>
+
+      <section class="grid gap-4 lg:grid-cols-2 xl:grid-cols-3">
+        @for (score of latestScores(); track score.id) {
+          <div class="space-y-3">
+            <app-quality-score-card [score]="score" [label]="scoreLabel(score)" />
+            <app-card>
+              <div class="flex items-start justify-between gap-4">
+                <div class="min-w-0">
+                  <p class="text-sm font-semibold text-ink">Generated version</p>
+                  <p class="mt-1 break-all text-xs text-muted">{{ score.generatedVersionId }}</p>
+                </div>
+                @if (score.qualityLabel) {
+                  <app-status-badge tone="brand">{{ score.qualityLabel }}</app-status-badge>
+                }
+              </div>
+
+              <dl class="mt-5 grid grid-cols-2 gap-3 text-sm">
+                <div>
+                  <dt class="text-xs text-muted">Overall</dt>
+                  <dd class="mt-1 font-semibold text-ink">{{ score.overallScore | number: '1.0-2' }}</dd>
+                </div>
+                <div>
+                  <dt class="text-xs text-muted">Text readability</dt>
+                  <dd class="mt-1 font-semibold text-ink">{{ score.textReadabilityScore | number: '1.0-2' }}</dd>
+                </div>
+                <div>
+                  <dt class="text-xs text-muted">Product preservation</dt>
+                  <dd class="mt-1 font-semibold text-ink">{{ score.productPreservationScore | number: '1.0-2' }}</dd>
+                </div>
+                <div>
+                  <dt class="text-xs text-muted">Branding</dt>
+                  <dd class="mt-1 font-semibold text-ink">{{ score.brandingScore | number: '1.0-2' }}</dd>
+                </div>
+                <div>
+                  <dt class="text-xs text-muted">Bangla typography</dt>
+                  <dd class="mt-1 font-semibold text-ink">{{ score.banglaTypographyScore | number: '1.0-2' }}</dd>
+                </div>
+                <div>
+                  <dt class="text-xs text-muted">Composition</dt>
+                  <dd class="mt-1 font-semibold text-ink">{{ score.compositionScore | number: '1.0-2' }}</dd>
+                </div>
+              </dl>
+
+              @if (score.qualityNotes) {
+                <p class="mt-5 rounded-md bg-panel p-3 text-sm leading-6 text-muted">{{ score.qualityNotes }}</p>
+              }
+              <p class="mt-5 text-xs text-muted">Created {{ score.createdAt }}</p>
+            </app-card>
+          </div>
+        }
+      </section>
+    }
+  </div>
+}

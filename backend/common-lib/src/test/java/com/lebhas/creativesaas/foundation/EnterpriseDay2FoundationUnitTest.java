@@ -36,6 +36,8 @@ import com.lebhas.creativesaas.identity.infrastructure.persistence.UserRepositor
 import com.lebhas.creativesaas.identity.infrastructure.persistence.WorkspaceMembershipRepository;
 import com.lebhas.creativesaas.messaging.kafka.DomainEventPublisher;
 import com.lebhas.creativesaas.messaging.kafka.KafkaTopicConstants;
+import com.lebhas.creativesaas.profile.application.UserAccountSettingsProvisioningService;
+import com.lebhas.creativesaas.profile.application.UserProfileProvisioningService;
 import com.lebhas.creativesaas.product.application.ProductServiceCatalogService;
 import com.lebhas.creativesaas.product.application.ProductServiceViewMapper;
 import com.lebhas.creativesaas.product.domain.ProductServiceEntity;
@@ -104,6 +106,8 @@ class EnterpriseDay2FoundationUnitTest {
         RedisRealtimeStateService redisRealtimeStateService = mock(RedisRealtimeStateService.class);
         DomainEventPublisher domainEventPublisher = mock(DomainEventPublisher.class);
         SessionProperties sessionProperties = new SessionProperties();
+        UserProfileProvisioningService userProfileProvisioningService = mock(UserProfileProvisioningService.class);
+        UserAccountSettingsProvisioningService userAccountSettingsProvisioningService = mock(UserAccountSettingsProvisioningService.class);
 
         AuthenticationService authenticationService = new AuthenticationService(
                 authenticationManager,
@@ -127,7 +131,9 @@ class EnterpriseDay2FoundationUnitTest {
                 redisLockService,
                 redisRealtimeStateService,
                 domainEventPublisher,
-                sessionProperties);
+                sessionProperties,
+                userProfileProvisioningService,
+                userAccountSettingsProvisioningService);
 
         UserEntity masterUser = UserEntity.register(
                 "Master",

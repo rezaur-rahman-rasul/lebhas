@@ -1,0 +1,35 @@
+<app-card [interactive]="true">
+  <div class="flex items-start justify-between gap-4">
+    <div>
+      <p class="text-sm font-semibold text-ink">Creative quality</p>
+      <p class="mt-1 text-xs text-muted">{{ score().createdAt }}</p>
+    </div>
+    <app-status-badge [tone]="tone()">{{ labelText() }}</app-status-badge>
+  </div>
+
+  <p class="mt-5 text-3xl font-semibold text-ink">{{ score().overallScore }}</p>
+  <p class="mt-1 text-xs text-muted">Overall score</p>
+
+  <dl class="mt-5 grid grid-cols-2 gap-3 text-sm">
+    <div>
+      <dt class="text-xs text-muted">Text readability</dt>
+      <dd class="mt-1 font-semibold text-ink">{{ score().textReadabilityScore }}</dd>
+    </div>
+    <div>
+      <dt class="text-xs text-muted">Product preservation</dt>
+      <dd class="mt-1 font-semibold text-ink">{{ score().productPreservationScore }}</dd>
+    </div>
+    <div>
+      <dt class="text-xs text-muted">Branding</dt>
+      <dd class="mt-1 font-semibold text-ink">{{ score().brandingScore }}</dd>
+    </div>
+    <div>
+      <dt class="text-xs text-muted">Composition</dt>
+      <dd class="mt-1 font-semibold text-ink">{{ score().compositionScore }}</dd>
+    </div>
+  </dl>
+
+  @if (score().qualityNotes) {
+    <p class="mt-5 rounded-md bg-panel p-3 text-sm leading-6 text-muted">{{ score().qualityNotes }}</p>
+  }
+</app-card>

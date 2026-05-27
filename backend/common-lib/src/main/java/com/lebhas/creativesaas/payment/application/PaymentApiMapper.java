@@ -8,12 +8,23 @@ import com.lebhas.creativesaas.payment.domain.CreditPurchaseOrder;
 import com.lebhas.creativesaas.payment.domain.Invoice;
 import com.lebhas.creativesaas.payment.domain.PaymentTransaction;
 import com.lebhas.creativesaas.payment.domain.SubscriptionOrder;
+import com.lebhas.creativesaas.profile.application.SafeProfileDisplayService;
+import com.lebhas.creativesaas.profile.application.dto.SafeProfileDisplayView;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
 
 import java.util.List;
+import java.util.UUID;
 
 @Component
 public class PaymentApiMapper {
+
+    private SafeProfileDisplayService safeProfileDisplayService;
+
+    @Autowired(required = false)
+    public void setSafeProfileDisplayService(SafeProfileDisplayService safeProfileDisplayService) {
+        this.safeProfileDisplayService = safeProfileDisplayService;
+    }
 
     public SubscriptionOrderView toSubscriptionOrderView(SubscriptionOrder order) {
         return new SubscriptionOrderView(
@@ -62,6 +73,7 @@ public class PaymentApiMapper {
                 transaction.getId(),
                 transaction.getWorkspaceId(),
                 transaction.getUserId(),
+                safeDisplay(transaction.getWorkspaceId(), transaction.getUserId()),
                 transaction.getProviderId(),
                 transaction.getPaymentPurpose(),
                 transaction.getReferenceType(),
@@ -89,6 +101,7 @@ public class PaymentApiMapper {
                 invoice.getId(),
                 invoice.getWorkspaceId(),
                 invoice.getPaymentTransactionId(),
+                null,
                 invoice.getInvoiceNumber(),
                 invoice.getInvoiceType(),
                 invoice.getAmount(),
@@ -102,5 +115,9 @@ public class PaymentApiMapper {
 
     public List<InvoiceView> toInvoiceViews(List<Invoice> invoices) {
         return invoices.stream().map(this::toInvoiceView).toList();
+    }
+
+    private SafeProfileDisplayView safeDisplay(UUID workspaceId, UUID userId) {
+        return safeProfileDisplayService == null ? null : safeProfileDisplayService.forUserInWorkspace(workspaceId, userId);
     }
 }

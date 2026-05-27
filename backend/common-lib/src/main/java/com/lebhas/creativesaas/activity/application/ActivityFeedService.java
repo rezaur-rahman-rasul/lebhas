@@ -31,6 +31,9 @@ public class ActivityFeedService {
     public static final String TYPE_AI_PROVIDER_SWITCHED = "AI_PROVIDER_SWITCHED";
     public static final String TYPE_ROUTING_POLICY_CHANGED = "ROUTING_POLICY_CHANGED";
     public static final String TYPE_WORKSPACE_EVENT = "WORKSPACE_EVENT";
+    public static final String TYPE_PROFILE_UPDATED = "PROFILE_UPDATED";
+    public static final String TYPE_PROFILE_IMAGE_UPDATED = "PROFILE_IMAGE_UPDATED";
+    public static final String TYPE_PASSWORD_CHANGED = "PASSWORD_CHANGED";
 
     private final ActivityFeedRepository activityFeedRepository;
     private final WorkspaceAuthorizationService workspaceAuthorizationService;

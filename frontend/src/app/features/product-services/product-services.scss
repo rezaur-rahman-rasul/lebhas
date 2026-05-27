@@ -1,3 +1,51 @@
 :host {
   display: block;
 }
+
+.product-services-page-grid {
+  display: grid;
+  gap: 1.5rem;
+}
+
+@media (min-width: 1280px) {
+  .product-services-page-grid {
+    grid-template-columns: minmax(0, 1fr) 23.75rem;
+    align-items: start;
+  }
+}
+
+.product-service-skeleton-row,
+.product-service-skeleton-line,
+.product-service-skeleton-block,
+.product-service-skeleton-panel {
+  border-radius: 1rem;
+  background: linear-gradient(90deg, rgba(148, 163, 184, 0.12), rgba(148, 163, 184, 0.22), rgba(148, 163, 184, 0.12));
+  background-size: 200% 100%;
+  animation: product-service-skeleton-pulse 1.4s ease-in-out infinite;
+}
+
+.product-service-skeleton-row {
+  min-height: 4.75rem;
+}
+
+.product-service-skeleton-line {
+  height: 1.25rem;
+}
+
+.product-service-skeleton-block {
+  min-height: 6.5rem;
+}
+
+.product-service-skeleton-panel {
+  min-height: 5rem;
+}
+
+@keyframes product-service-skeleton-pulse {
+  0% {
+    background-position: 100% 0;
+  }
+
+  100% {
+    background-position: -100% 0;
+  }
+}

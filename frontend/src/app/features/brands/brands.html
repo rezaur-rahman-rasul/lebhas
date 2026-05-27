@@ -4,7 +4,12 @@
   description="Manage the brand layer that anchors products, campaigns, and later creative requests."
 >
   @if (canManage()) {
-    <app-button icon="plus" [testId]="'brand-create-button'" (click)="openCreateDialog()">
+    <app-button
+      icon="plus"
+      aria-label="Create Brand"
+      [testId]="'brand-create-button'"
+      (click)="openCreateDialog()"
+    >
       Create Brand
     </app-button>
   }
@@ -21,48 +26,81 @@
 } @else if (!canView()) {
   <div class="mt-6">
     <app-empty-state
-      icon="shield-alert"
+      icon="circle-alert"
       title="Brand access is restricted"
-      description="Your current role does not include brand viewing permission in this workspace."
+      description="You do not have permission to manage brands."
     />
   </div>
-} @else if (store.loading()) {
-  <div class="mt-6">
-    <app-loading label="Loading brands" />
-  </div>
-} @else if (store.error()) {
-  <div class="mt-6">
-    <app-empty-state
-      icon="triangle-alert"
-      title="Brands could not be loaded"
-      [description]="store.error()!"
-    >
-      <app-button variant="secondary" icon="refresh-cw" (click)="store.load(workspaceId()!, { force: true })">
-        Retry
-      </app-button>
-    </app-empty-state>
-  </div>
 } @else {
-  <div class="mt-6 grid gap-6 xl:grid-cols-[minmax(0,1.08fr)_22rem]">
+  <div class="brands-page-grid mt-6">
     <app-card>
       <div class="flex items-center justify-between gap-3">
         <div>
           <h2 class="text-base font-semibold text-ink">Brand roster</h2>
-          <p class="mt-1 text-sm text-muted">{{ store.total() }} brands in the active workspace</p>
+          <p class="mt-1 text-sm text-muted">{{ store.brandRosterSubtitle() }}</p>
         </div>
         <app-badge tone="brand">Workspace -> Brand</app-badge>
       </div>
 
-      @if (brands().length === 0) {
+      @if (store.loading()) {
+        <div class="mt-5 grid gap-3" aria-label="Loading brand roster">
+          @for (row of skeletonRows; track row) {
+            <div class="brand-skeleton-row"></div>
+          }
+        </div>
+      } @else if (store.error()) {
+        <div class="mt-5">
+          <app-empty-state
+            icon="triangle-alert"
+            title="Brands could not be loaded"
+            [description]="store.error()!"
+          >
+            <app-button
+              variant="secondary"
+              icon="rotate-cw"
+              (click)="store.load(workspaceId()!, { force: true })"
+            >
+              Retry
+            </app-button>
+          </app-empty-state>
+        </div>
+      } @else if (!store.hasBrands()) {
         <div class="mt-5">
           <app-empty-state
             icon="badge-check"
             title="No brands yet"
-            description="Create the first brand to start defining product and campaign relationships."
+            description="No brands yet. Create your first brand to start building products and campaigns."
           />
         </div>
       } @else {
-        <div class="mt-5 overflow-x-auto">
+        <div class="mt-5 grid gap-3 md:hidden">
+          @for (brand of brands(); track brand.id) {
+            <button
+              type="button"
+              class="rounded-xl border border-border bg-surface p-4 text-left transition hover:border-brand-300 hover:bg-panel focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500"
+              [class.border-brand-500]="selectedBrandId() === brand.id"
+              [attr.aria-current]="selectedBrandId() === brand.id ? 'true' : null"
+              [attr.aria-label]="'Select brand ' + brand.name"
+              (click)="selectBrand(brand.id)"
+            >
+              <div class="flex items-start justify-between gap-3">
+                <div class="min-w-0">
+                  <p class="truncate font-semibold text-ink">{{ brand.name }}</p>
+                  <p class="mt-1 text-sm text-muted">{{ brand.businessType || 'Business profile pending' }}</p>
+                </div>
+                <app-badge [tone]="brand.status === 'ACTIVE' ? 'brand' : 'neutral'">
+                  {{ brand.status }}
+                </app-badge>
+              </div>
+              <div class="mt-4 grid gap-2 text-sm text-muted">
+                <p><span class="font-medium text-ink">Industry:</span> {{ brand.industry || 'Unassigned' }}</p>
+                <p><span class="font-medium text-ink">Creative language:</span> {{ languagePreferenceLabel(brand.languagePreference) }}</p>
+              </div>
+            </button>
+          }
+        </div>
+
+        <div class="mt-5 hidden overflow-x-auto md:block">
           <table class="min-w-full divide-y divide-border text-left">
             <thead class="text-xs uppercase tracking-[0.14em] text-muted">
               <tr>
@@ -75,9 +113,13 @@
             <tbody class="divide-y divide-border">
               @for (brand of brands(); track brand.id) {
                 <tr
-                  class="cursor-pointer transition hover:bg-panel/30"
+                  class="cursor-pointer transition hover:bg-panel/30 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500"
+                  tabindex="0"
                   [class.bg-brand-500/8]="selectedBrandId() === brand.id"
+                  [attr.aria-current]="selectedBrandId() === brand.id ? 'true' : null"
                   (click)="selectBrand(brand.id)"
+                  (keydown.enter)="selectBrand(brand.id)"
+                  (keydown.space)="selectBrand(brand.id)"
                 >
                   <td class="py-4 pr-4">
                     <p class="font-semibold text-ink">{{ brand.name }}</p>
@@ -112,7 +154,16 @@
           }
         </div>
 
-        @if (selectedBrand(); as brand) {
+        @if (store.loading()) {
+          <div class="mt-5 grid gap-3" aria-label="Loading brand detail">
+            <div class="brand-skeleton-line w-40"></div>
+            <div class="brand-skeleton-block"></div>
+            <div class="grid gap-3 sm:grid-cols-2">
+              <div class="brand-skeleton-panel"></div>
+              <div class="brand-skeleton-panel"></div>
+            </div>
+          </div>
+        } @else if (selectedBrand(); as brand) {
           <div class="mt-5 space-y-4">
             <div>
               <h3 class="text-xl font-semibold text-ink">{{ brand.name }}</h3>
@@ -172,7 +223,7 @@
 
             @if (canManage()) {
               <div class="flex flex-wrap gap-3">
-                <app-button variant="secondary" icon="pencil" (click)="openEditDialog()">
+                <app-button variant="secondary" icon="pencil-line" (click)="openEditDialog()">
                   Edit Brand
                 </app-button>
                 <app-button variant="danger" icon="trash-2" (click)="deleteSelected()">
@@ -184,8 +235,8 @@
         } @else {
           <div class="mt-5">
             <app-empty-state
-              icon="mouse-pointer-click"
-              title="Select a brand"
+              icon="badge-check"
+              title="Select a brand to see details."
               description="Choose a brand from the roster to inspect its relationship and identity settings."
             />
           </div>
@@ -213,8 +264,11 @@
   testId="brand-form-modal"
   (closed)="closeDialog()"
 >
-  <form class="grid gap-4" [formGroup]="form" (ngSubmit)="submit()">
-    <div class="grid gap-4 sm:grid-cols-2">
+  <form class="admin-modal-form" [formGroup]="form" (ngSubmit)="submit()">
+    <div class="admin-modal-body">
+      <section class="admin-modal-section">
+        <h3 class="admin-modal-section-title">Basic Brand Info</h3>
+        <div class="grid gap-4 sm:grid-cols-2">
       <app-input
         label="Brand name"
         placeholder="Lebhas Atelier"
@@ -227,9 +281,9 @@
         placeholder="Apparel brand"
         [control]="form.controls.businessType"
       />
-    </div>
+        </div>
 
-    <label class="block">
+        <label class="block">
       <span class="mb-2 block text-sm font-medium text-ink">Creative language preference</span>
       <select
         class="h-12 w-full rounded-xl border border-border bg-surface px-3 text-base text-ink shadow-sm outline-none transition focus:border-brand-500 focus:ring-4 focus:ring-brand-100/60"
@@ -242,40 +296,50 @@
       @if (fieldError('languagePreference')) {
         <span class="mt-2 block text-sm text-alert-600">{{ fieldError('languagePreference') }}</span>
       }
-    </label>
+        </label>
 
-    <div class="grid gap-4 sm:grid-cols-2">
+        <div class="grid gap-4 sm:grid-cols-2">
       <app-input label="Industry" placeholder="Fashion retail" [control]="form.controls.industry" />
       <app-input
         label="Target audience"
         placeholder="Urban apparel buyers"
         [control]="form.controls.targetAudience"
       />
-    </div>
+        </div>
+      </section>
 
-    <div class="grid gap-4 sm:grid-cols-2">
+      <section class="admin-modal-section">
+        <h3 class="admin-modal-section-title">Brand Voice & CTA</h3>
+        <div class="grid gap-4 sm:grid-cols-2">
       <app-input label="Brand voice" placeholder="Confident and refined" [control]="form.controls.brandVoice" />
       <app-input label="Preferred CTA" placeholder="Shop now" [control]="form.controls.preferredCta" />
-    </div>
+        </div>
+      </section>
 
-    <div class="grid gap-4 sm:grid-cols-2">
+      <section class="admin-modal-section">
+        <h3 class="admin-modal-section-title">Visual Identity</h3>
+        <div class="grid gap-4 sm:grid-cols-2">
       <app-input label="Primary color" placeholder="#0B8F68" [control]="form.controls.primaryColor" />
       <app-input label="Secondary color" placeholder="#2563EB" [control]="form.controls.secondaryColor" />
-    </div>
+        </div>
+      </section>
 
-    <app-input label="Website" placeholder="https://brand.example" [control]="form.controls.website" />
+      <section class="admin-modal-section">
+        <h3 class="admin-modal-section-title">Online Presence</h3>
+        <app-input label="Website" placeholder="https://brand.example" [control]="form.controls.website" />
 
-    <div class="grid gap-4 sm:grid-cols-2">
+        <div class="grid gap-4 sm:grid-cols-2">
       <app-input label="Facebook URL" placeholder="https://facebook.com/brand" [control]="form.controls.facebookUrl" />
       <app-input label="Instagram URL" placeholder="https://instagram.com/brand" [control]="form.controls.instagramUrl" />
-    </div>
+        </div>
 
-    <div class="grid gap-4 sm:grid-cols-2">
+        <div class="grid gap-4 sm:grid-cols-2">
       <app-input label="LinkedIn URL" placeholder="https://linkedin.com/company/brand" [control]="form.controls.linkedinUrl" />
       <app-input label="TikTok URL" placeholder="https://tiktok.com/@brand" [control]="form.controls.tiktokUrl" />
-    </div>
+        </div>
+      </section>
 
-    @if (dialogMode() === 'edit') {
+      @if (dialogMode() === 'edit') {
       <label class="block">
         <span class="mb-2 block text-sm font-medium text-ink">Status</span>
         <select
@@ -286,9 +350,10 @@
           <option value="ARCHIVED">ARCHIVED</option>
         </select>
       </label>
-    }
+      }
+    </div>
 
-    <div class="flex flex-col-reverse gap-3 pt-2 sm:flex-row sm:justify-end">
+    <div class="admin-modal-footer">
       <app-button variant="secondary" type="button" (click)="closeDialog()">Cancel</app-button>
       <app-button type="submit" [loading]="store.saving()" [testId]="'brand-submit'">
         {{ dialogMode() === 'create' ? 'Create Brand' : 'Save Changes' }}

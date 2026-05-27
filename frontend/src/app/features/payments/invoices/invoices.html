@@ -1,0 +1,154 @@
+<app-page-header
+  eyebrow="Workspace"
+  title="Invoices"
+  description="Review backend-issued invoice records linked to subscription and credit payments."
+>
+  @if (!accessDenied()) {
+    <app-button
+      type="button"
+      variant="secondary"
+      icon="rotate-cw"
+      [loading]="store.loading()"
+      ariaLabel="Refresh invoices"
+      (click)="refresh()"
+    >
+      Refresh
+    </app-button>
+  }
+</app-page-header>
+
+@if (accessDenied()) {
+  <div class="mt-6">
+    <app-empty-state
+      icon="shield-alert"
+      tone="danger"
+      title="You do not have access to payment history."
+      description="Please contact your workspace admin if you need access."
+    />
+  </div>
+} @else {
+  <div class="mt-6 space-y-6">
+    <section class="grid gap-4 lg:grid-cols-3" aria-label="Invoice summary">
+      <app-card>
+        <p class="text-sm text-muted">Invoices</p>
+        <p class="mt-2 text-3xl font-semibold text-ink">{{ filteredInvoices().length }}</p>
+        <p class="mt-3 text-sm text-muted">Shown after filters are applied.</p>
+      </app-card>
+      <app-card>
+        <p class="text-sm text-muted">Backend amount</p>
+        <p class="mt-2 text-3xl font-semibold text-ink">
+          @if (currencyLabel()) {
+            {{ totalAmount() | currency: currencyLabel() : 'symbol' : '1.2-2' }}
+          } @else {
+            Not available
+          }
+        </p>
+        <p class="mt-3 text-sm text-muted">Invoice amounts come from backend records.</p>
+      </app-card>
+      <app-card>
+        <p class="text-sm text-muted">Downloads</p>
+        <p class="mt-2 text-base font-semibold text-ink">Invoice download is not available</p>
+        <p class="mt-3 text-sm text-muted">Invoice download can be enabled later when backend supports it.</p>
+      </app-card>
+    </section>
+
+    <app-card>
+      <div class="grid gap-4 md:grid-cols-2 xl:grid-cols-5">
+        <label class="text-sm">
+          <span class="mb-1 block font-medium text-ink">Status</span>
+          <select
+            class="h-10 w-full rounded-md border border-border bg-canvas px-3 text-sm text-ink focus:border-brand-500 focus:outline-none focus:ring-2 focus:ring-brand-500/30"
+            [value]="selectedStatus() ?? ''"
+            aria-label="Filter invoices by status"
+            (change)="updateStatus($event)"
+          >
+            <option value="">All statuses</option>
+            @for (status of statusOptions; track status) {
+              <option [value]="status">{{ status }}</option>
+            }
+          </select>
+        </label>
+
+        <label class="text-sm">
+          <span class="mb-1 block font-medium text-ink">Invoice type</span>
+          <select
+            class="h-10 w-full rounded-md border border-border bg-canvas px-3 text-sm text-ink focus:border-brand-500 focus:outline-none focus:ring-2 focus:ring-brand-500/30"
+            [value]="selectedType() ?? ''"
+            aria-label="Filter invoices by type"
+            (change)="updateType($event)"
+          >
+            <option value="">All invoice types</option>
+            @for (type of typeOptions; track type) {
+              <option [value]="type">{{ type }}</option>
+            }
+          </select>
+        </label>
+
+        <label class="text-sm">
+          <span class="mb-1 block font-medium text-ink">From</span>
+          <input
+            type="date"
+            class="h-10 w-full rounded-md border border-border bg-canvas px-3 text-sm text-ink focus:border-brand-500 focus:outline-none focus:ring-2 focus:ring-brand-500/30"
+            [value]="fromDate() ?? ''"
+            aria-label="Filter invoices from date"
+            (change)="updateFromDate($event)"
+          />
+        </label>
+
+        <label class="text-sm">
+          <span class="mb-1 block font-medium text-ink">To</span>
+          <input
+            type="date"
+            class="h-10 w-full rounded-md border border-border bg-canvas px-3 text-sm text-ink focus:border-brand-500 focus:outline-none focus:ring-2 focus:ring-brand-500/30"
+            [value]="toDate() ?? ''"
+            aria-label="Filter invoices to date"
+            (change)="updateToDate($event)"
+          />
+        </label>
+
+        <div class="flex items-end">
+          <app-button
+            type="button"
+            variant="ghost"
+            icon="x"
+            [fullWidth]="true"
+            ariaLabel="Clear invoice filters"
+            (click)="clearFilters()"
+          >
+            Clear
+          </app-button>
+        </div>
+      </div>
+    </app-card>
+
+    @if (store.loading() && !invoices().length) {
+      <app-payment-loading-state label="Loading invoices" />
+    } @else if (store.error()) {
+      <app-error-state title="Invoices could not load" [description]="store.error()!">
+        <app-button
+          type="button"
+          variant="secondary"
+          icon="rotate-cw"
+          ariaLabel="Retry loading invoices"
+          (click)="refresh()"
+        >
+          Try again
+        </app-button>
+      </app-error-state>
+    } @else if (!hasInvoices()) {
+      <app-payment-empty-state
+        icon="file-text"
+        title="No invoices yet"
+        description="No payment history yet. Your successful payments will appear here."
+        retryLabel="Refresh"
+        (retry)="refresh()"
+      />
+    } @else {
+      <section class="grid gap-4" aria-label="Invoice list">
+        @for (invoice of filteredInvoices(); track invoice.id) {
+          <app-invoice-card [invoice]="invoice" [downloadAvailable]="false" />
+        }
+      </section>
+    }
+  </div>
+}

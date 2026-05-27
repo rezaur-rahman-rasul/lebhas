@@ -1,0 +1,256 @@
+<app-page-header
+  eyebrow="AI monitoring"
+  title="AI monitoring dashboard"
+  description="Understand AI cost, provider performance, quality, routing opportunities, and recent failures without exposing technical pipeline details."
+>
+  <a routerLink="/dashboard" class="text-sm font-medium text-brand-600 hover:text-brand-700">
+    Dashboard
+  </a>
+  <app-status-badge tone="neutral">Master analytics</app-status-badge>
+  @if (permissions.canViewAiMonitoring()) {
+    <app-button
+      type="button"
+      variant="secondary"
+      icon="rotate-cw"
+      [loading]="store.loading()"
+      ariaLabel="Refresh AI monitoring dashboard"
+      (click)="refresh()"
+    >
+      Refresh
+    </app-button>
+  }
+</app-page-header>
+
+@if (!permissions.canViewAiMonitoring()) {
+  <div class="mt-6">
+    <app-empty-state
+      icon="shield-alert"
+      tone="danger"
+      title="AI monitoring access is restricted"
+      description="You do not have permission to view this AI monitoring area. Ask a workspace owner to update your access."
+    />
+  </div>
+} @else {
+  <div class="mt-6 space-y-6">
+    <app-ai-analytics-filter-bar
+      [dateRange]="store.selectedDateRange()"
+      [providers]="providerOptions()"
+      [layers]="layerOptions()"
+      [selectedProvider]="store.selectedProvider()"
+      [selectedLayer]="store.selectedLayer()"
+      [loading]="store.loading()"
+      (dateRangeChange)="store.setDateRange($event)"
+      (selectedProviderChange)="store.setSelectedProvider($event)"
+      (selectedLayerChange)="store.setSelectedLayer($event)"
+      (refresh)="refresh()"
+      (clear)="store.clearFilters()"
+    />
+
+    @if (store.loading() && !hasData()) {
+      <app-ai-monitoring-loading-state />
+    } @else if (store.error()) {
+      <app-error-state title="AI monitoring data could not load" [description]="store.error()!">
+        <app-button type="button" variant="secondary" icon="rotate-cw" (click)="refresh()">
+          Try again
+        </app-button>
+      </app-error-state>
+    } @else if (!hasData()) {
+      <app-ai-monitoring-empty-state retryLabel="Refresh" (retry)="refresh()" />
+    } @else {
+      <section class="grid gap-4 sm:grid-cols-2 xl:grid-cols-4" aria-label="AI monitoring summary">
+        <app-card>
+          <p class="text-sm font-medium text-muted">Total AI requests</p>
+          <p class="mt-2 text-2xl font-semibold text-ink">{{ totalRequests() | number }}</p>
+          <p class="mt-2 text-xs text-muted">Generated from backend monitoring data.</p>
+        </app-card>
+
+        <app-ai-cost-summary-card
+          title="Total AI cost"
+          [amount]="store.totalCost()"
+          helperText="Estimated cost reported by monitoring APIs."
+        />
+
+        <app-card>
+          <p class="text-sm font-medium text-muted">Average quality score</p>
+          <p class="mt-2 text-2xl font-semibold text-ink">
+            @if (store.averageQualityScore() !== null) {
+              {{ store.averageQualityScore()! | number: '1.0-2' }}
+            } @else {
+              Not available
+            }
+          </p>
+          <p class="mt-2 text-xs text-muted">Higher scores mean better creative output.</p>
+        </app-card>
+
+        <app-card>
+          <p class="text-sm font-medium text-muted">Average generation time</p>
+          <p class="mt-2 text-2xl font-semibold text-ink">
+            @if (averageGenerationTime() !== null) {
+              {{ averageGenerationTime()! | number: '1.0-0' }} ms
+            } @else {
+              Not available
+            }
+          </p>
+          <p class="mt-2 text-xs text-muted">Simple timing view without queue system details.</p>
+        </app-card>
+
+        <app-card>
+          <p class="text-sm font-medium text-muted">Provider failure rate</p>
+          <p class="mt-2 text-2xl font-semibold text-ink">
+            @if (providerFailureRate() !== null) {
+              {{ providerFailureRate()! | percent: '1.0-2' }}
+            } @else {
+              Not available
+            }
+          </p>
+          <p class="mt-2 text-xs text-muted">Failed requests across monitored providers.</p>
+        </app-card>
+
+        <app-card>
+          <p class="text-sm font-medium text-muted">Best performing provider</p>
+          <p class="mt-2 truncate text-lg font-semibold text-ink">
+            {{ bestPerformingProvider()?.providerName || 'Not available' }}
+          </p>
+          <p class="mt-2 text-xs text-muted">
+            @if (bestPerformingProvider()) {
+              Quality {{ bestPerformingProvider()!.avgQualityScore | number: '1.0-2' }}
+            } @else {
+              Waiting for quality data.
+            }
+          </p>
+        </app-card>
+
+        <app-card>
+          <p class="text-sm font-medium text-muted">Cheapest provider</p>
+          <p class="mt-2 truncate text-lg font-semibold text-ink">
+            {{ store.cheapestProvider()?.providerName || 'Not available' }}
+          </p>
+          <p class="mt-2 text-xs text-muted">
+            @if (store.cheapestProvider()) {
+              Avg cost {{ store.cheapestProvider()!.avgCostUsd | currency: 'USD' }}
+            } @else {
+              Waiting for cost data.
+            }
+          </p>
+        </app-card>
+
+        <app-card>
+          <p class="text-sm font-medium text-muted">Most reliable provider</p>
+          <p class="mt-2 truncate text-lg font-semibold text-ink">
+            {{ store.mostReliableProvider()?.providerName || 'Not available' }}
+          </p>
+          <p class="mt-2 text-xs text-muted">
+            @if (store.mostReliableProvider()) {
+              Uptime {{ store.mostReliableProvider()!.uptimePercentage | number: '1.0-2' }}%
+            } @else {
+              Waiting for reliability data.
+            }
+          </p>
+        </app-card>
+      </section>
+
+      <section class="grid gap-4 xl:grid-cols-[minmax(0,1fr)_24rem]">
+        <app-card>
+          <div class="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
+            <div>
+              <h2 class="text-base font-semibold text-ink">Routing optimization summary</h2>
+              <p class="mt-1 text-sm leading-6 text-muted">
+                These comparisons use backend monitoring values. Routing policy editing is not available here.
+              </p>
+            </div>
+            <app-routing-mode-badge mode="Monitoring only" />
+          </div>
+
+          <dl class="mt-5 grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
+            <div class="rounded-lg border border-border bg-panel p-4">
+              <dt class="text-xs text-muted">Cheapest provider</dt>
+              <dd class="mt-1 truncate text-sm font-semibold text-ink">
+                {{ store.cheapestProvider()?.providerName || 'Not available' }}
+              </dd>
+            </div>
+            <div class="rounded-lg border border-border bg-panel p-4">
+              <dt class="text-xs text-muted">Fastest provider</dt>
+              <dd class="mt-1 truncate text-sm font-semibold text-ink">
+                {{ store.fastestProvider()?.providerName || 'Not available' }}
+              </dd>
+            </div>
+            <div class="rounded-lg border border-border bg-panel p-4">
+              <dt class="text-xs text-muted">Best quality provider</dt>
+              <dd class="mt-1 truncate text-sm font-semibold text-ink">
+                {{ store.bestQualityProvider()?.providerName || 'Not available' }}
+              </dd>
+            </div>
+            <div class="rounded-lg border border-border bg-panel p-4">
+              <dt class="text-xs text-muted">Most reliable provider</dt>
+              <dd class="mt-1 truncate text-sm font-semibold text-ink">
+                {{ store.mostReliableProvider()?.providerName || 'Not available' }}
+              </dd>
+            </div>
+            <div class="rounded-lg border border-border bg-panel p-4 sm:col-span-2">
+              <dt class="text-xs text-muted">Best quality-to-cost ratio</dt>
+              <dd class="mt-1 truncate text-sm font-semibold text-ink">
+                {{ qualityToCostProvider()?.providerName || 'Not available' }}
+              </dd>
+            </div>
+          </dl>
+
+          <div class="mt-5 rounded-lg border border-border bg-canvas p-4">
+            <p class="text-sm font-semibold text-ink">Recommended optimization</p>
+            <p class="mt-2 text-sm leading-6 text-muted">
+              @if (recommendedOptimization()) {
+                {{ recommendedOptimization() }}
+              } @else {
+                No backend routing recommendation is available yet.
+              }
+            </p>
+          </div>
+        </app-card>
+
+        <app-card>
+          <p class="text-sm font-medium text-muted">Highest cost workspace</p>
+          <p class="mt-2 text-xl font-semibold text-ink">
+            {{ store.highestCostWorkspace()?.workspaceName || 'Not available' }}
+          </p>
+          <p class="mt-2 text-sm text-muted">
+            @if (store.highestCostWorkspace()) {
+              {{ store.highestCostWorkspace()!.totalEstimatedCostUsd | currency: 'USD' }}
+              estimated AI cost
+            } @else {
+              Workspace usage will appear after backend data loads.
+            }
+          </p>
+          @if (store.highestCostWorkspace()?.highCostWarning) {
+            <div class="mt-4 rounded-md border border-red-200 bg-red-50 p-3 text-sm text-red-900 dark:border-red-500/25 dark:bg-red-500/10 dark:text-red-100">
+              AI cost increased unusually for this workspace.
+            </div>
+          }
+        </app-card>
+      </section>
+
+      <section>
+        <div class="mb-3 flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
+          <div>
+            <h2 class="text-base font-semibold text-ink">Recent AI failures</h2>
+            <p class="mt-1 text-sm text-muted">Friendly failure summaries for quick review.</p>
+          </div>
+          <a routerLink="/ai-monitoring/failures" class="text-sm font-medium text-brand-600 hover:text-brand-700">
+            View all failures
+          </a>
+        </div>
+
+        @if (recentFailuresPreview().length) {
+          <div class="grid gap-4 lg:grid-cols-2">
+            @for (failure of recentFailuresPreview(); track failure.id) {
+              <app-failure-reason-card [failure]="failure" />
+            }
+          </div>
+        } @else {
+          <app-ai-monitoring-empty-state
+            title="No recent AI failures"
+            description="Recent failure summaries will appear here when backend monitoring reports them."
+          />
+        }
+      </section>
+    }
+  </div>
+}

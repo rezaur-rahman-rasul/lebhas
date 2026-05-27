@@ -1,0 +1,11 @@
+<div class="rounded-lg border border-border bg-surface p-6 text-center">
+  <app-empty-state [icon]="icon()" [title]="title()" [description]="description()" tone="neutral" />
+
+  @if (retryLabel()) {
+    <div class="mt-5">
+      <app-button type="button" variant="secondary" icon="rotate-cw" ariaLabel="Retry loading usage data" (click)="retry.emit()">
+        {{ retryLabel() }}
+      </app-button>
+    </div>
+  }
+</div>

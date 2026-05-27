@@ -1,0 +1,144 @@
+<section class="mx-auto flex w-full max-w-7xl flex-col gap-6 px-4 py-6 sm:px-6 lg:px-8">
+  <app-page-header
+    eyebrow="Notification settings"
+    title="Notification Preferences"
+    description="Choose which workspace updates should appear in-app and which delivery channels are preferred for later provider setup."
+  >
+    <a
+      class="inline-flex h-10 items-center justify-center rounded-md border border-border bg-surface px-4 text-sm font-medium text-ink transition hover:bg-panel focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500"
+      routerLink="/notifications"
+      aria-label="Back to notifications"
+    >
+      Back to notifications
+    </a>
+    @if (!accessDenied()) {
+      <app-button
+        type="button"
+        variant="primary"
+        icon="save"
+        [loading]="store.loading()"
+        [disabled]="!hasPreferences()"
+        ariaLabel="Save notification preferences"
+        (click)="save()"
+      >
+        Save preferences
+      </app-button>
+    }
+  </app-page-header>
+
+  @if (accessDenied()) {
+    <app-notification-empty-state
+      icon="lock-keyhole"
+      title="You do not have access to notification preferences."
+      description="Please contact your workspace admin if you need access."
+    />
+  } @else {
+    <app-card>
+      <div class="flex gap-3">
+        <app-notification-type-icon [notificationType]="'SYSTEM_ALERT'" />
+        <div class="min-w-0">
+          <h2 class="text-base font-semibold text-ink">Delivery foundation</h2>
+          <p class="mt-1 text-sm leading-6 text-muted">
+            Email, SMS, and push delivery are preferences only until providers are enabled.
+          </p>
+        </div>
+      </div>
+    </app-card>
+
+    @if (store.error()) {
+      <app-error-state
+        title="Preferences could not be loaded"
+        [description]="store.error() || 'Please try again.'"
+      >
+        <app-button
+          type="button"
+          variant="secondary"
+          icon="rotate-cw"
+          ariaLabel="Retry loading notification preferences"
+          (click)="clearError(); refresh()"
+        >
+          Retry
+        </app-button>
+      </app-error-state>
+    }
+
+    @if (savedMessage()) {
+      <p class="rounded-lg border border-border bg-panel px-4 py-3 text-sm text-ink" role="status">
+        {{ savedMessage() }}
+      </p>
+    }
+
+    @if (store.loading() && !hasPreferences()) {
+      <app-notification-loading-state label="Loading notification preferences" />
+    } @else if (!hasPreferences()) {
+      <app-notification-empty-state
+        title="No notification preferences yet"
+        description="Preference options will appear here once the backend provides them."
+      />
+    } @else {
+      <section class="overflow-hidden rounded-lg border border-border bg-surface" aria-label="Notification preference list">
+        <div class="hidden grid-cols-[1.4fr_repeat(4,minmax(6rem,1fr))] gap-3 border-b border-border bg-panel px-4 py-3 text-xs font-semibold uppercase tracking-wide text-muted lg:grid">
+          <span>Notification type</span>
+          <span>In-app</span>
+          <span>Email</span>
+          <span>SMS</span>
+          <span>Push</span>
+        </div>
+
+        <div class="divide-y divide-border">
+          @for (preference of draft(); track preference.notificationType) {
+            <article class="grid gap-4 px-4 py-4 lg:grid-cols-[1.4fr_repeat(4,minmax(6rem,1fr))] lg:items-center">
+              <div class="flex min-w-0 items-center gap-3">
+                <app-notification-type-icon [notificationType]="preference.notificationType" />
+                <div class="min-w-0">
+                  <h3 class="truncate text-sm font-semibold text-ink">{{ friendlyType(preference.notificationType) }}</h3>
+                  <p class="text-xs text-muted">Workspace notification preference</p>
+                </div>
+              </div>
+
+              <label class="notification-toggle rounded-md border border-border px-3 py-2 text-sm text-ink lg:border-0 lg:p-0">
+                <span>In-app</span>
+                <input
+                  type="checkbox"
+                  [checked]="preference.inAppEnabled"
+                  [attr.aria-label]="'Enable in-app notifications for ' + preference.notificationType"
+                  (change)="updateToggle(preference.notificationType, 'inAppEnabled', $any($event.target).checked)"
+                />
+              </label>
+
+              <label class="notification-toggle rounded-md border border-border px-3 py-2 text-sm text-ink lg:border-0 lg:p-0">
+                <span>Email</span>
+                <input
+                  type="checkbox"
+                  [checked]="preference.emailEnabled"
+                  [attr.aria-label]="'Enable email preference for ' + preference.notificationType"
+                  (change)="updateToggle(preference.notificationType, 'emailEnabled', $any($event.target).checked)"
+                />
+              </label>
+
+              <label class="notification-toggle rounded-md border border-border px-3 py-2 text-sm text-ink lg:border-0 lg:p-0">
+                <span>SMS</span>
+                <input
+                  type="checkbox"
+                  [checked]="preference.smsEnabled"
+                  [attr.aria-label]="'Enable SMS preference for ' + preference.notificationType"
+                  (change)="updateToggle(preference.notificationType, 'smsEnabled', $any($event.target).checked)"
+                />
+              </label>
+
+              <label class="notification-toggle rounded-md border border-border px-3 py-2 text-sm text-ink lg:border-0 lg:p-0">
+                <span>Push</span>
+                <input
+                  type="checkbox"
+                  [checked]="preference.pushEnabled"
+                  [attr.aria-label]="'Enable push preference for ' + preference.notificationType"
+                  (change)="updateToggle(preference.notificationType, 'pushEnabled', $any($event.target).checked)"
+                />
+              </label>
+            </article>
+          }
+        </div>
+      </section>
+    }
+  }
+</section>

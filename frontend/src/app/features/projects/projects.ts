@@ -146,6 +146,10 @@ export class ProjectsComponent {
   }
 
   protected openCreateDialog(): void {
+    if (this.products().length === 0) {
+      return;
+    }
+
     const defaultProductId = this.products()[0]?.id ?? '';
     this.attemptedSubmit.set(false);
     this.form.reset({
@@ -244,7 +248,11 @@ export class ProjectsComponent {
   }
 
   protected productName(productServiceId: string): string {
-    return this.products().find((product) => product.id === productServiceId)?.name ?? 'Unknown product';
+    return this.products().find((product) => product.id === productServiceId)?.name ?? 'Product not linked';
+  }
+
+  protected isProductLinked(productServiceId: string): boolean {
+    return this.products().some((product) => product.id === productServiceId);
   }
 
   protected brandName(brandId: string): string {

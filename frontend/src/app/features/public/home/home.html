@@ -30,13 +30,13 @@
       </nav>
 
       <div class="nav-actions">
-        <button type="button" class="theme-pill" aria-label="Toggle theme" (click)="toggleTheme()">
-          <span class="theme-pill-option" [class.active]="currentTheme() === 'light'">
-            <app-icon name="sun" [size]="17" [strokeWidth]="2.3" />
-          </span>
-          <span class="theme-pill-option" [class.active]="currentTheme() === 'dark'">
-            <app-icon name="moon" [size]="17" [strokeWidth]="2.3" />
-          </span>
+        <button
+          type="button"
+          class="theme-pill"
+          [attr.aria-label]="themeToggleLabel()"
+          (click)="toggleTheme()"
+        >
+          <app-icon [name]="themeToggleIcon()" [size]="17" [strokeWidth]="2.3" />
         </button>
 
         <div class="language-toggle" [attr.aria-label]="copy().nav.language" role="group">
@@ -69,6 +69,14 @@
           >
             {{ copy().nav.login }}
           </button>
+          <button
+            type="button"
+            data-testid="navbar-get-started-button"
+            class="header-primary-button"
+            (click)="openRegisterModal()"
+          >
+            Get Started
+          </button>
         }
       </div>
 
@@ -93,7 +101,14 @@
 
           <div class="mobile-control-row">
             <span>{{ copy().nav.theme }}</span>
-            <app-theme-toggle />
+            <button
+              type="button"
+              class="theme-pill mobile-theme-button"
+              [attr.aria-label]="themeToggleLabel()"
+              (click)="toggleTheme()"
+            >
+              <app-icon [name]="themeToggleIcon()" [size]="17" [strokeWidth]="2.3" />
+            </button>
           </div>
 
           <div class="mobile-control-row">
@@ -125,6 +140,13 @@
           } @else {
             <button type="button" class="login-button mobile-full" (click)="openLoginModal()">
               {{ copy().nav.login }}
+            </button>
+            <button
+              type="button"
+              class="header-primary-button mobile-full"
+              (click)="openRegisterModal()"
+            >
+              Get Started
             </button>
           }
         </nav>
@@ -477,5 +499,9 @@
     &copy; {{ currentYear }} {{ copy().footer }}
   </footer>
 
-  <app-auth-dialog [open]="loginModalOpen()" (closed)="closeLoginModal()" />
+  <app-auth-dialog
+    [open]="loginModalOpen()"
+    [initialTab]="authInitialTab()"
+    (closed)="closeLoginModal()"
+  />
 </div>

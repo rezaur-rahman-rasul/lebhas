@@ -1,0 +1,72 @@
+<app-page-header
+  eyebrow="Security"
+  title="Security Activity"
+  description="Review recent account sign-ins, profile changes, and session events."
+>
+  <app-button type="button" variant="secondary" icon="arrow-left" ariaLabel="Back to profile" (click)="backToProfile()">
+    Back to Profile
+  </app-button>
+</app-page-header>
+
+@if (accessDenied()) {
+  <div class="mt-6">
+    <app-empty-state
+      icon="shield-alert"
+      tone="danger"
+      title="You do not have permission to perform this action."
+      description="Please contact your workspace admin if you need access."
+    />
+  </div>
+} @else {
+  <div class="mt-6 space-y-5">
+    <app-card>
+      <div class="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
+        <label class="text-sm">
+          <span class="mb-1 block font-medium text-ink">Activity type</span>
+          <select
+            class="h-10 w-full rounded-md border border-border bg-canvas px-3 text-sm text-ink outline-none focus:border-brand-500 focus:ring-2 focus:ring-brand-500/30 sm:w-72"
+            [value]="selectedType() ?? ''"
+            aria-label="Filter security activity type"
+            (change)="setType($event)"
+          >
+            <option value="">All activity</option>
+            @for (type of activityTypes; track type) {
+              <option [value]="type">{{ typeLabel(type) }}</option>
+            }
+          </select>
+        </label>
+
+        <app-button
+          type="button"
+          variant="secondary"
+          icon="rotate-cw"
+          [loading]="store.loading()"
+          ariaLabel="Refresh security activity"
+          (click)="retry()"
+        >
+          Refresh
+        </app-button>
+      </div>
+    </app-card>
+
+    @if (store.loading() && store.securityActivity().length === 0) {
+      <app-profile-loading-state label="Loading security activity" [cardCount]="2" [rowCount]="4" />
+    } @else if (store.error() && store.securityActivity().length === 0) {
+      <app-error-state title="Security activity could not load" [description]="store.error()!">
+        <app-button type="button" variant="secondary" icon="rotate-cw" (click)="retry()">Try again</app-button>
+      </app-error-state>
+    } @else if (filteredActivity().length === 0) {
+      <app-profile-empty-state
+        icon="shield-check"
+        title="No security activity yet"
+        message="Sign-ins, profile updates, and session events will appear here."
+      />
+    } @else {
+      <section class="grid gap-3" aria-label="Security activity list">
+        @for (activity of filteredActivity(); track activity.createdAt + activity.activityType) {
+          <app-security-activity-card [activity]="activity" />
+        }
+      </section>
+    }
+  </div>
+}

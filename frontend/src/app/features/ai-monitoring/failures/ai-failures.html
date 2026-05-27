@@ -1,0 +1,177 @@
+<app-page-header
+  eyebrow="AI monitoring"
+  title="AI failures"
+  description="Monitor backend-reported AI failures, fallback recovery, and retry attempts in ordinary language."
+>
+  <a routerLink="/ai-monitoring" class="text-sm font-medium text-brand-600 hover:text-brand-700">
+    AI dashboard
+  </a>
+  <app-status-badge tone="neutral">
+    @if (isMaster()) {
+      All failures
+    } @else {
+      Active workspace
+    }
+  </app-status-badge>
+  @if (permissions.canViewAiFailures()) {
+    <app-button
+      type="button"
+      variant="secondary"
+      icon="rotate-cw"
+      [loading]="store.loading()"
+      ariaLabel="Refresh AI failures"
+      (click)="refresh()"
+    >
+      Refresh
+    </app-button>
+  }
+</app-page-header>
+
+@if (!permissions.canViewAiFailures()) {
+  <div class="mt-6">
+    <app-empty-state
+      icon="shield-alert"
+      tone="danger"
+      title="AI failure access is restricted"
+      description="You do not have permission to view AI failure monitoring."
+    />
+  </div>
+} @else {
+  <div class="mt-6 space-y-6">
+    <app-ai-analytics-filter-bar
+      [dateRange]="store.selectedDateRange()"
+      [providers]="providerOptions()"
+      [layers]="layerOptions()"
+      [selectedProvider]="store.selectedProvider()"
+      [selectedLayer]="store.selectedLayer()"
+      [loading]="store.loading()"
+      (dateRangeChange)="store.setDateRange($event)"
+      (selectedProviderChange)="store.setSelectedProvider($event)"
+      (selectedLayerChange)="store.setSelectedLayer($event)"
+      (refresh)="refresh()"
+      (clear)="store.clearFilters()"
+    />
+
+    @if (store.loading() && !store.aiFailures().length) {
+      <app-ai-monitoring-loading-state label="Loading AI failures" />
+    } @else if (store.error()) {
+      <app-error-state title="AI failures could not load" [description]="store.error()!">
+        <app-button type="button" variant="secondary" icon="rotate-cw" (click)="refresh()">
+          Try again
+        </app-button>
+      </app-error-state>
+    } @else if (!filteredFailures().length) {
+      <app-ai-monitoring-empty-state
+        title="No AI failures found"
+        description="AI failure recovery data will appear here when backend monitoring reports an issue."
+        retryLabel="Refresh"
+        (retry)="refresh()"
+      />
+    } @else {
+      <section class="grid gap-4 sm:grid-cols-2 xl:grid-cols-4" aria-label="AI failure summary">
+        <app-card>
+          <p class="text-sm font-medium text-muted">Total failures</p>
+          <p class="mt-2 text-2xl font-semibold text-ink">{{ filteredFailures().length | number }}</p>
+        </app-card>
+        <app-card>
+          <p class="text-sm font-medium text-muted">Backup tool used</p>
+          <p class="mt-2 text-2xl font-semibold text-ink">{{ fallbackTriggeredCount() | number }}</p>
+        </app-card>
+        <app-card>
+          <p class="text-sm font-medium text-muted">Retry attempts</p>
+          <p class="mt-2 text-2xl font-semibold text-ink">{{ retryAttempts() | number }}</p>
+        </app-card>
+        <app-card>
+          <p class="text-sm font-medium text-muted">Current scope</p>
+          <p class="mt-2 text-lg font-semibold text-ink">
+            @if (isMaster()) {
+              All permitted failures
+            } @else {
+              {{ workspace.workspaceLabel() }}
+            }
+          </p>
+        </app-card>
+      </section>
+
+      <section class="grid gap-4 lg:grid-cols-2">
+        <app-card>
+          <h2 class="text-base font-semibold text-ink">Failures by provider</h2>
+          <div class="mt-4 space-y-3">
+            @for (group of providerGroups(); track group.name) {
+              <div class="flex items-center justify-between gap-3 rounded-md border border-border bg-panel p-3">
+                <p class="min-w-0 truncate text-sm font-medium text-ink">{{ group.name }}</p>
+                <app-status-badge tone="red">{{ group.count }}</app-status-badge>
+              </div>
+            }
+          </div>
+        </app-card>
+        <app-card>
+          <h2 class="text-base font-semibold text-ink">Failures by layer</h2>
+          <div class="mt-4 space-y-3">
+            @for (group of layerGroups(); track group.name) {
+              <div class="flex items-center justify-between gap-3 rounded-md border border-border bg-panel p-3">
+                <p class="min-w-0 truncate text-sm font-medium text-ink">{{ group.name }}</p>
+                <app-status-badge tone="red">{{ group.count }}</app-status-badge>
+              </div>
+            }
+          </div>
+        </app-card>
+      </section>
+
+      <section>
+        <div class="mb-3">
+          <h2 class="text-base font-semibold text-ink">Urgent failures first</h2>
+          <p class="mt-1 text-sm text-muted">Sorted by failure impact and created date. Manual retry is not available here.</p>
+        </div>
+        <div class="grid gap-4 lg:grid-cols-2">
+          @for (failure of urgentFailures(); track failure.id) {
+            <app-failure-reason-card [failure]="failure" />
+          }
+        </div>
+      </section>
+
+      <section class="hidden overflow-hidden rounded-lg border border-border bg-surface lg:block" aria-label="AI failure details">
+        <div class="overflow-x-auto">
+          <table class="min-w-full divide-y divide-border text-sm">
+            <thead class="bg-panel text-left text-xs uppercase tracking-[0.12em] text-muted">
+              <tr>
+                <th class="px-4 py-3 font-semibold">Creative request</th>
+                <th class="px-4 py-3 font-semibold">Layer</th>
+                <th class="px-4 py-3 font-semibold">Provider</th>
+                <th class="px-4 py-3 font-semibold">Model</th>
+                <th class="px-4 py-3 font-semibold">Failure</th>
+                <th class="px-4 py-3 font-semibold">Reason</th>
+                <th class="px-4 py-3 font-semibold">Retry</th>
+                <th class="px-4 py-3 font-semibold">Fallback</th>
+                <th class="px-4 py-3 font-semibold">Created</th>
+              </tr>
+            </thead>
+            <tbody class="divide-y divide-border">
+              @for (failure of urgentFailures(); track failure.id) {
+                <tr class="align-top">
+                  <td class="max-w-xs break-all px-4 py-3 text-muted">{{ failure.creativeRequestId }}</td>
+                  <td class="px-4 py-3 font-medium text-ink">{{ failure.layerName }}</td>
+                  <td class="px-4 py-3 text-muted">{{ failure.providerName }}</td>
+                  <td class="px-4 py-3 text-muted">{{ failure.modelName }}</td>
+                  <td class="max-w-xs px-4 py-3 text-muted">{{ friendlyFailureType(failure.failureType) }}</td>
+                  <td class="max-w-xs px-4 py-3 text-muted">
+                    {{ friendlyFailureType(failure.failureType) }}
+                  </td>
+                  <td class="px-4 py-3 text-ink">{{ failure.retryAttempt | number }}</td>
+                  <td class="px-4 py-3">
+                    @if (failure.fallbackTriggered) {
+                      <app-status-badge tone="brand">{{ fallbackMessage(failure) }}</app-status-badge>
+                    } @else {
+                      <app-status-badge tone="neutral">{{ fallbackMessage(failure) }}</app-status-badge>
+                    }
+                  </td>
+                  <td class="px-4 py-3 text-muted">{{ failure.createdAt }}</td>
+                </tr>
+              }
+            </tbody>
+          </table>
+        </div>
+      </section>
+    }
+  </div>
+}

@@ -1,0 +1,18 @@
+<app-card>
+  <div class="mb-5">
+    <h3 class="text-base font-semibold text-ink">How credits move</h3>
+    <p class="mt-1 text-sm leading-6 text-muted">Reserve credits, generate the creative, then finalize on success or refund on failure.</p>
+  </div>
+
+  <ol class="grid gap-3 md:grid-cols-4" aria-label="Credit lifecycle">
+    @for (step of steps; track step.title) {
+      <li class="relative rounded-lg bg-panel p-4">
+        <div class="mb-3 grid h-9 w-9 place-items-center rounded-lg bg-surface text-brand-600 dark:text-brand-200">
+          <app-icon [name]="step.icon" [size]="18" />
+        </div>
+        <h4 class="text-sm font-semibold text-ink">{{ step.title }}</h4>
+        <p class="mt-2 text-xs leading-5 text-muted">{{ step.description }}</p>
+      </li>
+    }
+  </ol>
+</app-card>

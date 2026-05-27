@@ -1,6 +1,14 @@
 import { Routes } from '@angular/router';
 
 import { promptBuilderGuard } from '@app/core/guards/prompt-access.guard';
+import { ACTIVITY_ROUTES } from '../activity/activity.routes';
+import { AI_MONITORING_ROUTES } from '../ai-monitoring/ai-monitoring.routes';
+import { AUDIT_ROUTES } from '../audit/audit.routes';
+import { MONITORING_ROUTES } from '../monitoring/monitoring.routes';
+import { PAYMENT_ROUTES } from '../payments/payment.routes';
+import { NOTIFICATION_ROUTES } from '../notifications/notification.routes';
+import { PROFILE_ROUTES } from '../profile/profile.routes';
+import { USAGE_BILLING_ROUTES } from '../usage-billing/usage-billing.routes';
 
 function sectionRoute(
   path: string,
@@ -54,21 +62,13 @@ export const DASHBOARD_ROUTES: Routes = [
     loadComponent: () =>
       import('../prompts/builder/prompt-builder').then((m) => m.PromptBuilderPage),
   },
-  sectionRoute('projects/:projectId/creative-requests', {
-    eyebrow: 'Projects / Campaigns',
-    title: 'Creative Requests',
-    description: 'Project-scoped creative request intake is reserved behind the campaign context.',
-    badge: 'ADMIN / CREW',
-    badgeTone: 'blue',
-    emptyIcon: 'pencil-line',
-    emptyTitle: 'Creative request intake is staged',
-    emptyDescription: 'Use this route as the stable campaign-level entry point when Day 6 request flows are consolidated.',
-    cards: [
-      { title: 'Campaign context', description: 'Requests stay anchored to the selected project campaign.' },
-      { title: 'Asset readiness', description: 'Raw product media and prompt context remain upstream of request creation.' },
-      { title: 'Review path', description: 'Generated versions and approval workflow follow after request intake.' },
-    ],
-  }),
+  {
+    path: 'projects/:projectId/creative-requests',
+    loadComponent: () =>
+      import('../creative-requests/pages/project-creative-requests/project-creative-requests').then(
+        (m) => m.ProjectCreativeRequestsPage,
+      ),
+  },
   sectionRoute('creative-requests/:creativeRequestId', {
     eyebrow: 'Shared',
     title: 'Creative Request Detail',
@@ -84,36 +84,26 @@ export const DASHBOARD_ROUTES: Routes = [
       { title: 'Approval readiness', description: 'Approval state can attach here when backend availability allows it.' },
     ],
   }),
-  sectionRoute('generated-versions/:generatedVersionId', {
-    eyebrow: 'Shared',
-    title: 'Generated Version Detail',
-    description: 'Stable detail route for one generated creative version.',
-    badge: 'ADMIN / CREW',
-    badgeTone: 'blue',
-    emptyIcon: 'image',
-    emptyTitle: 'Generated version detail is staged',
-    emptyDescription: 'The route is reserved for existing generated output detail work without creating future modules.',
-    cards: [
-      { title: 'Creative output', description: 'A generated version belongs to a creative request.' },
-      { title: 'Approval state', description: 'Backend-provided approval availability should drive actions here.' },
-      { title: 'Export readiness', description: 'Downloads and sharing remain backend-context dependent.' },
-    ],
-  }),
-  sectionRoute('approvals', {
-    eyebrow: 'Approval Workflow',
-    title: 'Approvals',
-    description: 'Workspace-level approval queue route for existing review flow consolidation.',
-    badge: 'ADMIN / CREW',
-    badgeTone: 'blue',
-    emptyIcon: 'shield-check',
-    emptyTitle: 'Approval workflow is staged',
-    emptyDescription: 'Approval availability must come from backend context before actions are exposed.',
-    cards: [
-      { title: 'Review queue', description: 'Collect generated versions that require workspace approval.' },
-      { title: 'Permission-aware actions', description: 'Show approve, reject, share, and download actions only from backend capabilities.' },
-      { title: 'Current context', description: 'Keep workspace, brand, project, request, and version context visible.' },
-    ],
-  }),
+  {
+    path: 'generated-versions/:generatedVersionId',
+    loadComponent: () =>
+      import('../generated-versions/pages/generated-version-detail/generated-version-detail').then(
+        (m) => m.GeneratedVersionDetailPage,
+      ),
+  },
+  {
+    path: 'approvals',
+    loadComponent: () =>
+      import('../approvals/pages/approval-queue/approval-queue').then((m) => m.ApprovalQueuePage),
+  },
+  ...AI_MONITORING_ROUTES,
+  ...USAGE_BILLING_ROUTES,
+  ...PAYMENT_ROUTES,
+  ...NOTIFICATION_ROUTES,
+  ...PROFILE_ROUTES,
+  ...ACTIVITY_ROUTES,
+  ...AUDIT_ROUTES,
+  ...MONITORING_ROUTES,
   {
     path: '',
     pathMatch: 'full',

@@ -1,0 +1,24 @@
+<app-card [interactive]="true">
+  <div class="flex items-start justify-between gap-4">
+    <div class="min-w-0">
+      <p class="truncate text-sm font-semibold text-ink">{{ health().providerName }}</p>
+      <p class="mt-1 truncate text-xs text-muted">{{ health().modelName }}</p>
+    </div>
+    <app-provider-status-badge [status]="health().status" />
+  </div>
+
+  <p class="mt-4 line-clamp-2 text-sm leading-6 text-muted">{{ message() }}</p>
+
+  <div class="mt-5 flex flex-wrap items-center gap-3 text-xs text-muted">
+    <span class="inline-flex items-center gap-1.5">
+      <app-icon name="clock" [size]="14" />
+      Checked {{ health().lastCheckedAt }}
+    </span>
+    @if (health().fallbackAvailable) {
+      <span class="inline-flex items-center gap-1.5 text-brand-700 dark:text-brand-100">
+        <app-icon name="route" [size]="14" />
+        Fallback ready
+      </span>
+    }
+  </div>
+</app-card>
