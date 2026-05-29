@@ -1,7 +1,7 @@
 <app-page-header
-  eyebrow="AI Workspace"
-  title="Creative generation"
-  description="Submit workspace-scoped creative generation requests and review outputs as they are produced."
+  eyebrow="Dashboard > Creative Generator"
+  title="Create Campaign Creative"
+  description="Generate high-converting campaign creatives for your brand."
 >
   <app-badge [tone]="roleTone()">{{ roleLabel() }}</app-badge>
   <app-badge tone="neutral">{{ workspaceLabel() }}</app-badge>
@@ -9,103 +9,367 @@
 
 @if (!store.hasWorkspaceContext()) {
   <div class="mt-6">
-    <app-empty-state
-      icon="building-2"
-      title="Workspace context required"
-      description="Select a workspace before opening creative generation."
-    />
+    <app-empty-state icon="building-2" title="Workspace context required" description="Select a workspace before opening creative generation." />
   </div>
 } @else if (!store.canViewGenerations()) {
   <div class="mt-6">
-    <app-empty-state
-      icon="circle-alert"
-      title="Generation access is not available"
-      description="This session does not have permission to submit or view creative generation requests."
-    />
+    <app-empty-state icon="circle-alert" title="Generation access is not available" description="This session does not have permission to submit or view creative generation requests." />
   </div>
 } @else {
   @if (store.generationError()) {
-    <div class="mt-6 rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
+    <div class="generator-alert">
       {{ store.generationError() }}
     </div>
   }
 
-  <section class="mt-6 grid gap-6 2xl:grid-cols-[minmax(0,1.35fr)_minmax(22rem,0.9fr)]">
-    <div class="space-y-6">
-      <app-generation-form
-        [form]="generationForm"
-        [promptHistory]="store.promptHistory()"
-        [availableAssets]="store.availableAssets()"
-        [selectedAssets]="store.selectedAssets()"
-        [loading]="store.generationLoading()"
-        [disabled]="store.generationLoading()"
-        [canSubmit]="store.canSubmitGeneration()"
-        (submitted)="onSubmit()"
-        (promptHistorySelected)="onPromptHistorySelected($event)"
-        (assetSearchSubmitted)="searchAssets($event)"
-        (assetToggled)="toggleAsset($event)"
-        (assetRemoved)="removeAsset($event)"
-        (sizeSelected)="onSizeSelected($event)"
-      />
-    </div>
+  <section class="creative-generator-grid">
+    <aside class="generator-panel generator-form-panel">
+      <div class="generator-panel__head">
+        <div>
+          <p>Select context</p>
+          <h2>Generation form</h2>
+        </div>
+        <app-badge tone="brand">Cost: {{ creditCost() }} credits</app-badge>
+      </div>
 
-    <div class="space-y-6">
-      <app-prompt-context-summary
-        [promptHistory]="selectedPromptHistory()"
-        [sourcePrompt]="generationForm.controls.sourcePrompt.value"
-        [enhancedPrompt]="generationForm.controls.enhancedPrompt.value"
-      />
+      <form [formGroup]="generationForm" (ngSubmit)="onSubmit()">
+        <section class="generator-section">
+          <label>
+            <span>Brand</span>
+            <select class="generator-select" [value]="selectedBrandId()" (change)="selectBrand($any($event.target).value)">
+              <option value="">Select brand</option>
+              @for (brand of brandStore.items(); track brand.id) {
+                <option [value]="brand.id">{{ brand.name }}</option>
+              }
+            </select>
+          </label>
 
-      <app-brand-context-summary
-        [brandProfile]="store.brandProfile()"
-        [enabled]="generationForm.controls.useBrandContext.value"
-      />
+          <label>
+            <span>Product / Service</span>
+            <select class="generator-select" [value]="selectedProductId()" [disabled]="!selectedBrandId()" (change)="selectProduct($any($event.target).value)">
+              <option value="">{{ selectedBrandId() ? 'Select product/service' : 'Select a brand first' }}</option>
+              @for (product of filteredProducts(); track product.id) {
+                <option [value]="product.id">{{ product.name }}</option>
+              }
+            </select>
+          </label>
 
-      <app-selected-assets-summary
-        [assets]="store.selectedAssets()"
-        [removable]="true"
-        (assetRemoved)="removeAsset($event)"
-      />
+          <label>
+            <span>Project / Campaign</span>
+            <select class="generator-select" [value]="selectedProjectId()" [disabled]="!selectedProductId()" (change)="selectedProjectId.set($any($event.target).value)">
+              <option value="">{{ selectedProductId() ? 'Select project/campaign' : 'Select a product/service first' }}</option>
+              @for (project of filteredProjects(); track project.id) {
+                <option [value]="project.id">{{ project.name }}</option>
+              }
+            </select>
+          </label>
 
-      <app-generation-progress
-        [request]="store.selectedRequest()"
-        [loading]="store.generationLoading()"
-        [canRetry]="store.canRetryGeneration()"
-        [canCancel]="store.canCancelGeneration()"
-        (retryRequested)="retryGeneration()"
-        (cancelRequested)="cancelGeneration()"
-        (refreshRequested)="refreshGeneration()"
-      />
-
-      @if (store.generationJobs().length) {
-        <div class="space-y-3">
-          @for (job of store.generationJobs(); track job.id) {
-            <app-generation-job-card [job]="job" />
+          @if (!selectedBrandId()) {
+            <p class="dependency-note">Create or select a brand before generating creatives.</p>
+          } @else if (!selectedProductId()) {
+            <p class="dependency-note">Every creative needs a product/service context from the selected brand.</p>
+          } @else if (!selectedProjectId()) {
+            <p class="dependency-note">Select a campaign container to keep generated versions organized.</p>
           }
+        </section>
+
+        <section class="generator-section">
+          <div class="generator-field">
+            <span>Platform</span>
+            <div class="segmented-grid">
+              @for (platform of platformOptions; track platform.value) {
+                <button
+                  type="button"
+                  class="choice-pill"
+                  [class.is-active]="generationForm.controls.platform.value === platform.value"
+                  (click)="selectPlatform(platform.value)"
+                >
+                  {{ platform.label }}
+                </button>
+              }
+            </div>
+          </div>
+
+          <label>
+            <span>Language</span>
+            <select class="generator-select" formControlName="language">
+              @for (language of languageOptions; track language.value) {
+                <option [value]="language.value">{{ language.label === 'Mixed' ? 'Bangla + English' : language.label }}</option>
+              }
+            </select>
+          </label>
+
+          <div class="generator-field">
+            <span>Creative Type</span>
+            <div class="preset-list">
+              @for (preset of creativePresets; track preset.label) {
+                <button
+                  type="button"
+                  class="preset-card"
+                  [class.is-active]="generationForm.controls.creativeType.value === preset.type && generationForm.controls.width.value === preset.width && generationForm.controls.height.value === preset.height"
+                  (click)="selectPreset(preset)"
+                >
+                  <strong>{{ preset.label }}</strong>
+                  <small>{{ preset.format }}</small>
+                </button>
+              }
+            </div>
+          </div>
+
+          <div class="generator-field">
+            <span>Tone</span>
+            <div class="segmented-grid">
+              @for (tone of tones; track tone) {
+                <button type="button" class="choice-pill" [class.is-active]="selectedTone() === tone" (click)="selectedTone.set(tone)">
+                  {{ tone }}
+                </button>
+              }
+            </div>
+          </div>
+
+          <div class="generator-field">
+            <span>Model Quality</span>
+            <div class="quality-grid">
+              @for (quality of qualities; track quality) {
+                <button type="button" class="quality-card" [class.is-active]="selectedQuality() === quality" (click)="selectedQuality.set(quality)">
+                  <strong>{{ quality }}</strong>
+                  <small>{{ quality === 'Premium' ? '18+ credits' : '8+ credits' }}</small>
+                </button>
+              }
+            </div>
+          </div>
+        </section>
+
+        <section class="generator-section">
+          <div class="generator-field">
+            <span>Product Image</span>
+            <div class="asset-dropzone">
+              @if (selectedAsset(); as asset) {
+                <div class="selected-asset">
+                  @if (isImageAsset(asset) && (asset.thumbnailUrl || asset.previewUrl || asset.publicUrl)) {
+                    <img [src]="asset.thumbnailUrl || asset.previewUrl || asset.publicUrl" [alt]="asset.originalFileName" />
+                  } @else {
+                    <div class="asset-icon"><app-icon name="image" [size]="22" /></div>
+                  }
+                  <div>
+                    <strong>{{ asset.originalFileName }}</strong>
+                    <span>{{ formatFileSize(asset.fileSize) }}</span>
+                  </div>
+                </div>
+              } @else {
+                <div class="dropzone-empty">
+                  <app-icon name="upload-cloud" [size]="24" />
+                  <strong>Upload / Select Image</strong>
+                  <span>JPG, PNG, or WebP product image</span>
+                </div>
+              }
+              <input id="generatorAssetUpload" type="file" accept="image/jpeg,image/png,image/webp" (change)="onAssetFileSelected($event)" />
+              <label for="generatorAssetUpload">Upload Image</label>
+            </div>
+
+            @if (store.availableAssets().length > 0) {
+              <div class="asset-strip">
+                @for (asset of store.availableAssets().slice(0, 6); track asset.id) {
+                  <button type="button" [class.is-active]="isSelectedAsset(asset.id)" (click)="toggleAsset(asset)">
+                    @if (isImageAsset(asset) && (asset.thumbnailUrl || asset.previewUrl || asset.publicUrl)) {
+                      <img [src]="asset.thumbnailUrl || asset.previewUrl || asset.publicUrl" [alt]="asset.originalFileName" />
+                    } @else {
+                      <app-icon name="image" [size]="16" />
+                    }
+                  </button>
+                }
+              </div>
+            }
+          </div>
+        </section>
+
+        <section class="generator-section">
+          <label>
+            <span>Campaign Idea / Prompt</span>
+            <textarea
+              formControlName="sourcePrompt"
+              rows="6"
+              placeholder="Describe the campaign idea in Bangla, English, or both. Example: Create a premium Eid collection ad with a clear shop-now offer."
+            ></textarea>
+          </label>
+          <div class="prompt-footer">
+            <span>{{ promptLength() }} / 32000 characters</span>
+            <span>{{ languageLabel(generationForm.controls.language.value) }}</span>
+          </div>
+        </section>
+
+        <button type="submit" class="generate-button" [disabled]="store.generationLoading()">
+          @if (store.generationLoading()) {
+            <app-icon name="loader-circle" [size]="18" />
+            <span>Generating...</span>
+          } @else {
+            <app-icon name="sparkles" [size]="18" />
+            <span>Generate Creative</span>
+          }
+        </button>
+      </form>
+    </aside>
+
+    <main class="generator-panel preview-panel">
+      <div class="generator-panel__head">
+        <div>
+          <p>Generated Result</p>
+          <h2>Creative preview</h2>
+        </div>
+        <app-badge [tone]="requestStatusTone()">{{ requestStatusLabel() }}</app-badge>
+      </div>
+
+      <div class="creative-preview-stage">
+        @if (store.generationLoading()) {
+          <div class="progress-card">
+            <div class="progress-orbit"><app-icon name="sparkles" [size]="28" /></div>
+            <h3>Generating your creative</h3>
+            <div class="generation-steps">
+              @for (step of generationSteps; track step; let index = $index) {
+                <div class="step-row" [class.is-active]="index < 3">
+                  <span></span>
+                  <p>{{ step }}</p>
+                </div>
+              }
+            </div>
+          </div>
+        } @else if (currentOutput(); as output) {
+          <div class="result-shell">
+            @if (output.previewUrl) {
+              <img [src]="output.previewUrl" [alt]="output.headline || 'Generated creative'" />
+            } @else {
+              <div class="result-placeholder">
+                <app-icon name="image" [size]="34" />
+                <strong>{{ output.headline || creativeTypeLabel(output.creativeType) }}</strong>
+                <span>{{ output.caption || 'Preview URL will be available when processing completes.' }}</span>
+              </div>
+            }
+          </div>
+        } @else {
+          <div class="ready-state">
+            <app-icon name="sparkles" [size]="30" />
+            <h3>Ready when you are</h3>
+            <p>Select context, image, and campaign idea to generate a creative.</p>
+          </div>
+        }
+      </div>
+
+      @if (store.selectedRequest(); as request) {
+        <div class="job-row">
+          <div>
+            <span>Job ID</span>
+            <strong>{{ request.id }}</strong>
+          </div>
+          <button type="button" (click)="copyJobId()" aria-label="Copy job id">
+            <app-icon name="copy" [size]="16" />
+          </button>
         </div>
       }
-    </div>
+
+      <div class="preview-actions">
+        <app-button variant="secondary" icon="download" [disabled]="!currentOutput() || !store.canDownloadOutputs()" (click)="currentOutput() && downloadOutput(currentOutput()!)">Download</app-button>
+        <app-button variant="secondary" icon="share-2" [disabled]="!currentOutput()" (click)="sendForApproval()">Share</app-button>
+        <app-button icon="shield-check" [disabled]="!currentOutput()" (click)="sendForApproval()">Send for Approval</app-button>
+        <app-button variant="secondary" icon="more-horizontal" [disabled]="!currentOutput()" (click)="currentOutput() && openOutputDetail(currentOutput()!)">More</app-button>
+      </div>
+
+      <div class="variations-panel">
+        <div class="hierarchy-section-head">
+          <div>
+            <p>Generated variations</p>
+            <h2>Choose a version</h2>
+          </div>
+          <a routerLink="/generated-versions">View All</a>
+        </div>
+        @if (store.creativeOutputs().length > 0) {
+          <div class="variation-strip">
+            @for (output of store.creativeOutputs(); track output.id) {
+              <button type="button" [class.is-active]="isSelectedOutput(output.id)" (click)="selectedVariationId.set(output.id)">
+                @if (output.previewUrl) {
+                  <img [src]="output.previewUrl" [alt]="output.headline || 'Creative variation'" />
+                } @else {
+                  <app-icon name="image" [size]="18" />
+                }
+              </button>
+            }
+          </div>
+        } @else {
+          <p class="panel-muted">Generated variations will appear here after the job completes.</p>
+        }
+      </div>
+    </main>
+
+    <aside class="right-stack">
+      <section class="generator-panel">
+        <div class="generator-panel__head">
+          <div>
+            <p>AI Content Tools</p>
+            <h2>Creative toolkit</h2>
+          </div>
+        </div>
+        <div class="tool-list">
+          @for (tool of tools; track tool.title) {
+            <a [routerLink]="tool.route" class="tool-item">
+              <div><app-icon [name]="tool.icon" [size]="17" /></div>
+              <span><strong>{{ tool.title }}</strong><small>{{ tool.description }}</small></span>
+              <app-icon name="chevron-right" [size]="16" />
+            </a>
+          }
+        </div>
+      </section>
+
+      <section class="generator-panel">
+        <div class="generator-panel__head">
+          <div>
+            <p>Recent Generations</p>
+            <h2>Latest jobs</h2>
+          </div>
+          <a routerLink="/generated-versions">View All</a>
+        </div>
+        @if (recentGenerations().length > 0) {
+          <div class="recent-list">
+            @for (request of recentGenerations(); track request.id) {
+              <div class="recent-item">
+                <div class="recent-thumb"><app-icon name="image" [size]="17" /></div>
+                <div>
+                  <strong>{{ creativeTypeLabel(request.creativeType) }}</strong>
+                  <span>{{ platformLabel(request.platform) }} · {{ request.outputFormat }} · {{ formatTime(request.updatedAt) }}</span>
+                </div>
+                <app-badge [tone]="creativeGenerationStatusTone(request.status)">{{ creativeGenerationStatusLabel(request.status) }}</app-badge>
+              </div>
+            }
+          </div>
+        } @else {
+          <p class="panel-muted">Your recent creative jobs will appear here.</p>
+        }
+      </section>
+
+      <section class="credit-cta">
+        <div>
+          <p>Need more credits?</p>
+          <h2>{{ creditsRemaining() === null ? 'Credits ready' : creditsRemaining() + ' credits left' }}</h2>
+        </div>
+        <a routerLink="/payments/credits">Buy Credits</a>
+      </section>
+    </aside>
   </section>
 
-  <section class="mt-8 space-y-4">
-    <div class="flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
+  <section class="usage-summary">
+    <div class="usage-progress-card">
       <div>
-        <h2 class="text-lg font-semibold text-ink">Output gallery</h2>
-        <p class="mt-1 text-sm text-muted">Preview generated outputs, open details, or request signed download URLs.</p>
+        <p>This Month Usage</p>
+        <h2>{{ creditsUsed() }} / {{ creditsTotal() }} credits</h2>
       </div>
-      @if (!store.hasOutputs() && !store.generationLoading()) {
-        <app-badge tone="neutral">Waiting for completed generation</app-badge>
-      }
+      <div class="usage-bar"><span [style.width.%]="creditPercent()"></span></div>
+      <strong>{{ creditPercent() }}%</strong>
     </div>
-
-    <app-creative-output-gallery
-      [outputs]="store.creativeOutputs()"
-      [loading]="store.generationLoading()"
-      [canDownload]="store.canDownloadOutputs()"
-      (previewRequested)="previewOutput($event)"
-      (downloadRequested)="downloadOutput($event)"
-      (detailRequested)="openOutputDetail($event)"
-    />
+    @for (card of usageCards().slice(1); track card.label) {
+      <div class="usage-card">
+        <div><app-icon [name]="card.icon" [size]="18" /></div>
+        <span>{{ card.label }}</span>
+        <strong>{{ card.value }}</strong>
+      </div>
+    }
   </section>
 }
 

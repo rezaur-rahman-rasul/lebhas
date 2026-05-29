@@ -28,15 +28,25 @@
       [error]="passwordError()"
     />
 
-    <label class="flex items-center gap-3 rounded-xl border border-border bg-surface px-4 py-3 text-sm text-ink">
-      <input
-        type="checkbox"
-        formControlName="rememberMe"
-        class="h-4 w-4 rounded border-border text-brand-600 focus:ring-brand-500"
-        data-testid="login-remember-me"
-      />
-      <span class="font-medium">Remember me on this device</span>
-    </label>
+    <div class="flex flex-wrap items-center justify-between gap-3">
+      <label class="flex items-center gap-3 rounded-xl border border-border bg-surface px-4 py-3 text-sm text-ink">
+        <input
+          type="checkbox"
+          formControlName="rememberMe"
+          class="h-4 w-4 rounded border-border text-brand-600 focus:ring-brand-500"
+          data-testid="login-remember-me"
+        />
+        <span class="font-medium">Remember me</span>
+      </label>
+
+      <button
+        type="button"
+        class="text-sm font-semibold text-accent-600 transition hover:text-accent-500"
+        (click)="forgotPassword.emit()"
+      >
+        Forgot password?
+      </button>
+    </div>
 
     <div class="pt-2">
       <app-button type="submit" [fullWidth]="true" [loading]="loading()" [testId]="'login-submit'">
@@ -44,14 +54,5 @@
       </app-button>
     </div>
 
-    <div class="text-left">
-      <button
-        type="button"
-        class="text-sm font-medium text-accent-600 transition hover:text-accent-500"
-        (click)="forgotPassword.emit()"
-      >
-        Forgotten password?
-      </button>
-    </div>
   </form>
 </section>

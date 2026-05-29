@@ -11,6 +11,13 @@ import {
 
 export const USAGE_BILLING_ROUTES: Routes = [
   {
+    path: 'credit-usage',
+    loadComponent: () =>
+      import('./dashboard/usage-billing-dashboard').then(
+        (m) => m.UsageBillingDashboardPage,
+      ),
+  },
+  {
     path: 'usage-billing',
     loadComponent: () =>
       import('./dashboard/usage-billing-dashboard').then(
@@ -48,6 +55,27 @@ export const USAGE_BILLING_ROUTES: Routes = [
       import('./monthly-snapshots/monthly-usage-snapshots').then(
         (m) => m.MonthlyUsageSnapshotsPage,
       ),
+  },
+  {
+    path: 'master/usage-overview',
+    canActivate: [masterUsageAccessGuard],
+    loadComponent: () =>
+      import('./master-usage/master-usage-overview').then((m) => m.MasterUsageOverviewPage),
+    data: { section: 'overview' },
+  },
+  {
+    path: 'master/workspace-usage',
+    canActivate: [masterUsageAccessGuard],
+    loadComponent: () =>
+      import('./master-usage/master-usage-overview').then((m) => m.MasterUsageOverviewPage),
+    data: { section: 'workspaces' },
+  },
+  {
+    path: 'master/plan-utilization',
+    canActivate: [planUtilizationAccessGuard],
+    loadComponent: () =>
+      import('./master-usage/master-usage-overview').then((m) => m.MasterUsageOverviewPage),
+    data: { section: 'plan-utilization' },
   },
   {
     path: 'master/usage',

@@ -48,6 +48,8 @@ class GatewayProxyIntegrationTest {
     private static HttpServer authServer;
     private static HttpServer workspaceServer;
     private static HttpServer creativeServer;
+    private static HttpServer billingServer;
+    private static HttpServer notificationServer;
 
     @DynamicPropertySource
     static void registerProperties(DynamicPropertyRegistry registry) throws IOException {
@@ -63,6 +65,8 @@ class GatewayProxyIntegrationTest {
         registry.add("platform.gateway.services.auth", () -> "http://localhost:" + authServer.getAddress().getPort());
         registry.add("platform.gateway.services.workspace", () -> "http://localhost:" + workspaceServer.getAddress().getPort());
         registry.add("platform.gateway.services.creative", () -> "http://localhost:" + creativeServer.getAddress().getPort());
+        registry.add("platform.gateway.services.billing", () -> "http://localhost:" + billingServer.getAddress().getPort());
+        registry.add("platform.gateway.services.notification", () -> "http://localhost:" + notificationServer.getAddress().getPort());
     }
 
     @LocalServerPort
@@ -89,6 +93,8 @@ class GatewayProxyIntegrationTest {
         stop(authServer);
         stop(workspaceServer);
         stop(creativeServer);
+        stop(billingServer);
+        stop(notificationServer);
     }
 
     @BeforeEach
@@ -151,11 +157,39 @@ class GatewayProxyIntegrationTest {
                 .body("method", equalTo("POST"));
     }
 
+    @Test
+    void shouldRouteBillingPaymentRequests() {
+        String accessToken = jwtAccessTokenService.generate(masterUser, null, Role.MASTER).token();
+
+        given()
+                .header("Authorization", "Bearer " + accessToken)
+                .when()
+                .get("/api/v1/master/payment-providers")
+                .then()
+                .statusCode(200)
+                .body("service", equalTo("billing"));
+    }
+
+    @Test
+    void shouldRouteNotificationMonitoringRequests() {
+        String accessToken = jwtAccessTokenService.generate(masterUser, null, Role.MASTER).token();
+
+        given()
+                .header("Authorization", "Bearer " + accessToken)
+                .when()
+                .get("/api/v1/master/monitoring/system-health")
+                .then()
+                .statusCode(200)
+                .body("service", equalTo("notification"));
+    }
+
     private static void ensureMockServers() throws IOException {
         if (authServer == null) {
             authServer = createServer("auth", 202);
             workspaceServer = createServer("workspace", 200);
             creativeServer = createServer("creative", 200);
+            billingServer = createServer("billing", 200);
+            notificationServer = createServer("notification", 200);
         }
     }
 

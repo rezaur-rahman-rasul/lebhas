@@ -2,19 +2,140 @@
   display: block;
 }
 
-.profile-input {
-  height: 2.5rem;
-  width: 100%;
-  border-radius: 0.375rem;
-  border: 1px solid rgb(var(--color-border));
-  background: rgb(var(--color-canvas));
-  padding: 0 0.75rem;
-  color: rgb(var(--color-ink));
-  font-size: 0.875rem;
-  outline: none;
+.settings-page {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(360px, 0.8fr);
+  gap: 1rem;
+  margin-top: 1rem;
+}
 
-  &:focus {
-    border-color: rgb(var(--color-brand-500));
-    box-shadow: 0 0 0 2px rgb(var(--color-brand-500) / 0.3);
+.settings-panel {
+  border: 1px solid rgb(var(--color-border) / 0.72);
+  border-radius: var(--app-radius-card);
+  background: rgb(var(--color-surface-elevated) / 0.78);
+  padding: 1rem;
+}
+
+.section-head p {
+  color: rgb(var(--color-accent-purple));
+  font-size: 0.7rem;
+  font-weight: 900;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+
+.section-head h2 {
+  margin-top: 0.2rem;
+  color: rgb(var(--color-ink));
+  font-size: 1.05rem;
+  font-weight: 950;
+}
+
+.settings-form,
+.password-form {
+  display: grid;
+  gap: 0.85rem;
+  margin-top: 1rem;
+}
+
+.settings-form {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.settings-form label {
+  display: grid;
+  gap: 0.35rem;
+}
+
+.settings-form span {
+  color: rgb(var(--color-ink));
+  font-size: 0.84rem;
+  font-weight: 850;
+}
+
+.settings-form select {
+  height: 2.65rem;
+  border: 1px solid rgb(var(--color-border) / 0.72);
+  border-radius: var(--app-radius-input);
+  background: rgb(var(--color-panel) / 0.48);
+  padding: 0 0.8rem;
+  color: rgb(var(--color-ink));
+  outline: none;
+}
+
+.settings-form select:focus {
+  border-color: rgb(var(--color-accent-purple));
+  box-shadow: 0 0 0 3px rgb(var(--color-accent-purple) / 0.16);
+}
+
+.toggle-list,
+.actions,
+.form-alert,
+.foundation-note {
+  grid-column: 1 / -1;
+}
+
+.toggle-list {
+  display: grid;
+  gap: 0.6rem;
+}
+
+.toggle-list label {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  border: 1px solid rgb(var(--color-border) / 0.68);
+  border-radius: 0.85rem;
+  background: rgb(var(--color-panel) / 0.36);
+  padding: 0.75rem 0.85rem;
+}
+
+.actions {
+  display: flex;
+  justify-content: flex-end;
+  border-top: 1px solid rgb(var(--color-border) / 0.68);
+  padding-top: 1rem;
+}
+
+.form-alert,
+.foundation-note {
+  border-radius: 0.85rem;
+  padding: 0.75rem 0.85rem;
+  font-size: 0.86rem;
+}
+
+.form-alert.error {
+  border: 1px solid rgb(var(--color-danger) / 0.32);
+  background: rgb(var(--color-danger) / 0.1);
+  color: rgb(var(--color-danger));
+}
+
+.form-alert.success {
+  border: 1px solid rgb(var(--color-success) / 0.32);
+  background: rgb(var(--color-success) / 0.1);
+  color: rgb(var(--color-success));
+}
+
+.foundation-note {
+  border: 1px solid rgb(var(--color-border) / 0.68);
+  background: rgb(var(--color-panel) / 0.36);
+  color: rgb(var(--color-muted));
+}
+
+.password-stack {
+  display: grid;
+  gap: 0.65rem;
+}
+
+.field-error {
+  color: rgb(var(--color-danger));
+  font-size: 0.84rem;
+}
+
+@media (max-width: 1020px) {
+  .settings-page,
+  .settings-form {
+    grid-template-columns: 1fr;
   }
 }

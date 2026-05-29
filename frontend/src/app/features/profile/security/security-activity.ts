@@ -3,7 +3,7 @@ import { Router } from '@angular/router';
 
 import { PermissionStore } from '@app/core/permissions/permission.store';
 import { ButtonComponent } from '@app/shared/components/app-button/app-button';
-import { CardComponent } from '@app/shared/components/app-card/app-card';
+import { ModalShellComponent } from '@app/shared/components/app-confirm-dialog/app-confirm-dialog';
 import { EmptyStateComponent } from '@app/shared/components/app-empty-state/app-empty-state';
 import { AppErrorStateComponent } from '@app/shared/components/app-error-state/app-error-state';
 import { PageHeaderComponent } from '@app/shared/components/app-page-header/app-page-header';
@@ -13,7 +13,8 @@ import {
   SecurityActivityCardComponent,
   securityActivityLabel,
 } from '../components/security-activity-card/security-activity-card';
-import { SecurityActivityType } from '../models/profile.models';
+import { SessionCardComponent } from '../components/session-card/session-card';
+import { SecurityActivityType, UserSessionView } from '../models/profile.models';
 import { ProfileStore } from '../state/profile.store';
 
 @Component({
@@ -21,13 +22,14 @@ import { ProfileStore } from '../state/profile.store';
   standalone: true,
   imports: [
     ButtonComponent,
-    CardComponent,
+    ModalShellComponent,
     EmptyStateComponent,
     AppErrorStateComponent,
     PageHeaderComponent,
     ProfileEmptyStateComponent,
     ProfileLoadingStateComponent,
     SecurityActivityCardComponent,
+    SessionCardComponent,
   ],
   templateUrl: './security-activity.html',
   styleUrl: './security-activity.scss',
@@ -39,8 +41,14 @@ export class SecurityActivityPage {
   protected readonly store = inject(ProfileStore);
 
   protected readonly selectedType = signal<SecurityActivityType | string | null>(null);
+  protected readonly selectedSession = signal<UserSessionView | null>(null);
+  protected readonly revokeMessage = signal<string | null>(null);
   protected readonly activityTypes = Object.values(SecurityActivityType);
   protected readonly accessDenied = computed(() => !this.permissions.canViewSecurityActivity());
+  protected readonly confirmOpen = computed(() => Boolean(this.selectedSession()));
+  protected readonly lastLogin = computed(
+    () => this.store.securityActivity().find((activity) => activity.activityType === SecurityActivityType.LoginSuccess) ?? null,
+  );
   protected readonly filteredActivity = computed(() => {
     const selectedType = this.selectedType();
     const activities = [...this.store.securityActivity()].sort(
@@ -56,6 +64,7 @@ export class SecurityActivityPage {
     effect(() => {
       if (!this.accessDenied()) {
         void this.store.loadSecurityActivity();
+        void this.store.loadSessions();
       }
     });
   }
@@ -63,6 +72,7 @@ export class SecurityActivityPage {
   protected retry(): void {
     this.store.clearError();
     void this.store.loadSecurityActivity();
+    void this.store.loadSessions();
   }
 
   protected backToProfile(): void {
@@ -76,5 +86,26 @@ export class SecurityActivityPage {
   protected setType(event: Event): void {
     const value = (event.target as HTMLSelectElement).value;
     this.selectedType.set(value || null);
+  }
+
+  protected requestRevoke(sessionId: string): void {
+    this.selectedSession.set(this.store.sessions().find((session) => session.sessionId === sessionId) ?? null);
+  }
+
+  protected closeConfirm(): void {
+    this.selectedSession.set(null);
+  }
+
+  protected async confirmRevoke(): Promise<void> {
+    const session = this.selectedSession();
+    if (!session) {
+      return;
+    }
+
+    const result = await this.store.revokeSession(session.sessionId);
+    if (result.ok) {
+      this.revokeMessage.set('Session revoked successfully.');
+      this.selectedSession.set(null);
+    }
   }
 }

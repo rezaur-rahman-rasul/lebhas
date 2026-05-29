@@ -179,6 +179,46 @@ export interface PricingPlanForPurchase {
   readonly sortOrder?: number | null;
 }
 
+export interface PricingPlan {
+  readonly id: string;
+  readonly name: string;
+  readonly code: string;
+  readonly description: string | null;
+  readonly monthlyPrice: number;
+  readonly yearlyPrice: number;
+  readonly currency: string;
+  readonly defaultPlan: boolean;
+  readonly active: boolean;
+  readonly sortOrder: number;
+  readonly createdAt: string;
+  readonly updatedAt: string;
+}
+
+export interface PlanFeaturePolicy {
+  readonly id: string;
+  readonly pricingPlanId: string;
+  readonly maxGeneratedVersionsPerRequest: number | null;
+  readonly maxBrands: number | null;
+  readonly maxProductServices: number | null;
+  readonly maxProjects: number | null;
+  readonly maxTeamMembers: number | null;
+  readonly maxStorageGb: number | null;
+  readonly monthlyCreditLimit: number | null;
+  readonly allowApprovalWorkflow: boolean;
+  readonly allowPublicShareLinks: boolean;
+  readonly allowVideoGeneration: boolean;
+  readonly allowAdvancedPromptIntelligence: boolean;
+  readonly allowTeamCollaboration: boolean;
+  readonly allowExportWithoutWatermark: boolean;
+  readonly createdAt: string;
+  readonly updatedAt: string;
+}
+
+export interface PricingPlanDetail {
+  readonly pricingPlan: PricingPlan;
+  readonly featurePolicy: PlanFeaturePolicy | null;
+}
+
 export interface CurrentSubscription {
   readonly id: string;
   readonly workspaceId: string;
@@ -217,6 +257,34 @@ export interface PaymentProviderPayload {
   readonly sandboxEnabled: boolean;
   readonly liveEnabled: boolean;
   readonly priority: number;
+}
+
+export interface PricingPlanPayload {
+  readonly name: string;
+  readonly code: string;
+  readonly description?: string | null;
+  readonly monthlyPrice: number;
+  readonly yearlyPrice: number;
+  readonly currency: string;
+  readonly defaultPlan: boolean;
+  readonly active: boolean;
+  readonly sortOrder: number;
+}
+
+export interface PlanFeaturePolicyPayload {
+  readonly maxGeneratedVersionsPerRequest?: number | null;
+  readonly maxBrands?: number | null;
+  readonly maxProductServices?: number | null;
+  readonly maxProjects?: number | null;
+  readonly maxTeamMembers?: number | null;
+  readonly maxStorageGb?: number | null;
+  readonly monthlyCreditLimit?: number | null;
+  readonly allowApprovalWorkflow: boolean;
+  readonly allowPublicShareLinks: boolean;
+  readonly allowVideoGeneration: boolean;
+  readonly allowAdvancedPromptIntelligence: boolean;
+  readonly allowTeamCollaboration: boolean;
+  readonly allowExportWithoutWatermark: boolean;
 }
 
 export interface PaymentProviderConfigurationPayload {

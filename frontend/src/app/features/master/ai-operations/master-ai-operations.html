@@ -1,0 +1,317 @@
+<app-page-header eyebrow="AI OPERATIONS" [title]="title()" [description]="description()">
+  @if (!accessDenied()) {
+    <app-button
+      type="button"
+      variant="secondary"
+      icon="rotate-cw"
+      [loading]="aiStore.loading() || paymentStore.loading()"
+      (click)="refresh()"
+    >
+      Refresh
+    </app-button>
+  }
+</app-page-header>
+
+<nav class="ai-ops-tabs" aria-label="Master AI operations">
+  @for (item of navItems; track item.route) {
+    <a [routerLink]="item.route" routerLinkActive="is-active">{{ item.label }}</a>
+  }
+</nav>
+
+@if (accessDenied()) {
+  <div class="ai-ops-block">
+    <app-empty-state
+      icon="shield-alert"
+      tone="danger"
+      title="Master AI operations access is restricted"
+      description="You do not have permission to view this Master AI operations screen."
+    />
+  </div>
+} @else {
+  @switch (mode()) {
+    @case ('provider-settings') {
+      @if (paymentStore.loading() && !providers().length) {
+        <section class="ai-ops-skeleton-grid">
+          @for (item of [1, 2, 3, 4]; track item) {
+            <div class="ai-ops-skeleton"></div>
+          }
+        </section>
+      } @else if (paymentStore.error()) {
+        <div class="ai-ops-block">
+          <app-error-state title="Provider settings could not load" [description]="paymentStore.error()!">
+            <app-button type="button" variant="secondary" icon="rotate-cw" (click)="refresh()">Retry</app-button>
+          </app-error-state>
+        </div>
+      } @else {
+        <section class="ai-settings-grid">
+          <app-card>
+            <div class="ai-ops-panel-head">
+              <div>
+                <p>Provider list</p>
+                <h2>{{ providers().length }} payment and AI-adjacent providers</h2>
+              </div>
+              <app-status-badge tone="neutral">Secrets hidden</app-status-badge>
+            </div>
+
+            @if (providers().length) {
+              <div class="ai-provider-list">
+                @for (provider of providers(); track provider.id) {
+                  <button
+                    type="button"
+                    class="ai-provider-row"
+                    [class.is-selected]="selectedProvider()?.id === provider.id"
+                    (click)="selectProvider(provider.id)"
+                  >
+                    <span>
+                      <strong>{{ provider.name }}</strong>
+                      <small>{{ provider.providerType }} · {{ providerMode(provider) }}</small>
+                    </span>
+                    <app-status-badge [tone]="providerTone(provider)">
+                      {{ provider.isEnabled ? 'Enabled' : 'Disabled' }}
+                    </app-status-badge>
+                    <em>{{ providerCredentialStatus(provider) }}</em>
+                  </button>
+                }
+              </div>
+            } @else {
+              <app-empty-state
+                icon="settings"
+                title="No providers configured"
+                description="Provider records will appear here after Master creates payment or AI provider entries."
+              />
+            }
+          </app-card>
+
+          <app-card>
+            <div class="ai-ops-panel-head">
+              <div>
+                <p>Credential update</p>
+                <h2>{{ selectedProvider()?.name || 'Select provider' }}</h2>
+              </div>
+              @if (selectedConfiguration()) {
+                <app-status-badge tone="brand">Configured</app-status-badge>
+              } @else {
+                <app-status-badge tone="neutral">Not configured</app-status-badge>
+              }
+            </div>
+
+            <form class="ai-secret-form" [formGroup]="credentialForm" (ngSubmit)="saveCredential()">
+              <label>
+                <span>Environment</span>
+                <select formControlName="environmentType">
+                  <option value="SANDBOX">Sandbox</option>
+                  <option value="LIVE">Live</option>
+                </select>
+              </label>
+
+              <label>
+                <span>API key / secret</span>
+                <input type="password" formControlName="apiKey" autocomplete="new-password" placeholder="Paste new secret" />
+                <small>Saved secrets are never shown again. Leave no visible credential on this page.</small>
+              </label>
+
+              <label>
+                <span>Webhook URL</span>
+                <input type="url" formControlName="webhookUrl" placeholder="Optional webhook or callback URL" />
+              </label>
+
+              <label class="ai-toggle">
+                <input type="checkbox" formControlName="isActive" />
+                <span>Configuration active</span>
+              </label>
+
+              <div class="ai-secret-actions">
+                <button type="button" disabled title="No backend test-connection endpoint is available yet.">
+                  <app-icon name="plug-zap" [size]="16" />
+                  Test connection
+                </button>
+                <app-button type="submit" icon="save" [loading]="paymentStore.loading()" [disabled]="!selectedProvider()">
+                  Save credential
+                </app-button>
+              </div>
+            </form>
+
+            @if (selectedProvider(); as provider) {
+              <div class="ai-provider-controls">
+                <button type="button" (click)="toggleProvider(provider)" [disabled]="paymentStore.loading()">
+                  {{ provider.isEnabled ? 'Disable provider' : 'Enable provider' }}
+                </button>
+              </div>
+            }
+          </app-card>
+        </section>
+      }
+    }
+
+    @case ('provider-health') {
+      @if (aiStore.loading() && !providerHealth().length) {
+        <section class="ai-ops-skeleton-grid">
+          @for (item of [1, 2, 3, 4, 5, 6]; track item) {
+            <div class="ai-ops-skeleton"></div>
+          }
+        </section>
+      } @else if (aiStore.error()) {
+        <div class="ai-ops-block">
+          <app-error-state title="Provider health could not load" [description]="aiStore.error()!">
+            <app-button type="button" variant="secondary" icon="rotate-cw" (click)="refresh()">Retry</app-button>
+          </app-error-state>
+        </div>
+      } @else {
+        <section class="ai-stat-grid">
+          @for (stat of providerHealthStats(); track stat.label) {
+            <app-card>
+              <div class="ai-stat-card">
+                <span class="ai-stat-icon" [class]="'tone-' + stat.tone"><app-icon [name]="stat.icon" [size]="18" /></span>
+                <div>
+                  <p>{{ stat.label }}</p>
+                  <strong>{{ stat.value }}</strong>
+                  <small>{{ stat.helper }}</small>
+                </div>
+              </div>
+            </app-card>
+          }
+        </section>
+
+        @if (providerHealthRows().length) {
+          <section class="ai-table-card">
+            <div class="ai-ops-table-wrap">
+              <table>
+                <thead>
+                  <tr>
+                    <th>Provider</th>
+                    <th>Tool</th>
+                    <th>Status</th>
+                    <th>Latency</th>
+                    <th>Success rate</th>
+                    <th>Last checked</th>
+                    <th>Fallback used</th>
+                    <th>Actions</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  @for (row of providerHealthRows(); track row.health.id) {
+                    <tr>
+                      <td><strong>{{ row.health.providerName }}</strong><small>{{ row.health.modelName }}</small></td>
+                      <td>{{ row.metric?.modelName || 'Tool not reported' }}</td>
+                      <td><app-status-badge [tone]="healthTone(row.health.status)">{{ row.health.status }}</app-status-badge></td>
+                      <td>{{ row.metric?.avgLatencyMs ? (row.metric?.avgLatencyMs | number: '1.0-0') + ' ms' : '--' }}</td>
+                      <td>{{ successRate(row.metric) }}</td>
+                      <td>{{ row.health.lastCheckedAt | date: 'medium' }}</td>
+                      <td>{{ row.health.fallbackAvailable ? 'Available' : 'Not reported' }}</td>
+                      <td><button type="button" disabled title="Provider inspection endpoint is not available yet.">Inspect</button></td>
+                    </tr>
+                  }
+                </tbody>
+              </table>
+            </div>
+          </section>
+        } @else {
+          <div class="ai-ops-block">
+            <app-empty-state icon="heart-pulse" title="No provider health data" description="Provider health events will appear after backend monitoring starts reporting AI provider checks." />
+          </div>
+        }
+      }
+    }
+
+    @case ('layer-analytics') {
+      <form class="ai-filter-bar" [formGroup]="filterForm">
+        <label><span>Date range</span><select formControlName="dateRange"><option value="7d">7 days</option><option value="30d">30 days</option><option value="90d">90 days</option></select></label>
+        <label><span>Provider</span><select formControlName="provider"><option value="">All providers</option>@for (provider of providerFilterOptions(); track provider.id) {<option [value]="provider.id">{{ provider.label }}</option>}</select></label>
+        <label><span>Layer</span><input type="search" formControlName="layer" placeholder="Search layer" /></label>
+        <button type="button" (click)="clearFilters()">Clear filters</button>
+      </form>
+
+      @if (aiStore.loading() && !layerAnalytics().length) {
+        <section class="ai-ops-skeleton-grid"><div class="ai-ops-skeleton"></div><div class="ai-ops-skeleton"></div><div class="ai-ops-skeleton"></div></section>
+      } @else if (aiStore.error()) {
+        <div class="ai-ops-block"><app-error-state title="Layer analytics could not load" [description]="aiStore.error()!"><app-button type="button" variant="secondary" icon="rotate-cw" (click)="refresh()">Retry</app-button></app-error-state></div>
+      } @else {
+        <section class="ai-stat-grid">
+          @for (stat of layerStats(); track stat.label) {
+            <app-card><div class="ai-stat-card"><span class="ai-stat-icon" [class]="'tone-' + stat.tone"><app-icon [name]="stat.icon" [size]="18" /></span><div><p>{{ stat.label }}</p><strong>{{ stat.value }}</strong><small>{{ stat.helper }}</small></div></div></app-card>
+          }
+        </section>
+
+        @if (filteredLayers().length) {
+          <section class="ai-table-card">
+            <div class="ai-ops-table-wrap">
+              <table>
+                <thead><tr><th>Layer name</th><th>Usage count</th><th>Avg cost</th><th>Avg duration</th><th>Failure count</th><th>Quality score</th><th>Trend</th></tr></thead>
+                <tbody>
+                  @for (layer of filteredLayers(); track layer.id) {
+                    <tr><td><strong>{{ layer.layerName }}</strong><small>{{ layer.layerType }}</small></td><td>{{ layer.totalExecutions | number }}</td><td>{{ layer.avgExecutionCostUsd | currency: 'USD' }}</td><td>{{ layer.avgExecutionTimeMs | number: '1.0-0' }} ms</td><td>{{ layer.failedExecutions | number }}</td><td>{{ layer.avgQualityScore | number: '1.0-2' }}</td><td>{{ layer.failedExecutions > 0 ? 'Needs review' : 'Stable' }}</td></tr>
+                  }
+                </tbody>
+              </table>
+            </div>
+          </section>
+        } @else {
+          <div class="ai-ops-block"><app-empty-state icon="layers-3" title="No layer analytics found" description="Layer analytics will appear when backend monitoring reports layer executions." /></div>
+        }
+      }
+    }
+
+    @case ('ai-cost-usage') {
+      @if (aiStore.loading() && totalAiCost() === 0) {
+        <section class="ai-ops-skeleton-grid"><div class="ai-ops-skeleton"></div><div class="ai-ops-skeleton"></div><div class="ai-ops-skeleton"></div></section>
+      } @else if (aiStore.error()) {
+        <div class="ai-ops-block"><app-error-state title="AI cost usage could not load" [description]="aiStore.error()!"><app-button type="button" variant="secondary" icon="rotate-cw" (click)="refresh()">Retry</app-button></app-error-state></div>
+      } @else {
+        <section class="ai-cost-hero">
+          <app-card>
+            <div class="ai-cost-total">
+              <p>Total AI cost</p>
+              <strong>{{ totalAiCost() | currency: 'USD' }}</strong>
+              <span>Calculated from backend provider, workspace, and layer monitoring records.</span>
+            </div>
+          </app-card>
+          <app-card>
+            <div class="ai-cost-total">
+              <p>High-cost warnings</p>
+              <strong>{{ highCostWarnings().length }}</strong>
+              <span>Workspaces flagged by backend monitoring.</span>
+            </div>
+          </app-card>
+        </section>
+
+        <section class="ai-cost-grid">
+          <app-card><h2>Cost by provider</h2><div class="ai-cost-list">@for (row of costByProvider(); track row.id) {<div><span>{{ row.name }}</span><strong>{{ row.value | currency: 'USD' }}</strong><small>{{ row.helper }}</small></div>} @empty {<p>No provider cost data reported.</p>}</div></app-card>
+          <app-card><h2>Cost by workspace</h2><div class="ai-cost-list">@for (row of costByWorkspace(); track row.id) {<div [class.is-warning]="row.warning"><span>{{ row.name }}</span><strong>{{ row.value | currency: 'USD' }}</strong><small>{{ row.helper }}</small></div>} @empty {<p>No workspace cost data reported.</p>}</div></app-card>
+          <app-card><h2>Cost by tool</h2><div class="ai-cost-list">@for (row of costByTool(); track row.id) {<div><span>{{ row.name }}</span><strong>{{ row.value | currency: 'USD' }}</strong><small>{{ row.helper }}</small></div>} @empty {<p>No layer or tool cost data reported.</p>}</div></app-card>
+          <app-card><h2>Cost by quality mode</h2><div class="ai-cost-list"><p>Quality mode cost breakdown is not reported by the current backend response.</p></div></app-card>
+        </section>
+      }
+    }
+
+    @case ('ai-failures') {
+      <form class="ai-filter-bar" [formGroup]="filterForm">
+        <label><span>Date range</span><select formControlName="dateRange"><option value="7d">7 days</option><option value="30d">30 days</option><option value="90d">90 days</option></select></label>
+        <label><span>Provider</span><select formControlName="provider"><option value="">All providers</option>@for (provider of providerFilterOptions(); track provider.id) {<option [value]="provider.id">{{ provider.label }}</option>}</select></label>
+        <label><span>Layer</span><input type="search" formControlName="layer" placeholder="Search layer" /></label>
+        <label><span>Workspace</span><input type="search" formControlName="workspace" placeholder="Request or workspace reference" /></label>
+        <button type="button" (click)="clearFilters()">Clear filters</button>
+      </form>
+
+      @if (aiStore.loading() && !failures().length) {
+        <section class="ai-ops-skeleton-grid"><div class="ai-ops-skeleton"></div><div class="ai-ops-skeleton"></div><div class="ai-ops-skeleton"></div></section>
+      } @else if (aiStore.error()) {
+        <div class="ai-ops-block"><app-error-state title="AI failures could not load" [description]="aiStore.error()!"><app-button type="button" variant="secondary" icon="rotate-cw" (click)="refresh()">Retry</app-button></app-error-state></div>
+      } @else if (!filteredFailures().length) {
+        <div class="ai-ops-block"><app-empty-state icon="shield-check" title="No failed jobs found" description="Failed jobs will appear here when backend monitoring reports an AI operation issue." /></div>
+      } @else {
+        <section class="ai-table-card">
+          <div class="ai-ops-table-wrap">
+            <table>
+              <thead><tr><th>Failed job</th><th>Provider</th><th>Layer</th><th>Workspace</th><th>Reason</th><th>Retry count</th><th>Time</th><th>Action</th></tr></thead>
+              <tbody>
+                @for (failure of filteredFailures(); track failure.id) {
+                  <tr><td><strong>{{ failure.creativeRequestId }}</strong><small>{{ failure.modelName }}</small></td><td>{{ failure.providerName }}</td><td>{{ failure.layerName }}</td><td>{{ failure.creativeRequestId }}</td><td>{{ failureReason(failure) }}</td><td>{{ failure.retryAttempt | number }}</td><td>{{ failure.createdAt | date: 'medium' }}</td><td><button type="button" disabled title="Retry and inspect endpoints are not available yet.">Retry / Inspect</button></td></tr>
+                }
+              </tbody>
+            </table>
+          </div>
+        </section>
+      }
+    }
+  }
+}

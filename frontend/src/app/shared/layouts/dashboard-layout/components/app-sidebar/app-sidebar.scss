@@ -12,14 +12,14 @@
   flex-direction: column;
   overflow: hidden;
   background:
-    linear-gradient(180deg, rgba(13, 22, 39, 0.96), rgba(9, 15, 28, 0.98)),
+    linear-gradient(180deg, rgba(13, 18, 34, 0.96), rgba(6, 8, 18, 0.98)),
     rgb(var(--color-surface));
   color: rgb(var(--color-ink));
 }
 
 .sidebar-header {
   display: flex;
-  min-height: 4.5rem;
+  min-height: var(--app-topbar-height);
   align-items: center;
   gap: 0.75rem;
   border-bottom: 1px solid rgb(var(--color-border));
@@ -32,7 +32,7 @@
   flex: 1 1 auto;
   align-items: center;
   gap: 0.75rem;
-  border-radius: 0.75rem;
+  border-radius: var(--app-radius-button);
   color: inherit;
   text-decoration: none;
 }
@@ -156,7 +156,7 @@
   grid-template-columns: 1.25rem minmax(0, 1fr);
   align-items: center;
   gap: 0.75rem;
-  border-radius: 0.75rem;
+  border-radius: var(--app-radius-button);
   color: rgb(var(--color-muted));
   font-size: 0.875rem;
   font-weight: 600;
@@ -175,9 +175,13 @@
 }
 
 .sidebar-link--active {
-  background: rgb(34 197 94 / 0.12);
-  color: rgb(var(--color-ink));
-  box-shadow: inset 3px 0 0 rgb(34 197 94 / 0.9);
+  background:
+    linear-gradient(135deg, rgb(var(--color-accent-purple) / 0.24), rgb(var(--color-accent-pink) / 0.14)),
+    rgb(var(--color-panel) / 0.52);
+  color: white;
+  box-shadow:
+    inset 3px 0 0 rgb(var(--color-accent-pink) / 0.9),
+    0 12px 28px rgb(var(--color-accent-purple) / 0.16);
 }
 
 .sidebar-link-icon {
@@ -187,17 +191,76 @@
 }
 
 .sidebar-footer {
+  display: grid;
+  gap: 0.75rem;
   flex: 0 0 auto;
   border-top: 1px solid rgb(var(--color-border));
   padding: 0.75rem;
+}
+
+.sidebar-upgrade-card {
+  display: flex;
+  min-width: 0;
+  gap: 0.75rem;
+  border: 1px solid rgb(var(--color-accent-purple) / 0.28);
+  border-radius: var(--app-radius-card);
+  background:
+    linear-gradient(135deg, rgb(var(--color-accent-purple) / 0.18), rgb(var(--color-accent-pink) / 0.12)),
+    rgb(var(--color-surface-elevated) / 0.58);
+  padding: 0.875rem;
+  text-decoration: none;
+  transition:
+    border-color 160ms ease,
+    transform 160ms ease;
+}
+
+.sidebar-upgrade-card:hover {
+  border-color: rgb(var(--color-accent-pink) / 0.52);
+  transform: translateY(-1px);
+}
+
+.upgrade-icon {
+  display: grid;
+  width: 2rem;
+  height: 2rem;
+  flex: 0 0 auto;
+  place-items: center;
+  border-radius: 0.75rem;
+  background: var(--gradient-primary);
+  color: white;
+}
+
+.upgrade-copy {
+  display: grid;
+  min-width: 0;
+  gap: 0.25rem;
+}
+
+.upgrade-title,
+.upgrade-text {
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.upgrade-title {
+  color: rgb(var(--color-ink));
+  font-size: 0.8125rem;
+  font-weight: 800;
+  line-height: 1.25;
+}
+
+.upgrade-text {
+  color: rgb(var(--color-muted));
+  font-size: 0.75rem;
+  line-height: 1.35;
 }
 
 .access-scope-card {
   min-width: 0;
   overflow: hidden;
   border: 1px solid rgb(var(--color-border));
-  border-radius: 0.875rem;
-  background: rgb(15 23 42 / 0.72);
+  border-radius: var(--app-radius-card);
+  background: rgb(var(--color-surface-elevated) / 0.62);
   padding: 0.75rem;
 }
 
@@ -238,7 +301,7 @@
   height: 2.25rem;
   place-items: center;
   border-radius: 999px;
-  background: rgb(34 197 94 / 0.14);
+  background: rgb(var(--color-accent-purple) / 0.2);
   color: rgb(var(--color-ink));
   font-size: 0.8125rem;
   font-weight: 800;
@@ -324,11 +387,11 @@
 
 :host-context(.light) .sidebar-link--active,
 :host-context([data-theme='light']) .sidebar-link--active {
-  background: rgb(220 252 231 / 0.88);
-  color: rgb(6 95 70);
+  background: rgb(243 232 255 / 0.95);
+  color: rgb(88 28 135);
   box-shadow:
-    inset 3px 0 0 rgb(11 143 104),
-    0 8px 22px rgba(22, 166, 121, 0.12);
+    inset 3px 0 0 rgb(124 58 237),
+    0 8px 22px rgba(124, 58, 237, 0.12);
 }
 
 :host-context(.light) .access-scope-card,
@@ -345,6 +408,6 @@
 
 :host-context(.light) .access-scope-compact,
 :host-context([data-theme='light']) .access-scope-compact {
-  background: rgb(220 252 231);
-  color: rgb(6 95 70);
+  background: rgb(243 232 255);
+  color: rgb(88 28 135);
 }

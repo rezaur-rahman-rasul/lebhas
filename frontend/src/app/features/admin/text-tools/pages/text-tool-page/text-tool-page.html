@@ -1,0 +1,324 @@
+<app-page-header
+  eyebrow="AI CONTENT TOOLS"
+  [title]="config.title"
+  [description]="config.subtitle"
+>
+  <app-badge [tone]="roleTone()">{{ roleLabel() }}</app-badge>
+  <app-badge tone="neutral">{{ workspaceLabel() }}</app-badge>
+</app-page-header>
+
+@if (!hasWorkspaceContext()) {
+  <div class="mt-6">
+    <app-empty-state icon="building-2" title="Workspace context required" description="Select a workspace before opening content tools." />
+  </div>
+} @else {
+  @if (error()) {
+    <div class="tool-alert">
+      {{ error() }}
+    </div>
+  }
+
+  <section class="text-tool-grid">
+    <aside class="tool-panel form-panel">
+      <div class="tool-panel__head">
+        <div>
+          <p>Context</p>
+          <h2>Input form</h2>
+        </div>
+        <app-badge tone="brand">Cost: {{ currentCreditCost() }} credits</app-badge>
+      </div>
+
+      <form [formGroup]="form" (ngSubmit)="generate()">
+        <section class="tool-section">
+          <label>
+            <span>Brand</span>
+            <select class="tool-select" [value]="selectedBrandId()" (change)="selectBrand($any($event.target).value)">
+              <option value="">Select brand</option>
+              @for (brand of brandStore.items(); track brand.id) {
+                <option [value]="brand.id">{{ brand.name }}</option>
+              }
+            </select>
+          </label>
+
+          <label>
+            <span>Product / Service</span>
+            <select class="tool-select" [value]="selectedProductId()" [disabled]="!selectedBrandId()" (change)="selectProduct($any($event.target).value)">
+              <option value="">{{ selectedBrandId() ? 'Select product/service' : 'Select a brand first' }}</option>
+              @for (product of filteredProducts(); track product.id) {
+                <option [value]="product.id">{{ product.name }}</option>
+              }
+            </select>
+          </label>
+
+          <label>
+            <span>Project / Campaign</span>
+            <select class="tool-select" [value]="selectedProjectId()" [disabled]="!selectedProductId()" (change)="selectedProjectId.set($any($event.target).value)">
+              <option value="">{{ selectedProductId() ? 'Select project/campaign' : 'Select a product/service first' }}</option>
+              @for (project of filteredProjects(); track project.id) {
+                <option [value]="project.id">{{ project.name }}</option>
+              }
+            </select>
+          </label>
+        </section>
+
+        <section class="tool-section">
+          <label>
+            <span>Platform</span>
+            <select class="tool-select" formControlName="platform">
+              @for (platform of platformOptions; track platform.value) {
+                <option [value]="platform.value">{{ platform.label }}</option>
+              }
+            </select>
+          </label>
+
+          <label>
+            <span>Language</span>
+            <select class="tool-select" formControlName="language">
+              @for (language of languageOptions; track language.value) {
+                <option [value]="language.value">{{ language.label === 'Mixed' ? 'Bangla + English' : language.label }}</option>
+              }
+            </select>
+          </label>
+
+          <label>
+            <span>Tone</span>
+            <select class="tool-select" formControlName="tone">
+              @for (tone of toneOptions; track tone.value) {
+                <option [value]="tone.value">{{ tone.label }}</option>
+              }
+            </select>
+          </label>
+        </section>
+
+        <section class="tool-section">
+          @if (hasField('postGoal')) {
+            <label>
+              <span>Post goal</span>
+              <select class="tool-select" formControlName="postGoal">
+                @for (goal of postGoalOptions; track goal) {
+                  <option [value]="goal">{{ goal }}</option>
+                }
+              </select>
+            </label>
+          }
+
+          @if (hasField('captionStyle')) {
+            <label>
+              <span>Caption style</span>
+              <select class="tool-select" formControlName="captionStyle">
+                @for (style of captionStyleOptions; track style) {
+                  <option [value]="style">{{ style }}</option>
+                }
+              </select>
+            </label>
+          }
+
+          @if (hasField('campaignObjective')) {
+            <label>
+              <span>Campaign objective</span>
+              <select class="tool-select" formControlName="campaignObjective">
+                @for (objective of objectiveOptions; track objective.value) {
+                  <option [value]="objective.value">{{ objective.label }}</option>
+                }
+              </select>
+            </label>
+          }
+
+          @if (hasField('targetAudience')) {
+            <label>
+              <span>Target audience</span>
+              <input type="text" formControlName="targetAudience" placeholder="Example: Eid shoppers in Dhaka" />
+            </label>
+          }
+
+          @if (hasField('offerDetails')) {
+            <label>
+              <span>Offer / discount</span>
+              <input type="text" formControlName="offerDetails" placeholder="Example: 30% off this week" />
+            </label>
+          }
+
+          @if (hasField('industry')) {
+            <label>
+              <span>Industry</span>
+              <input type="text" formControlName="industry" placeholder="Example: Fashion retail" />
+            </label>
+          }
+
+          @if (hasField('campaignTheme')) {
+            <label>
+              <span>Campaign theme</span>
+              <input type="text" formControlName="campaignTheme" placeholder="Example: Eid collection launch" />
+            </label>
+          }
+
+          @if (hasField('hashtagCount')) {
+            <label>
+              <span>Hashtag count</span>
+              <input type="number" formControlName="hashtagCount" min="3" max="40" />
+            </label>
+          }
+
+          @if (hasField('sourceIdea')) {
+            <label>
+              <span>Source idea</span>
+              <textarea formControlName="sourceIdea" rows="6" placeholder="Write the product, offer, audience, or campaign idea in ordinary language."></textarea>
+            </label>
+            <div class="tool-form-note">{{ sourceIdeaLength() }} / 5000 characters</div>
+          }
+
+          @if (hasField('qualityMode')) {
+            <div class="tool-field">
+              <span>Quality mode</span>
+              <div class="quality-grid">
+                @for (mode of qualityModes; track mode) {
+                  <button type="button" class="quality-card" [class.is-active]="form.controls.qualityMode.value === mode" (click)="form.controls.qualityMode.setValue(mode)">
+                    <strong>{{ mode }}</strong>
+                    <small>{{ mode === 'Premium' ? 'More polished copy' : 'Faster draft' }}</small>
+                  </button>
+                }
+              </div>
+            </div>
+          }
+        </section>
+
+        <button type="submit" class="generate-button" [disabled]="!canGenerate()">
+          @if (loading()) {
+            <app-icon name="loader-circle" [size]="18" />
+            <span>Generating...</span>
+          } @else {
+            <app-icon name="sparkles" [size]="18" />
+            <span>{{ config.buttonLabel }}</span>
+          }
+        </button>
+      </form>
+    </aside>
+
+    <main class="tool-panel output-panel">
+      <div class="tool-panel__head">
+        <div>
+          <p>Generated output</p>
+          <h2>{{ config.outputTitle }}</h2>
+        </div>
+        @if (result()) {
+          <app-badge tone="brand">Ready</app-badge>
+        } @else {
+          <app-badge tone="neutral">Waiting</app-badge>
+        }
+      </div>
+
+      @if (loading()) {
+        <div class="output-empty is-loading">
+          <div class="pulse-icon"><app-icon [name]="config.icon" [size]="28" /></div>
+          <h3>Preparing your text</h3>
+          <p>The result will appear here when the backend finishes the request.</p>
+        </div>
+      } @else if (result(); as output) {
+        <div class="output-stack">
+          @for (section of output.sections; track section.title) {
+            <article class="result-card">
+              <div class="result-card__head">
+                <h3>{{ section.title }}</h3>
+                <button type="button" (click)="copyText(section.body, section.title)">
+                  <app-icon name="copy" [size]="15" />
+                  <span>{{ section.copyLabel }}</span>
+                </button>
+              </div>
+              <p>{{ section.body }}</p>
+            </article>
+          }
+        </div>
+
+        <div class="output-actions">
+          <app-button variant="secondary" icon="copy" (click)="copyAll()">{{ config.kind === 'hashtags' ? 'Copy all hashtags' : 'Copy all' }}</app-button>
+          @if (config.kind === 'post') {
+            <app-button variant="secondary" icon="bookmark" [disabled]="!output.id" (click)="saveTemplate()">Save as template</app-button>
+            <app-button icon="wand-sparkles" (click)="sendToCreativeGenerator()">Send to Creative Generator</app-button>
+          } @else {
+            <app-button variant="secondary" icon="bookmark" [disabled]="!output.id" (click)="saveTemplate()">Save</app-button>
+          }
+        </div>
+      } @else {
+        <div class="output-empty">
+          <app-icon [name]="config.icon" [size]="30" />
+          <h3>Ready for your idea</h3>
+          <p>Choose context, add the details, and generate when the backend text API is available.</p>
+        </div>
+      }
+    </main>
+
+    <aside class="right-stack">
+      <section class="tool-panel credit-panel">
+        <div class="tool-panel__head">
+          <div>
+            <p>Credits</p>
+            <h2>Generation cost</h2>
+          </div>
+        </div>
+        <div class="credit-meter">
+          <div><app-icon name="coins" [size]="24" /></div>
+          <strong>{{ currentCreditCost() }}</strong>
+          <span>credits per generation</span>
+        </div>
+        <p class="panel-muted">{{ creditsRemaining() === null ? 'Your available credits will appear after workspace usage loads.' : creditsRemaining() + ' credits available.' }}</p>
+      </section>
+
+      <section class="tool-panel">
+        <div class="tool-panel__head">
+          <div>
+            <p>Recent outputs</p>
+            <h2>Latest text</h2>
+          </div>
+        </div>
+        @if (recentOutputs().length > 0) {
+          <div class="recent-list">
+            @for (item of recentOutputs(); track item.id) {
+              <button type="button" class="recent-item" (click)="copyText(item.preview, item.title)">
+                <div><app-icon [name]="config.icon" [size]="16" /></div>
+                <span>
+                  <strong>{{ item.title }}</strong>
+                  <small>{{ item.preview }}</small>
+                </span>
+                <em>{{ formatTime(item.createdAt) }}</em>
+              </button>
+            }
+          </div>
+        } @else {
+          <p class="panel-muted">Recent generated outputs will appear here when the backend history endpoint returns data.</p>
+        }
+      </section>
+
+      <section class="tool-panel">
+        <div class="tool-panel__head">
+          <div>
+            <p>Tips</p>
+            <h2>Better results</h2>
+          </div>
+        </div>
+        <div class="tip-list">
+          @for (tip of config.tips; track tip) {
+            <div class="tip-item">
+              <app-icon name="check-circle-2" [size]="15" />
+              <span>{{ tip }}</span>
+            </div>
+          }
+        </div>
+      </section>
+
+      <section class="tool-panel mini-context">
+        <div class="tool-panel__head">
+          <div>
+            <p>Selected context</p>
+            <h2>Campaign fit</h2>
+          </div>
+        </div>
+        <dl>
+          <div><dt>Platform</dt><dd>{{ platformLabel(form.controls.platform.value) }}</dd></div>
+          <div><dt>Language</dt><dd>{{ languageLabel(form.controls.language.value) }}</dd></div>
+          <div><dt>Objective</dt><dd>{{ objectiveLabel(form.controls.campaignObjective.value) }}</dd></div>
+        </dl>
+        <a routerLink="/creative-generator">Open Creative Generator</a>
+      </section>
+    </aside>
+  </section>
+}

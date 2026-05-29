@@ -23,7 +23,7 @@
       </aside>
 
       <div [class]="contentClasses()">
-        <header class="dashboard-topbar sticky top-0 z-20 flex h-16 min-w-0 items-center gap-3 border-b border-border bg-canvas/90 px-4 backdrop-blur lg:px-6">
+        <header class="dashboard-topbar sticky top-0 z-20 flex min-w-0 items-center gap-3 border-b border-border/70 bg-canvas/82 px-4 backdrop-blur-xl lg:px-6">
           <button
             type="button"
             class="rounded-md p-2 text-muted hover:bg-panel hover:text-ink focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500 lg:hidden"
@@ -43,10 +43,9 @@
           </button>
 
           <div class="min-w-0 flex-1">
-            <p class="text-sm font-semibold text-ink">Lebhas workspace shell</p>
+            <p class="truncate text-sm font-semibold text-ink">Lebhas - Brand Attire</p>
             <p class="truncate text-xs text-muted">
-              {{ workspaceLabel() }} &middot; {{ roleLabel() }} &middot; {{ workspace.activePlanLabel() }} &middot;
-              Credits: {{ workspace.remainingCreditsLabel() }}
+              Create Ads Beyond Imagination
             </p>
           </div>
 
@@ -57,7 +56,7 @@
           >
             <button
               type="button"
-              class="flex h-10 w-full min-w-0 items-center gap-2 rounded-md border border-border bg-surface px-3 text-left text-sm text-ink transition hover:bg-panel focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500 disabled:cursor-not-allowed disabled:text-muted"
+              class="topbar-control flex h-10 w-full min-w-0 items-center gap-2 rounded-[var(--app-radius-input)] border border-border bg-surface/70 px-3 text-left text-sm text-ink transition hover:bg-panel focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500 disabled:cursor-not-allowed disabled:text-muted"
               [disabled]="workspace.loading()"
               [attr.aria-expanded]="workspaceDropdownOpen()"
               aria-haspopup="listbox"
@@ -73,7 +72,7 @@
 
             @if (workspaceDropdownOpen()) {
               <div
-                class="absolute right-0 top-[calc(100%+0.75rem)] z-40 w-[min(24rem,calc(100vw-2rem))] rounded-lg border border-border bg-surface p-3 shadow-soft"
+                class="absolute right-0 top-[calc(100%+0.75rem)] z-40 w-[min(24rem,calc(100vw-2rem))] rounded-[var(--app-radius-card)] border border-border bg-surface/95 p-3 shadow-soft backdrop-blur-xl"
                 role="listbox"
                 aria-label="Available workspaces"
               >
@@ -81,7 +80,7 @@
                   <span class="sr-only">Filter workspaces</span>
                   <input
                     type="search"
-                    class="h-10 w-full rounded-md border border-border bg-panel px-3 text-sm text-ink outline-none placeholder:text-muted focus:border-brand-500 focus:ring-2 focus:ring-brand-500/30"
+                    class="h-10 w-full rounded-[var(--app-radius-input)] border border-border bg-panel px-3 text-sm text-ink outline-none placeholder:text-muted focus:border-brand-500 focus:ring-2 focus:ring-brand-500/30"
                     placeholder="Search workspaces"
                     [value]="workspaceSearch()"
                     (input)="updateWorkspaceSearch($event)"
@@ -127,7 +126,7 @@
           <div #mobileWorkspaceDropdown class="relative block md:hidden">
             <button
               type="button"
-              class="inline-flex size-10 items-center justify-center rounded-md border border-border bg-surface text-muted hover:bg-panel hover:text-ink focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500"
+              class="inline-flex size-10 items-center justify-center rounded-[var(--app-radius-button)] border border-border bg-surface/70 text-muted hover:bg-panel hover:text-ink focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500"
               [disabled]="workspace.loading()"
               [attr.aria-expanded]="workspaceDropdownOpen()"
               aria-haspopup="listbox"
@@ -174,11 +173,32 @@
             }
           </div>
 
+          <div class="topbar-summary hidden items-center gap-2 xl:flex">
+            <div class="topbar-pill">
+              <app-icon name="zap" [size]="16" />
+              <span>{{ creditsSummaryLabel() }}</span>
+            </div>
+            <div class="topbar-pill topbar-pill--plan">
+              <app-icon name="package-check" [size]="16" />
+              <span>{{ workspace.activePlanLabel() }}</span>
+            </div>
+          </div>
+
+          <button
+            type="button"
+            class="topbar-buy"
+            aria-label="Buy credits"
+            (click)="openBillingModal()"
+          >
+            <app-icon name="wallet-cards" [size]="17" />
+            <span class="hidden sm:inline">Buy Credits</span>
+          </button>
+
           <app-theme-toggle tone="ghost" />
 
           @if (permissions.canViewNotifications()) {
             <a
-              class="relative inline-flex size-10 shrink-0 items-center justify-center rounded-md text-muted transition hover:bg-panel hover:text-ink focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500"
+              class="relative inline-flex size-10 shrink-0 items-center justify-center rounded-[var(--app-radius-button)] border border-border/70 bg-surface/50 text-muted transition hover:bg-panel hover:text-ink focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500"
               routerLink="/notifications"
               [attr.aria-label]="notificationBellLabel()"
               title="Notifications"
@@ -186,7 +206,7 @@
               <app-icon name="bell" [size]="20" />
               @if (notifications.unreadCount() > 0) {
                 <span
-                  class="absolute -right-1 -top-1 inline-flex min-w-5 items-center justify-center rounded-full bg-alert-600 px-1.5 py-0.5 text-[0.68rem] font-semibold leading-none text-white"
+                  class="absolute -right-1 -top-1 inline-flex min-w-5 items-center justify-center rounded-full bg-red-600 px-1.5 py-0.5 text-[0.68rem] font-semibold leading-none text-white"
                   [attr.aria-label]="notifications.unreadCount() + ' unread notifications'"
                 >
                   {{ notifications.unreadCount() > 99 ? '99+' : notifications.unreadCount() }}
@@ -200,10 +220,11 @@
           </div>
         </header>
 
-        <main class="min-w-0 p-4 lg:p-6">
+        <main class="min-w-0 p-[var(--app-page-padding)]">
           <div class="dashboard-page-container">
             <router-outlet />
           </div>
         </main>
       </div>
+      <app-billing-purchase-modal />
     </div>

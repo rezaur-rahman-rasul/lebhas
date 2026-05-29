@@ -123,6 +123,28 @@ public class MasterPaymentProviderController {
         return ApiResponse.success(configurationService.createConfiguration(configurationCommand(null, providerId, request)));
     }
 
+    @PostMapping("/payment-provider-configurations")
+    @PreAuthorize("hasRole('MASTER')")
+    @Operation(summary = "Create payment provider configuration")
+    public ApiResponse<PaymentProviderConfigurationView> createConfiguration(
+            @Valid @RequestBody CreatePaymentProviderConfigurationRequest request
+    ) {
+        return ApiResponse.success(configurationService.createConfiguration(new PaymentProviderConfigurationCommand(
+                null,
+                request.providerId(),
+                request.environmentType(),
+                request.apiBaseUrl(),
+                request.merchantId(),
+                request.apiKey(),
+                request.secret(),
+                request.webhookSecret(),
+                request.successUrl(),
+                request.failureUrl(),
+                request.cancelUrl(),
+                request.active()
+        )));
+    }
+
     @PutMapping("/payment-provider-configurations/{configurationId}")
     @PreAuthorize("hasRole('MASTER')")
     @Operation(summary = "Update payment provider configuration")

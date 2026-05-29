@@ -1,7 +1,7 @@
 <app-page-header
-  eyebrow="Approval workflow"
+  eyebrow="APPROVAL WORKFLOW"
   title="Approvals"
-  description="Review generated versions, approve work, and manage share or download access."
+  description="Review, provide feedback, and approve creative assets across your campaigns."
 >
   <app-badge tone="neutral">{{ workspace.workspaceLabel() }}</app-badge>
   @if (approvalUnavailableMessage()) {
@@ -9,211 +9,260 @@
   }
 </app-page-header>
 
-@if (approvalUnavailableMessage()) {
-  <div class="mt-6">
-    <app-empty-state
-      icon="shield-check"
-      tone="danger"
-      title="Approval workflow is not available"
-      [description]="approvalUnavailableMessage()!"
-    />
-  </div>
-}
-
 @if (store.loading()) {
-  <div class="mt-6 grid gap-4 lg:grid-cols-2">
+  <div class="approval-loading">
     @for (item of [0, 1, 2, 3]; track item) {
-      <div class="h-56 animate-pulse rounded-2xl border border-border bg-panel"></div>
+      <div></div>
     }
   </div>
 } @else if (store.error()) {
   <div class="mt-6">
-    <app-empty-state
-      icon="circle-alert"
-      tone="danger"
-      title="Approvals could not be loaded"
-      description="We could not load this data. Please try again."
-    >
+    <app-empty-state icon="circle-alert" tone="danger" title="Approvals could not be loaded" description="We could not load approval requests. Please try again.">
       <app-button variant="secondary" icon="refresh-cw" (click)="reload()">Retry</app-button>
     </app-empty-state>
   </div>
 } @else if (!store.hasApprovals()) {
   <div class="mt-6">
-    <app-empty-state
-      icon="shield-check"
-      title="No approvals waiting"
-      description="Generated versions that need review will appear here."
-    />
+    <app-empty-state icon="shield-check" title="No approvals waiting" description="Generated versions that need review will appear here." />
   </div>
 } @else {
-  <section class="mt-6 grid gap-6 xl:grid-cols-[minmax(0,1fr)_24rem]">
-    <div class="min-w-0 space-y-4">
-      @for (approval of store.approvals(); track approval.id) {
-        <article
-          class="overflow-hidden rounded-2xl border border-border bg-panel"
-          [class.ring-2]="store.selectedApproval()?.id === approval.id"
-          [class.ring-brand-200]="store.selectedApproval()?.id === approval.id"
-        >
-          <div class="grid gap-4 p-4 md:grid-cols-[12rem_minmax(0,1fr)]">
-            <button
-              type="button"
-              class="grid aspect-video place-items-center overflow-hidden rounded-xl bg-slate-100 text-sm text-muted dark:bg-slate-900"
-              (click)="selectApproval(approval)"
-              [attr.aria-label]="'Select approval ' + approval.id"
-            >
-              @if (approval.previewUrl) {
-                <img [src]="approval.previewUrl" [alt]="approval.title || 'Approval preview'" class="h-full w-full object-cover" />
-              } @else {
-                Preview pending
-              }
-            </button>
+  <section class="approval-shell">
+    <main class="approval-main">
+      <section class="status-grid">
+        <article class="status-card pending">
+          <div><app-icon name="hourglass" [size]="22" /></div>
+          <span>Pending Review</span>
+          <strong>{{ stats().pending }}</strong>
+          <small>+{{ stats().pending }} this week</small>
+        </article>
+        <article class="status-card approved">
+          <div><app-icon name="check-circle-2" [size]="22" /></div>
+          <span>Approved</span>
+          <strong>{{ stats().approved }}</strong>
+          <small>+{{ stats().approved }} this week</small>
+        </article>
+        <article class="status-card changes">
+          <div><app-icon name="pencil-line" [size]="22" /></div>
+          <span>Changes Requested</span>
+          <strong>{{ stats().changes }}</strong>
+          <small>+{{ stats().changes }} this week</small>
+        </article>
+        <article class="status-card rejected">
+          <div><app-icon name="x-circle" [size]="22" /></div>
+          <span>Rejected</span>
+          <strong>{{ stats().rejected }}</strong>
+          <small>+{{ stats().rejected }} this week</small>
+        </article>
+      </section>
 
-            <div class="min-w-0 space-y-4">
-              <div class="flex flex-wrap items-start justify-between gap-3">
-                <div class="min-w-0">
-                  <h2 class="truncate text-base font-semibold text-ink">{{ approval.title || 'Generated version review' }}</h2>
-                  <p class="mt-1 text-sm text-muted">Generated version {{ approval.generatedVersionId }}</p>
-                </div>
-                <app-badge [tone]="approvalStatusTone(approval.status)">
-                  {{ approvalStatusLabel(approval.status) }}
-                </app-badge>
+      <form class="approval-filters" [formGroup]="filters">
+        <select formControlName="status" aria-label="Filter approvals by status">
+          @for (option of statusOptions; track option.value) {
+            <option [value]="option.value">{{ option.label }}</option>
+          }
+        </select>
+        <label>
+          <app-icon name="search" [size]="16" />
+          <input type="search" formControlName="search" placeholder="Search approvals..." />
+        </label>
+        <button type="button" title="Filters">
+          <app-icon name="sliders-horizontal" [size]="18" />
+        </button>
+      </form>
+
+      <section class="approval-table">
+        <div class="table-head">
+          <span>Creative</span>
+          <span>Project / Campaign</span>
+          <span>Version</span>
+          <span>Requested By</span>
+          <span>Requested At</span>
+          <span>Reviewers</span>
+          <span>Status</span>
+          <span>Actions</span>
+        </div>
+
+        @for (approval of visibleApprovals(); track approval.id) {
+          <article
+            class="approval-row"
+            [class.is-selected]="selectedApprovalId() === approval.id"
+            (click)="selectApproval(approval)"
+          >
+            <div class="creative-cell">
+              <div>
+                @if (approval.previewUrl) {
+                  <img [src]="approval.previewUrl" [alt]="approval.title || 'Approval preview'" />
+                } @else {
+                  <app-icon name="image" [size]="18" />
+                }
               </div>
-
-              <div class="flex flex-wrap gap-2">
-                @if (canApprove(approval)) {
-                  <app-button size="sm" icon="check" (click)="openComment('APPROVE', approval)">Approve</app-button>
-                }
-                @if (canReject(approval)) {
-                  <app-button size="sm" variant="danger" icon="x" (click)="openComment('REJECT', approval)">Reject</app-button>
-                  <app-button size="sm" variant="secondary" icon="message-square" (click)="openComment('REQUEST_CHANGES', approval)">Request changes</app-button>
-                }
-                @if (canShare(approval)) {
-                  <app-button size="sm" variant="secondary" icon="share-2" (click)="openShare(approval)">Share</app-button>
-                } @else if (approval.capabilities?.canShare) {
-                  <app-button size="sm" variant="secondary" icon="share-2" [disabled]="true">Share unavailable</app-button>
-                }
-                @if (canDownload(approval)) {
-                  <app-button
-                    size="sm"
-                    variant="secondary"
-                    icon="download"
-                    [loading]="downloadingId() === approval.id"
-                    (click)="download(approval)"
-                  >
-                    Download
-                  </app-button>
-                }
-              </div>
-
-              @if (!canApprove(approval) && !canReject(approval) && approvalUnavailableMessage()) {
-                <p class="rounded-lg border border-border bg-surface px-3 py-2 text-sm text-muted">
-                  {{ approvalUnavailableMessage() }}
-                </p>
+            </div>
+            <div class="campaign-cell">
+              <strong>{{ approval.title || 'Generated creative review' }}</strong>
+              <small>{{ approval.creativeRequestId }}</small>
+            </div>
+            <div><span>{{ approval.generatedVersionId }}</span></div>
+            <div>
+              <span>{{ approval.submittedByName || approval.submittedBy || 'Not provided' }}</span>
+            </div>
+            <div><span>{{ approval.createdAt | date: 'short' }}</span></div>
+            <div class="reviewer-cell">
+              @for (reviewer of reviewers(approval); track reviewer; let index = $index) {
+                <span>{{ reviewer.slice(0, 1).toUpperCase() }}</span>
               }
             </div>
-          </div>
-        </article>
-      }
-    </div>
+            <div>
+              <app-badge [tone]="approvalStatusTone(approval.status)">{{ statusSummary(approval.status) }}</app-badge>
+            </div>
+            <div class="row-actions" (click)="$event.stopPropagation()">
+              <button type="button" title="Select request" (click)="selectApproval(approval)">
+                <app-icon name="more-horizontal" [size]="16" />
+              </button>
+            </div>
+          </article>
+        }
 
-    <aside class="min-w-0 rounded-2xl border border-border bg-panel p-4">
-      @if (store.selectedApproval(); as selected) {
-        <div class="space-y-5">
-          <div>
-            <p class="text-xs font-semibold uppercase tracking-[0.18em] text-muted">Selected approval</p>
-            <h3 class="mt-2 text-base font-semibold text-ink">{{ selected.title || selected.id }}</h3>
-            <app-badge class="mt-2 inline-flex" [tone]="approvalStatusTone(selected.status)">
-              {{ approvalStatusLabel(selected.status) }}
-            </app-badge>
+        @if (filteredApprovals().length === 0) {
+          <div class="table-empty">
+            <app-empty-state icon="search" title="No matching approvals" description="Adjust the status filter or search term." />
           </div>
+        }
+      </section>
 
+      <footer class="table-footer">
+        <span>Showing {{ visibleApprovals().length }} of {{ filteredApprovals().length }} requests</span>
+        <div>
+          <button type="button" [disabled]="page() === 0" (click)="previousPage()">
+            <app-icon name="chevron-left" [size]="16" />
+          </button>
+          <strong>{{ page() + 1 }}</strong>
+          <button type="button" [disabled]="page() + 1 >= totalPages()" (click)="nextPage()">
+            <app-icon name="chevron-right" [size]="16" />
+          </button>
+        </div>
+      </footer>
+    </main>
+
+    <aside class="detail-panel">
+      @if (selectedApproval(); as selected) {
+        <div class="detail-head">
           <div>
-            <h4 class="text-sm font-semibold text-ink">Approval history</h4>
-            @if (selected.history?.length) {
-              <ol class="mt-3 space-y-3">
-                @for (item of selected.history; track item.id ?? item.createdAt) {
-                  <li class="rounded-lg border border-border bg-surface px-3 py-2">
-                    <div class="flex items-center justify-between gap-3">
-                      <span class="text-sm font-medium text-ink">{{ approvalStatusLabel(item.status) }}</span>
-                      <span class="text-xs text-muted">{{ item.createdAt }}</span>
-                    </div>
-                    @if (item.note) {
-                      <p class="mt-2 text-sm text-muted">{{ item.note }}</p>
-                    }
-                    @if (item.actorName) {
-                      <p class="mt-1 text-xs text-muted">{{ item.actorName }}</p>
-                    }
-                  </li>
-                }
-              </ol>
-            } @else {
-              <p class="mt-2 text-sm text-muted">No approval comments yet.</p>
+            <span>Selected Request</span>
+            <h2>{{ selected.title || 'Generated creative review' }}</h2>
+          </div>
+          <app-badge [tone]="approvalStatusTone(selected.status)">{{ statusSummary(selected.status) }}</app-badge>
+        </div>
+
+        <div class="detail-preview">
+          @if (selected.previewUrl) {
+            <img [src]="selected.previewUrl" [alt]="selected.title || 'Approval preview'" />
+          } @else {
+            <div>
+              <app-icon name="image" [size]="34" />
+              <strong>Preview pending</strong>
+              <span>The generated creative preview is not available yet.</span>
+            </div>
+          }
+        </div>
+
+        <dl class="request-meta">
+          <div><dt>Project / Campaign</dt><dd>{{ selected.title || 'Not provided' }}</dd></div>
+          <div><dt>Version</dt><dd>{{ selected.generatedVersionId }}</dd></div>
+          <div><dt>Requested By</dt><dd>{{ selected.submittedByName || selected.submittedBy || 'Not provided' }}</dd></div>
+          <div><dt>Requested Date</dt><dd>{{ selected.createdAt | date: 'medium' }}</dd></div>
+          <div><dt>Due Date</dt><dd>{{ dueDate(selected) | date: 'mediumDate' }}</dd></div>
+          <div><dt>Priority</dt><dd><span class="priority-dot"></span>{{ priority(selected) }}</dd></div>
+        </dl>
+
+        <section class="detail-card">
+          <h3>Review Checklist</h3>
+          <div class="checklist">
+            @for (item of checklist; track item; let index = $index) {
+              <label>
+                <input type="checkbox" [checked]="index < 3" />
+                <span>{{ item }}</span>
+              </label>
             }
           </div>
+        </section>
+
+        <section class="detail-card">
+          <div class="section-tabs">
+            <h3>Comments</h3>
+            <span>{{ (selected.history?.length ?? 0) + selectedComments().length }}</span>
+          </div>
+          <div class="comments-list">
+            @for (comment of selectedComments(); track comment.createdAt) {
+              <article>
+                <strong>You</strong>
+                <span>{{ comment.createdAt | date: 'short' }}</span>
+                <p>{{ comment.note }}</p>
+              </article>
+            }
+            @for (item of selected.history ?? []; track item.id ?? item.createdAt) {
+              <article>
+                <strong>{{ item.actorName || approvalStatusLabel(item.status) }}</strong>
+                <span>{{ item.createdAt | date: 'short' }}</span>
+                <p>{{ item.note || statusSummary(item.status) }}</p>
+              </article>
+            }
+            @if (!selected.history?.length && selectedComments().length === 0) {
+              <p class="muted">No comments yet.</p>
+            }
+          </div>
+          <div class="comment-box">
+            <textarea rows="3" [formControl]="commentControl" placeholder="Add a comment..."></textarea>
+            <button type="button" [disabled]="!commentControl.value.trim()" (click)="postComment()">Post</button>
+          </div>
+        </section>
+
+        <section class="detail-card">
+          <h3>Version History</h3>
+          <div class="history-list">
+            <div><span>Submitted</span><strong>{{ selected.createdAt | date: 'short' }}</strong></div>
+            <div><span>Last updated</span><strong>{{ selected.updatedAt | date: 'short' }}</strong></div>
+          </div>
+        </section>
+
+        @if (decisionPanelOpen()) {
+          <section class="decision-panel">
+            <h3>{{ decisionTitle() }}</h3>
+            <textarea rows="3" [formControl]="decisionNoteControl" placeholder="Add review notes for this decision..."></textarea>
+            <div>
+              <button type="button" (click)="closeDecision()">Cancel</button>
+              <button type="button" class="primary" [disabled]="store.deciding()" (click)="submitDecision()">Save decision</button>
+            </div>
+          </section>
+        }
+
+        @if (shareLoading()) {
+          <p class="share-note">Preparing share link...</p>
+        } @else if (shareLink(); as link) {
+          <section class="share-link">
+            <p>{{ link.url }}</p>
+            <button type="button" (click)="copyShareLink()">Copy</button>
+          </section>
+        }
+
+        <div class="detail-actions">
+          <button type="button" class="approve" [disabled]="!canApprove(selected)" [title]="approvalUnavailableMessage() ?? 'Approve this request'" (click)="openDecision('APPROVE', selected)">
+            <app-icon name="check-circle-2" [size]="17" />
+            <span>Approve</span>
+          </button>
+          <button type="button" class="changes" [disabled]="!canReject(selected)" [title]="approvalUnavailableMessage() ?? 'Request changes'" (click)="openDecision('REQUEST_CHANGES', selected)">
+            <app-icon name="pencil-line" [size]="17" />
+            <span>Request Changes</span>
+          </button>
+          <button type="button" class="reject" [disabled]="!canReject(selected)" [title]="approvalUnavailableMessage() ?? 'Reject this request'" (click)="openDecision('REJECT', selected)">
+            <app-icon name="x-circle" [size]="17" />
+            <span>Reject</span>
+          </button>
+          <button type="button" [disabled]="!canShare(selected)" [title]="shareUnavailableMessage() ?? 'Create share link'" (click)="openShare(selected)">
+            <app-icon name="share-2" [size]="17" />
+            <span>Share</span>
+          </button>
         </div>
-      } @else {
-        <app-empty-state
-          icon="mouse-pointer-2"
-          title="Select an approval"
-          description="Choose a generated version to inspect status and review history."
-        />
       }
     </aside>
   </section>
 }
-
-<app-modal-shell
-  [open]="commentOpen()"
-  title="Review comment"
-  description="Add a short note before saving this approval decision."
-  (closed)="closeComment()"
->
-  <div class="space-y-4">
-    <textarea
-      rows="5"
-      class="w-full rounded-md border border-border bg-white px-3 py-3 text-sm text-ink outline-none focus:border-brand-500 focus:ring-2 focus:ring-brand-100"
-      [formControl]="noteControl"
-      placeholder="Add a helpful comment for the team."
-    ></textarea>
-    <div class="flex justify-end gap-3">
-      <app-button variant="ghost" (click)="closeComment()">Cancel</app-button>
-      <app-button icon="check" [loading]="store.deciding()" (click)="submitDecision()">Save decision</app-button>
-    </div>
-  </div>
-</app-modal-shell>
-
-<app-modal-shell
-  [open]="shareOpen()"
-  title="Share generated version"
-  description="Create or copy the public share link when sharing is available."
-  (closed)="closeShare()"
->
-  @if (shareUnavailableMessage()) {
-    <app-empty-state
-      icon="share-2"
-      tone="danger"
-      title="Sharing is not available"
-      [description]="shareUnavailableMessage()!"
-    />
-  } @else if (shareLoading()) {
-    <p class="text-sm text-muted">Preparing share link...</p>
-  } @else if (shareLink(); as link) {
-    <div class="space-y-4">
-      <div class="rounded-lg border border-border bg-surface px-3 py-3">
-        <p class="break-all text-sm text-ink">{{ link.url }}</p>
-        @if (link.expiresAt) {
-          <p class="mt-2 text-xs text-muted">Expires: {{ link.expiresAt }}</p>
-        }
-      </div>
-      <div class="flex justify-end gap-3">
-        <app-button variant="secondary" icon="copy" (click)="copyShareLink()">Copy link</app-button>
-      </div>
-    </div>
-  } @else {
-    <app-empty-state
-      icon="circle-alert"
-      title="Share link unavailable"
-      description="The share link may have expired or is not ready yet."
-    />
-  }
-</app-modal-shell>

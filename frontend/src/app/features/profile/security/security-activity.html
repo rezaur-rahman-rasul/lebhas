@@ -1,9 +1,9 @@
 <app-page-header
-  eyebrow="Security"
+  eyebrow="ACCOUNT"
   title="Security Activity"
-  description="Review recent account sign-ins, profile changes, and session events."
+  description="Review recent account sign-ins, session status, and security events."
 >
-  <app-button type="button" variant="secondary" icon="arrow-left" ariaLabel="Back to profile" (click)="backToProfile()">
+  <app-button type="button" variant="secondary" icon="arrow-left" (click)="backToProfile()">
     Back to Profile
   </app-button>
 </app-page-header>
@@ -13,60 +13,111 @@
     <app-empty-state
       icon="shield-alert"
       tone="danger"
-      title="You do not have permission to perform this action."
+      title="You do not have permission to view security activity"
       description="Please contact your workspace admin if you need access."
     />
   </div>
 } @else {
-  <div class="mt-6 space-y-5">
-    <app-card>
-      <div class="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
-        <label class="text-sm">
-          <span class="mb-1 block font-medium text-ink">Activity type</span>
-          <select
-            class="h-10 w-full rounded-md border border-border bg-canvas px-3 text-sm text-ink outline-none focus:border-brand-500 focus:ring-2 focus:ring-brand-500/30 sm:w-72"
-            [value]="selectedType() ?? ''"
-            aria-label="Filter security activity type"
-            (change)="setType($event)"
-          >
+  <section class="security-page">
+    <article class="security-summary">
+      <div>
+        <p>Last login</p>
+        <h2>{{ lastLogin()?.createdAt || 'Not available yet' }}</h2>
+        <span>{{ lastLogin()?.deviceSummary || 'Device details will appear when backend returns them.' }}</span>
+      </div>
+      <app-button type="button" variant="secondary" icon="rotate-cw" [loading]="store.loading()" (click)="retry()">
+        Refresh
+      </app-button>
+    </article>
+
+    @if (revokeMessage()) {
+      <div class="security-message">{{ revokeMessage() }}</div>
+    }
+
+    <div class="security-grid">
+      <article class="security-panel">
+        <div class="section-head">
+          <div>
+            <p>Login Sessions</p>
+            <h2>Recent sessions</h2>
+          </div>
+        </div>
+
+        @if (store.loading() && store.sessions().length === 0) {
+          <app-profile-loading-state label="Loading sessions" [cardCount]="1" [rowCount]="3" />
+        } @else if (store.sessions().length) {
+          <div class="session-list">
+            @if (store.currentSession()) {
+              <app-session-card [session]="store.currentSession()!" [allowRevoke]="false" />
+            }
+            @for (session of store.otherSessions(); track session.sessionId) {
+              <app-session-card
+                [session]="session"
+                [revoking]="store.saving() && selectedSession()?.sessionId === session.sessionId"
+                (revokeSession)="requestRevoke($event)"
+              />
+            }
+          </div>
+        } @else {
+          <app-profile-empty-state
+            icon="monitor-smartphone"
+            title="Session management foundation is ready"
+            message="Recent login sessions and device status will appear when backend session data is available."
+          />
+        }
+      </article>
+
+      <article class="security-panel">
+        <div class="section-head">
+          <div>
+            <p>Activity Feed</p>
+            <h2>Security events</h2>
+          </div>
+          <select [value]="selectedType() ?? ''" (change)="setType($event)" aria-label="Filter security activity type">
             <option value="">All activity</option>
             @for (type of activityTypes; track type) {
               <option [value]="type">{{ typeLabel(type) }}</option>
             }
           </select>
-        </label>
+        </div>
 
-        <app-button
-          type="button"
-          variant="secondary"
-          icon="rotate-cw"
-          [loading]="store.loading()"
-          ariaLabel="Refresh security activity"
-          (click)="retry()"
-        >
-          Refresh
-        </app-button>
-      </div>
-    </app-card>
-
-    @if (store.loading() && store.securityActivity().length === 0) {
-      <app-profile-loading-state label="Loading security activity" [cardCount]="2" [rowCount]="4" />
-    } @else if (store.error() && store.securityActivity().length === 0) {
-      <app-error-state title="Security activity could not load" [description]="store.error()!">
-        <app-button type="button" variant="secondary" icon="rotate-cw" (click)="retry()">Try again</app-button>
-      </app-error-state>
-    } @else if (filteredActivity().length === 0) {
-      <app-profile-empty-state
-        icon="shield-check"
-        title="No security activity yet"
-        message="Sign-ins, profile updates, and session events will appear here."
-      />
-    } @else {
-      <section class="grid gap-3" aria-label="Security activity list">
-        @for (activity of filteredActivity(); track activity.createdAt + activity.activityType) {
-          <app-security-activity-card [activity]="activity" />
+        @if (store.loading() && store.securityActivity().length === 0) {
+          <app-profile-loading-state label="Loading security activity" [cardCount]="2" [rowCount]="4" />
+        } @else if (store.error() && store.securityActivity().length === 0) {
+          <app-error-state title="Security activity could not load" [description]="store.error()!">
+            <app-button type="button" variant="secondary" icon="rotate-cw" (click)="retry()">Try again</app-button>
+          </app-error-state>
+        } @else if (filteredActivity().length === 0) {
+          <app-profile-empty-state
+            icon="shield-check"
+            title="No security activity yet"
+            message="Sign-ins, profile updates, and session events will appear here."
+          />
+        } @else {
+          <div class="activity-list">
+            @for (activity of filteredActivity(); track activity.createdAt + activity.activityType) {
+              <app-security-activity-card [activity]="activity" />
+            }
+          </div>
         }
-      </section>
-    }
-  </div>
+      </article>
+    </div>
+  </section>
 }
+
+<app-confirm-dialog
+  [open]="confirmOpen()"
+  title="Revoke this session?"
+  description="This will sign out that device if the backend session is still active."
+  (closed)="closeConfirm()"
+>
+  <div class="confirm-body">
+    <p>{{ selectedSession()?.deviceSummary || 'Unknown device' }}</p>
+    <div>
+      <app-button type="button" variant="ghost" icon="x" (click)="closeConfirm()">Cancel</app-button>
+      <app-button type="button" variant="danger" icon="log-out" [loading]="store.saving()" (click)="confirmRevoke()">
+        Revoke Session
+      </app-button>
+    </div>
+  </div>
+</app-confirm-dialog>

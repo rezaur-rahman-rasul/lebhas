@@ -1,0 +1,71 @@
+@if (modal.open()) {
+  <div class="billing-modal-backdrop" (click)="close()"></div>
+  <section class="billing-modal" role="dialog" aria-modal="true" aria-labelledby="billingModalTitle">
+    <header>
+      <div>
+        <p>BILLING</p>
+        <h2 id="billingModalTitle">Buy Credits / Upgrade Plan</h2>
+        <span>Choose a credit package for the active workspace.</span>
+      </div>
+      <button type="button" aria-label="Close billing modal" (click)="close()">
+        <app-icon name="x" [size]="18" />
+      </button>
+    </header>
+
+    @if (!permissions.canPurchaseCredits()) {
+      <div class="modal-empty">
+        <app-icon name="shield-alert" [size]="28" />
+        <strong>No billing access</strong>
+        <span>Please contact your workspace admin if you need to buy credits.</span>
+      </div>
+    } @else if (store.loading() && !packages().length) {
+      <div class="package-grid">
+        @for (item of [0, 1, 2]; track item) {
+          <div class="package-card loading"></div>
+        }
+      </div>
+    } @else if (packages().length) {
+      <div class="package-grid">
+        @for (item of packages(); track item.id) {
+          <button
+            type="button"
+            class="package-card"
+            [class.selected]="selectedPackage().id === item.id"
+            (click)="selectPackage(item)"
+          >
+            @if (isBestValue(item)) {
+              <em>Best value</em>
+            }
+            <strong>{{ item.name }}</strong>
+            <span>{{ item.credits + item.bonusCredits | number }} credits</span>
+            <small>{{ item.currency }} {{ item.price | number: '1.0-2' }}</small>
+          </button>
+        }
+      </div>
+
+      @if (selectedPackage(); as selected) {
+        <div class="selected-summary">
+          <span>Selected package</span>
+          <strong>{{ selected.name }} &middot; {{ selected.credits + selected.bonusCredits | number }} credits</strong>
+        </div>
+      }
+
+      @if (checkoutMessage()) {
+        <p class="checkout-message">{{ checkoutMessage() }}</p>
+      }
+
+      <footer>
+        <a routerLink="/payments/subscription" (click)="close()">View upgrade plans</a>
+        <button type="button" [disabled]="store.loading() || !selectedPackage()" (click)="continueCheckout()">
+          Continue
+        </button>
+      </footer>
+    } @else {
+      <div class="modal-empty">
+        <app-icon name="coins" [size]="28" />
+        <strong>No credit packages available</strong>
+        <span>Payment checkout will be available soon. Contact support or admin.</span>
+      </div>
+    }
+  </section>
+}

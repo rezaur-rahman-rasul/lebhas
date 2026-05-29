@@ -199,10 +199,10 @@ export class MasterUsageOverviewPage {
   );
 
   protected readonly navItems = [
-    { label: 'Overview', route: '/master/usage', section: 'overview' },
-    { label: 'Workspaces', route: '/master/usage/workspaces', section: 'workspaces' },
+    { label: 'Overview', route: '/master/usage-overview', section: 'overview' },
+    { label: 'Workspaces', route: '/master/workspace-usage', section: 'workspaces' },
     { label: 'AI costs', route: '/master/usage/ai-costs', section: 'ai-costs' },
-    { label: 'Plan utilization', route: '/master/usage/plan-utilization', section: 'plan-utilization' },
+    { label: 'Plan utilization', route: '/master/plan-utilization', section: 'plan-utilization' },
   ] as const;
 
   constructor() {

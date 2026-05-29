@@ -105,7 +105,14 @@ export class AuthDialogComponent {
     this.registerError.set('');
     this.registerFieldErrors.set({});
 
-    const result = await this.auth.register(value);
+    const payload = {
+      firstName: value.firstName,
+      lastName: value.lastName,
+      email: value.email,
+      phone: value.phone,
+      password: value.password,
+    };
+    const result = await this.auth.register(payload);
     if (result.ok) {
       return;
     }

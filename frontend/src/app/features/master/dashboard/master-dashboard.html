@@ -1,0 +1,278 @@
+<app-section-header
+  eyebrow="SYSTEM OVERVIEW"
+  title="Master Dashboard"
+  description="Monitor tenants, AI operations, monetization, and system readiness."
+>
+  <button type="button" class="master-refresh" (click)="refresh()">
+    <app-icon name="refresh-cw" [size]="16" />
+    <span>Refresh</span>
+  </button>
+</app-section-header>
+
+@if (role() !== 'MASTER') {
+  <div class="mt-6">
+    <app-empty-state
+      icon="shield-alert"
+      title="Master access required"
+      description="This system dashboard is available to Master users only."
+    />
+  </div>
+} @else if (loading() && !hasAnyData()) {
+  <section class="master-stat-grid mt-6" aria-label="Loading master dashboard">
+    @for (row of skeletonRows; track row) {
+      <div class="master-skeleton-card"></div>
+    }
+  </section>
+  <section class="master-main-grid mt-5">
+    <div class="master-skeleton-panel"></div>
+    <div class="master-skeleton-panel"></div>
+    <div class="master-skeleton-panel"></div>
+  </section>
+} @else {
+  @if (error()) {
+    <div class="master-inline-error mt-5">
+      <app-icon name="circle-alert" [size]="18" />
+      <span>{{ error() }}</span>
+      <button type="button" (click)="refresh()">Retry</button>
+    </div>
+  }
+
+  <section class="master-stat-grid mt-6" aria-label="Master system summary">
+    @for (stat of stats(); track stat.label) {
+      <app-card>
+        <div
+          class="master-stat-card"
+          [class.master-stat-card--brand]="stat.tone === 'brand'"
+          [class.master-stat-card--blue]="stat.tone === 'blue'"
+          [class.master-stat-card--emerald]="stat.tone === 'emerald'"
+          [class.master-stat-card--red]="stat.tone === 'red'"
+          [class.master-stat-card--neutral]="stat.tone === 'neutral'"
+        >
+          <div class="master-stat-icon">
+            <app-icon [name]="stat.icon" [size]="18" />
+          </div>
+          <div>
+            <p>{{ stat.label }}</p>
+            <strong>{{ stat.value }}</strong>
+            <span>{{ stat.trend }}</span>
+          </div>
+        </div>
+      </app-card>
+    }
+  </section>
+
+  <section class="master-actions">
+    @for (action of quickActions; track action.label) {
+      <a [routerLink]="action.route" class="master-action">
+        <app-icon [name]="action.icon" [size]="17" />
+        <span>{{ action.label }}</span>
+      </a>
+    }
+  </section>
+
+  <section class="master-main-grid">
+    <app-card>
+      <div class="master-panel-head">
+        <div>
+          <p>Workspace Overview</p>
+          <h2>Tenant activity</h2>
+        </div>
+        <a routerLink="/master/usage/workspaces">View all</a>
+      </div>
+
+      @if (topWorkspaces().length > 0) {
+        <div class="master-workspace-list">
+          @for (workspace of topWorkspaces(); track workspace.workspaceId) {
+            <div class="master-workspace-row">
+              <div>
+                <strong>{{ workspace.workspaceName }}</strong>
+                <span>{{ workspace.currentPlanName || 'Plan pending' }}</span>
+              </div>
+              <div>
+                <strong>{{ formatNumber(workspaceCredits(workspace)) }}</strong>
+                <span>credits</span>
+              </div>
+              <div>
+                <strong>{{ formatNumber(workspaceGenerations(workspace)) }}</strong>
+                <span>generations</span>
+              </div>
+            </div>
+          }
+        </div>
+      } @else {
+        <div class="master-compact-empty">
+          <app-icon name="building-2" [size]="18" />
+          <span>Workspace usage will appear when the master usage API returns data.</span>
+        </div>
+      }
+    </app-card>
+
+    <app-card>
+      <div class="master-panel-head">
+        <div>
+          <p>AI Provider Health</p>
+          <h2>Creative operations</h2>
+        </div>
+        <a routerLink="/ai-monitoring/providers">Open</a>
+      </div>
+
+      <div class="master-health-grid">
+        <div>
+          <span>Total providers</span>
+          <strong>{{ formatNumber(providerSummary()?.totalProviders) }}</strong>
+        </div>
+        <div>
+          <span>Healthy</span>
+          <strong>{{ formatNumber(providerSummary()?.healthyProviders) }}</strong>
+        </div>
+        <div>
+          <span>Degraded</span>
+          <strong>{{ formatNumber(providerSummary()?.degradedProviders) }}</strong>
+        </div>
+        <div>
+          <span>Failed</span>
+          <strong>{{ formatNumber(providerSummary()?.failedProviders) }}</strong>
+        </div>
+      </div>
+
+      <div class="master-service-list">
+        @for (event of systemHealth().slice(0, 4); track event.id) {
+          <div class="master-service-row">
+            <span>{{ event.serviceName }}</span>
+            <app-badge [tone]="healthTone(event.status)">{{ healthLabel(event.status) }}</app-badge>
+          </div>
+        } @empty {
+          <div class="master-compact-empty master-compact-empty--small">
+            <app-icon name="activity" [size]="18" />
+            <span>System health events will appear here.</span>
+          </div>
+        }
+      </div>
+    </app-card>
+
+    <app-card>
+      <div class="master-panel-head">
+        <div>
+          <p>Credit Usage</p>
+          <h2>Plan utilization</h2>
+        </div>
+        <a routerLink="/master/usage">Usage</a>
+      </div>
+
+      @if (planUtilization().length > 0) {
+        <div class="master-plan-list">
+          @for (plan of planUtilization().slice(0, 5); track plan.pricingPlanId) {
+            <div class="master-plan-row">
+              <div>
+                <strong>{{ plan.pricingPlanName }}</strong>
+                <span>{{ formatNumber(plan.workspaceCount) }} workspaces</span>
+              </div>
+              <div>
+                <strong>{{ formatNumber(plan.totalUsedCredits) }}</strong>
+                <span>credits used</span>
+              </div>
+              <div>
+                <strong>{{ formatCurrency(plan.totalAiCostUsd) }}</strong>
+                <span>AI cost</span>
+              </div>
+            </div>
+          }
+        </div>
+      } @else {
+        <div class="master-compact-empty">
+          <app-icon name="wallet-cards" [size]="18" />
+          <span>Plan utilization will appear after credit usage is reported.</span>
+        </div>
+      }
+    </app-card>
+  </section>
+
+  <section class="master-bottom-grid">
+    <app-card>
+      <div class="master-panel-head">
+        <div>
+          <p>Recent System Activity</p>
+          <h2>Latest operational events</h2>
+        </div>
+        <a routerLink="/master/monitoring/alerts">Alerts</a>
+      </div>
+
+      @if (recentActivity().length > 0) {
+        <div class="master-activity-list">
+          @for (activity of recentActivity(); track activity.title + activity.time) {
+            <div class="master-activity-row">
+              <div
+                class="master-activity-icon"
+                [class.master-activity-icon--brand]="activity.tone === 'brand'"
+                [class.master-activity-icon--blue]="activity.tone === 'blue'"
+                [class.master-activity-icon--red]="activity.tone === 'red'"
+                [class.master-activity-icon--neutral]="activity.tone === 'neutral'"
+              >
+                <app-icon [name]="activity.icon" [size]="15" />
+              </div>
+              <div>
+                <strong>{{ activity.title }}</strong>
+                <span>{{ activity.description }}</span>
+              </div>
+            </div>
+          }
+        </div>
+      } @else {
+        <div class="master-compact-empty">
+          <app-icon name="clock-3" [size]="18" />
+          <span>Recent system activity will appear here.</span>
+        </div>
+      }
+    </app-card>
+
+    <app-card>
+      <div class="master-panel-head">
+        <div>
+          <p>Pending Issues</p>
+          <h2>Needs attention</h2>
+        </div>
+        <a routerLink="/master/monitoring/system-health">Health</a>
+      </div>
+
+      @if (pendingIssues().length > 0) {
+        <div class="master-issue-list">
+          @for (issue of pendingIssues(); track issue.title + issue.badge) {
+            <div class="master-issue-row">
+              <div>
+                <strong>{{ issue.title }}</strong>
+                <span>{{ issue.description }}</span>
+              </div>
+              <app-badge [tone]="issue.tone">{{ issue.badge }}</app-badge>
+            </div>
+          }
+        </div>
+      } @else {
+        <div class="master-compact-empty">
+          <app-icon name="check-circle-2" [size]="18" />
+          <span>No pending system issues reported.</span>
+        </div>
+      }
+    </app-card>
+
+    <app-card>
+      <div class="master-panel-head">
+        <div>
+          <p>Go-live Readiness</p>
+          <h2>System checks</h2>
+        </div>
+      </div>
+
+      <div class="master-readiness-list">
+        @for (item of readinessItems(); track item.label) {
+          <div class="master-readiness-row">
+            <div>
+              <strong>{{ item.label }}</strong>
+              <span>{{ item.helper }}</span>
+            </div>
+            <app-badge [tone]="item.tone">{{ item.status }}</app-badge>
+          </div>
+        }
+      </div>
+    </app-card>
+  </section>
+}

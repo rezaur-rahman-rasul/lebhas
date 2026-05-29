@@ -20,7 +20,16 @@ export const PROFILE_ROUTES: Routes = [
     loadComponent: () => import('./settings/account-settings').then((m) => m.AccountSettingsPage),
   },
   {
+    path: 'account-settings',
+    loadComponent: () => import('./settings/account-settings').then((m) => m.AccountSettingsPage),
+  },
+  {
     path: 'profile/security',
+    loadComponent: () =>
+      import('./security/security-activity').then((m) => m.SecurityActivityPage),
+  },
+  {
+    path: 'security-activity',
     loadComponent: () =>
       import('./security/security-activity').then((m) => m.SecurityActivityPage),
   },

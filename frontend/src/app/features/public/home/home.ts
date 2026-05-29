@@ -152,7 +152,7 @@ const HOME_COPY: Record<HomeLanguage, HomeCopy> = {
       accentOne: 'High-Converting',
       accentTwo: 'Campaign Creatives',
       description:
-        'Lebhas - Brand Attire is an AI-powered creative operating system that helps brands, agencies, and marketing teams produce on-brand, platform-ready ads in minutes, not days.',
+        'Lebhas - Brand Attire helps brands, agencies, and marketing teams produce on-brand, platform-ready ads in minutes.',
       primaryCta: 'Start Creating',
       secondaryCta: 'See How It Works',
       rawProduct: 'Raw Product',
@@ -240,8 +240,7 @@ const HOME_COPY: Record<HomeLanguage, HomeCopy> = {
       description:
         'Lebhas focuses on the gap between raw product assets and campaign-ready creative execution.',
       paragraphs: [
-        'The platform is designed for teams that need to move from raw images to approved creative output with less back-and-forth. Brand context, review flow, and publishing readiness stay connected in one workspace.',
-        'That means faster launches, cleaner collaboration, and output that stays aligned with brand standards even when campaign volume increases.',
+        'The platform keeps product assets, brand context, review, and export readiness in one workspace so teams can move from raw images to approved campaign output with less back-and-forth.',
       ],
       points: [
         {
@@ -268,7 +267,7 @@ const HOME_COPY: Record<HomeLanguage, HomeCopy> = {
       primaryCta: 'Explore Workflow',
       secondaryCta: 'Start Creating',
     },
-    footer: 'LEBHAS - Create Ads Beyond Imagination. All rights reserved.',
+    footer: 'Lebhas - Create Ads Beyond Imagination',
   },
   bn: {
     nav: {
@@ -404,7 +403,7 @@ const HOME_COPY: Record<HomeLanguage, HomeCopy> = {
       primaryCta: 'ওয়ার্কফ্লো দেখুন',
       secondaryCta: 'ক্রিয়েটিভ শুরু করুন',
     },
-    footer: 'LEBHAS - Create Ads Beyond Imagination. সর্বস্বত্ব সংরক্ষিত।',
+    footer: 'Lebhas - Create Ads Beyond Imagination',
   },
 };
 

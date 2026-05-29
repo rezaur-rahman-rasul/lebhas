@@ -9,14 +9,14 @@
 .auth-dialog-visual {
   height: 100%;
   min-height: 0;
-  padding: 1.35rem 1.25rem 1.5rem;
+  padding: 1.25rem;
 
   @media (min-width: 640px) {
     padding: 1.75rem 2rem;
   }
 
   @media (min-width: 1024px) {
-    padding: 1.85rem 2.5rem;
+    padding: 1.7rem 2.25rem;
   }
 }
 
@@ -36,39 +36,43 @@
 .auth-dialog-panel {
   height: 100%;
   min-height: 0;
-  padding: 1.35rem 1.75rem;
+  padding: 1.2rem 1.35rem;
 
   @media (min-width: 640px) {
-    padding: 1.75rem 2.5rem;
+    padding: 1.55rem 2rem;
   }
 
   @media (min-width: 1024px) {
-    padding: 1.85rem 3rem;
+    padding: 1.65rem 2.35rem;
   }
 }
 
 .auth-dialog-header {
-  min-height: 5.5rem;
+  min-height: 4.8rem;
 }
 
 .auth-tab-switcher {
-  max-height: 2.75rem;
+  max-height: 2.5rem;
+}
+
+.auth-tab-active {
+  background: var(--gradient-primary);
 }
 
 .auth-dialog-form-scroll {
-  overflow-y: auto;
+  overflow-y: visible;
   scrollbar-width: thin;
   scrollbar-color: rgb(148 163 184 / 0.45) transparent;
 
-  @media (min-height: 720px) {
-    scrollbar-width: none;
+  @media (max-height: 760px) {
+    overflow-y: auto;
   }
 }
 
 .auth-dialog-form-scroll::-webkit-scrollbar {
   width: 0.5rem;
 
-  @media (min-height: 720px) {
+  @media (min-height: 761px) {
     width: 0;
     height: 0;
   }
@@ -84,28 +88,37 @@
 }
 
 .social-auth-button {
-  min-height: 2.65rem;
-  padding: 0.625rem 1.15rem;
+  min-height: 2.45rem;
+  padding: 0.5rem 1rem;
 }
 
 :host ::ng-deep app-login-form form,
 :host ::ng-deep app-register-form form {
-  margin-top: 1rem;
-  gap: 0.875rem;
+  margin-top: 0.85rem;
+  gap: 0.72rem;
 }
 
 :host ::ng-deep app-input input,
 :host ::ng-deep app-password-input input {
-  min-height: 2.85rem;
+  min-height: 2.58rem;
+  height: 2.58rem;
+  border-radius: 0.75rem;
+  font-size: 0.92rem;
+}
+
+:host ::ng-deep app-input label > span:first-child,
+:host ::ng-deep app-password-input label > span:first-child {
+  margin-bottom: 0.35rem;
+  font-size: 0.82rem;
 }
 
 :host ::ng-deep app-login-form label {
-  padding-block: 0.625rem;
+  padding-block: 0.55rem;
 }
 
 :host ::ng-deep app-register-form app-button button,
 :host ::ng-deep app-login-form app-button button {
-  min-height: 2.85rem;
+  min-height: 2.62rem;
 }
 
 :host ::ng-deep .auth-dialog-panel app-button button {
@@ -114,14 +127,14 @@
 
 :host-context(html.light) .auth-dialog-panel,
 :host-context(.light-mode) .auth-dialog-panel {
-  padding-inline: 2rem;
+  padding-inline: 1.35rem;
 
   @media (min-width: 640px) {
-    padding-inline: 2.75rem;
+    padding-inline: 2rem;
   }
 
   @media (min-width: 1024px) {
-    padding-inline: 3.25rem;
+    padding-inline: 2.35rem;
   }
 }
 

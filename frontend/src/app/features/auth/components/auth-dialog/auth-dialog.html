@@ -2,15 +2,15 @@
   [open]="open()"
   ariaLabel="Authentication"
   testId="login-modal"
-  panelClass="auth-dialog-shell w-[min(73.75rem,calc(100vw-1rem))] !h-[min(51.25rem,calc(100dvh-1rem))] !max-h-[calc(100dvh-1rem)] sm:w-[min(73.75rem,calc(100vw-3rem))] sm:!h-[min(51.25rem,calc(100dvh-2rem))] sm:!max-h-[calc(100dvh-2rem)]"
+  panelClass="auth-dialog-shell w-[min(72rem,calc(100vw-1rem))] !h-[min(54rem,calc(100dvh-1rem))] !max-h-[calc(100dvh-1rem)] sm:w-[min(72rem,calc(100vw-3rem))] sm:!h-[min(54rem,calc(100dvh-2rem))] sm:!max-h-[calc(100dvh-2rem)]"
   contentClass="h-full min-h-0 !overflow-hidden !p-0"
   (closed)="closed.emit()"
 >
   <div
-    class="auth-dialog-split grid h-full min-h-0 overflow-hidden lg:grid-cols-[minmax(26rem,0.92fr)_minmax(30rem,1.08fr)]"
+    class="auth-dialog-split grid h-full min-h-0 overflow-hidden lg:grid-cols-[minmax(25rem,0.9fr)_minmax(30rem,1.1fr)]"
     data-testid="auth-dialog-split"
   >
-    <section class="auth-dialog-panel flex h-full min-h-0 flex-col bg-surface">
+    <section class="auth-dialog-panel flex h-full min-h-0 flex-col bg-surface-elevated">
       <div class="auth-dialog-header shrink-0">
         <div class="max-w-[22rem]">
           <p class="text-xs font-semibold uppercase tracking-[0.18em] text-brand-600">
@@ -22,11 +22,11 @@
         </div>
       </div>
 
-      <div class="auth-tab-switcher mt-4 inline-flex h-11 w-fit shrink-0 self-start rounded-2xl border border-border bg-canvas/70 p-1" role="tablist" aria-label="Authentication mode">
+      <div class="auth-tab-switcher mt-4 inline-flex h-10 w-fit shrink-0 self-start rounded-2xl border border-border bg-canvas/70 p-1" role="tablist" aria-label="Authentication mode">
         <button
           type="button"
-          class="h-9 min-w-24 rounded-xl px-3 text-sm font-medium transition"
-          [class]="activeTab() === 'login' ? 'bg-brand-600 text-white shadow-sm' : 'text-muted hover:text-ink'"
+          class="h-8 min-w-20 rounded-xl px-3 text-sm font-semibold transition"
+          [class]="activeTab() === 'login' ? 'auth-tab-active text-white shadow-sm' : 'text-muted hover:text-ink'"
           data-testid="auth-tab-login"
           role="tab"
           [attr.aria-selected]="activeTab() === 'login'"
@@ -36,8 +36,8 @@
         </button>
         <button
           type="button"
-          class="h-9 min-w-24 rounded-xl px-3 text-sm font-medium transition"
-          [class]="activeTab() === 'register' ? 'bg-brand-600 text-white shadow-sm' : 'text-muted hover:text-ink'"
+          class="h-8 min-w-20 rounded-xl px-3 text-sm font-semibold transition"
+          [class]="activeTab() === 'register' ? 'auth-tab-active text-white shadow-sm' : 'text-muted hover:text-ink'"
           data-testid="auth-tab-register"
           role="tab"
           [attr.aria-selected]="activeTab() === 'register'"
@@ -47,7 +47,7 @@
         </button>
       </div>
 
-      <div class="auth-dialog-form-scroll mt-4 min-h-0 flex-1 overflow-y-auto pr-1" data-testid="auth-dialog-form-scroll">
+      <div class="auth-dialog-form-scroll mt-4 min-h-0 flex-1 pr-1" data-testid="auth-dialog-form-scroll">
         @if (activeTab() === 'login') {
           <div class="space-y-2.5" data-testid="social-auth">
             @for (provider of socialProviders; track provider.id) {

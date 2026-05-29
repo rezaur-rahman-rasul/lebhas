@@ -1,6 +1,8 @@
 package com.lebhas.creativesaas.payment.application;
 
 import com.lebhas.creativesaas.identity.application.WorkspaceAuthorizationService;
+import com.lebhas.creativesaas.common.exception.BusinessException;
+import com.lebhas.creativesaas.common.exception.ErrorCode;
 import com.lebhas.creativesaas.payment.application.dto.CreditPurchaseOrderView;
 import com.lebhas.creativesaas.payment.application.dto.InvoiceView;
 import com.lebhas.creativesaas.payment.application.dto.PaymentTransactionView;
@@ -57,6 +59,15 @@ public class PaymentApiQueryService {
     public List<PaymentTransactionView> paymentTransactions(UUID workspaceId) {
         UUID effectiveWorkspaceId = requireWorkspaceAccess(workspaceId);
         return mapper.toPaymentTransactionViews(paymentTransactionRepository.findAllByWorkspaceIdOrderByCreatedAtDesc(effectiveWorkspaceId));
+    }
+
+    @Transactional(readOnly = true)
+    public PaymentTransactionView paymentTransaction(UUID workspaceId, UUID paymentTransactionId) {
+        UUID effectiveWorkspaceId = requireWorkspaceAccess(workspaceId);
+        return paymentTransactionRepository.findById(paymentTransactionId)
+                .filter(transaction -> transaction.getWorkspaceId().equals(effectiveWorkspaceId))
+                .map(mapper::toPaymentTransactionView)
+                .orElseThrow(() -> new BusinessException(ErrorCode.RESOURCE_NOT_FOUND, "Payment transaction not found"));
     }
 
     @Transactional(readOnly = true)

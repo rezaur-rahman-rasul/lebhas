@@ -13,8 +13,8 @@ export class CardComponent {
 
   protected readonly classes = computed(() =>
     [
-      'overflow-hidden rounded-lg border border-border bg-surface shadow-[0_18px_50px_rgba(2,6,23,0.12)] dark:shadow-[0_18px_50px_rgba(0,0,0,0.24)]',
-      this.padded() ? 'p-5' : '',
+      'ui-glass-card overflow-hidden',
+      this.padded() ? 'p-[var(--app-card-padding)]' : '',
       this.interactive() ? 'transition hover:-translate-y-0.5 hover:shadow-soft' : '',
     ]
       .filter(Boolean)

@@ -1,39 +1,29 @@
-<app-section-header eyebrow="Workspace overview" title="Dashboard" [description]="description()">
+<app-section-header eyebrow="WORKSPACE OVERVIEW" title="Workspace Dashboard" [description]="description()">
   @if (workspaceId()) {
-    <app-badge tone="brand">{{ workspaceLabel() }}</app-badge>
+    <a [routerLink]="primaryAction().route" class="dashboard-primary-action">
+      <app-icon [name]="primaryAction().icon" [size]="16" />
+      <span>{{ primaryAction().label }}</span>
+    </a>
   }
 </app-section-header>
 
 @if (showSkeleton()) {
-  <section class="mt-5 grid gap-3 md:grid-cols-2 xl:grid-cols-5" aria-label="Loading quick actions">
+  <section class="dashboard-stat-grid mt-5" aria-label="Loading dashboard summary">
     @for (item of skeletonItems; track item) {
       <div class="dashboard-skeleton-card"></div>
     }
   </section>
 
-  <section class="mt-5 grid gap-4 lg:grid-cols-[minmax(0,1fr)_22rem]" aria-label="Loading dashboard details">
-    <app-card>
-      <div class="dashboard-skeleton-line w-48"></div>
-      <div class="mt-5 grid gap-3 md:grid-cols-4">
-        @for (item of hierarchySkeletonItems; track item) {
-          <div class="dashboard-skeleton-panel"></div>
-        }
-      </div>
-    </app-card>
-    <app-card>
-      <div class="dashboard-skeleton-line w-40"></div>
-      <div class="mt-5 grid gap-3">
-        @for (item of hierarchySkeletonItems.slice(0, 3); track item) {
-          <div class="dashboard-skeleton-row"></div>
-        }
-      </div>
-    </app-card>
+  <section class="dashboard-main-grid mt-5" aria-label="Loading dashboard details">
+    <div class="dashboard-skeleton-panel"></div>
+    <div class="dashboard-skeleton-panel"></div>
+    <div class="dashboard-skeleton-panel"></div>
   </section>
 } @else if (showDashboardError()) {
   <div class="mt-6">
     <app-empty-state
       icon="circle-alert"
-      title="Dashboard details could not be loaded"
+      title="Could not load workspace dashboard"
       [description]="dashboard.friendlyError() || 'Please try again.'"
     >
       <app-button type="button" icon="rotate-cw" (click)="retry()">Retry</app-button>
@@ -48,132 +38,197 @@
     />
   </div>
 } @else {
-  <section class="mt-5 grid gap-3 md:grid-cols-2 xl:grid-cols-5">
-    @for (action of quickActions(); track action.title) {
-      @if (!action.enabled) {
-        <button
-          type="button"
-          class="quick-action-card quick-action-card--disabled min-w-0"
-          [attr.aria-disabled]="true"
-          [attr.aria-label]="action.title + ' unavailable. ' + action.disabledReason"
-          [title]="action.disabledReason"
-          (click)="showDisabledActionToast(action)"
-        >
-          <app-card>
-            <div class="flex h-full min-h-28 flex-col justify-between gap-3">
-              <div class="flex items-center justify-between gap-3">
-                <div class="quick-action-icon quick-action-icon--disabled">
-                  <app-icon [name]="action.icon" [size]="18" />
-                </div>
-                @if (action.badgeLabel) {
-                  <app-badge tone="neutral">{{ action.badgeLabel }}</app-badge>
-                }
-              </div>
-              <div>
-                <h2 class="text-sm font-semibold text-ink">{{ action.title }}</h2>
-                <p class="mt-1 line-clamp-2 text-xs leading-5 text-muted">{{ action.description }}</p>
-              </div>
-            </div>
-          </app-card>
-        </button>
-      } @else {
-        <a [routerLink]="action.route" class="quick-action-card min-w-0">
-          <app-card [interactive]="true">
-            <div class="flex h-full min-h-28 flex-col justify-between gap-3">
-              <div class="flex items-center justify-between gap-3">
-                <div class="quick-action-icon">
-                  <app-icon [name]="action.icon" [size]="18" />
-                </div>
-                <app-icon name="arrow-up-right" [size]="16" />
-              </div>
-              <div>
-                <h2 class="text-sm font-semibold text-ink">{{ action.title }}</h2>
-                <p class="mt-1 line-clamp-2 text-xs leading-5 text-muted">{{ action.description }}</p>
-              </div>
-            </div>
-          </app-card>
-        </a>
-      }
+  <section class="dashboard-stat-grid mt-5">
+    @for (stat of topStats(); track stat.label) {
+      <app-card>
+        <div class="stat-card">
+          <div class="stat-card__icon">
+            <app-icon [name]="stat.icon" [size]="18" />
+          </div>
+          <div class="stat-card__body">
+            <p>{{ stat.label }}</p>
+            <strong>{{ stat.value }}</strong>
+            <span>{{ stat.trend }}</span>
+          </div>
+        </div>
+      </app-card>
     }
   </section>
 
-  <section class="mt-5 grid gap-4 lg:grid-cols-[minmax(0,1fr)_22rem]">
+  <section class="dashboard-main-grid mt-5">
     <app-card>
-      <div class="flex items-center justify-between gap-3">
+      <div class="panel-heading">
         <div>
-          <h2 class="text-base font-semibold text-ink">Hierarchy overview</h2>
-          <p class="mt-1 text-sm text-muted">Workspace -> Brand -> Product/Service -> Project/Campaign</p>
+          <p>Workspace Health</p>
+          <h2>{{ workspaceLabel() }}</h2>
         </div>
-        <app-badge tone="blue">{{ role() || 'ADMIN' }}</app-badge>
+        <a routerLink="/payments" class="panel-link">Manage Plan</a>
       </div>
 
-      @if (hasProjectLinkWarning()) {
-        <div class="mt-5 rounded-lg border border-alert-600/30 bg-alert-600/10 p-4">
-          <p class="text-sm font-semibold text-alert-600">Project needs product link</p>
-          <p class="mt-2 text-sm leading-6 text-muted">
-            One project exists, but it is not linked to a product or service.
-          </p>
+      <div class="health-list">
+        @for (item of workspaceHealthItems(); track item.label) {
+          <div class="health-row">
+            <div class="health-row__icon">
+              <app-icon [name]="item.icon" [size]="16" />
+            </div>
+            <div>
+              <span>{{ item.label }}</span>
+              <strong>{{ item.value }}</strong>
+            </div>
+          </div>
+        }
+      </div>
+    </app-card>
+
+    <app-card>
+      <div class="panel-heading">
+        <div>
+          <p>Credit Usage</p>
+          <h2>Monthly credits</h2>
+        </div>
+        <a routerLink="/usage-billing/credits" class="panel-link">View Credit Usage</a>
+      </div>
+
+      <div class="credit-meter" [style.--credit-progress]="creditUsagePercent()">
+        <div class="credit-meter__ring">
+          <strong>{{ creditUsagePercent() }}%</strong>
+          <span>used</span>
+        </div>
+        <div class="credit-meter__details">
+          <div>
+            <span>Used credits</span>
+            <strong>{{ creditsUsed() === null ? '--' : creditsUsed() }}</strong>
+          </div>
+          <div>
+            <span>Remaining credits</span>
+            <strong>{{ creditsRemaining() === null ? '--' : creditsRemaining() }}</strong>
+          </div>
+          <div>
+            <span>Total credits</span>
+            <strong>{{ creditsTotal() === null ? '--' : creditsTotal() }}</strong>
+          </div>
+        </div>
+      </div>
+    </app-card>
+
+    <app-card>
+      <div class="panel-heading">
+        <div>
+          <p>Recent Activity</p>
+          <h2>Workspace timeline</h2>
+        </div>
+        <a routerLink="/activity-feed" class="panel-link">View All</a>
+      </div>
+
+      @if (recentActivities().length > 0) {
+        <div class="activity-list">
+          @for (activity of recentActivities(); track activity.title + activity.time) {
+            <div class="activity-row">
+              <div class="activity-row__avatar">
+                <app-icon [name]="activity.icon" [size]="15" />
+              </div>
+              <div>
+                <strong>{{ activity.title }}</strong>
+                <span>{{ activity.description }}</span>
+              </div>
+              <time>{{ formatActivityTime(activity.time) }}</time>
+            </div>
+          }
+        </div>
+      } @else {
+        <div class="compact-empty">
+          <app-icon name="clock-3" [size]="18" />
+          <span>Recent workspace activity will appear here.</span>
         </div>
       }
+    </app-card>
+  </section>
 
-      <div class="mt-5 grid gap-3 md:grid-cols-4">
-        @for (item of hierarchy(); track item.label; let last = $last) {
-          <a [routerLink]="item.route" class="min-w-0">
-            <div class="rounded-lg border border-border bg-panel/30 p-4 transition hover:border-brand-500/50 hover:bg-brand-500/8">
-              <div class="flex items-center justify-between gap-3">
-                <div class="grid h-9 w-9 place-items-center rounded-md bg-surface text-brand-500">
-                  <app-icon [name]="item.icon" [size]="17" />
-                </div>
-                @if (!last) {
-                  <app-icon name="chevron-right" [size]="16" />
-                }
+  <section class="mt-5">
+    <div class="section-row">
+      <div>
+        <p>Quick Actions</p>
+        <h2>Move the workspace forward</h2>
+      </div>
+    </div>
+
+    <div class="quick-actions-grid">
+      @for (action of quickActions(); track action.title) {
+        @if (!action.enabled) {
+          <button
+            type="button"
+            class="quick-action-card quick-action-card--disabled"
+            [attr.aria-disabled]="true"
+            [attr.aria-label]="action.title + ' unavailable. ' + action.disabledReason"
+            [title]="action.disabledReason"
+            (click)="showDisabledActionToast(action)"
+          >
+            <div class="quick-action-icon quick-action-icon--disabled">
+              <app-icon [name]="action.icon" [size]="18" />
+            </div>
+            <div>
+              <h3>{{ action.title }}</h3>
+              <p>{{ action.description }}</p>
+            </div>
+            @if (action.badgeLabel) {
+              <app-badge tone="neutral">{{ action.badgeLabel }}</app-badge>
+            }
+          </button>
+        } @else {
+          <a [routerLink]="action.route" class="quick-action-card">
+            <div class="quick-action-icon">
+              <app-icon [name]="action.icon" [size]="18" />
+            </div>
+            <div>
+              <h3>{{ action.title }}</h3>
+              <p>{{ action.description }}</p>
+            </div>
+            <app-icon name="arrow-up-right" [size]="16" />
+          </a>
+        }
+      }
+    </div>
+  </section>
+
+  <section class="mt-5">
+    <div class="section-row">
+      <div>
+        <p>Recent Creatives</p>
+        <h2>Latest generated versions</h2>
+      </div>
+      <a routerLink="/generated-versions" class="panel-link">View All</a>
+    </div>
+
+    @if (recentCreatives().length > 0) {
+      <div class="creative-gallery">
+        @for (creative of recentCreatives(); track creative.id) {
+          <a [routerLink]="['/generated-versions']" class="creative-card">
+            <div class="creative-card__preview">
+              <app-icon name="image" [size]="24" />
+              <span>{{ creative.outputFormat }}</span>
+            </div>
+            <div class="creative-card__meta">
+              <div>
+                <h3>{{ creativeTitle(creative) }}</h3>
+                <p>{{ creativeMeta(creative) }} · {{ formatActivityTime(creative.updatedAt) }}</p>
               </div>
-              <p class="mt-4 text-xs font-semibold uppercase tracking-[0.14em] text-muted">{{ item.label }}</p>
-              <p class="mt-1 truncate text-sm font-semibold text-ink">{{ item.value }}</p>
+              <app-badge [tone]="creativeStatusTone(creative)">{{ creativeStatusLabel(creative) }}</app-badge>
             </div>
           </a>
         }
       </div>
-    </app-card>
-
-    <app-card>
-      <div class="flex items-center justify-between gap-3">
+    } @else {
+      <div class="recent-empty">
         <div>
-          <h2 class="text-base font-semibold text-ink">Package summary</h2>
-          <p class="mt-1 text-sm text-muted">Loaded from workspace context when available.</p>
+          <app-icon name="sparkles" [size]="22" />
         </div>
-        <app-icon name="credit-card" [size]="18" />
+        <strong>No generated creatives yet</strong>
+        <span>Create a brand, product, project, and asset to start generating campaign creatives.</span>
+        <a [routerLink]="primaryAction().route" class="dashboard-primary-action dashboard-primary-action--compact">
+          <app-icon [name]="primaryAction().icon" [size]="15" />
+          <span>{{ primaryAction().label }}</span>
+        </a>
       </div>
-
-      <div class="mt-5 grid gap-3">
-        @for (summary of subscriptionSummaries(); track summary.label) {
-          <div class="flex items-center gap-3 rounded-lg border border-border bg-panel/30 p-3">
-            <div class="grid h-9 w-9 shrink-0 place-items-center rounded-md bg-surface text-brand-500">
-              <app-icon [name]="summary.icon" [size]="16" />
-            </div>
-            <div class="min-w-0">
-              <p class="text-xs font-semibold uppercase tracking-[0.14em] text-muted">{{ summary.label }}</p>
-              <p class="mt-1 truncate text-sm font-semibold text-ink">{{ summary.value }}</p>
-            </div>
-          </div>
-        }
-      </div>
-    </app-card>
-  </section>
-
-  <section class="mt-5 grid gap-4 md:grid-cols-2 xl:grid-cols-4">
-    @for (metric of metrics(); track metric.label) {
-      <app-card>
-        <div class="flex items-start justify-between gap-3">
-          <div class="min-w-0">
-            <p class="truncate text-sm text-muted">{{ metric.label }}</p>
-            <p class="mt-2 truncate text-2xl font-semibold text-ink">{{ metric.value }}</p>
-          </div>
-          <div class="grid h-10 w-10 shrink-0 place-items-center rounded-lg bg-brand-500/12 text-brand-700 dark:bg-brand-500/20 dark:text-brand-100">
-            <app-icon [name]="metric.icon" [size]="18" />
-          </div>
-        </div>
-      </app-card>
     }
   </section>
 }

@@ -8,8 +8,34 @@ import {
   paymentTransactionsAccessGuard,
   subscriptionPurchaseAccessGuard,
 } from '@app/core/guards/payment-access.guard';
+import { roleGuard } from '@app/core/guards/role.guard';
 
 export const PAYMENT_ROUTES: Routes = [
+  {
+    path: 'master/pricing-packages',
+    canActivate: [roleGuard(['MASTER'])],
+    loadComponent: () =>
+      import('./pricing-packages/pricing-packages').then((m) => m.PricingPackagesPage),
+  },
+  {
+    path: 'master/credit-packages',
+    canActivate: [creditPackageManagementAccessGuard],
+    loadComponent: () =>
+      import('./credit-packages/credit-packages').then((m) => m.CreditPackagesPage),
+  },
+  {
+    path: 'master/payment-providers',
+    canActivate: [paymentProviderManagementAccessGuard],
+    loadComponent: () =>
+      import('./providers/payment-providers').then((m) => m.PaymentProvidersPage),
+  },
+  {
+    path: 'master/payment-transactions',
+    canActivate: [paymentTransactionsAccessGuard],
+    loadComponent: () =>
+      import('./transactions/payment-transactions').then((m) => m.PaymentTransactionsPage),
+    data: { scope: 'master' },
+  },
   {
     path: 'payments',
     loadComponent: () =>

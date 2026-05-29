@@ -1,0 +1,146 @@
+<app-page-header
+  eyebrow="MONETIZATION"
+  title="Pricing Packages"
+  description="Manage dynamic subscription packages, prices, limits, and enabled features."
+>
+  @if (!accessDenied()) {
+    <app-button type="button" variant="secondary" icon="rotate-cw" [loading]="store.loading()" (click)="refresh()">
+      Refresh
+    </app-button>
+    <app-button type="button" icon="plus" (click)="openCreate()">Create package</app-button>
+  }
+</app-page-header>
+
+@if (accessDenied()) {
+  <div class="pricing-block">
+    <app-empty-state icon="shield-alert" tone="danger" title="Pricing package access is restricted" description="Only Master users can manage pricing packages." />
+  </div>
+} @else {
+  <div class="pricing-stack">
+    <section class="pricing-summary-grid">
+      <app-card><div class="pricing-stat"><span>Total packages</span><strong>{{ plans().length }}</strong></div></app-card>
+      <app-card><div class="pricing-stat"><span>Active packages</span><strong>{{ activePlans().length }}</strong></div></app-card>
+      <app-card><div class="pricing-stat"><span>Inactive packages</span><strong>{{ inactivePlans().length }}</strong></div></app-card>
+      <app-card><div class="pricing-stat"><span>Dynamic pricing</span><strong>Backend</strong></div></app-card>
+    </section>
+
+    @if (store.loading() && !plans().length) {
+      <section class="pricing-skeleton-grid">
+        <div class="pricing-skeleton"></div>
+        <div class="pricing-skeleton"></div>
+        <div class="pricing-skeleton"></div>
+      </section>
+    } @else if (store.error()) {
+      <app-error-state title="Pricing packages could not load" [description]="store.error()!">
+        <app-button type="button" variant="secondary" icon="rotate-cw" (click)="refresh()">Retry</app-button>
+      </app-error-state>
+    } @else if (!plans().length) {
+      <app-empty-state icon="package-check" title="No pricing packages yet" description="Create a package to define subscription price, limits, and enabled features." />
+    } @else {
+      <section class="pricing-card-grid">
+        @for (detail of plans(); track detail.pricingPlan.id) {
+          <app-card>
+            <article class="pricing-package-card">
+              <div class="pricing-package-head">
+                <div>
+                  <p>{{ detail.pricingPlan.code }}</p>
+                  <h2>{{ detail.pricingPlan.name }}</h2>
+                </div>
+                <app-status-badge [tone]="detail.pricingPlan.active ? 'brand' : 'neutral'">
+                  {{ detail.pricingPlan.active ? 'Active' : 'Inactive' }}
+                </app-status-badge>
+              </div>
+              <strong class="pricing-price">
+                {{ detail.pricingPlan.monthlyPrice | currency: detail.pricingPlan.currency }}
+                <span>/ month</span>
+              </strong>
+              <dl>
+                <div><dt>Yearly price</dt><dd>{{ detail.pricingPlan.yearlyPrice | currency: detail.pricingPlan.currency }}</dd></div>
+                <div><dt>Currency</dt><dd>{{ detail.pricingPlan.currency }}</dd></div>
+                <div><dt>Billing cycle</dt><dd>Monthly / Yearly</dd></div>
+                <div><dt>Limits summary</dt><dd>{{ limitsSummary(detail) }}</dd></div>
+              </dl>
+              <div class="pricing-actions">
+                <button type="button" (click)="openEdit(detail)">Edit</button>
+                <button type="button" [disabled]="!detail.pricingPlan.active" (click)="disable(detail)">Disable</button>
+              </div>
+            </article>
+          </app-card>
+        }
+      </section>
+
+      <section class="pricing-table-card">
+        <div class="pricing-table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th>Name</th>
+                <th>Price</th>
+                <th>Currency</th>
+                <th>Billing cycle</th>
+                <th>Status</th>
+                <th>Limits summary</th>
+                <th>Actions</th>
+              </tr>
+            </thead>
+            <tbody>
+              @for (detail of plans(); track detail.pricingPlan.id) {
+                <tr>
+                  <td><strong>{{ detail.pricingPlan.name }}</strong><small>{{ detail.pricingPlan.code }}</small></td>
+                  <td>{{ detail.pricingPlan.monthlyPrice | currency: detail.pricingPlan.currency }} monthly</td>
+                  <td>{{ detail.pricingPlan.currency }}</td>
+                  <td>Monthly / Yearly</td>
+                  <td><app-status-badge [tone]="detail.pricingPlan.active ? 'brand' : 'neutral'">{{ detail.pricingPlan.active ? 'Active' : 'Inactive' }}</app-status-badge></td>
+                  <td>{{ limitsSummary(detail) }}</td>
+                  <td><button type="button" (click)="openEdit(detail)">Edit</button></td>
+                </tr>
+              }
+            </tbody>
+          </table>
+        </div>
+      </section>
+    }
+  </div>
+}
+
+<app-drawer
+  [open]="drawerOpen()"
+  [title]="drawerTitle()"
+  description="Package names and limits are dynamic backend records. No Free or Pro assumptions are used here."
+  ariaLabel="Pricing package form"
+  (closed)="closeDrawer()"
+>
+  <form class="pricing-form" [formGroup]="form" (ngSubmit)="save()">
+    <label><span>Package name</span><input type="text" formControlName="name" /></label>
+    <label><span>Code</span><input type="text" formControlName="code" /></label>
+    <label class="pricing-form-wide"><span>Description</span><textarea rows="3" formControlName="description"></textarea></label>
+    <label><span>Monthly price</span><input type="number" min="0" step="0.01" formControlName="monthlyPrice" /></label>
+    <label><span>Yearly price</span><input type="number" min="0" step="0.01" formControlName="yearlyPrice" /></label>
+    <label><span>Currency</span><input type="text" maxlength="3" formControlName="currency" /></label>
+    <label><span>Billing cycle preview</span><select formControlName="billingCycle"><option value="MONTHLY">Monthly</option><option value="YEARLY">Yearly</option></select></label>
+    <label><span>Monthly credits</span><input type="number" min="0" formControlName="monthlyCreditLimit" /></label>
+    <label><span>Max brands</span><input type="number" min="0" formControlName="maxBrands" /></label>
+    <label><span>Max products</span><input type="number" min="0" formControlName="maxProductServices" /></label>
+    <label><span>Max projects</span><input type="number" min="0" formControlName="maxProjects" /></label>
+    <label><span>Max assets / storage GB</span><input type="number" min="0" formControlName="maxAssets" /></label>
+    <label><span>Max generated versions</span><input type="number" min="0" formControlName="maxGeneratedVersionsPerRequest" /></label>
+    <label><span>Sort order</span><input type="number" min="0" formControlName="sortOrder" /></label>
+
+    <fieldset class="pricing-feature-fieldset">
+      <legend>Enabled features</legend>
+      <label><input type="checkbox" formControlName="allowApprovalWorkflow" /> Approval workflow</label>
+      <label><input type="checkbox" formControlName="allowPublicShareLinks" /> Public share links</label>
+      <label><input type="checkbox" formControlName="allowVideoGeneration" /> Video generation</label>
+      <label><input type="checkbox" formControlName="allowAdvancedPromptIntelligence" /> Advanced prompt intelligence</label>
+      <label><input type="checkbox" formControlName="allowTeamCollaboration" /> Team collaboration</label>
+      <label><input type="checkbox" formControlName="allowExportWithoutWatermark" /> Export without watermark</label>
+      <label><input type="checkbox" formControlName="active" /> Package active</label>
+      <label><input type="checkbox" formControlName="defaultPlan" /> Default package</label>
+    </fieldset>
+
+    <div class="pricing-form-actions">
+      <app-button type="button" variant="ghost" icon="x" (click)="closeDrawer()">Cancel</app-button>
+      <app-button type="submit" icon="save" [loading]="store.loading()">Save</app-button>
+    </div>
+  </form>
+</app-drawer>

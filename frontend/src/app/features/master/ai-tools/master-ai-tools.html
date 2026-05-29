@@ -1,0 +1,301 @@
+<app-section-header eyebrow="AI OPERATIONS" [title]="title()" [description]="description()">
+  <a routerLink="/master/provider-routing" class="ai-master-link">
+    <app-icon name="route" [size]="16" />
+    Provider Routing
+  </a>
+</app-section-header>
+
+<nav class="ai-master-tabs" aria-label="Master AI tool sections">
+  <a routerLink="/master/creative-tools" routerLinkActive="is-active">Creative Tools</a>
+  <a routerLink="/master/creative-layers" routerLinkActive="is-active">Creative Layers</a>
+  <a routerLink="/master/provider-routing" routerLinkActive="is-active">Provider Routing Policy</a>
+</nav>
+
+@if (pipelines.loading() && pipelinesList().length === 0) {
+  <section class="ai-master-grid mt-5">
+    @for (item of [1, 2, 3, 4, 5, 6]; track item) {
+      <div class="ai-master-skeleton"></div>
+    }
+  </section>
+} @else if (pipelines.error()) {
+  <div class="mt-5">
+    <app-empty-state
+      icon="circle-alert"
+      title="Creative pipeline configuration could not load"
+      [description]="pipelines.error()!"
+    >
+      <app-button type="button" icon="refresh-cw" (click)="pipelines.load()">Retry</app-button>
+    </app-empty-state>
+  </div>
+} @else {
+  @switch (mode()) {
+    @case ('tools') {
+      <section class="ai-master-toolbar">
+        <div>
+          <p>Tool catalog</p>
+          <strong>{{ pipelinesList().length }} backend pipelines connected</strong>
+        </div>
+        <div class="ai-master-actions">
+          <button type="button" [disabled]="true" [title]="disabledActionMessage('Create Tool')">
+            <app-icon name="plus" [size]="16" />
+            Create Tool
+          </button>
+          <button type="button" [disabled]="true" [title]="disabledActionMessage('Configure Costs')">
+            <app-icon name="coins" [size]="16" />
+            Configure Costs
+          </button>
+        </div>
+      </section>
+
+      <section class="ai-master-tool-grid">
+        @for (tool of toolBlueprints; track tool.code) {
+          <app-card>
+            <article class="ai-tool-card">
+              <div class="ai-tool-card__head">
+                <div>
+                  <p>{{ tool.category }}</p>
+                  <h2>{{ tool.name }}</h2>
+                </div>
+                <app-badge [tone]="toolStatus(tool)">
+                  {{ pipelineForTool(tool)?.active ? 'Enabled' : 'Not configured' }}
+                </app-badge>
+              </div>
+
+              <div class="ai-tool-costs">
+                <div>
+                  <span>Basic cost</span>
+                  <strong>{{ tool.basicCost }} credits</strong>
+                </div>
+                <div>
+                  <span>Premium cost</span>
+                  <strong>{{ tool.premiumCost }} credits</strong>
+                </div>
+              </div>
+
+              <dl class="ai-tool-meta">
+                <div><dt>Allowed plans/packages</dt><dd>{{ tool.plans }}</dd></div>
+                <div><dt>Provider policy</dt><dd>{{ pipelineForTool(tool)?.pipelineName || tool.providerPolicy }}</dd></div>
+                <div><dt>Last updated</dt><dd>{{ pipelineForTool(tool)?.version ? 'Version ' + pipelineForTool(tool)?.version : 'Pending backend setup' }}</dd></div>
+              </dl>
+
+              <div class="ai-tool-actions">
+                <button type="button" [disabled]="true" [title]="disabledActionMessage('Edit Tool')">Edit Tool</button>
+                <button type="button" [disabled]="true" [title]="disabledActionMessage('Enable/Disable')">Enable/Disable</button>
+              </div>
+            </article>
+          </app-card>
+        }
+      </section>
+    }
+
+    @case ('layers') {
+      <section class="ai-master-toolbar">
+        <label>
+          <span>Pipeline</span>
+          <select [value]="selectedPipeline()?.id ?? ''" (change)="selectPipeline($event)">
+            @for (pipeline of pipelinesList(); track pipeline.id) {
+              <option [value]="pipeline.id">{{ pipeline.pipelineName }}</option>
+            }
+          </select>
+        </label>
+        <div class="ai-master-actions">
+          <button type="button" [disabled]="true" title="Layer creation will be enabled after the add-layer workflow is connected.">
+            <app-icon name="plus" [size]="16" />
+            Add Layer
+          </button>
+          <button type="button" [disabled]="true" title="Pipeline ordering will be saved through the backend layer update endpoint.">
+            <app-icon name="save" [size]="16" />
+            Save Pipeline
+          </button>
+        </div>
+      </section>
+
+      <section class="ai-pipeline-visual">
+        <div class="ai-pipeline-node ai-pipeline-node--edge">Input</div>
+        @for (layer of orderedLayers(); track layer.id) {
+          <button
+            type="button"
+            class="ai-pipeline-node"
+            [class.is-active]="selectedLayer()?.id === layer.id"
+            (click)="selectLayer(layer.id)"
+          >
+            <span>{{ layer.sortOrder }}</span>
+            {{ layer.layerName }}
+          </button>
+        } @empty {
+          @for (layer of layerBlueprints; track layer.type) {
+            <div class="ai-pipeline-node">
+              <span>{{ layer.order }}</span>
+              {{ layer.name }}
+            </div>
+          }
+        }
+        <div class="ai-pipeline-node ai-pipeline-node--edge">Output</div>
+      </section>
+
+      <section class="ai-layer-summary">
+        <app-card>
+          <div class="ai-layer-metric"><span>Estimated layer cost</span><strong>{{ totalLayerCost() }}</strong></div>
+        </app-card>
+        <app-card>
+          <div class="ai-layer-metric"><span>Quality mode</span><strong>{{ selectedLayer() ? layerQuality(selectedLayer()!) : 'Blueprint' }}</strong></div>
+        </app-card>
+        <app-card>
+          <div class="ai-layer-metric"><span>Active pipeline</span><strong>{{ selectedPipeline()?.pipelineName || 'No pipeline' }}</strong></div>
+        </app-card>
+      </section>
+
+      @if (orderedLayers().length > 0) {
+        <section class="ai-layer-grid">
+          @for (layer of orderedLayers(); track layer.id) {
+            <app-card>
+              <article class="ai-layer-card" [class.is-selected]="selectedLayer()?.id === layer.id">
+                <div class="ai-layer-card__head">
+                  <span>#{{ layer.sortOrder }}</span>
+                  <app-badge [tone]="layer.enabled ? 'brand' : 'neutral'">{{ layer.enabled ? 'Enabled' : 'Disabled' }}</app-badge>
+                </div>
+                <h2>{{ layer.layerName }}</h2>
+                <p>{{ layer.layerType }}</p>
+                <dl>
+                  <div><dt>Active tool/provider</dt><dd>{{ layerProvider(layer) }}</dd></div>
+                  <div><dt>Quality mode</dt><dd>{{ layerQuality(layer) }}</dd></div>
+                  <div><dt>Estimated cost</dt><dd>{{ layerCost(layer) }}</dd></div>
+                  <div><dt>Fallback provider</dt><dd>{{ fallbackProvider(layer) }}</dd></div>
+                  <div><dt>Timeout</dt><dd>{{ layerTimeout(layer) }}</dd></div>
+                  <div><dt>Retry policy</dt><dd>{{ layerRetry(layer) }}</dd></div>
+                </dl>
+                <div class="ai-tool-actions">
+                  <button type="button" (click)="selectLayer(layer.id)">Edit Layer</button>
+                  <button type="button" [disabled]="layer.required" [title]="layer.required ? 'Warning: required layers cannot be disabled from the UI.' : 'Disable layer'">Enable/Disable Layer</button>
+                  <a routerLink="/master/provider-routing">Set Fallback</a>
+                </div>
+              </article>
+            </app-card>
+          }
+        </section>
+      } @else {
+        <section class="ai-layer-grid">
+          @for (layer of layerBlueprints; track layer.type) {
+            <app-card>
+              <article class="ai-layer-card">
+                <div class="ai-layer-card__head">
+                  <span>#{{ layer.order }}</span>
+                  <app-badge tone="neutral">Blueprint</app-badge>
+                </div>
+                <h2>{{ layer.name }}</h2>
+                <p>{{ layer.type }}</p>
+                <dl>
+                  <div><dt>Quality mode</dt><dd>{{ layer.qualityMode }}</dd></div>
+                  <div><dt>Estimated cost</dt><dd>{{ layer.cost }}</dd></div>
+                  <div><dt>Timeout</dt><dd>{{ layer.timeout }}</dd></div>
+                </dl>
+              </article>
+            </app-card>
+          }
+        </section>
+      }
+    }
+
+    @case ('routing') {
+      <section class="ai-routing-grid">
+        <app-card>
+          <form class="ai-routing-form" [formGroup]="routingForm" (ngSubmit)="saveRoutingPolicy()">
+            <label>
+              <span>Tool</span>
+              <select formControlName="tool" (change)="selectPipeline($event)">
+                @for (pipeline of pipelinesList(); track pipeline.id) {
+                  <option [value]="pipeline.id">{{ pipeline.pipelineName }}</option>
+                }
+              </select>
+              <small>Selects which creative pipeline receives this routing policy.</small>
+            </label>
+
+            <label>
+              <span>Quality Mode</span>
+              <select formControlName="qualityMode">
+                <option value="Basic">Basic</option>
+                <option value="Premium">Premium</option>
+                <option value="Balanced">Balanced</option>
+              </select>
+              <small>Controls whether cost, speed, or output quality gets priority.</small>
+            </label>
+
+            <label>
+              <span>Primary Provider</span>
+              <select formControlName="primaryProvider">
+                <option value="">Select provider</option>
+                @for (provider of activeProviders(); track provider.id) {
+                  <option [value]="provider.id">{{ provider.name }}</option>
+                }
+              </select>
+              <small>The first provider used when this layer runs.</small>
+            </label>
+
+            <label>
+              <span>Fallback Provider</span>
+              <select formControlName="fallbackProvider">
+                <option value="">No fallback</option>
+                @for (provider of activeProviders(); track provider.id) {
+                  <option [value]="provider.id">{{ provider.name }}</option>
+                }
+              </select>
+              <small>Used if the primary provider fails or circuit breaker opens.</small>
+            </label>
+
+            <div class="ai-routing-inline">
+              <label>
+                <span>Max Cost</span>
+                <input type="number" min="0" step="0.01" formControlName="maxCost" />
+                <small>Maximum estimated cost for one layer run.</small>
+              </label>
+              <label>
+                <span>Timeout</span>
+                <input type="number" min="1" formControlName="timeout" />
+                <small>Seconds before the request is considered too slow.</small>
+              </label>
+              <label>
+                <span>Retry Count</span>
+                <input type="number" min="0" formControlName="retryCount" />
+                <small>Retries before fallback or failure.</small>
+              </label>
+            </div>
+
+            <label class="ai-routing-toggle">
+              <input type="checkbox" formControlName="circuitBreakerEnabled" />
+              <span>Circuit Breaker enabled</span>
+              <small>Temporarily avoids providers with repeated failures.</small>
+            </label>
+
+            <div class="ai-routing-footer">
+              @if (!canSaveRouting()) {
+                <span>Select an active pipeline layer and provider to save routing.</span>
+              }
+              <app-button type="submit" icon="save" [loading]="pipelines.saving()" [disabled]="!canSaveRouting()">
+                Save
+              </app-button>
+            </div>
+          </form>
+        </app-card>
+
+        <aside class="ai-routing-side">
+          <app-card>
+            <div class="ai-routing-selected">
+              <p>Selected Layer</p>
+              <h2>{{ selectedLayer()?.layerName || 'No layer selected' }}</h2>
+              <span>{{ selectedLayer()?.layerType || 'Load or create a pipeline layer first.' }}</span>
+            </div>
+          </app-card>
+          <app-card>
+            <div class="ai-routing-warning">
+              <app-icon name="shield-alert" [size]="18" />
+              <div>
+                <strong>No secrets displayed</strong>
+                <span>Provider API keys and credentials remain hidden in backend configuration.</span>
+              </div>
+            </div>
+          </app-card>
+        </aside>
+      </section>
+    }
+  }
+}

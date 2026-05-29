@@ -1,15 +1,10 @@
 <app-section-header
-  eyebrow="Workspace brands"
+  eyebrow="WORKSPACE HIERARCHY"
   title="Brands"
-  description="Manage the brand layer that anchors products, campaigns, and later creative requests."
+  description="Manage the brand layer that anchors products, campaigns, and creative output."
 >
   @if (canManage()) {
-    <app-button
-      icon="plus"
-      aria-label="Create Brand"
-      [testId]="'brand-create-button'"
-      (click)="openCreateDialog()"
-    >
+    <app-button icon="plus" aria-label="Create Brand" [testId]="'brand-create-button'" (click)="openCreateDialog()">
       Create Brand
     </app-button>
   }
@@ -17,121 +12,87 @@
 
 @if (!workspaceId()) {
   <div class="mt-6">
-    <app-empty-state
-      icon="building-2"
-      title="Select a workspace"
-      description="Choose an active workspace from the header before managing brands."
-    />
+    <app-empty-state icon="building-2" title="Select a workspace" description="Choose an active workspace from the header before managing brands." />
   </div>
 } @else if (!canView()) {
   <div class="mt-6">
-    <app-empty-state
-      icon="circle-alert"
-      title="Brand access is restricted"
-      description="You do not have permission to manage brands."
-    />
+    <app-empty-state icon="circle-alert" title="Brand access is restricted" description="You do not have permission to manage brands." />
   </div>
 } @else {
-  <div class="brands-page-grid mt-6">
+  <div class="hierarchy-page-grid">
     <app-card>
-      <div class="flex items-center justify-between gap-3">
+      <div class="hierarchy-card-head">
         <div>
-          <h2 class="text-base font-semibold text-ink">Brand roster</h2>
-          <p class="mt-1 text-sm text-muted">{{ store.brandRosterSubtitle() }}</p>
+          <h2>Brand roster</h2>
+          <p>{{ store.brandRosterSubtitle() }}</p>
         </div>
         <app-badge tone="brand">Workspace -> Brand</app-badge>
       </div>
 
       @if (store.loading()) {
-        <div class="mt-5 grid gap-3" aria-label="Loading brand roster">
+        <div class="hierarchy-roster" aria-label="Loading brand roster">
           @for (row of skeletonRows; track row) {
             <div class="brand-skeleton-row"></div>
           }
         </div>
       } @else if (store.error()) {
         <div class="mt-5">
-          <app-empty-state
-            icon="triangle-alert"
-            title="Brands could not be loaded"
-            [description]="store.error()!"
-          >
-            <app-button
-              variant="secondary"
-              icon="rotate-cw"
-              (click)="store.load(workspaceId()!, { force: true })"
-            >
-              Retry
-            </app-button>
+          <app-empty-state icon="triangle-alert" title="Brands could not be loaded" [description]="store.error()!">
+            <app-button variant="secondary" icon="rotate-cw" (click)="store.load(workspaceId()!, { force: true })">Retry</app-button>
           </app-empty-state>
         </div>
       } @else if (!store.hasBrands()) {
         <div class="mt-5">
-          <app-empty-state
-            icon="badge-check"
-            title="No brands yet"
-            description="No brands yet. Create your first brand to start building products and campaigns."
-          />
+          <app-empty-state icon="badge-check" title="No brands yet" description="Create your first brand to start building products and campaigns." />
         </div>
       } @else {
-        <div class="mt-5 grid gap-3 md:hidden">
+        <div class="hierarchy-roster md:hidden">
           @for (brand of brands(); track brand.id) {
             <button
               type="button"
-              class="rounded-xl border border-border bg-surface p-4 text-left transition hover:border-brand-300 hover:bg-panel focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500"
-              [class.border-brand-500]="selectedBrandId() === brand.id"
+              class="hierarchy-list-card"
+              [class.is-active]="selectedBrandId() === brand.id"
               [attr.aria-current]="selectedBrandId() === brand.id ? 'true' : null"
-              [attr.aria-label]="'Select brand ' + brand.name"
               (click)="selectBrand(brand.id)"
             >
-              <div class="flex items-start justify-between gap-3">
+              <div class="hierarchy-list-main">
                 <div class="min-w-0">
-                  <p class="truncate font-semibold text-ink">{{ brand.name }}</p>
-                  <p class="mt-1 text-sm text-muted">{{ brand.businessType || 'Business profile pending' }}</p>
+                  <strong>{{ brand.name }}</strong>
+                  <p class="hierarchy-meta">{{ brand.industry || 'Industry pending' }}</p>
                 </div>
-                <app-badge [tone]="brand.status === 'ACTIVE' ? 'brand' : 'neutral'">
-                  {{ brand.status }}
-                </app-badge>
+                <app-badge [tone]="brand.status === 'ACTIVE' ? 'brand' : 'neutral'">{{ brand.status }}</app-badge>
               </div>
-              <div class="mt-4 grid gap-2 text-sm text-muted">
-                <p><span class="font-medium text-ink">Industry:</span> {{ brand.industry || 'Unassigned' }}</p>
-                <p><span class="font-medium text-ink">Creative language:</span> {{ languagePreferenceLabel(brand.languagePreference) }}</p>
-              </div>
+              <p class="hierarchy-meta mt-3">Creative language: {{ languagePreferenceLabel(brand.languagePreference) }}</p>
+              <p class="hierarchy-meta">{{ brand.businessType || 'Business profile pending' }}</p>
             </button>
           }
         </div>
 
         <div class="mt-5 hidden overflow-x-auto md:block">
-          <table class="min-w-full divide-y divide-border text-left">
-            <thead class="text-xs uppercase tracking-[0.14em] text-muted">
+          <table class="hierarchy-table">
+            <thead>
               <tr>
-                <th class="pb-3 pr-4 font-semibold">Brand</th>
-                <th class="pb-3 pr-4 font-semibold">Industry</th>
-                <th class="pb-3 pr-4 font-semibold">Creative language</th>
-                <th class="pb-3 font-semibold">Status</th>
+                <th>Brand name</th>
+                <th>Industry</th>
+                <th>Creative language</th>
+                <th>Profile</th>
+                <th>Status</th>
               </tr>
             </thead>
-            <tbody class="divide-y divide-border">
+            <tbody>
               @for (brand of brands(); track brand.id) {
                 <tr
-                  class="cursor-pointer transition hover:bg-panel/30 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500"
+                  [class.is-active]="selectedBrandId() === brand.id"
                   tabindex="0"
-                  [class.bg-brand-500/8]="selectedBrandId() === brand.id"
-                  [attr.aria-current]="selectedBrandId() === brand.id ? 'true' : null"
                   (click)="selectBrand(brand.id)"
                   (keydown.enter)="selectBrand(brand.id)"
                   (keydown.space)="selectBrand(brand.id)"
                 >
-                  <td class="py-4 pr-4">
-                    <p class="font-semibold text-ink">{{ brand.name }}</p>
-                    <p class="mt-1 text-sm text-muted">{{ brand.businessType || 'Business profile pending' }}</p>
-                  </td>
-                  <td class="py-4 pr-4 text-sm text-muted">{{ brand.industry || 'Unassigned' }}</td>
-                  <td class="py-4 pr-4 text-sm text-muted">{{ languagePreferenceLabel(brand.languagePreference) }}</td>
-                  <td class="py-4">
-                    <app-badge [tone]="brand.status === 'ACTIVE' ? 'brand' : 'neutral'">
-                      {{ brand.status }}
-                    </app-badge>
-                  </td>
+                  <td><strong class="text-ink">{{ brand.name }}</strong></td>
+                  <td>{{ brand.industry || 'Unassigned' }}</td>
+                  <td>{{ languagePreferenceLabel(brand.languagePreference) }}</td>
+                  <td>{{ brand.brandVoice ? 'Ready' : 'Pending' }}</td>
+                  <td><app-badge [tone]="brand.status === 'ACTIVE' ? 'brand' : 'neutral'">{{ brand.status }}</app-badge></td>
                 </tr>
               }
             </tbody>
@@ -140,115 +101,75 @@
       }
     </app-card>
 
-    <div class="grid gap-6">
+    <div class="grid gap-5">
       <app-card>
-        <div class="flex items-center justify-between gap-3">
+        <div class="hierarchy-card-head">
           <div>
-            <h2 class="text-base font-semibold text-ink">Brand detail</h2>
-            <p class="mt-1 text-sm text-muted">Identity and channel context for the selected brand</p>
+            <h2>Brand detail</h2>
+            <p>Identity, voice, audience, and channel context.</p>
           </div>
           @if (selectedBrand()) {
-            <app-badge [tone]="selectedBrand()!.status === 'ACTIVE' ? 'brand' : 'neutral'">
-              {{ selectedBrand()!.status }}
-            </app-badge>
+            <app-badge [tone]="selectedBrand()!.status === 'ACTIVE' ? 'brand' : 'neutral'">{{ selectedBrand()!.status }}</app-badge>
           }
         </div>
 
         @if (store.loading()) {
-          <div class="mt-5 grid gap-3" aria-label="Loading brand detail">
+          <div class="hierarchy-detail">
             <div class="brand-skeleton-line w-40"></div>
             <div class="brand-skeleton-block"></div>
-            <div class="grid gap-3 sm:grid-cols-2">
-              <div class="brand-skeleton-panel"></div>
-              <div class="brand-skeleton-panel"></div>
-            </div>
+            <div class="brand-skeleton-panel"></div>
           </div>
         } @else if (selectedBrand(); as brand) {
-          <div class="mt-5 space-y-4">
+          <div class="hierarchy-detail">
             <div>
-              <h3 class="text-xl font-semibold text-ink">{{ brand.name }}</h3>
-              <p class="mt-2 text-sm leading-7 text-muted">
-                {{ brand.brandVoice || 'Brand voice has not been configured yet.' }}
-              </p>
+              <h3 class="hierarchy-detail-title">{{ brand.name }}</h3>
+              <p class="hierarchy-meta mt-2">{{ brand.brandVoice || 'Brand voice has not been configured yet.' }}</p>
             </div>
 
-            <div class="grid gap-3 sm:grid-cols-2">
-              <div class="rounded-2xl border border-border bg-panel/35 p-4">
-                <p class="text-xs font-semibold uppercase tracking-[0.14em] text-muted">Business type</p>
-                <p class="mt-2 text-sm font-medium text-ink">{{ brand.businessType || 'Pending' }}</p>
-              </div>
-              <div class="rounded-2xl border border-border bg-panel/35 p-4">
-                <p class="text-xs font-semibold uppercase tracking-[0.14em] text-muted">Creative language</p>
-                <p class="mt-2 text-sm font-medium text-ink">{{ languagePreferenceLabel(brand.languagePreference) }}</p>
-              </div>
+            <div class="hierarchy-field-grid">
+              <div class="hierarchy-field-card"><span>Brand voice status</span><strong>{{ brand.brandVoice ? 'Ready' : 'Pending' }}</strong></div>
+              <div class="hierarchy-field-card"><span>Business type</span><strong>{{ brand.businessType || 'Pending' }}</strong></div>
+              <div class="hierarchy-field-card"><span>Creative language</span><strong>{{ languagePreferenceLabel(brand.languagePreference) }}</strong></div>
+              <div class="hierarchy-field-card"><span>Target audience</span><strong>{{ brand.targetAudience || 'Pending' }}</strong></div>
             </div>
 
-            <div class="rounded-2xl border border-border bg-panel/35 p-4">
-              <p class="text-xs font-semibold uppercase tracking-[0.14em] text-muted">Target audience</p>
-              <p class="mt-2 text-sm leading-7 text-muted">{{ brand.targetAudience || 'Not set yet' }}</p>
-            </div>
-
-            <div class="grid gap-3 sm:grid-cols-2">
-              <div class="rounded-2xl border border-border bg-panel/35 p-4">
-                <p class="text-xs font-semibold uppercase tracking-[0.14em] text-muted">Primary color</p>
-                <div class="mt-3 flex items-center gap-3">
-                  <span
-                    class="inline-block h-7 w-7 rounded-full border border-border"
-                    [style.background]="colorPreview(brand.primaryColor)"
-                  ></span>
-                  <span class="text-sm font-medium text-ink">{{ brand.primaryColor || 'Pending' }}</span>
-                </div>
+            <div class="hierarchy-field-grid">
+              <div class="hierarchy-field-card">
+                <span>Primary color</span>
+                <strong><i class="brand-color-dot" [style.background]="colorPreview(brand.primaryColor)"></i>{{ brand.primaryColor || 'Pending' }}</strong>
               </div>
-              <div class="rounded-2xl border border-border bg-panel/35 p-4">
-                <p class="text-xs font-semibold uppercase tracking-[0.14em] text-muted">Secondary color</p>
-                <div class="mt-3 flex items-center gap-3">
-                  <span
-                    class="inline-block h-7 w-7 rounded-full border border-border"
-                    [style.background]="colorPreview(brand.secondaryColor)"
-                  ></span>
-                  <span class="text-sm font-medium text-ink">{{ brand.secondaryColor || 'Pending' }}</span>
-                </div>
+              <div class="hierarchy-field-card">
+                <span>Secondary color</span>
+                <strong><i class="brand-color-dot" [style.background]="colorPreview(brand.secondaryColor)"></i>{{ brand.secondaryColor || 'Pending' }}</strong>
               </div>
             </div>
 
-            <div class="rounded-2xl border border-border bg-panel/35 p-4">
-              <p class="text-xs font-semibold uppercase tracking-[0.14em] text-muted">Social destinations</p>
-              <div class="mt-3 grid gap-2 text-sm text-muted">
-                <p>Facebook: {{ brand.facebookUrl || 'Not connected' }}</p>
-                <p>Instagram: {{ brand.instagramUrl || 'Not connected' }}</p>
-                <p>LinkedIn: {{ brand.linkedinUrl || 'Not connected' }}</p>
-                <p>TikTok: {{ brand.tiktokUrl || 'Not connected' }}</p>
-              </div>
+            <div class="hierarchy-field-card">
+              <span>Social destinations</span>
+              <strong>{{ brand.facebookUrl || brand.instagramUrl || brand.linkedinUrl || brand.tiktokUrl ? 'Connected channels available' : 'Not connected yet' }}</strong>
+              <p class="hierarchy-meta mt-2">Facebook: {{ brand.facebookUrl || '--' }} · Instagram: {{ brand.instagramUrl || '--' }}</p>
             </div>
 
             @if (canManage()) {
-              <div class="flex flex-wrap gap-3">
-                <app-button variant="secondary" icon="pencil-line" (click)="openEditDialog()">
-                  Edit Brand
-                </app-button>
-                <app-button variant="danger" icon="trash-2" (click)="deleteSelected()">
-                  Delete
-                </app-button>
+              <div class="hierarchy-actions">
+                <app-button variant="secondary" icon="pencil-line" (click)="openEditDialog()">Edit Brand</app-button>
+                <app-button variant="danger" icon="trash-2" (click)="deleteSelected()">Delete</app-button>
               </div>
             }
           </div>
         } @else {
           <div class="mt-5">
-            <app-empty-state
-              icon="badge-check"
-              title="Select a brand to see details."
-              description="Choose a brand from the roster to inspect its relationship and identity settings."
-            />
+            <app-empty-state icon="badge-check" title="Select a brand" description="Choose a brand from the roster to inspect its identity settings." />
           </div>
         }
       </app-card>
 
       <app-card>
-        <p class="text-xs font-semibold uppercase tracking-[0.16em] text-brand-500">Hierarchy preview</p>
-        <h2 class="mt-2 text-base font-semibold text-ink">Workspace -> Brand -> Product Service -> Project Campaign</h2>
-        <p class="mt-3 text-sm leading-7 text-muted">
-          Brands provide the first operational layer after the workspace so product and campaign forms inherit the right business context.
-        </p>
+        <div class="hierarchy-rule-card">
+          <p>Relationship rule</p>
+          <h2>Brands power product and campaign context</h2>
+          <p>Products and projects inherit brand voice, language, and audience settings so generated creatives stay aligned.</p>
+        </div>
       </app-card>
     </div>
   </div>
@@ -257,9 +178,7 @@
 <app-modal
   [open]="dialogMode() !== null"
   [title]="dialogMode() === 'create' ? 'Create brand' : 'Edit brand'"
-  [description]="dialogMode() === 'create'
-    ? 'Add a brand profile for products, campaigns, and future creative requests.'
-    : 'Update the selected brand profile for the current workspace.'"
+  [description]="dialogMode() === 'create' ? 'Add a brand profile for products, campaigns, and creative requests.' : 'Update the selected brand profile.'"
   panelClass="max-w-4xl"
   testId="brand-form-modal"
   (closed)="closeDialog()"
@@ -267,89 +186,55 @@
   <form class="admin-modal-form" [formGroup]="form" (ngSubmit)="submit()">
     <div class="admin-modal-body">
       <section class="admin-modal-section">
-        <h3 class="admin-modal-section-title">Basic Brand Info</h3>
+        <h3 class="admin-modal-section-title">Brand basics</h3>
         <div class="grid gap-4 sm:grid-cols-2">
-      <app-input
-        label="Brand name"
-        placeholder="Lebhas Atelier"
-        [testId]="'brand-name-input'"
-        [control]="form.controls.name"
-        [error]="fieldError('name')"
-      />
-      <app-input
-        label="Business type"
-        placeholder="Apparel brand"
-        [control]="form.controls.businessType"
-      />
+          <app-input label="Brand name" placeholder="Lebhas Atelier" [testId]="'brand-name-input'" [control]="form.controls.name" [error]="fieldError('name')" />
+          <app-input label="Business type" placeholder="Apparel brand" [control]="form.controls.businessType" />
+          <app-input label="Industry" placeholder="Fashion retail" [control]="form.controls.industry" />
+          <app-input label="Target audience" placeholder="Urban apparel buyers" [control]="form.controls.targetAudience" />
         </div>
-
         <label class="block">
-      <span class="mb-2 block text-sm font-medium text-ink">Creative language preference</span>
-      <select
-        class="h-12 w-full rounded-xl border border-border bg-surface px-3 text-base text-ink shadow-sm outline-none transition focus:border-brand-500 focus:ring-4 focus:ring-brand-100/60"
-        formControlName="languagePreference"
-      >
-        @for (option of languagePreferences; track option.value) {
-          <option [value]="option.value">{{ option.label }}</option>
-        }
-      </select>
-      @if (fieldError('languagePreference')) {
-        <span class="mt-2 block text-sm text-alert-600">{{ fieldError('languagePreference') }}</span>
-      }
+          <span class="mb-2 block text-sm font-medium text-ink">Creative language</span>
+          <select class="hierarchy-select" formControlName="languagePreference">
+            @for (option of languagePreferences; track option.value) {
+              <option [value]="option.value">{{ option.label }}</option>
+            }
+          </select>
+          @if (fieldError('languagePreference')) {
+            <span class="mt-2 block text-sm text-alert-600">{{ fieldError('languagePreference') }}</span>
+          }
         </label>
+      </section>
 
+      <section class="admin-modal-section">
+        <h3 class="admin-modal-section-title">Voice and visuals</h3>
         <div class="grid gap-4 sm:grid-cols-2">
-      <app-input label="Industry" placeholder="Fashion retail" [control]="form.controls.industry" />
-      <app-input
-        label="Target audience"
-        placeholder="Urban apparel buyers"
-        [control]="form.controls.targetAudience"
-      />
+          <app-input label="Brand voice" placeholder="Confident and refined" [control]="form.controls.brandVoice" />
+          <app-input label="Preferred CTA" placeholder="Shop now" [control]="form.controls.preferredCta" />
+          <app-input label="Primary color" placeholder="#0B8F68" [control]="form.controls.primaryColor" />
+          <app-input label="Secondary color" placeholder="#2563EB" [control]="form.controls.secondaryColor" />
         </div>
       </section>
 
       <section class="admin-modal-section">
-        <h3 class="admin-modal-section-title">Brand Voice & CTA</h3>
-        <div class="grid gap-4 sm:grid-cols-2">
-      <app-input label="Brand voice" placeholder="Confident and refined" [control]="form.controls.brandVoice" />
-      <app-input label="Preferred CTA" placeholder="Shop now" [control]="form.controls.preferredCta" />
-        </div>
-      </section>
-
-      <section class="admin-modal-section">
-        <h3 class="admin-modal-section-title">Visual Identity</h3>
-        <div class="grid gap-4 sm:grid-cols-2">
-      <app-input label="Primary color" placeholder="#0B8F68" [control]="form.controls.primaryColor" />
-      <app-input label="Secondary color" placeholder="#2563EB" [control]="form.controls.secondaryColor" />
-        </div>
-      </section>
-
-      <section class="admin-modal-section">
-        <h3 class="admin-modal-section-title">Online Presence</h3>
+        <h3 class="admin-modal-section-title">Website and social links</h3>
         <app-input label="Website" placeholder="https://brand.example" [control]="form.controls.website" />
-
         <div class="grid gap-4 sm:grid-cols-2">
-      <app-input label="Facebook URL" placeholder="https://facebook.com/brand" [control]="form.controls.facebookUrl" />
-      <app-input label="Instagram URL" placeholder="https://instagram.com/brand" [control]="form.controls.instagramUrl" />
-        </div>
-
-        <div class="grid gap-4 sm:grid-cols-2">
-      <app-input label="LinkedIn URL" placeholder="https://linkedin.com/company/brand" [control]="form.controls.linkedinUrl" />
-      <app-input label="TikTok URL" placeholder="https://tiktok.com/@brand" [control]="form.controls.tiktokUrl" />
+          <app-input label="Facebook URL" placeholder="https://facebook.com/brand" [control]="form.controls.facebookUrl" />
+          <app-input label="Instagram URL" placeholder="https://instagram.com/brand" [control]="form.controls.instagramUrl" />
+          <app-input label="LinkedIn URL" placeholder="https://linkedin.com/company/brand" [control]="form.controls.linkedinUrl" />
+          <app-input label="TikTok URL" placeholder="https://tiktok.com/@brand" [control]="form.controls.tiktokUrl" />
         </div>
       </section>
 
       @if (dialogMode() === 'edit') {
-      <label class="block">
-        <span class="mb-2 block text-sm font-medium text-ink">Status</span>
-        <select
-          class="h-12 w-full rounded-xl border border-border bg-surface px-3 text-base text-ink shadow-sm outline-none transition focus:border-brand-500 focus:ring-4 focus:ring-brand-100/60"
-          formControlName="status"
-        >
-          <option value="ACTIVE">ACTIVE</option>
-          <option value="ARCHIVED">ARCHIVED</option>
-        </select>
-      </label>
+        <label class="block">
+          <span class="mb-2 block text-sm font-medium text-ink">Status</span>
+          <select class="hierarchy-select" formControlName="status">
+            <option value="ACTIVE">ACTIVE</option>
+            <option value="ARCHIVED">ARCHIVED</option>
+          </select>
+        </label>
       }
     </div>
 

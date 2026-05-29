@@ -44,6 +44,14 @@
       [error]="fieldError('phone')"
     />
 
+    <app-input
+      label="Workspace name (optional)"
+      placeholder="Brand or agency workspace"
+      icon="building-2"
+      [control]="form.controls.workspaceName"
+      [error]="fieldError('workspaceName')"
+    />
+
     <app-password-input
       label="Password"
       placeholder="Create a strong password"

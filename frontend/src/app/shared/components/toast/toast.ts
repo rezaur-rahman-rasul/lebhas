@@ -21,10 +21,10 @@ export class ToastComponent {
   protected iconWrap(tone: string): string {
     const toneClass =
       tone === 'success'
-        ? 'bg-brand-50 text-brand-700'
+        ? 'bg-emerald-50 text-emerald-700 dark:bg-emerald-500/15 dark:text-emerald-100'
         : tone === 'error'
-          ? 'bg-red-50 text-red-700'
-          : 'bg-blue-50 text-blue-700';
+          ? 'bg-red-50 text-red-700 dark:bg-red-500/15 dark:text-red-100'
+          : 'bg-brand-50 text-brand-700 dark:bg-brand-500/15 dark:text-brand-100';
     return `grid h-8 w-8 shrink-0 place-items-center rounded-full ${toneClass}`;
   }
 }

@@ -1,9 +1,10 @@
 <app-page-header
-  eyebrow="Workspace"
+  eyebrow="BILLING"
   title="Payments"
   description="Manage subscription, credit purchases, payment history, and invoices for the active workspace."
 >
   @if (hasAccess()) {
+    <app-button type="button" icon="wallet-cards" (click)="openBillingModal()">Buy Credits</app-button>
     <app-button
       type="button"
       variant="secondary"
@@ -22,153 +23,131 @@
     <app-empty-state
       icon="shield-alert"
       tone="danger"
-      title="You do not have access to payments."
-      description="Please contact your workspace admin if you need access."
+      title="You do not have access to payments"
+      description="Please contact your workspace admin if you need subscription, invoices, or credit purchase access."
     />
   </div>
 } @else {
-  <div class="mt-6 space-y-6">
-    <section class="grid gap-4 lg:grid-cols-3" aria-label="Payment dashboard summary">
-      <app-card>
-        <p class="text-sm text-muted">Current subscription</p>
-        <p class="mt-2 truncate text-2xl font-semibold text-ink">
-          {{ subscription()?.planName ?? 'Package details unavailable' }}
-        </p>
-        <div class="mt-3 flex flex-wrap items-center gap-2">
-          @if (subscription()?.status) {
-            <app-payment-status-badge [status]="subscription()!.status!" />
+  <section class="payments-page">
+    <div class="billing-stats">
+      @for (card of billingStats(); track card.label) {
+        <article class="billing-stat" [class]="'billing-stat ' + card.tone">
+          <div><app-icon [name]="card.icon" [size]="20" /></div>
+          <span>{{ card.label }}</span>
+          @if (card.label === 'Next Renewal' && card.value !== 'Not set') {
+            <strong>{{ card.value | date: 'mediumDate' }}</strong>
           } @else {
-            <span class="rounded-full border border-border bg-panel px-3 py-1 text-xs font-semibold text-muted">
-              Status unavailable
-            </span>
+            <strong>{{ card.value }}</strong>
           }
-        </div>
-        <p class="mt-3 text-sm text-muted">
-          @if (subscription()?.currentPeriodEnd) {
-            Renews or expires {{ subscription()?.currentPeriodEnd | date: 'mediumDate' }}
-          } @else if (subscription()?.trialEndsAt) {
-            Trial ends {{ subscription()?.trialEndsAt | date: 'mediumDate' }}
-          } @else {
-            Renewal date unavailable
-          }
-        </p>
-      </app-card>
+          <small>{{ card.helper }}</small>
+        </article>
+      }
+    </div>
 
-      <app-card>
-        <p class="text-sm text-muted">Current credit balance</p>
-        <p class="mt-2 text-3xl font-semibold text-ink">
-          @if (currentCreditBalance() !== null) {
-            {{ currentCreditBalance() | number }}
-          } @else {
-            Usage details unavailable
-          }
-        </p>
-        <p class="mt-3 text-sm leading-6 text-muted">Credits are used when generating creatives.</p>
-      </app-card>
-
-      <app-card>
-        <p class="text-sm text-muted">Recent activity</p>
-        <p class="mt-2 text-3xl font-semibold text-ink">{{ recentTransactions().length + recentInvoices().length }}</p>
-        <p class="mt-3 text-sm leading-6 text-muted">Recent payment and invoice records loaded from backend.</p>
-      </app-card>
-    </section>
-
-    @if (quickActions().length) {
-      <section aria-labelledby="payment-actions-title">
-        <h2 id="payment-actions-title" class="text-lg font-semibold text-ink">Quick actions</h2>
-        <div class="mt-4 grid gap-4 md:grid-cols-2 xl:grid-cols-4">
-          @for (action of quickActions(); track action.route) {
-            <a
-              class="group block rounded-lg border border-border bg-surface p-5 transition hover:-translate-y-0.5 hover:bg-panel focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500"
-              [routerLink]="action.route"
-              [attr.aria-label]="action.label"
-            >
-              <div class="flex items-start gap-3">
-                <span class="rounded-lg bg-panel p-2 text-brand-300 group-hover:text-brand-200">
-                  <app-icon [name]="action.icon" [size]="18" />
-                </span>
-                <span class="min-w-0">
-                  <span class="block font-semibold text-ink">{{ action.label }}</span>
-                  <span class="mt-1 block text-sm leading-6 text-muted">{{ action.description }}</span>
-                </span>
-              </div>
-            </a>
-          }
-        </div>
-      </section>
-    }
-
-    @if (store.loading() && !recentTransactions().length && !recentInvoices().length) {
-      <app-payment-loading-state label="Loading payment dashboard" />
-    } @else if (store.error() || usageBilling.error()) {
+    @if (store.error() || usageBilling.error()) {
       <app-error-state
         title="Payment dashboard could not load"
         [description]="store.error() ?? usageBilling.error() ?? 'We could not load payment information. Please try again.'"
       >
-        <app-button
-          type="button"
-          variant="secondary"
-          icon="rotate-cw"
-          ariaLabel="Retry loading payment dashboard"
-          (click)="refresh()"
-        >
+        <app-button type="button" variant="secondary" icon="rotate-cw" ariaLabel="Retry loading payment dashboard" (click)="refresh()">
           Try again
         </app-button>
       </app-error-state>
-    } @else {
-      <section class="grid gap-6 xl:grid-cols-2" aria-label="Recent payment records">
-        <div class="space-y-4">
-          <div class="flex items-center justify-between gap-3">
-            <div>
-              <h2 class="text-lg font-semibold text-ink">Recent payment transactions</h2>
-              <p class="mt-1 text-sm text-muted">Sensitive provider details stay hidden.</p>
-            </div>
-            @if (permissions.canViewPayments()) {
-              <a class="text-sm font-medium text-brand-300 hover:text-brand-200" routerLink="/payments/transactions">
-                View all
-              </a>
-            }
-          </div>
-
-          @if (recentTransactions().length) {
-            @for (transaction of recentTransactions(); track transaction.id) {
-              <app-payment-transaction-card [transaction]="transaction" />
-            }
-          } @else {
-            <app-payment-empty-state
-              icon="receipt-text"
-              title="No payment history yet"
-              description="No payment history yet. Your successful payments will appear here."
-            />
-          }
-        </div>
-
-        <div class="space-y-4">
-          <div class="flex items-center justify-between gap-3">
-            <div>
-              <h2 class="text-lg font-semibold text-ink">Recent invoices</h2>
-              <p class="mt-1 text-sm text-muted">Invoice download can be enabled later when backend supports it.</p>
-            </div>
-            @if (permissions.canViewInvoices()) {
-              <a class="text-sm font-medium text-brand-300 hover:text-brand-200" routerLink="/payments/invoices">
-                View all
-              </a>
-            }
-          </div>
-
-          @if (recentInvoices().length) {
-            @for (invoice of recentInvoices(); track invoice.id) {
-              <app-invoice-card [invoice]="invoice" [downloadAvailable]="false" />
-            }
-          } @else {
-            <app-payment-empty-state
-              icon="file-text"
-              title="No invoices yet"
-              description="No payment history yet. Your successful payments will appear here."
-            />
-          }
-        </div>
-      </section>
     }
-  </div>
+
+    <section class="billing-cta">
+      <div>
+        <p>Upgrade / Buy Credits</p>
+        <h2>Keep campaign generation moving</h2>
+        <span>Buy backend-configured credit packages or review your subscription options. Checkout will only continue when a real payment session is returned.</span>
+      </div>
+      <div>
+        <button type="button" (click)="openBillingModal()">
+          <app-icon name="wallet-cards" [size]="17" />
+          Buy Credits
+        </button>
+        <a routerLink="/payments/subscription">Upgrade Plan</a>
+      </div>
+    </section>
+
+    <section class="billing-grid">
+      <article class="billing-panel">
+        <div class="section-head">
+          <div>
+            <p>Recent Transactions</p>
+            <h2>Payment history</h2>
+          </div>
+          @if (permissions.canViewPayments()) {
+            <a routerLink="/payments/transactions">View all</a>
+          }
+        </div>
+
+        @if (store.loading() && !recentTransactions().length) {
+          <div class="mini-loading"></div>
+        } @else if (recentTransactions().length) {
+          <div class="transaction-list">
+            @for (transaction of recentTransactions(); track transaction.id) {
+              <div class="transaction-row">
+                <div><app-icon name="receipt-text" [size]="17" /></div>
+                <span>
+                  <strong>{{ transactionTitle(transaction) }}</strong>
+                  <small>{{ transaction.createdAt | date: 'mediumDate' }} &middot; {{ transaction.providerName || 'Provider pending' }}</small>
+                </span>
+                <em>{{ money(transaction.amount, transaction.currency) }}</em>
+                <app-status-badge [tone]="statusTone(transaction.status)">{{ titleCase(transaction.status) }}</app-status-badge>
+              </div>
+            }
+          </div>
+        } @else {
+          <div class="billing-empty">
+            <app-icon name="receipt-text" [size]="26" />
+            <strong>No payment history yet</strong>
+            <span>Successful payments and gateway updates will appear here.</span>
+          </div>
+        }
+      </article>
+
+      <article class="billing-panel">
+        <div class="section-head">
+          <div>
+            <p>Invoices</p>
+            <h2>Recent invoices</h2>
+          </div>
+          @if (permissions.canViewInvoices()) {
+            <a routerLink="/payments/invoices">View all</a>
+          }
+        </div>
+
+        @if (recentInvoices().length) {
+          <div class="invoice-list">
+            @for (invoice of recentInvoices(); track invoice.id) {
+              <div class="invoice-row">
+                <div>
+                  <strong>{{ invoice.invoiceNumber }}</strong>
+                  <small>{{ invoice.createdAt | date: 'mediumDate' }} &middot; {{ titleCase(invoice.invoiceType) }}</small>
+                </div>
+                <span>{{ money(invoice.amount, invoice.currency) }}</span>
+                <app-status-badge [tone]="statusTone(invoice.status)">{{ titleCase(invoice.status) }}</app-status-badge>
+              </div>
+            }
+          </div>
+        } @else {
+          <div class="billing-empty">
+            <app-icon name="file-text" [size]="26" />
+            <strong>No invoices yet</strong>
+            <span>Invoice records will appear after successful payments.</span>
+          </div>
+        }
+      </article>
+    </section>
+
+    <section class="payment-method">
+      <div>
+        <p>Payment Method</p>
+        <h2>Checkout foundation</h2>
+        <span>Payment checkout will be available when the backend returns a gateway redirect URL. Until then, contact support or admin.</span>
+      </div>
+      <app-status-badge tone="neutral">Gateway pending</app-status-badge>
+    </section>
+  </section>
 }

@@ -1,6 +1,7 @@
 import {
   ChangeDetectionStrategy,
   Component,
+  DestroyRef,
   ElementRef,
   HostListener,
   computed,
@@ -9,7 +10,8 @@ import {
   signal,
   viewChild,
 } from '@angular/core';
-import { RouterLink, RouterOutlet } from '@angular/router';
+import { NavigationEnd, NavigationStart, Router, RouterLink, RouterOutlet } from '@angular/router';
+import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 
 import { CurrentUserStore } from '@app/core/auth/current-user.store';
 import { PermissionStore } from '@app/core/permissions/permission.store';
@@ -22,6 +24,8 @@ import { ThemeToggleComponent } from '@app/shared/components/theme-toggle/theme-
 import { UserProfileDropdownComponent } from '@app/core/layout/user-profile-dropdown/user-profile-dropdown';
 import { UserRole } from '@app/features/auth/models/user.models';
 import { NotificationStore } from '@app/features/notifications/state/notification.store';
+import { BillingPurchaseModalComponent } from '@app/features/payments/components/billing-purchase-modal/billing-purchase-modal';
+import { BillingModalService } from '@app/features/payments/services/billing-modal.service';
 import { SidebarComponent } from './components/app-sidebar/app-sidebar';
 import { DASHBOARD_NAVIGATION } from './dashboard-navigation';
 
@@ -35,6 +39,7 @@ import { DASHBOARD_NAVIGATION } from './dashboard-navigation';
     SidebarComponent,
     ThemeToggleComponent,
     UserProfileDropdownComponent,
+    BillingPurchaseModalComponent,
   ],
   templateUrl: './dashboard-layout.html',
   styleUrl: './dashboard-layout.scss',
@@ -47,10 +52,24 @@ export class ProtectedLayoutComponent {
   protected readonly loading = inject(LoadingStateService);
   protected readonly workspace = inject(WorkspaceStore);
   protected readonly notifications = inject(NotificationStore);
+  protected readonly billingModal = inject(BillingModalService);
+  private readonly router = inject(Router);
+  private readonly destroyRef = inject(DestroyRef);
   private readonly workspaceDropdownRef = viewChild<ElementRef<HTMLElement>>('workspaceDropdown');
   private readonly mobileWorkspaceDropdownRef = viewChild<ElementRef<HTMLElement>>('mobileWorkspaceDropdown');
 
   constructor() {
+    this.router.events.pipe(takeUntilDestroyed(this.destroyRef)).subscribe((event) => {
+      if (event instanceof NavigationStart) {
+        this.resetDashboardScroll();
+      }
+
+      if (event instanceof NavigationEnd) {
+        this.resetDashboardScroll();
+        this.queueDashboardScrollReset();
+      }
+    });
+
     effect(() => {
       if (!this.auth.isAuthenticated()) {
         return;
@@ -92,19 +111,27 @@ export class ProtectedLayoutComponent {
     const count = this.notifications.unreadCount();
     return count > 0 ? `Open notifications. ${count} unread.` : 'Open notifications.';
   });
+  protected readonly creditsSummaryLabel = computed(() => {
+    const remaining = this.workspace.remainingCreditsLabel();
+    return remaining === 'Usage details unavailable' ? 'Credits unavailable' : `${remaining} credits`;
+  });
+
+  protected openBillingModal(): void {
+    this.billingModal.show();
+  }
 
   protected readonly sidebarClasses = computed(() =>
     [
-      'fixed inset-y-0 left-0 z-40 flex flex-col border-r border-border bg-surface transition-all duration-200 lg:translate-x-0',
-      this.layout.sidebarCollapsed() ? 'lg:w-[4.75rem]' : 'lg:w-64',
-      this.layout.sidebarOpen() ? 'w-64 translate-x-0' : 'w-64 -translate-x-full',
+      'fixed inset-y-0 left-0 z-40 flex flex-col border-r border-border/70 bg-surface transition-all duration-200 lg:translate-x-0',
+      this.layout.sidebarCollapsed() ? 'lg:w-[var(--app-sidebar-compact-width)]' : 'lg:w-[var(--app-sidebar-width)]',
+      this.layout.sidebarOpen() ? 'w-[var(--app-sidebar-width)] translate-x-0' : 'w-[var(--app-sidebar-width)] -translate-x-full',
     ].join(' '),
   );
 
   protected readonly contentClasses = computed(() =>
     [
       'min-h-screen transition-[padding] duration-200',
-      this.layout.sidebarCollapsed() ? 'lg:pl-[4.75rem]' : 'lg:pl-64',
+      this.layout.sidebarCollapsed() ? 'lg:pl-[var(--app-sidebar-compact-width)]' : 'lg:pl-[var(--app-sidebar-width)]',
     ].join(' '),
   );
 
@@ -148,6 +175,28 @@ export class ProtectedLayoutComponent {
 
   protected closeSidebar(): void {
     this.layout.closeSidebar();
+  }
+
+  private queueDashboardScrollReset(): void {
+    if (typeof window === 'undefined') {
+      return;
+    }
+
+    window.requestAnimationFrame(() => this.resetDashboardScroll());
+    window.setTimeout(() => this.resetDashboardScroll(), 0);
+  }
+
+  private resetDashboardScroll(): void {
+    if (typeof window === 'undefined' || typeof document === 'undefined') {
+      return;
+    }
+
+    window.scrollTo({ top: 0, left: 0, behavior: 'auto' });
+    document.documentElement.scrollTop = 0;
+    document.documentElement.scrollLeft = 0;
+    document.body.scrollTop = 0;
+    document.body.scrollLeft = 0;
+    document.querySelector('main')?.scrollTo({ top: 0, left: 0, behavior: 'auto' });
   }
 
   private canShowNavigationItem(item: NavigationItem, role: UserRole): boolean {

@@ -19,9 +19,7 @@
           <span class="sidebar-brand-title" [title]="displayProjectName()">
             {{ displayProjectName() }}
           </span>
-          <span class="sidebar-brand-subtitle" [title]="displayWorkspaceName()">
-            {{ displayWorkspaceName() }}
-          </span>
+          <span class="sidebar-brand-subtitle">Create Ads Beyond Imagination</span>
         </span>
       }
     </a>
@@ -67,23 +65,14 @@
   </nav>
 
   <footer class="sidebar-footer">
-    <section class="access-scope-card" aria-label="Access scope">
-      @if (!compact()) {
-        <div class="access-scope-main">
-          <div class="access-scope-copy">
-            <p class="access-scope-label">ACCESS SCOPE</p>
-            <p class="access-scope-role" [title]="roleBadgeLabel()">{{ roleBadgeLabel() }}</p>
-            <p class="access-scope-workspace" [title]="displayWorkspaceName()">
-              {{ displayWorkspaceName() }}
-            </p>
-          </div>
-          <app-badge [tone]="roleBadgeTone()">{{ roleBadgeLabel() }}</app-badge>
-        </div>
-      } @else {
-        <div class="access-scope-compact" [title]="'Access scope: ' + roleBadgeLabel()">
-          <span>{{ compactRoleLabel() }}</span>
-        </div>
-      }
-    </section>
+    @if (!compact() && roleBadgeLabel() === 'ADMIN') {
+      <button type="button" class="sidebar-upgrade-card" (click)="openBillingModal()">
+        <span class="upgrade-icon"><app-icon name="sparkles" [size]="18" /></span>
+        <span class="upgrade-copy">
+          <span class="upgrade-title">Upgrade creative capacity</span>
+          <span class="upgrade-text">Buy credits for faster campaign output.</span>
+        </span>
+      </button>
+    }
   </footer>
 </div>

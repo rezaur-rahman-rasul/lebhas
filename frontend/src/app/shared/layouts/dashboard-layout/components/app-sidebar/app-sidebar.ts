@@ -12,9 +12,9 @@ import { NavigationEnd, Router, RouterLink } from '@angular/router';
 import { filter } from 'rxjs';
 
 import { NavigationItem } from '@app/shared/layouts/navigation.models';
-import { BadgeComponent } from '@app/shared/components/badge/badge';
 import { BrandLogoComponent } from '@app/shared/components/brand-logo/brand-logo';
 import { IconComponent } from '@app/shared/components/icon/icon';
+import { BillingModalService } from '@app/features/payments/services/billing-modal.service';
 
 interface NavigationGroup {
   readonly label: string;
@@ -24,7 +24,7 @@ interface NavigationGroup {
 @Component({
   selector: 'app-sidebar',
   standalone: true,
-  imports: [RouterLink, BadgeComponent, BrandLogoComponent, IconComponent],
+  imports: [RouterLink, BrandLogoComponent, IconComponent],
   templateUrl: './app-sidebar.html',
   styleUrl: './app-sidebar.scss',
   changeDetection: ChangeDetectionStrategy.OnPush,
@@ -32,6 +32,7 @@ interface NavigationGroup {
 export class SidebarComponent {
   private readonly router = inject(Router);
   private readonly destroyRef = inject(DestroyRef);
+  private readonly billingModal = inject(BillingModalService);
 
   readonly brandName = input('Lebhas - Brand Attire');
   readonly workspaceLabel = input('Select workspace');
@@ -79,6 +80,11 @@ export class SidebarComponent {
 
   protected selectItem(): void {
     this.itemSelected.emit();
+  }
+
+  protected openBillingModal(): void {
+    this.billingModal.show();
+    this.selectItem();
   }
 
   protected roleBadgeTone(): 'brand' | 'blue' | 'red' | 'neutral' {

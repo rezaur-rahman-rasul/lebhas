@@ -1,340 +1,315 @@
-<app-section-header
-  eyebrow="Projects and campaigns"
-  title="Projects / Campaigns"
-  description="Manage campaign containers that inherit their product and brand relationship from the workspace hierarchy."
->
-  @if (canCreate()) {
-    <app-button
-      icon="plus"
-      [disabled]="products().length === 0"
-      [attr.title]="products().length === 0 ? 'Create a product or service first.' : null"
-      [testId]="'project-create-button'"
-      (click)="openCreateDialog()"
-    >
-      Create Project / Campaign
-    </app-button>
-  }
-</app-section-header>
-
-@if (!workspaceId()) {
-  <div class="mt-6">
-    <app-empty-state
-      icon="building-2"
-      title="Select a workspace"
-      description="Choose an active workspace from the header before managing projects."
-    />
-  </div>
-} @else if (!canView()) {
-  <div class="mt-6">
-    <app-empty-state
-      icon="shield-alert"
-      title="Project access is restricted"
-      description="Your current role does not include project viewing permission in this workspace."
-    />
-  </div>
-} @else if (store.loading()) {
-  <div class="mt-6">
-    <app-loading label="Loading projects" />
-  </div>
-} @else if (store.error()) {
-  <div class="mt-6">
-    <app-empty-state
-      icon="triangle-alert"
-      title="Projects could not be loaded"
-      [description]="store.error()!"
-    >
-      <app-button variant="secondary" icon="refresh-cw" (click)="store.load(workspaceId()!, { force: true })">
-        Retry
-      </app-button>
-    </app-empty-state>
-  </div>
-} @else {
-  <div class="mt-6 grid gap-6 xl:grid-cols-[minmax(0,1.08fr)_22rem]">
-    <app-card>
-      <div class="flex items-center justify-between gap-3">
-        <div>
-          <h2 class="text-base font-semibold text-ink">Project roster</h2>
-          <p class="mt-1 text-sm text-muted">{{ store.total() }} project campaigns in the active workspace</p>
-        </div>
-        <app-badge tone="blue">Product -> Project</app-badge>
-      </div>
-
-      @if (projects().length === 0) {
-        <div class="mt-5">
-          <app-empty-state
-            icon="folder-kanban"
-            title="No projects yet"
-            description="Create the first project once a product or service is available."
-          >
-            @if (products().length === 0) {
-              <a routerLink="/product-services">
-                <app-button variant="secondary" icon="package-open">Create Product/Service First</app-button>
-              </a>
-            }
-          </app-empty-state>
-        </div>
+<div class="projects-page">
+  <app-page-header
+    eyebrow="WORKSPACE HIERARCHY"
+    title="Projects / Campaigns"
+    description="Manage campaign containers that inherit their product and brand relationship."
+  >
+    @if (canCreate()) {
+      @if (hasProductServices()) {
+        <app-button icon="plus" [testId]="'project-create-button'" (click)="openCreateDialog()">
+          Create Project / Campaign
+        </app-button>
       } @else {
-        <div class="mt-5 grid gap-3 md:hidden">
-          @for (project of projects(); track project.id) {
-            <button
-              type="button"
-              class="rounded-xl border border-border bg-surface p-4 text-left transition hover:border-brand-300 hover:bg-panel focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500"
-              [class.border-brand-500]="selectedProjectId() === project.id"
-              [attr.aria-label]="'Select project or campaign ' + project.name"
-              (click)="selectProject(project.id)"
-            >
-              <div class="flex items-start justify-between gap-3">
-                <div class="min-w-0">
-                  <p class="truncate font-semibold text-ink">{{ project.name }}</p>
-                  <p class="mt-1 text-sm text-muted">{{ project.campaignObjective || 'Objective pending' }}</p>
-                </div>
-                <app-badge [tone]="project.status === 'ACTIVE' ? 'brand' : 'neutral'">
-                  {{ project.status }}
-                </app-badge>
-              </div>
-              <div class="mt-4 grid gap-2 text-sm text-muted">
-                <p><span class="font-medium text-ink">Product / Service:</span> {{ productName(project.productServiceId) }}</p>
-                @if (!isProductLinked(project.productServiceId)) {
-                  <p class="text-alert-600">Link this project to a product/service before creative generation.</p>
-                }
-                <p><span class="font-medium text-ink">Platform:</span> {{ project.targetPlatform || 'Multi-platform' }}</p>
-              </div>
-            </button>
-          }
-        </div>
-
-        <div class="mt-5 hidden overflow-x-auto md:block">
-          <table class="min-w-full divide-y divide-border text-left">
-            <thead class="text-xs uppercase tracking-[0.14em] text-muted">
-              <tr>
-                <th class="pb-3 pr-4 font-semibold">Project / Campaign</th>
-                <th class="pb-3 pr-4 font-semibold">Product / Service</th>
-                <th class="pb-3 pr-4 font-semibold">Platform</th>
-                <th class="pb-3 font-semibold">Status</th>
-              </tr>
-            </thead>
-            <tbody class="divide-y divide-border">
-              @for (project of projects(); track project.id) {
-                <tr
-                  class="cursor-pointer transition hover:bg-panel/30"
-                  [class.bg-brand-500/8]="selectedProjectId() === project.id"
-                  (click)="selectProject(project.id)"
-                >
-                  <td class="py-4 pr-4">
-                    <p class="font-semibold text-ink">{{ project.name }}</p>
-                    <p class="mt-1 text-sm text-muted">{{ project.campaignObjective || 'Objective pending' }}</p>
-                  </td>
-                  <td class="py-4 pr-4 text-sm text-muted">{{ productName(project.productServiceId) }}</td>
-                  <td class="py-4 pr-4 text-sm text-muted">{{ project.targetPlatform || 'Multi-platform' }}</td>
-                  <td class="py-4">
-                    <app-badge [tone]="project.status === 'ACTIVE' ? 'brand' : 'neutral'">
-                      {{ project.status }}
-                    </app-badge>
-                  </td>
-                </tr>
-              }
-            </tbody>
-          </table>
-        </div>
+        <a routerLink="/product-services" title="Create a product/service first">
+          <app-button icon="package-open" variant="secondary">Create a product/service first</app-button>
+        </a>
       }
-    </app-card>
+    }
+  </app-page-header>
 
-    <div class="grid gap-6">
+  @if (!workspaceId()) {
+    <div class="projects-notice">
+      <app-empty-state
+        icon="building-2"
+        title="Select a workspace"
+        description="Choose an active workspace from the header before managing projects."
+      />
+    </div>
+  } @else if (!canView()) {
+    <div class="projects-notice">
+      <app-empty-state
+        icon="shield-alert"
+        title="Project access is restricted"
+        description="Your current role does not include project viewing permission in this workspace."
+      />
+    </div>
+  } @else {
+    <div class="projects-grid hierarchy-page-grid">
       <app-card>
-        <div class="flex items-center justify-between gap-3">
+        <div class="hierarchy-card-head">
           <div>
-            <h2 class="text-base font-semibold text-ink">Project detail</h2>
-            <p class="mt-1 text-sm text-muted">Campaign planning context linked to product and brand</p>
+            <h2>Project roster</h2>
+            <p>{{ store.total() }} project campaigns in the active workspace</p>
           </div>
-          @if (selectedProject()) {
-            <app-badge [tone]="selectedProject()!.status === 'ACTIVE' ? 'brand' : 'neutral'">
-              {{ selectedProject()!.status }}
-            </app-badge>
-          }
+          <app-badge tone="blue">Product -> Project</app-badge>
         </div>
 
-        @if (selectedProject(); as project) {
-          <div class="mt-5 space-y-4">
-            <div>
-              <h3 class="text-xl font-semibold text-ink">{{ project.name }}</h3>
-              <p class="mt-2 text-sm leading-7 text-muted">
-                {{ project.description || 'Project description has not been configured yet.' }}
-              </p>
-            </div>
-
-            <div class="grid gap-3 sm:grid-cols-2">
-              <div class="rounded-2xl border border-border bg-panel/35 p-4">
-                <p class="text-xs font-semibold uppercase tracking-[0.14em] text-muted">Brand</p>
-                <p class="mt-2 text-sm font-medium text-ink">{{ brandName(project.brandId) }}</p>
-              </div>
-              <div class="rounded-2xl border border-border bg-panel/35 p-4">
-                <p class="text-xs font-semibold uppercase tracking-[0.14em] text-muted">Product / Service</p>
-                <p class="mt-2 text-sm font-medium text-ink">{{ productName(project.productServiceId) }}</p>
-              </div>
-            </div>
-
-            @if (!isProductLinked(project.productServiceId)) {
-              <div class="rounded-2xl border border-alert-600/30 bg-alert-600/10 p-4">
-                <p class="text-sm font-semibold text-alert-600">Product not linked</p>
-                <p class="mt-2 text-sm leading-6 text-muted">
-                  Link this project to a product/service before creative generation.
-                </p>
-              </div>
-            }
-
-            <div class="grid gap-3 sm:grid-cols-2">
-              <div class="rounded-2xl border border-border bg-panel/35 p-4">
-                <p class="text-xs font-semibold uppercase tracking-[0.14em] text-muted">Target platform</p>
-                <p class="mt-2 text-sm font-medium text-ink">{{ project.targetPlatform || 'Multi-platform' }}</p>
-              </div>
-              <div class="rounded-2xl border border-border bg-panel/35 p-4">
-                <p class="text-xs font-semibold uppercase tracking-[0.14em] text-muted">Campaign type</p>
-                <p class="mt-2 text-sm font-medium text-ink">{{ project.campaignType || 'General campaign' }}</p>
-              </div>
-            </div>
-
-            <div class="rounded-2xl border border-border bg-panel/35 p-4">
-              <p class="text-xs font-semibold uppercase tracking-[0.14em] text-muted">Objective</p>
-              <p class="mt-2 text-sm leading-7 text-muted">{{ project.campaignObjective || 'Pending' }}</p>
-            </div>
-
-            @if (canUpdate()) {
-              <div class="flex flex-wrap gap-3">
-                <app-button variant="secondary" icon="pencil" (click)="openEditDialog()">
-                  Edit Project / Campaign
-                </app-button>
-                <app-button variant="danger" icon="trash-2" (click)="deleteSelected()">
-                  Delete
-                </app-button>
-              </div>
+        @if (store.loading()) {
+          <div class="hierarchy-roster" aria-label="Loading projects">
+            @for (row of skeletonRows; track row) {
+              <div class="project-skeleton-row"></div>
             }
           </div>
-        } @else {
+        } @else if (store.error()) {
           <div class="mt-5">
             <app-empty-state
-              icon="mouse-pointer-click"
-              title="Select a project"
-              description="Choose a project or campaign from the roster to inspect its linked product and brand context."
-            />
+              icon="triangle-alert"
+              title="Projects could not be loaded"
+              [description]="store.error()!"
+            >
+              <app-button variant="secondary" icon="refresh-cw" (click)="retryProjects()">Retry</app-button>
+            </app-empty-state>
+          </div>
+        } @else if (projects().length === 0) {
+          <div class="mt-5">
+            <app-empty-state
+              icon="folder-kanban"
+              title="No projects yet"
+              description="Create the first project once a product or service is available."
+            >
+              @if (products().length === 0) {
+                <a routerLink="/product-services">
+                  <app-button icon="package-open">Create a product/service first</app-button>
+                </a>
+              }
+            </app-empty-state>
+          </div>
+        } @else {
+          <div class="hierarchy-roster md:hidden">
+            @for (project of projects(); track project.id) {
+              <button
+                type="button"
+                class="hierarchy-list-card"
+                [class.is-active]="selectedProjectId() === project.id"
+                [attr.aria-current]="selectedProjectId() === project.id ? 'true' : null"
+                (click)="selectProject(project.id)"
+              >
+                <div class="hierarchy-list-main">
+                  <div class="min-w-0">
+                    <strong>{{ project.name }}</strong>
+                    <p class="hierarchy-meta">{{ productName(project.productServiceId) }}</p>
+                  </div>
+                  <app-badge [tone]="project.status === 'ACTIVE' ? 'brand' : 'neutral'">
+                    {{ project.status }}
+                  </app-badge>
+                </div>
+                <p class="hierarchy-meta mt-3">Platform: {{ project.targetPlatform || 'Multi-platform' }}</p>
+                @if (!isProductLinked(project.productServiceId)) {
+                  <p class="hierarchy-meta text-alert-600">Create a product/service first</p>
+                }
+              </button>
+            }
+          </div>
+
+          <div class="projects-table-wrap">
+            <table class="hierarchy-table">
+              <thead>
+                <tr>
+                  <th>Project / Campaign Name</th>
+                  <th>Product / Service</th>
+                  <th>Platform</th>
+                  <th>Status</th>
+                </tr>
+              </thead>
+              <tbody>
+                @for (project of projects(); track project.id) {
+                  <tr
+                    [class.is-active]="selectedProjectId() === project.id"
+                    tabindex="0"
+                    (click)="selectProject(project.id)"
+                    (keydown.enter)="selectProject(project.id)"
+                    (keydown.space)="selectProject(project.id)"
+                  >
+                    <td>
+                      <strong class="text-ink">{{ project.name }}</strong>
+                      <p class="hierarchy-meta">{{ project.campaignObjective || 'Objective pending' }}</p>
+                    </td>
+                    <td>{{ productName(project.productServiceId) }}</td>
+                    <td>{{ project.targetPlatform || 'Multi-platform' }}</td>
+                    <td>
+                      <app-badge [tone]="project.status === 'ACTIVE' ? 'brand' : 'neutral'">
+                        {{ project.status }}
+                      </app-badge>
+                    </td>
+                  </tr>
+                }
+              </tbody>
+            </table>
           </div>
         }
       </app-card>
 
-      <app-card>
-        <p class="text-xs font-semibold uppercase tracking-[0.16em] text-brand-500">Relationship rule</p>
-        <h2 class="mt-2 text-base font-semibold text-ink">Every project campaign must belong to a product or service</h2>
-        <p class="mt-3 text-sm leading-7 text-muted">
-          This preserves the hierarchy from Workspace to Brand to Product/Service to Project/Campaign before creative requests and generated versions arrive later.
-        </p>
-      </app-card>
+      <aside class="projects-side">
+        <app-card>
+          <div class="hierarchy-card-head">
+            <div>
+              <h2>Project detail</h2>
+              <p>Campaign planning context linked to product and brand.</p>
+            </div>
+            @if (selectedProject()) {
+              <app-badge [tone]="selectedProject()!.status === 'ACTIVE' ? 'brand' : 'neutral'">
+                {{ selectedProject()!.status }}
+              </app-badge>
+            }
+          </div>
+
+          @if (store.loading()) {
+            <div class="hierarchy-detail">
+              <div class="project-skeleton-line w-40"></div>
+              <div class="project-skeleton-block"></div>
+              <div class="project-skeleton-panel"></div>
+            </div>
+          } @else if (selectedProject(); as project) {
+            <div class="hierarchy-detail">
+              <div>
+                <h3 class="hierarchy-detail-title">{{ project.name }}</h3>
+                <p class="hierarchy-meta mt-2">{{ projectDescription(project) }}</p>
+              </div>
+
+              <div class="hierarchy-field-grid">
+                <div class="hierarchy-field-card">
+                  <span>Linked Brand</span>
+                  <strong>{{ brandName(project.brandId) }}</strong>
+                </div>
+                <div class="hierarchy-field-card">
+                  <span>Linked Product / Service</span>
+                  <strong>{{ productName(project.productServiceId) }}</strong>
+                </div>
+                <div class="hierarchy-field-card">
+                  <span>Target Platform</span>
+                  <strong>{{ project.targetPlatform || 'Multi-platform' }}</strong>
+                </div>
+                <div class="hierarchy-field-card">
+                  <span>Campaign Type</span>
+                  <strong>{{ project.campaignType || 'General campaign' }}</strong>
+                </div>
+              </div>
+
+              <div class="hierarchy-field-card">
+                <span>Objective</span>
+                <strong>{{ project.campaignObjective || 'Pending' }}</strong>
+              </div>
+
+              @if (!isProductLinked(project.productServiceId)) {
+                <div class="project-warning-card">
+                  <span>Product relationship missing</span>
+                  <p>Guide this project back to a product/service before generating creatives.</p>
+                  <a routerLink="/product-services">Create a product/service first</a>
+                </div>
+              }
+
+              <div class="hierarchy-actions">
+                <app-button
+                  variant="secondary"
+                  icon="pencil"
+                  [disabled]="!canUpdate()"
+                  [attr.title]="canUpdate() ? null : 'Project update permission required'"
+                  (click)="canUpdate() && openEditDialog()"
+                >
+                  Edit Project / Campaign
+                </app-button>
+                <app-button
+                  variant="danger"
+                  icon="trash-2"
+                  [disabled]="!canUpdate()"
+                  [attr.title]="canUpdate() ? null : 'Project delete permission required'"
+                  (click)="canUpdate() && deleteSelected()"
+                >
+                  Delete
+                </app-button>
+              </div>
+            </div>
+          } @else {
+            <div class="mt-5">
+              <app-empty-state
+                icon="mouse-pointer-click"
+                title="Select a project"
+                description="Project details will appear here."
+              />
+            </div>
+          }
+        </app-card>
+
+        <app-card>
+          <div class="hierarchy-rule-card">
+            <p>RELATIONSHIP RULE</p>
+            <h2>Every project campaign must belong to a product or service</h2>
+            <p>This preserves the Workspace to Brand to Product/Service to Project/Campaign hierarchy before creative generation begins.</p>
+          </div>
+        </app-card>
+      </aside>
     </div>
-  </div>
-}
+  }
+</div>
 
 <app-modal
   [open]="dialogMode() !== null"
   [title]="dialogMode() === 'create' ? 'Create project / campaign' : 'Edit project / campaign'"
-  [description]="dialogMode() === 'create'
-    ? 'Attach a project campaign to a product service before creative generation begins.'
-    : 'Update the selected project campaign in the active workspace.'"
+  [description]="dialogMode() === 'create' ? 'Attach a project campaign to a product service before creative generation begins.' : 'Update the selected project campaign.'"
   panelClass="max-w-4xl"
   testId="project-form-modal"
   (closed)="closeDialog()"
 >
   <form class="admin-modal-form" [formGroup]="form" (ngSubmit)="submit()">
     <div class="admin-modal-body">
-    <label class="block">
-      <span class="mb-2 block text-sm font-medium text-ink">Product / Service</span>
-      <select
-        class="h-12 w-full rounded-xl border border-border bg-surface px-3 text-base text-ink shadow-sm outline-none transition focus:border-brand-500 focus:ring-4 focus:ring-brand-100/60"
-        data-testid="project-product-select"
-        formControlName="productServiceId"
-        (change)="updateFormProduct($event)"
-      >
-        <option value="">Select product or service</option>
-        @for (product of products(); track product.id) {
-          <option [value]="product.id">{{ product.name }} - {{ brandName(product.brandId) }}</option>
+      <section class="admin-modal-section">
+        <h3 class="admin-modal-section-title">Product relationship</h3>
+        <label class="block">
+          <span class="mb-2 block text-sm font-medium text-ink">Product / Service</span>
+          <select class="hierarchy-select" data-testid="project-product-select" formControlName="productServiceId" (change)="updateFormProduct($event)">
+            <option value="">Select product or service</option>
+            @for (product of products(); track product.id) {
+              <option [value]="product.id">{{ product.name }} - {{ brandName(product.brandId) }}</option>
+            }
+          </select>
+          @if (fieldError('productServiceId')) {
+            <span class="mt-2 block text-sm text-alert-600">{{ fieldError('productServiceId') }}</span>
+          }
+        </label>
+        @if (formProduct(); as product) {
+          <div class="hierarchy-field-grid">
+            <div class="hierarchy-field-card"><span>Selected product/service</span><strong>{{ product.name }}</strong><p class="hierarchy-meta mt-1">{{ product.category || 'Category pending' }}</p></div>
+            <div class="hierarchy-field-card"><span>Derived brand context</span><strong>{{ formBrand()?.name || 'Unknown brand' }}</strong><p class="hierarchy-meta mt-1">{{ formBrand()?.industry || 'Industry pending' }}</p></div>
+          </div>
         }
-      </select>
-      @if (fieldError('productServiceId')) {
-        <span class="mt-2 block text-sm text-alert-600">{{ fieldError('productServiceId') }}</span>
+      </section>
+
+      <section class="admin-modal-section">
+        <h3 class="admin-modal-section-title">Campaign details</h3>
+        <div class="grid gap-4 sm:grid-cols-2">
+          <app-input label="Name" placeholder="Eid launch campaign" [testId]="'project-name-input'" [control]="form.controls.name" [error]="fieldError('name')" />
+          <label class="block">
+            <span class="mb-2 block text-sm font-medium text-ink">Target platform</span>
+            <select class="hierarchy-select" formControlName="targetPlatform">
+              @for (platform of targetPlatforms; track platform) {
+                <option [value]="platform">{{ platform }}</option>
+              }
+            </select>
+          </label>
+        </div>
+        <app-input label="Description" placeholder="Campaign planning container for the seasonal promotion" [control]="form.controls.description" />
+        <div class="grid gap-4 sm:grid-cols-2">
+          <label class="block">
+            <span class="mb-2 block text-sm font-medium text-ink">Campaign objective</span>
+            <select class="hierarchy-select" formControlName="campaignObjective">
+              @for (objective of campaignObjectives; track objective) {
+                <option [value]="objective">{{ objective }}</option>
+              }
+            </select>
+          </label>
+          <app-input label="Campaign type" placeholder="Launch campaign" [control]="form.controls.campaignType" />
+        </div>
+      </section>
+
+      @if (dialogMode() === 'edit') {
+        <label class="block">
+          <span class="mb-2 block text-sm font-medium text-ink">Status</span>
+          <select class="hierarchy-select" formControlName="status">
+            <option value="ACTIVE">ACTIVE</option>
+            <option value="ARCHIVED">ARCHIVED</option>
+          </select>
+        </label>
       }
-    </label>
-
-    @if (formProduct(); as product) {
-      <div class="grid gap-3 rounded-xl border border-border bg-panel/35 p-4 sm:grid-cols-2">
-        <div>
-          <p class="text-xs font-semibold uppercase tracking-[0.14em] text-muted">Selected product/service</p>
-          <p class="mt-2 text-sm font-semibold text-ink">{{ product.name }}</p>
-          <p class="mt-1 text-sm text-muted">{{ product.category || 'Category pending' }}</p>
-        </div>
-        <div>
-          <p class="text-xs font-semibold uppercase tracking-[0.14em] text-muted">Derived brand context</p>
-          <p class="mt-2 text-sm font-semibold text-ink">{{ formBrand()?.name || 'Unknown brand' }}</p>
-          <p class="mt-1 text-sm text-muted">{{ formBrand()?.industry || 'Industry pending' }}</p>
-        </div>
-      </div>
-    }
-
-    <div class="grid gap-4 sm:grid-cols-2">
-      <app-input
-        label="Name"
-        placeholder="Eid launch campaign"
-        [testId]="'project-name-input'"
-        [control]="form.controls.name"
-        [error]="fieldError('name')"
-      />
-      <label class="block">
-        <span class="mb-2 block text-sm font-medium text-ink">Target platform</span>
-        <select
-          class="h-12 w-full rounded-xl border border-border bg-surface px-3 text-base text-ink shadow-sm outline-none transition focus:border-brand-500 focus:ring-4 focus:ring-brand-100/60"
-          formControlName="targetPlatform"
-        >
-          @for (platform of targetPlatforms; track platform) {
-            <option [value]="platform">{{ platform }}</option>
-          }
-        </select>
-      </label>
-    </div>
-
-    <app-input
-      label="Description"
-      placeholder="Campaign planning container for the seasonal promotion"
-      [control]="form.controls.description"
-    />
-
-    <div class="grid gap-4 sm:grid-cols-2">
-      <label class="block">
-        <span class="mb-2 block text-sm font-medium text-ink">Campaign objective</span>
-        <select
-          class="h-12 w-full rounded-xl border border-border bg-surface px-3 text-base text-ink shadow-sm outline-none transition focus:border-brand-500 focus:ring-4 focus:ring-brand-100/60"
-          formControlName="campaignObjective"
-        >
-          @for (objective of campaignObjectives; track objective) {
-            <option [value]="objective">{{ objective }}</option>
-          }
-        </select>
-      </label>
-      <app-input
-        label="Campaign type"
-        placeholder="Launch campaign"
-        [control]="form.controls.campaignType"
-      />
-    </div>
-
-    @if (dialogMode() === 'edit') {
-      <label class="block">
-        <span class="mb-2 block text-sm font-medium text-ink">Status</span>
-        <select
-          class="h-12 w-full rounded-xl border border-border bg-surface px-3 text-base text-ink shadow-sm outline-none transition focus:border-brand-500 focus:ring-4 focus:ring-brand-100/60"
-          formControlName="status"
-        >
-          <option value="ACTIVE">ACTIVE</option>
-          <option value="ARCHIVED">ARCHIVED</option>
-        </select>
-      </label>
-    }
-
     </div>
 
     <div class="admin-modal-footer">

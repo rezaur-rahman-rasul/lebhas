@@ -11,6 +11,7 @@ export interface RegisterFormValue {
   readonly lastName: string;
   readonly email: string;
   readonly phone: string | null;
+  readonly workspaceName: string | null;
   readonly password: string;
 }
 
@@ -37,6 +38,7 @@ export class RegisterFormComponent {
       lastName: ['', [Validators.required]],
       email: ['', [Validators.required, Validators.email]],
       phone: [''],
+      workspaceName: [''],
       password: ['', [Validators.required, Validators.minLength(8)]],
       confirmPassword: ['', [Validators.required]],
     },
@@ -59,11 +61,12 @@ export class RegisterFormComponent {
       lastName: value.lastName.trim(),
       email: value.email.trim(),
       phone: value.phone.trim() || null,
+      workspaceName: value.workspaceName.trim() || null,
       password: value.password,
     });
   }
 
-  protected fieldError(fieldName: 'firstName' | 'lastName' | 'email' | 'phone'): string {
+  protected fieldError(fieldName: 'firstName' | 'lastName' | 'email' | 'phone' | 'workspaceName'): string {
     const control = this.form.controls[fieldName];
     const serverError = this.fieldErrors()[fieldName];
 
@@ -75,7 +78,7 @@ export class RegisterFormComponent {
       return '';
     }
 
-    if (fieldName !== 'phone' && control.hasError('required')) {
+    if (fieldName !== 'phone' && fieldName !== 'workspaceName' && control.hasError('required')) {
       return 'This field is required.';
     }
 

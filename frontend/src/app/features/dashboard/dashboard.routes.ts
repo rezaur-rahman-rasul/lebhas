@@ -1,7 +1,10 @@
 import { Routes } from '@angular/router';
 
 import { promptBuilderGuard } from '@app/core/guards/prompt-access.guard';
+import { roleGuard } from '@app/core/guards/role.guard';
 import { ACTIVITY_ROUTES } from '../activity/activity.routes';
+import { ASSET_ROUTES } from '../admin/assets/assets.routes';
+import { CREATIVE_GENERATION_ROUTES } from '../admin/creative-generation/creative-generation.routes';
 import { AI_MONITORING_ROUTES } from '../ai-monitoring/ai-monitoring.routes';
 import { AUDIT_ROUTES } from '../audit/audit.routes';
 import { MONITORING_ROUTES } from '../monitoring/monitoring.routes';
@@ -37,6 +40,51 @@ export const DASHBOARD_ROUTES: Routes = [
     path: 'dashboard',
     loadComponent: () =>
       import('./overview/overview').then((m) => m.DashboardOverviewComponent),
+  },
+  {
+    path: 'master/dashboard',
+    canActivate: [roleGuard(['MASTER'])],
+    loadComponent: () =>
+      import('../master/dashboard/master-dashboard').then((m) => m.MasterDashboardPage),
+  },
+  {
+    path: 'assets',
+    children: ASSET_ROUTES,
+  },
+  {
+    path: 'creative-generator',
+    children: CREATIVE_GENERATION_ROUTES,
+  },
+  {
+    path: 'generated-versions',
+    loadComponent: () =>
+      import('../admin/creative-generation/pages/generation-history/generation-history').then(
+        (m) => m.GenerationHistoryPage,
+      ),
+  },
+  {
+    path: 'post-generator',
+    loadComponent: () =>
+      import('../admin/text-tools/pages/text-tool-page/text-tool-page').then((m) => m.TextToolPage),
+    data: { tool: 'post' },
+  },
+  {
+    path: 'captions',
+    loadComponent: () =>
+      import('../admin/text-tools/pages/text-tool-page/text-tool-page').then((m) => m.TextToolPage),
+    data: { tool: 'caption' },
+  },
+  {
+    path: 'ad-copy',
+    loadComponent: () =>
+      import('../admin/text-tools/pages/text-tool-page/text-tool-page').then((m) => m.TextToolPage),
+    data: { tool: 'ads-copy' },
+  },
+  {
+    path: 'hashtags',
+    loadComponent: () =>
+      import('../admin/text-tools/pages/text-tool-page/text-tool-page').then((m) => m.TextToolPage),
+    data: { tool: 'hashtags' },
   },
   {
     path: 'brands',

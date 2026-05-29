@@ -18,7 +18,7 @@ export const errorInterceptor: HttpInterceptorFn = (request, next) => {
       }
 
       const normalized = normalizeHttpError(error);
-      if (normalized.status !== 401) {
+      if (normalized.status !== 401 && shouldToastRequestFailure(request.method)) {
         notifications.error(
           requestFailureTitle(request.url),
           requestFailureMessage(normalized.status, request.url, normalized.message),
@@ -29,6 +29,10 @@ export const errorInterceptor: HttpInterceptorFn = (request, next) => {
     }),
   );
 };
+
+function shouldToastRequestFailure(method: string): boolean {
+  return ['POST', 'PUT', 'PATCH', 'DELETE'].includes(method.toUpperCase());
+}
 
 function requestFailureTitle(url: string): string {
   if (url.includes('ai-monitoring') || url.includes('/ai/')) {

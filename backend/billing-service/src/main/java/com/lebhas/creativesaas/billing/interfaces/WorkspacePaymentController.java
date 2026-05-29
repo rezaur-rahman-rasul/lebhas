@@ -68,6 +68,28 @@ public class WorkspacePaymentController {
                 request.preferredProviderCode()));
     }
 
+    @PostMapping("/subscriptions/upgrade")
+    @Operation(summary = "Start subscription upgrade payment")
+    public ApiResponse<SubscriptionPaymentSessionView> upgradeSubscription(
+            @PathVariable UUID workspaceId,
+            @Valid @RequestBody PlanChangeRequest request
+    ) {
+        return changePlan(workspaceId, request);
+    }
+
+    @PostMapping("/subscriptions/renew")
+    @Operation(summary = "Start subscription renewal payment")
+    public ApiResponse<SubscriptionPaymentSessionView> renewSubscription(
+            @PathVariable UUID workspaceId,
+            @Valid @RequestBody SubscriptionRenewRequest request
+    ) {
+        return ApiResponse.success(paymentWorkspaceApiService.renewSubscription(
+                workspaceId,
+                request.billingCycle(),
+                request.environmentType(),
+                request.preferredProviderCode()));
+    }
+
     @GetMapping("/subscriptions/orders")
     @Operation(summary = "List subscription orders")
     public ApiResponse<List<SubscriptionOrderView>> subscriptionOrders(@PathVariable UUID workspaceId) {
@@ -97,6 +119,21 @@ public class WorkspacePaymentController {
     @Operation(summary = "List payment transactions")
     public ApiResponse<List<PaymentTransactionView>> paymentTransactions(@PathVariable UUID workspaceId) {
         return ApiResponse.success(paymentApiQueryService.paymentTransactions(workspaceId));
+    }
+
+    @GetMapping("/payments")
+    @Operation(summary = "List payment transactions")
+    public ApiResponse<List<PaymentTransactionView>> payments(@PathVariable UUID workspaceId) {
+        return paymentTransactions(workspaceId);
+    }
+
+    @GetMapping("/payments/{paymentTransactionId}")
+    @Operation(summary = "Get payment transaction details")
+    public ApiResponse<PaymentTransactionView> payment(
+            @PathVariable UUID workspaceId,
+            @PathVariable UUID paymentTransactionId
+    ) {
+        return ApiResponse.success(paymentApiQueryService.paymentTransaction(workspaceId, paymentTransactionId));
     }
 
     @GetMapping("/invoices")

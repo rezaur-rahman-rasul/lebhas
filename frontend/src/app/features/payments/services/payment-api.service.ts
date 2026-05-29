@@ -9,12 +9,15 @@ import {
   CreditPurchasePayload,
   Invoice,
   PaymentFilters,
+  PlanFeaturePolicyPayload,
   PaymentProvider,
   PaymentProviderConfiguration,
   PaymentProviderConfigurationPayload,
   PaymentProviderPayload,
   PaymentSessionResponse,
   PaymentTransaction,
+  PricingPlanDetail,
+  PricingPlanPayload,
   SubscriptionPurchasePayload,
   SubscriptionRenewPayload,
   SubscriptionUpgradePayload,
@@ -29,6 +32,35 @@ export class PaymentApiService {
 
   getPaymentProviders(): Promise<readonly PaymentProvider[]> {
     return this.get<readonly PaymentProvider[]>('/api/v1/master/payment-providers');
+  }
+
+  getPricingPlans(): Promise<readonly PricingPlanDetail[]> {
+    return this.get<readonly PricingPlanDetail[]>('/api/v1/master/pricing-plans');
+  }
+
+  createPricingPlan(payload: PricingPlanPayload): Promise<PricingPlanDetail> {
+    return this.post<PricingPlanDetail, PricingPlanPayload>('/api/v1/master/pricing-plans', payload);
+  }
+
+  updatePricingPlan(pricingPlanId: string, payload: PricingPlanPayload): Promise<PricingPlanDetail> {
+    return this.put<PricingPlanDetail, PricingPlanPayload>(
+      `/api/v1/master/pricing-plans/${this.path(pricingPlanId)}`,
+      payload,
+    );
+  }
+
+  disablePricingPlan(pricingPlanId: string): Promise<PricingPlanDetail> {
+    return this.delete<PricingPlanDetail>(`/api/v1/master/pricing-plans/${this.path(pricingPlanId)}`);
+  }
+
+  updatePlanFeaturePolicy(
+    pricingPlanId: string,
+    payload: PlanFeaturePolicyPayload,
+  ): Promise<PricingPlanDetail> {
+    return this.put<PricingPlanDetail, PlanFeaturePolicyPayload>(
+      `/api/v1/master/pricing-plans/${this.path(pricingPlanId)}/feature-policy`,
+      payload,
+    );
   }
 
   createPaymentProvider(payload: PaymentProviderPayload): Promise<PaymentProvider> {
@@ -160,6 +192,11 @@ export class PaymentApiService {
 
   private async put<T, TBody>(path: string, body: TBody): Promise<T> {
     const response = await firstValueFrom(this.api.put<T, TBody>(path, body));
+    return unwrapApiResponse(response);
+  }
+
+  private async delete<T>(path: string): Promise<T> {
+    const response = await firstValueFrom(this.api.delete<T>(path));
     return unwrapApiResponse(response);
   }
 

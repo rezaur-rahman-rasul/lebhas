@@ -1,6 +1,16 @@
-import { ChangeDetectionStrategy, Component, computed, effect, inject, signal } from '@angular/core';
+import {
+  AfterViewInit,
+  ChangeDetectionStrategy,
+  Component,
+  DestroyRef,
+  afterNextRender,
+  computed,
+  effect,
+  inject,
+  signal,
+} from '@angular/core';
 import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
-import { RouterLink } from '@angular/router';
+import { ActivatedRoute, RouterLink } from '@angular/router';
 
 import { PermissionStore } from '@app/core/permissions/permission.store';
 import { WorkspaceStore } from '@app/core/workspace/workspace.store';
@@ -9,9 +19,8 @@ import { ButtonComponent } from '@app/shared/components/button/button';
 import { CardComponent } from '@app/shared/components/card/card';
 import { EmptyStateComponent } from '@app/shared/components/empty-state/empty-state';
 import { InputComponent } from '@app/shared/components/input/input';
-import { LoadingComponent } from '@app/shared/components/loading/loading';
 import { ModalComponent } from '@app/shared/components/modal/modal';
-import { SectionHeaderComponent } from '@app/shared/components/section-header/section-header';
+import { PageHeaderComponent } from '@app/shared/components/page-header/page-header';
 import { BrandStore } from '../brands/brand.store';
 import { ProductServiceStore } from '../product-services/product-service.store';
 import {
@@ -46,23 +55,26 @@ const TARGET_PLATFORMS: readonly string[] = [
     CardComponent,
     EmptyStateComponent,
     InputComponent,
-    LoadingComponent,
     ModalComponent,
-    SectionHeaderComponent,
+    PageHeaderComponent,
   ],
   templateUrl: './projects.html',
   styleUrl: './projects.scss',
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
-export class ProjectsComponent {
+export class ProjectsComponent implements AfterViewInit {
   private readonly formBuilder = inject(FormBuilder).nonNullable;
+  private readonly route = inject(ActivatedRoute);
+  private readonly destroyRef = inject(DestroyRef);
   private readonly workspace = inject(WorkspaceStore);
   private readonly permissions = inject(PermissionStore);
   protected readonly brandStore = inject(BrandStore);
   protected readonly productStore = inject(ProductServiceStore);
   protected readonly store = inject(ProjectStore);
 
-  protected readonly selectedProjectId = signal<string | null>(null);
+  protected readonly selectedProjectId = signal<string | null>(
+    this.route.snapshot.queryParamMap.get('projectId'),
+  );
   protected readonly dialogMode = signal<ProjectDialogMode>(null);
   protected readonly attemptedSubmit = signal(false);
   protected readonly formProductId = signal<string | null>(null);
@@ -71,11 +83,14 @@ export class ProjectsComponent {
   protected readonly canCreate = this.permissions.canCreateProjects;
   protected readonly canUpdate = this.permissions.canUpdateProjects;
   protected readonly workspaceId = this.workspace.activeWorkspaceId;
+  protected readonly workspaceLabel = this.workspace.workspaceLabel;
   protected readonly brands = this.brandStore.items;
   protected readonly products = this.productStore.items;
   protected readonly projects = this.store.items;
   protected readonly campaignObjectives = CAMPAIGN_OBJECTIVES;
   protected readonly targetPlatforms = TARGET_PLATFORMS;
+  protected readonly skeletonRows = [1, 2, 3, 4] as const;
+  protected readonly hasProductServices = computed(() => this.products().length > 0);
   protected readonly selectedProject = computed(
     () => this.projects().find((project) => project.id === this.selectedProjectId()) ?? null,
   );
@@ -107,6 +122,8 @@ export class ProjectsComponent {
   });
 
   constructor() {
+    afterNextRender(() => this.resetRouteViewport());
+
     effect(() => {
       const workspaceId = this.workspaceId();
       if (!workspaceId) {
@@ -139,6 +156,10 @@ export class ProjectsComponent {
         this.selectedProjectId.set(projects[0].id);
       }
     });
+  }
+
+  ngAfterViewInit(): void {
+    this.queueViewportReset();
   }
 
   protected selectProject(projectId: string): void {
@@ -259,6 +280,17 @@ export class ProjectsComponent {
     return this.brands().find((brand) => brand.id === brandId)?.name ?? 'Unknown brand';
   }
 
+  protected projectDescription(project: ProjectCampaign): string {
+    return project.description || `Primary project for ${this.workspaceLabel()}`;
+  }
+
+  protected retryProjects(): void {
+    const workspaceId = this.workspaceId();
+    if (workspaceId) {
+      void this.store.load(workspaceId, { force: true });
+    }
+  }
+
   protected fieldError(fieldName: 'productServiceId' | 'name'): string {
     const control = this.form.controls[fieldName];
 
@@ -290,5 +322,35 @@ export class ProjectsComponent {
   private normalize(value: string): string | null {
     const trimmed = value.trim();
     return trimmed ? trimmed : null;
+  }
+
+  private queueViewportReset(): void {
+    if (typeof window === 'undefined') {
+      return;
+    }
+
+    const frameId = window.requestAnimationFrame(() => this.resetRouteViewport());
+    const timeoutIds = [0, 75].map((delay) =>
+      window.setTimeout(() => this.resetRouteViewport(), delay),
+    );
+
+    this.destroyRef.onDestroy(() => {
+      window.cancelAnimationFrame(frameId);
+      timeoutIds.forEach((timeoutId) => window.clearTimeout(timeoutId));
+    });
+  }
+
+  private resetRouteViewport(): void {
+    if (typeof window === 'undefined') {
+      return;
+    }
+
+    window.scrollTo({ top: 0, left: 0, behavior: 'auto' });
+    document.documentElement.scrollTop = 0;
+    document.documentElement.scrollLeft = 0;
+    document.body.scrollTop = 0;
+    document.body.scrollLeft = 0;
+
+    document.querySelector('main')?.scrollTo({ top: 0, left: 0, behavior: 'auto' });
   }
 }

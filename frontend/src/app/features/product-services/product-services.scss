@@ -2,12 +2,16 @@
   display: block;
 }
 
+.hierarchy-page-grid,
 .product-services-page-grid {
   display: grid;
   gap: 1.5rem;
+  width: 100%;
+  min-width: 0;
 }
 
 @media (min-width: 1280px) {
+  .hierarchy-page-grid,
   .product-services-page-grid {
     grid-template-columns: minmax(0, 1fr) 23.75rem;
     align-items: start;

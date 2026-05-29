@@ -66,6 +66,9 @@ public class GatewayProxyController {
 
     @RequestMapping({
             "/api/v1/auth/**",
+            "/api/v1/credit-packages/**",
+            "/api/v1/master/**",
+            "/api/v1/payments/**",
             "/api/v1/workspaces/**",
             "/internal/storage/local/assets/**"
     })
@@ -123,6 +126,26 @@ public class GatewayProxyController {
                         "/api/v1/workspaces/*/creative-outputs/**",
                         "/api/v1/workspaces/*/creative-approvals/**",
                         "/internal/storage/local/assets/**")),
+                new GatewayRoute("billing", properties.getServices().getBilling(), List.of(
+                        "/api/v1/credit-packages/**",
+                        "/api/v1/master/payment-providers/**",
+                        "/api/v1/master/payment-provider-configurations/**",
+                        "/api/v1/master/credit-packages/**",
+                        "/api/v1/master/pricing-plans/**",
+                        "/api/v1/master/workspace-subscriptions/**",
+                        "/api/v1/payments/**",
+                        "/api/v1/workspaces/*/payments/**",
+                        "/api/v1/workspaces/*/invoices/**",
+                        "/api/v1/workspaces/*/credits/**",
+                        "/api/v1/workspaces/*/subscriptions/**",
+                        "/api/v1/workspaces/*/usage-billing/**")),
+                new GatewayRoute("notification", properties.getServices().getNotification(), List.of(
+                        "/api/v1/master/monitoring/**",
+                        "/api/v1/workspaces/*/notifications/**",
+                        "/api/v1/workspaces/*/notification-preferences/**",
+                        "/api/v1/workspaces/*/activity-feed/**",
+                        "/api/v1/workspaces/*/audit-logs/**",
+                        "/api/v1/workspaces/*/timeline/**")),
                 new GatewayRoute("auth", properties.getServices().getAuth(), List.of("/api/v1/auth/**")),
                 new GatewayRoute("workspace", properties.getServices().getWorkspace(), List.of("/api/v1/workspaces/**")));
 

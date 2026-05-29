@@ -74,11 +74,11 @@ export class UserProfileDropdownComponent {
   }
 
   protected async goToSettings(): Promise<void> {
-    await this.navigateTo('/profile/settings');
+    await this.navigateTo('/account-settings');
   }
 
   protected async goToSecurityActivity(): Promise<void> {
-    await this.navigateTo('/profile/security');
+    await this.navigateTo('/security-activity');
   }
 
   private async navigateTo(route: string): Promise<void> {

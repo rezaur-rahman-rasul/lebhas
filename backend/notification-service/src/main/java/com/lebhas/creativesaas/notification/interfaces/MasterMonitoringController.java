@@ -5,6 +5,7 @@ import com.lebhas.creativesaas.monitoring.application.MasterMonitoringService;
 import com.lebhas.creativesaas.monitoring.application.MonitoringAlertView;
 import com.lebhas.creativesaas.monitoring.application.SystemHealthEventView;
 import com.lebhas.creativesaas.monitoring.domain.MonitoringAlertStatus;
+import com.lebhas.creativesaas.monitoring.domain.SystemComponentType;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import io.swagger.v3.oas.annotations.tags.Tag;
@@ -49,6 +50,34 @@ public class MasterMonitoringController {
     @Operation(summary = "List system health events")
     public ApiResponse<List<SystemHealthEventView>> health(@RequestParam(defaultValue = "50") int limit) {
         return ApiResponse.success(masterMonitoringService.recentHealthEvents(limit));
+    }
+
+    @GetMapping("/system-health")
+    @PreAuthorize("hasRole('MASTER')")
+    @Operation(summary = "List system health events")
+    public ApiResponse<List<SystemHealthEventView>> systemHealth(@RequestParam(defaultValue = "50") int limit) {
+        return health(limit);
+    }
+
+    @GetMapping("/ai-providers")
+    @PreAuthorize("hasRole('MASTER')")
+    @Operation(summary = "List AI provider health events")
+    public ApiResponse<List<SystemHealthEventView>> aiProviders(@RequestParam(defaultValue = "50") int limit) {
+        return ApiResponse.success(masterMonitoringService.healthEventsByComponent(SystemComponentType.AI, limit));
+    }
+
+    @GetMapping("/payments")
+    @PreAuthorize("hasRole('MASTER')")
+    @Operation(summary = "List payment health events")
+    public ApiResponse<List<SystemHealthEventView>> payments(@RequestParam(defaultValue = "50") int limit) {
+        return ApiResponse.success(masterMonitoringService.healthEventsByComponent(SystemComponentType.PAYMENT, limit));
+    }
+
+    @GetMapping("/workspaces")
+    @PreAuthorize("hasRole('MASTER')")
+    @Operation(summary = "List workspace health events")
+    public ApiResponse<List<SystemHealthEventView>> workspaces(@RequestParam(defaultValue = "50") int limit) {
+        return ApiResponse.success(masterMonitoringService.healthEventsByComponent(SystemComponentType.WORKSPACE, limit));
     }
 
     @PostMapping("/alerts/{alertId}/resolve")

@@ -1,204 +1,232 @@
 <app-page-header
-  eyebrow="AI Workspace"
-  title="Generation history"
-  description="Review creative generation requests, status, outputs, and retry or cancel active work."
+  eyebrow="REVIEW"
+  title="Generated Versions"
+  description="Review, compare and manage all generated campaign creatives."
 >
-  <app-badge tone="neutral">{{ store.generationPagination().totalItems }} requests</app-badge>
+  <app-badge [tone]="roleTone()">{{ roleLabel() }}</app-badge>
+  <app-badge tone="neutral">{{ workspaceLabel() }}</app-badge>
 </app-page-header>
 
 @if (!store.hasWorkspaceContext()) {
   <div class="mt-6">
-    <app-empty-state
-      icon="building-2"
-      title="Workspace context required"
-      description="Select a workspace before reviewing generation history."
-    />
+    <app-empty-state icon="building-2" title="Workspace context required" description="Select a workspace before reviewing generated versions." />
   </div>
 } @else if (!store.canViewGenerations()) {
   <div class="mt-6">
-    <app-empty-state
-      icon="circle-alert"
-      title="Generation history access is not available"
-      description="This session does not have permission to view creative generation requests."
-    />
+    <app-empty-state icon="circle-alert" title="Generated versions are not available" description="This session does not have permission to view generated creatives." />
   </div>
 } @else {
   @if (store.generationError()) {
-    <div class="mt-6 rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
-      {{ store.generationError() }}
-    </div>
+    <div class="versions-alert">{{ store.generationError() }}</div>
   }
 
-  <section class="mt-6 space-y-4">
-    <form class="grid gap-3 rounded-lg border border-border bg-white p-4 shadow-sm md:grid-cols-[12rem_14rem_12rem_auto_auto]" [formGroup]="filterForm">
-      <select
-        formControlName="status"
-        class="h-11 rounded-md border border-border bg-white px-3 text-sm text-ink outline-none transition focus:border-brand-500 focus:ring-2 focus:ring-brand-100"
-      >
-        <option value="">All statuses</option>
-        @for (option of statusOptions; track option.value) {
-          <option [value]="option.value">{{ option.label }}</option>
-        }
-      </select>
-      <select
-        formControlName="creativeType"
-        class="h-11 rounded-md border border-border bg-white px-3 text-sm text-ink outline-none transition focus:border-brand-500 focus:ring-2 focus:ring-brand-100"
-      >
-        <option value="">All creative types</option>
-        @for (option of creativeTypeOptions; track option.value) {
-          <option [value]="option.value">{{ option.label }}</option>
-        }
-      </select>
-      <select
-        formControlName="platform"
-        class="h-11 rounded-md border border-border bg-white px-3 text-sm text-ink outline-none transition focus:border-brand-500 focus:ring-2 focus:ring-brand-100"
-      >
-        <option value="">All platforms</option>
-        @for (option of platformOptions; track option.value) {
-          <option [value]="option.value">{{ option.label }}</option>
-        }
-      </select>
-      <app-button variant="secondary" (click)="applyFilters()">Apply</app-button>
-      <app-button variant="ghost" (click)="resetFilters()">Reset</app-button>
-    </form>
+  <section class="versions-shell">
+    <main class="versions-main">
+      <form class="versions-filters" [formGroup]="filterForm">
+        <select formControlName="status" aria-label="Filter by status">
+          @for (option of statusOptions; track option.value) {
+            <option [value]="option.value">{{ option.label }}</option>
+          }
+        </select>
 
-    @if (store.generationLoading() && !store.hasGenerationRequests()) {
-      <div class="grid gap-3">
-        @for (item of [0, 1, 2, 3]; track item) {
-          <div class="h-36 animate-pulse rounded-lg border border-border bg-white"></div>
-        }
-      </div>
-    } @else if (store.hasGenerationRequests()) {
-      <div class="grid gap-4">
-        @for (request of store.generationRequests(); track request.id) {
-          <app-card>
-            <div class="space-y-4">
-              <div class="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
-                <div class="min-w-0">
-                  <div class="flex flex-wrap gap-2">
-                    <app-badge [tone]="statusTone(request.status)">{{ statusLabel(request.status) }}</app-badge>
-                    <app-badge tone="neutral">{{ creativeTypeLabel(request.creativeType) }}</app-badge>
-                    <app-badge tone="neutral">{{ promptPlatformLabel(request.platform) }}</app-badge>
-                  </div>
-                  <p class="mt-3 line-clamp-3 text-sm leading-6 text-ink">
-                    {{ request.enhancedPrompt || request.sourcePrompt || 'Prompt unavailable' }}
-                  </p>
-                </div>
-                <div class="flex flex-wrap gap-2">
-                  <app-button size="sm" variant="secondary" icon="panel-right" (click)="openDetail(request)">
-                    Open detail
-                  </app-button>
-                  @if (request.status === 'FAILED' || request.status === 'CANCELLED') {
-                    <app-button size="sm" icon="rotate-ccw" [loading]="store.generationLoading()" (click)="retryRequest(request)">
-                      Retry
-                    </app-button>
-                  }
-                  @if (request.status === 'QUEUED' || request.status === 'PROCESSING') {
-                    <app-button size="sm" variant="danger" icon="circle-x" [loading]="store.generationLoading()" (click)="cancelRequest(request)">
-                      Cancel
-                    </app-button>
-                  }
-                </div>
-              </div>
+        <select formControlName="creativeType" aria-label="Filter by creative type">
+          <option value="">All Types</option>
+          @for (option of creativeTypeOptions; track option.value) {
+            <option [value]="option.value">{{ option.label }}</option>
+          }
+        </select>
 
-              <dl class="grid gap-3 text-sm sm:grid-cols-2 xl:grid-cols-5">
-                <div>
-                  <dt class="text-xs uppercase tracking-[0.12em] text-muted">Objective</dt>
-                  <dd class="mt-1 font-medium text-ink">{{ campaignObjectiveLabel(request.campaignObjective) }}</dd>
-                </div>
-                <div>
-                  <dt class="text-xs uppercase tracking-[0.12em] text-muted">Requested</dt>
-                  <dd class="mt-1 font-medium text-ink">{{ request.requestedAt ? (request.requestedAt | date: 'short') : 'Pending' }}</dd>
-                </div>
-                <div>
-                  <dt class="text-xs uppercase tracking-[0.12em] text-muted">Completed</dt>
-                  <dd class="mt-1 font-medium text-ink">{{ request.completedAt ? (request.completedAt | date: 'short') : 'Pending' }}</dd>
-                </div>
-                <div>
-                  <dt class="text-xs uppercase tracking-[0.12em] text-muted">Provider</dt>
-                  <dd class="mt-1 font-medium text-ink">{{ request.aiProvider || 'Pending' }}</dd>
-                </div>
-                <div>
-                  <dt class="text-xs uppercase tracking-[0.12em] text-muted">Output count</dt>
-                  <dd class="mt-1 font-medium text-ink">
-                    {{ store.selectedRequest()?.id === request.id ? store.creativeOutputs().length : 'Open detail' }}
-                  </dd>
-                </div>
-              </dl>
-            </div>
-          </app-card>
-        }
-      </div>
+        <select formControlName="platform" aria-label="Filter by platform">
+          <option value="">All Platforms</option>
+          @for (option of platformOptions; track option.value) {
+            <option [value]="option.value">{{ option.label }}</option>
+          }
+        </select>
 
-      @if (store.generationPagination().totalPages > 1) {
-        <div class="flex flex-col gap-3 rounded-lg border border-border bg-white px-4 py-3 sm:flex-row sm:items-center sm:justify-between">
-          <p class="text-sm text-muted">
-            Page {{ store.generationPagination().page + 1 }} of {{ store.generationPagination().totalPages }}
-          </p>
-          <div class="flex gap-2">
-            <app-button
-              size="sm"
-              variant="secondary"
-              [disabled]="store.generationPagination().first || store.generationLoading()"
-              (click)="previousPage()"
-            >
-              Previous
-            </app-button>
-            <app-button
-              size="sm"
-              variant="secondary"
-              [disabled]="store.generationPagination().last || store.generationLoading()"
-              (click)="nextPage()"
-            >
-              Next
-            </app-button>
-          </div>
-        </div>
-      }
-    } @else {
-      <app-empty-state
-        icon="sparkles"
-        title="No generation requests yet"
-        description="Submitted generation requests will appear here with status and output details."
-      />
-    }
-  </section>
-}
+        <label class="search-box">
+          <app-icon name="search" [size]="16" />
+          <input type="search" formControlName="search" placeholder="Search versions..." />
+        </label>
 
-<app-modal-shell
-  [open]="!!store.selectedRequest()"
-  title="Generation request detail"
-  description="Review status, job state, and generated outputs for this request."
-  (closed)="closeDetail()"
->
-  @if (store.selectedRequest()) {
-    <div class="space-y-5">
-      <app-generation-progress
-        [request]="store.selectedRequest()"
-        [loading]="store.generationLoading()"
-        [canRetry]="store.canRetryGeneration()"
-        [canCancel]="store.canCancelGeneration()"
-        (retryRequested)="store.retrySelectedGeneration()"
-        (cancelRequested)="store.cancelSelectedGeneration()"
-        (refreshRequested)="refreshSelected()"
-      />
+        <button type="button" class="filter-icon" title="Reset filters" (click)="resetFilters()">
+          <app-icon name="sliders-horizontal" [size]="18" />
+        </button>
+      </form>
 
-      @if (store.generationJobs().length) {
-        <div class="grid gap-3">
-          @for (job of store.generationJobs(); track job.id) {
-            <app-generation-job-card [job]="job" />
+      @if (store.generationLoading() && !store.hasGenerationRequests()) {
+        <div class="version-grid">
+          @for (item of [0, 1, 2, 3, 4, 5]; track item) {
+            <div class="version-card is-loading"></div>
           }
         </div>
+      } @else if (filteredCards().length > 0) {
+        <div class="version-grid">
+          @for (card of filteredCards(); track card.request.id) {
+            <article
+              class="version-card"
+              [class.is-selected]="selectedRequestId() === card.request.id"
+              (click)="selectVersion(card.request)"
+            >
+              <div class="preview-frame">
+                @if (card.output?.previewUrl) {
+                  <img [src]="card.output!.previewUrl" [alt]="card.title" />
+                } @else {
+                  <div class="preview-placeholder">
+                    <app-icon name="image" [size]="28" />
+                    <span>{{ creativeTypeLabel(card.request.creativeType) }}</span>
+                  </div>
+                }
+                <span class="version-number">{{ card.versionNumber }}</span>
+                <span class="platform-mark">{{ platformLabel(card.request.platform).slice(0, 2) }}</span>
+              </div>
+
+              <div class="version-card__body">
+                <div class="version-title-row">
+                  <h2>{{ card.title }}</h2>
+                  <app-badge [tone]="statusTone(card.status)">{{ statusLabel(card.status) }}</app-badge>
+                </div>
+                <p>{{ card.request.createdAt | date: 'mediumDate' }} · {{ card.request.createdAt | date: 'shortTime' }}</p>
+                <span>{{ platformLabel(card.request.platform) }}</span>
+              </div>
+
+              <div class="quick-actions" (click)="$event.stopPropagation()">
+                <button type="button" title="Preview version" [disabled]="!card.output" (click)="selectVersion(card.request); previewSelected()">
+                  <app-icon name="eye" [size]="16" />
+                </button>
+                <button type="button" title="Copy creative details" (click)="copyPrompt(card.request)">
+                  <app-icon name="copy" [size]="16" />
+                </button>
+                <button type="button" [title]="shareDisabledReason()" disabled>
+                  <app-icon name="share-2" [size]="16" />
+                </button>
+                <button type="button" title="More actions are shown in the detail panel">
+                  <app-icon name="more-horizontal" [size]="16" />
+                </button>
+              </div>
+            </article>
+          }
+        </div>
+      } @else {
+        <div class="empty-wrap">
+          <app-empty-state
+            icon="sparkles"
+            title="No generated versions yet"
+            description="Create a campaign creative and generated versions will appear here for review."
+          >
+            <app-button icon="wand-sparkles" (click)="createCreative()">Create Creative</app-button>
+          </app-empty-state>
+        </div>
       }
 
-      <app-creative-output-gallery
-        [outputs]="store.creativeOutputs()"
-        [loading]="store.generationLoading()"
-        [canDownload]="store.canDownloadOutputs()"
-        (previewRequested)="previewOutput($event)"
-        (downloadRequested)="downloadOutput($event)"
-        (detailRequested)="openOutputDetail($event)"
-      />
-    </div>
-  }
-</app-modal-shell>
+      <section class="stats-footer">
+        <div>
+          <span>Total Versions</span>
+          <strong>{{ stats().total }}</strong>
+          <small>All generated creatives</small>
+        </div>
+        <div>
+          <span>Approved</span>
+          <strong>{{ stats().approved }}</strong>
+          <small>Ready for campaign use</small>
+        </div>
+        <div>
+          <span>Pending Review</span>
+          <strong>{{ stats().pending }}</strong>
+          <small>Needs admin attention</small>
+        </div>
+        <div>
+          <span>Quality Score</span>
+          <strong>{{ stats().score }}%</strong>
+          <small>Estimated from version state</small>
+        </div>
+      </section>
+    </main>
+
+    <aside class="detail-panel">
+      @if (selectedCard(); as card) {
+        <div class="detail-head">
+          <div>
+            <h2>{{ card.title }}</h2>
+            <app-badge [tone]="statusTone(card.status)">{{ statusLabel(card.status) }}</app-badge>
+          </div>
+          <button type="button" title="Copy version ID" (click)="copyVersionId(card.request.id)">
+            <app-icon name="copy" [size]="16" />
+          </button>
+        </div>
+
+        <div class="detail-preview">
+          @if (selectedOutput(); as output) {
+            @if (output.previewUrl) {
+              <img [src]="output.previewUrl" [alt]="card.title" />
+            } @else if (card.output?.previewUrl) {
+              <img [src]="card.output!.previewUrl" [alt]="card.title" />
+            } @else {
+              <div class="detail-placeholder">
+                <app-icon name="image" [size]="34" />
+                <strong>{{ creativeTypeLabel(card.request.creativeType) }}</strong>
+                <span>Preview will appear when the generated asset is available.</span>
+              </div>
+            }
+          } @else if (card.output?.previewUrl) {
+            <img [src]="card.output!.previewUrl" [alt]="card.title" />
+          } @else {
+            <div class="detail-placeholder">
+              <app-icon name="image" [size]="34" />
+              <strong>{{ creativeTypeLabel(card.request.creativeType) }}</strong>
+              <span>Preview will appear when the generated asset is available.</span>
+            </div>
+          }
+        </div>
+
+        <dl class="version-meta">
+          <div><dt>Version ID</dt><dd>{{ selectedOutput() ? selectedOutput()!.id : card.request.id }}</dd></div>
+          <div><dt>Campaign</dt><dd>{{ metadataValue(selectedOutput() || card.output, 'projectName') }}</dd></div>
+          <div><dt>Product / Service</dt><dd>{{ metadataValue(selectedOutput() || card.output, 'productServiceName') }}</dd></div>
+          <div><dt>Platform</dt><dd>{{ platformLabel(card.request.platform) }}</dd></div>
+          <div><dt>Created On</dt><dd>{{ card.request.createdAt | date: 'medium' }}</dd></div>
+          <div><dt>Created By</dt><dd>{{ card.request.userId || 'Workspace user' }}</dd></div>
+        </dl>
+
+        <section class="notes-box">
+          <span>Notes</span>
+          <p>{{ detailNotes(card) }}</p>
+        </section>
+
+        <div class="detail-actions">
+          <button
+            type="button"
+            class="primary"
+            [disabled]="!selectedOutput() || !store.canDownloadOutputs() || downloadingOutputId() === (selectedOutput() ? selectedOutput()!.id : null)"
+            [title]="store.canDownloadOutputs() ? 'Download selected creative' : 'Download is disabled by workspace policy'"
+            (click)="downloadSelected()"
+          >
+            <app-icon name="download" [size]="17" />
+            <span>Download</span>
+          </button>
+          <button type="button" title="Compare requires multiple generated outputs for the selected request" [disabled]="store.creativeOutputs().length < 2" (click)="compareUnavailable()">
+            <app-icon name="columns-2" [size]="17" />
+            <span>Compare</span>
+          </button>
+          <button type="button" [title]="shareDisabledReason()" disabled (click)="shareUnavailable()">
+            <app-icon name="share-2" [size]="17" />
+            <span>Share</span>
+          </button>
+          <button type="button" [title]="approvalDisabledReason()" disabled (click)="approvalUnavailable()">
+            <app-icon name="shield-check" [size]="17" />
+            <span>Send for Approval</span>
+          </button>
+          <button type="button" title="Archive is not connected by this backend yet" disabled (click)="archiveUnavailable()">
+            <app-icon name="archive" [size]="17" />
+            <span>Archive</span>
+          </button>
+        </div>
+      } @else {
+        <div class="detail-empty">
+          <app-icon name="panel-right" [size]="30" />
+          <h2>Select a version</h2>
+          <p>Generated creative details and actions will appear here.</p>
+        </div>
+      }
+    </aside>
+  </section>
+}

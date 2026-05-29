@@ -4,6 +4,7 @@ import { RouterLink } from '@angular/router';
 import { CurrentUserStore } from '@app/core/auth/current-user.store';
 import { PermissionStore } from '@app/core/permissions/permission.store';
 import { NotificationStateService } from '@app/core/state/notification-state.service';
+import { FeatureLimit } from '@app/core/workspace/workspace.models';
 import { WorkspaceStore } from '@app/core/workspace/workspace.store';
 import { BadgeComponent } from '@app/shared/components/badge/badge';
 import { ButtonComponent } from '@app/shared/components/button/button';
@@ -11,12 +12,28 @@ import { CardComponent } from '@app/shared/components/card/card';
 import { EmptyStateComponent } from '@app/shared/components/empty-state/empty-state';
 import { IconComponent } from '@app/shared/components/icon/icon';
 import { SectionHeaderComponent } from '@app/shared/components/section-header/section-header';
+import { AssetStore } from '../../admin/assets/state/asset.store';
+import {
+  CreativeGenerationRequest,
+  creativeGenerationStatusLabel,
+  creativeGenerationStatusTone,
+  creativeTypeLabel,
+} from '../../admin/creative-generation/models/creative-generation.models';
+import { CreativeGenerationStore } from '../../admin/creative-generation/state/creative-generation.store';
+import { approvalStatusLabel } from '../../approvals/approval.models';
+import { ApprovalStore } from '../../approvals/approval.store';
 import { BrandStore } from '../../brands/brand.store';
 import { ProductServiceStore } from '../../product-services/product-service.store';
 import { ProjectStore } from '../../projects/project.store';
 import { DashboardStore } from '../dashboard.store';
 
-type QuickActionKey = 'CREATE_BRAND' | 'CREATE_PRODUCT_SERVICE' | 'CREATE_PROJECT' | 'UPLOAD_ASSET' | 'CREATE_PROMPT';
+type QuickActionKey =
+  | 'CREATE_BRAND'
+  | 'CREATE_PRODUCT_SERVICE'
+  | 'CREATE_PROJECT'
+  | 'UPLOAD_ASSET'
+  | 'CREATE_PROMPT'
+  | 'GENERATE_CREATIVE';
 
 interface QuickAction {
   readonly key: QuickActionKey | 'REVIEW_DASHBOARD' | 'REVIEW_APPROVALS' | 'OPEN_PROJECTS' | 'REVIEW_WORKSPACE';
@@ -35,6 +52,7 @@ const QUICK_ACTION_ICONS: Record<QuickActionKey, string> = {
   CREATE_PROJECT: 'folder-kanban',
   UPLOAD_ASSET: 'upload-cloud',
   CREATE_PROMPT: 'wand-sparkles',
+  GENERATE_CREATIVE: 'sparkles',
 };
 
 const QUICK_ACTION_FALLBACK_ICON = 'circle-help';
@@ -63,15 +81,17 @@ export class DashboardOverviewComponent {
   private readonly brands = inject(BrandStore);
   private readonly products = inject(ProductServiceStore);
   private readonly projects = inject(ProjectStore);
+  private readonly assets = inject(AssetStore);
+  private readonly approvals = inject(ApprovalStore);
+  protected readonly generations = inject(CreativeGenerationStore);
   protected readonly dashboard = inject(DashboardStore);
 
   protected readonly role = this.auth.currentRole;
   protected readonly workspaceId = this.workspace.activeWorkspaceId;
   protected readonly workspaceLabel = this.workspace.workspaceLabel;
-  protected readonly activePlanLabel = this.workspace.activePlanLabel;
-  protected readonly subscriptionStatusLabel = this.workspace.subscriptionStatusLabel;
-  protected readonly remainingCreditsLabel = this.workspace.remainingCreditsLabel;
-  protected readonly brandCount = computed(() => this.permissions.canViewBrands() ? this.brands.total() : 0);
+  protected readonly skeletonItems = [0, 1, 2, 3, 4, 5] as const;
+
+  protected readonly brandCount = computed(() => (this.permissions.canViewBrands() ? this.brands.total() : 0));
   protected readonly productServiceCount = computed(() =>
     this.permissions.canViewProducts() ? this.products.total() : 0,
   );
@@ -96,16 +116,25 @@ export class DashboardOverviewComponent {
       return Boolean(project.productServiceId && productIds.has(project.productServiceId));
     });
   });
-  protected readonly validProjectCount = computed(() => this.productServiceCount() > 0 ? this.validProjects().length : 0);
+  protected readonly validProjectCount = computed(() => (this.productServiceCount() > 0 ? this.validProjects().length : 0));
   protected readonly hasBrand = computed(() => this.brandCount() > 0);
   protected readonly hasProductService = computed(() => this.productServiceCount() > 0);
   protected readonly hasValidProject = computed(() => this.validProjectCount() > 0);
-  protected readonly hasProjectLinkWarning = computed(
-    () => this.totalProjectCount() > 0 && !this.hasValidProject(),
-  );
   protected readonly firstValidProject = computed(() => this.validProjects()[0] ?? null);
-  protected readonly skeletonItems = [0, 1, 2, 3, 4] as const;
-  protected readonly hierarchySkeletonItems = [0, 1, 2, 3] as const;
+  protected readonly assetCount = computed(() => this.assets.assets().length);
+  protected readonly hasAsset = computed(() => this.assetCount() > 0);
+  protected readonly generatedCreativeCount = computed(() => {
+    const total = this.generations.generationPagination().totalItems;
+    return total > 0 ? total : this.generations.generationRequests().length;
+  });
+  protected readonly pendingApprovalCount = computed(() =>
+    this.approvals
+      .approvals()
+      .filter((approval) => {
+        const label = approvalStatusLabel(approval.status);
+        return label === 'Queued' || label === 'In review' || label === 'Changes requested';
+      }).length,
+  );
   protected readonly showWorkspaceError = computed(
     () => this.role() !== 'MASTER' && !this.workspace.loading() && !this.workspaceId(),
   );
@@ -125,36 +154,137 @@ export class DashboardOverviewComponent {
   );
 
   protected readonly description = computed(() => {
-    const role = this.role();
-    const workspaceLabel = this.workspaceLabel();
-
-    if (role === 'MASTER') {
-      return 'Monitor tenant context, role-aware access, and shell readiness before deeper workspace operations arrive.';
+    if (this.role() === 'MASTER') {
+      return 'Monitor tenant context and workspace access before deeper operations.';
     }
 
-    if (role === 'CREW') {
-      return `${workspaceLabel} is ready for crew-facing campaign execution and related creative follow-up.`;
-    }
-
-    return `${workspaceLabel} is ready for brand, product, and campaign operations with the workspace hierarchy in place.`;
+    return 'Overview of your workspace performance and recent activity.';
   });
 
-  protected readonly metrics = computed(() => {
+  protected readonly planLabel = computed(() => {
+    const label = this.workspace.activePlanLabel();
+    return label === 'Package details unavailable' ? '--' : label;
+  });
+  protected readonly creditsRemaining = computed(() => {
+    const credits = this.workspace.usage()?.creditsRemaining;
+    return typeof credits === 'number' ? credits : null;
+  });
+  protected readonly creditLimit = computed(() => this.resolveLimit('credits', 'credit', 'monthlyCredits', 'monthly_credits'));
+  protected readonly creditsUsed = computed(() => {
+    const limit = this.creditLimit();
+    if (typeof limit?.used === 'number') {
+      return limit.used;
+    }
+
+    if (typeof limit?.limit === 'number' && typeof this.creditsRemaining() === 'number') {
+      return Math.max(0, limit.limit - this.creditsRemaining()!);
+    }
+
+    return null;
+  });
+  protected readonly creditsTotal = computed(() => this.creditLimit()?.limit ?? null);
+  protected readonly creditUsagePercent = computed(() => {
+    const used = this.creditsUsed();
+    const total = this.creditsTotal();
+    if (typeof used !== 'number' || typeof total !== 'number' || total <= 0) {
+      return 0;
+    }
+
+    return Math.min(100, Math.max(0, Math.round((used / total) * 100)));
+  });
+  protected readonly storageLabel = computed(() => {
+    const storage = this.workspace.usage()?.storageRemainingBytes;
+    return typeof storage === 'number' ? this.formatBytes(storage) : '--';
+  });
+  protected readonly aiGenerationsLabel = computed(() => {
+    const limit = this.workspace.featurePolicy()?.generatedVersionLimit;
+    return typeof limit === 'number' ? String(limit) : String(this.generatedCreativeCount());
+  });
+
+  protected readonly topStats = computed(() => {
     if (this.role() === 'MASTER') {
       return [
-        { label: 'Accessible workspaces', value: String(this.workspace.workspaces().length), icon: 'building-2' },
-        { label: 'Admin surfaces', value: '3', icon: 'shield-check' },
-        { label: 'Support routes', value: '2', icon: 'life-buoy' },
-        { label: 'System overview', value: '1', icon: 'layout-dashboard' },
+        { label: 'Total Brands', value: '--', trend: 'Select a workspace', icon: 'badge-check' },
+        { label: 'Products / Services', value: '--', trend: 'Workspace scoped', icon: 'package-open' },
+        { label: 'Projects / Campaigns', value: '--', trend: 'Workspace scoped', icon: 'folder-kanban' },
+        { label: 'Generated Creatives', value: '--', trend: 'Workspace scoped', icon: 'sparkles' },
+        { label: 'Pending Approvals', value: '--', trend: 'Workspace scoped', icon: 'shield-check' },
+        { label: 'Monthly Credit Usage', value: '--', trend: 'Workspace scoped', icon: 'gauge' },
       ];
     }
 
     return [
-      { label: 'Brands', value: String(this.brandCount()), icon: 'badge-check' },
-      { label: 'Products / Services', value: String(this.productServiceCount()), icon: 'package-open' },
-      { label: 'Projects / Campaigns', value: String(this.totalProjectCount()), icon: 'folder-kanban' },
-      { label: 'Credits / limits', value: this.remainingCreditsLabel(), icon: 'gauge' },
-      ];
+      { label: 'Total Brands', value: String(this.brandCount()), trend: this.hasBrand() ? 'Ready for catalog setup' : 'Create a brand first', icon: 'badge-check' },
+      { label: 'Products / Services', value: String(this.productServiceCount()), trend: this.hasProductService() ? 'Linked to brands' : 'Add your first product', icon: 'package-open' },
+      { label: 'Projects / Campaigns', value: String(this.totalProjectCount()), trend: this.hasValidProject() ? 'Campaign structure ready' : 'Create a campaign container', icon: 'folder-kanban' },
+      { label: 'Generated Creatives', value: String(this.generatedCreativeCount()), trend: this.generatedCreativeCount() > 0 ? 'Recent versions available' : 'Generate your first creative', icon: 'sparkles' },
+      { label: 'Pending Approvals', value: String(this.pendingApprovalCount()), trend: this.pendingApprovalCount() > 0 ? 'Needs review' : 'No open approvals', icon: 'shield-check' },
+      { label: 'Monthly Credit Usage', value: this.creditUsageValue(), trend: this.creditUsageTrend(), icon: 'gauge' },
+    ];
+  });
+
+  protected readonly workspaceHealthItems = computed(() => [
+    { label: 'Current Package', value: this.planLabel(), icon: 'gem' },
+    { label: 'Credits Limit', value: this.creditsTotal() === null ? '--' : String(this.creditsTotal()), icon: 'wallet-cards' },
+    { label: 'Team Members', value: this.teamMemberLabel(), icon: 'users' },
+    { label: 'Storage Used', value: this.storageUsedLabel(), icon: 'database' },
+    { label: 'AI Generations', value: this.aiGenerationsLabel(), icon: 'sparkles' },
+  ]);
+
+  protected readonly recentActivities = computed(() => {
+    const activities = [
+      ...this.generations.generationRequests().slice(0, 2).map((request) => ({
+        title: 'Creative generated',
+        description: `${creativeTypeLabel(request.creativeType)} for ${request.platform ?? 'workspace campaign'}`,
+        icon: 'sparkles',
+        time: request.updatedAt,
+      })),
+      ...this.brands.items().slice(0, 1).map((brand) => ({
+        title: 'Brand created',
+        description: brand.name,
+        icon: 'badge-check',
+        time: brand.updatedAt,
+      })),
+      ...this.approvals.approvals().slice(0, 2).map((approval) => ({
+        title: approvalStatusLabel(approval.status),
+        description: approval.title ?? 'Creative approval',
+        icon: 'shield-check',
+        time: approval.updatedAt,
+      })),
+      ...this.assets.assets().slice(0, 2).map((asset) => ({
+        title: 'Asset uploaded',
+        description: asset.originalFileName,
+        icon: 'upload-cloud',
+        time: asset.updatedAt,
+      })),
+    ];
+
+    return activities
+      .sort((left, right) => Date.parse(right.time) - Date.parse(left.time))
+      .slice(0, 5);
+  });
+
+  protected readonly recentCreatives = computed(() => this.generations.generationRequests().slice(0, 4));
+
+  protected readonly primaryAction = computed(() => {
+    if (!this.hasBrand()) {
+      return { label: 'Create Brand', route: '/brands', icon: 'badge-check' };
+    }
+
+    if (!this.hasProductService()) {
+      return { label: 'Create Product', route: '/product-services', icon: 'package-open' };
+    }
+
+    if (!this.hasValidProject()) {
+      return { label: 'Create Project', route: '/projects', icon: 'folder-kanban' };
+    }
+
+    if (!this.hasAsset()) {
+      const project = this.firstValidProject();
+      return { label: 'Upload Asset', route: project ? `/projects/${project.id}/assets` : '/assets', icon: 'upload-cloud' };
+    }
+
+    return { label: 'Generate Creative', route: '/creative-generator', icon: 'sparkles' };
   });
 
   protected readonly quickActions = computed<readonly QuickAction[]>(() => {
@@ -176,6 +306,7 @@ export class DashboardOverviewComponent {
     const hasBrands = this.hasBrand();
     const hasProducts = this.hasProductService();
     const hasValidProject = this.hasValidProject();
+    const hasAsset = this.hasAsset();
     const projectAssetsRoute = project ? `/projects/${project.id}/assets` : '/projects';
     const projectPromptsRoute = project ? `/projects/${project.id}/prompts` : '/projects';
     const canCreateBrand = this.permissions.canManageBrands();
@@ -183,6 +314,7 @@ export class DashboardOverviewComponent {
     const canCreateProject = this.permissions.canCreateProjects();
     const canUploadAsset = this.permissions.has('ASSET_UPLOAD', { requireActiveSubscription: true });
     const canCreatePrompt = this.permissions.canUsePromptBuilder();
+    const canGenerateCreative = this.auth.permissions().includes('CREATIVE_GENERATE');
 
     return [
       {
@@ -197,7 +329,7 @@ export class DashboardOverviewComponent {
       },
       {
         key: 'CREATE_PRODUCT_SERVICE',
-        title: 'Create Product/Service',
+        title: 'Create Product / Service',
         description: hasBrands && canCreateProduct ? 'Attach a product or service to a brand.' : 'Create a brand first.',
         route: '/product-services',
         icon: this.getQuickActionIcon('CREATE_PRODUCT_SERVICE'),
@@ -235,28 +367,22 @@ export class DashboardOverviewComponent {
         disabledReason: this.downstreamDisabledReason(canCreatePrompt, hasProducts, hasValidProject),
         badgeLabel: !canCreatePrompt ? 'Permission required' : 'Project required',
       },
+      {
+        key: 'GENERATE_CREATIVE',
+        title: 'Generate Creative',
+        description: hasProducts && hasValidProject && hasAsset && canGenerateCreative ? 'Create campaign-ready visuals.' : 'Add project assets first.',
+        route: '/creative-generator',
+        icon: this.getQuickActionIcon('GENERATE_CREATIVE'),
+        enabled: hasProducts && hasValidProject && hasAsset && canGenerateCreative,
+        disabledReason: !canGenerateCreative
+          ? 'You do not have permission to generate creatives.'
+          : !hasAsset
+            ? 'Upload an asset first.'
+            : this.downstreamDisabledReason(true, hasProducts, hasValidProject),
+        badgeLabel: !canGenerateCreative ? 'Permission required' : hasAsset ? null : 'Asset required',
+      },
     ];
   });
-
-  protected readonly hierarchy = computed(() => [
-    { label: 'Workspace', value: this.workspaceLabel(), route: '/dashboard', icon: 'building-2' },
-    { label: 'Brand', value: `${this.brandCount()} ready`, route: '/brands', icon: 'badge-check' },
-    { label: 'Product/Service', value: `${this.productServiceCount()} linked`, route: '/product-services', icon: 'package-open' },
-    {
-      label: 'Project/Campaign',
-      value: this.hasProjectLinkWarning()
-        ? `${this.totalProjectCount()} active · product link missing`
-        : `${this.totalProjectCount()} active`,
-      route: '/projects',
-      icon: 'folder-kanban',
-    },
-  ]);
-
-  protected readonly subscriptionSummaries = computed(() => [
-    { label: 'Package', value: this.activePlanLabel(), icon: 'credit-card' },
-    { label: 'Status', value: this.subscriptionStatusLabel(), icon: 'shield-check' },
-    { label: 'Credits / limits', value: this.remainingCreditsLabel(), icon: 'gauge' },
-  ]);
 
   constructor() {
     effect(() => {
@@ -279,6 +405,18 @@ export class DashboardOverviewComponent {
         if (this.permissions.canViewProjects()) {
           void this.projects.load(workspaceId);
         }
+
+        if (this.auth.permissions().includes('ASSET_VIEW')) {
+          void this.assets.loadLibraryContext();
+        }
+
+        if (this.auth.permissions().includes('CREATIVE_GENERATE')) {
+          void this.generations.loadGenerationRequests();
+        }
+
+        if (this.role() === 'ADMIN') {
+          void this.approvals.load();
+        }
       }
     });
   }
@@ -299,6 +437,45 @@ export class DashboardOverviewComponent {
     return QUICK_ACTION_ICONS[actionType as QuickActionKey] ?? QUICK_ACTION_FALLBACK_ICON;
   }
 
+  protected formatActivityTime(value: string): string {
+    const timestamp = Date.parse(value);
+    if (!Number.isFinite(timestamp)) {
+      return '--';
+    }
+
+    const diffMinutes = Math.max(0, Math.round((Date.now() - timestamp) / 60000));
+    if (diffMinutes < 1) {
+      return 'Just now';
+    }
+
+    if (diffMinutes < 60) {
+      return `${diffMinutes}m ago`;
+    }
+
+    const diffHours = Math.round(diffMinutes / 60);
+    if (diffHours < 24) {
+      return `${diffHours}h ago`;
+    }
+
+    return `${Math.round(diffHours / 24)}d ago`;
+  }
+
+  protected creativeStatusLabel(request: CreativeGenerationRequest): string {
+    return creativeGenerationStatusLabel(request.status);
+  }
+
+  protected creativeStatusTone(request: CreativeGenerationRequest): 'brand' | 'blue' | 'red' | 'neutral' {
+    return creativeGenerationStatusTone(request.status);
+  }
+
+  protected creativeTitle(request: CreativeGenerationRequest): string {
+    return request.sourcePrompt?.trim() || creativeTypeLabel(request.creativeType);
+  }
+
+  protected creativeMeta(request: CreativeGenerationRequest): string {
+    return [request.platform, request.outputFormat].filter(Boolean).join(' / ') || 'Workspace creative';
+  }
+
   private downstreamDisabledReason(canUseFeature: boolean, hasProducts: boolean, hasValidProject: boolean): string | null {
     if (!canUseFeature) {
       return 'You do not have permission to perform this action.';
@@ -309,5 +486,56 @@ export class DashboardOverviewComponent {
     }
 
     return hasValidProject ? null : 'Create a linked project first.';
+  }
+
+  private resolveLimit(...keys: readonly string[]): FeatureLimit | null {
+    const limits = this.workspace.usage()?.limits ?? this.workspace.featurePolicy()?.limits ?? {};
+    for (const key of keys) {
+      const limit = limits[key];
+      if (limit) {
+        return limit;
+      }
+    }
+
+    return null;
+  }
+
+  private creditUsageValue(): string {
+    const used = this.creditsUsed();
+    const total = this.creditsTotal();
+    if (typeof used === 'number' && typeof total === 'number') {
+      return `${used}/${total}`;
+    }
+
+    return this.creditsRemaining() === null ? '--' : String(this.creditsRemaining());
+  }
+
+  private creditUsageTrend(): string {
+    const remaining = this.creditsRemaining();
+    return typeof remaining === 'number' ? `${remaining} credits remaining` : 'Credits: --';
+  }
+
+  private teamMemberLabel(): string {
+    return this.auth.currentUser() ? '1+' : '--';
+  }
+
+  private storageUsedLabel(): string {
+    const limit = this.resolveLimit('assets.storage', 'asset.storage', 'storage');
+    if (typeof limit?.used === 'number') {
+      return this.formatBytes(limit.used);
+    }
+
+    return this.storageLabel();
+  }
+
+  private formatBytes(value: number): string {
+    if (value <= 0) {
+      return '0 MB';
+    }
+
+    const units = ['B', 'KB', 'MB', 'GB', 'TB'];
+    const index = Math.min(Math.floor(Math.log(value) / Math.log(1024)), units.length - 1);
+    const amount = value / Math.pow(1024, index);
+    return `${amount >= 10 ? amount.toFixed(0) : amount.toFixed(1)} ${units[index]}`;
   }
 }
