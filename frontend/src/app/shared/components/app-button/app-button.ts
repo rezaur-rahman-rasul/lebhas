@@ -23,6 +23,7 @@ export class ButtonComponent {
   readonly loading = input(false);
   readonly disabled = input(false);
   readonly fullWidth = input(false);
+  readonly iconOnly = input(false);
   readonly testId = input<string | null>(null);
 
   protected readonly iconSize = computed(() => (this.size() === 'sm' ? 16 : 18));
@@ -30,7 +31,13 @@ export class ButtonComponent {
   protected readonly classes = computed(() => {
     const base =
       'inline-flex min-w-0 items-center justify-center gap-2 rounded-[var(--app-radius-button)] font-semibold tracking-normal transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500 focus-visible:ring-offset-2 focus-visible:ring-offset-canvas disabled:pointer-events-none disabled:opacity-60';
-    const sizes: Record<ButtonSize, string> = {
+    const sizes: Record<ButtonSize, string> = this.iconOnly()
+      ? {
+        sm: 'h-9 w-9 p-0 text-sm',
+        md: 'h-10 w-10 p-0 text-sm',
+        lg: 'h-11 w-11 p-0 text-base',
+      }
+      : {
       sm: 'h-9 px-3 text-sm',
       md: 'h-10 px-4 text-sm',
       lg: 'h-11 px-5 text-base',

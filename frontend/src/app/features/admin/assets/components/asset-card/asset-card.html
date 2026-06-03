@@ -103,20 +103,20 @@
           size="sm"
           variant="secondary"
           icon="eye"
+          [iconOnly]="true"
+          ariaLabel="Preview asset"
           (click)="previewRequested.emit(asset())"
-        >
-          Preview
-        </app-button>
+        />
 
         @if (canDownload()) {
           <app-button
             size="sm"
             variant="secondary"
             icon="download"
+            [iconOnly]="true"
+            ariaLabel="Download asset"
             (click)="downloadRequested.emit(asset())"
-          >
-            Download
-          </app-button>
+          />
         }
 
         @if (canDelete()) {
@@ -124,11 +124,11 @@
             size="sm"
             variant="danger"
             icon="trash-2"
+            [iconOnly]="true"
+            ariaLabel="Delete asset"
             [loading]="deleting()"
             (click)="deleteRequested.emit(asset())"
-          >
-            Delete
-          </app-button>
+          />
         }
       </div>
     </div>
