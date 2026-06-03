@@ -87,7 +87,7 @@ public class AssetService {
         return assetUploadService.uploadAsset(command);
     }
 
-    @Transactional(readOnly = true)
+    @Transactional
     public PagedResult<AssetView> listAssets(AssetListCriteria criteria) {
         return assetQueryService.listAssets(criteria);
     }

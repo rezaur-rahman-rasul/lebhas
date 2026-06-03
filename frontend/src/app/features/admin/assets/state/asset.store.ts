@@ -454,6 +454,7 @@ export class AssetStore {
     try {
       return await firstValueFrom(this.assetService.getPreviewUrl(workspaceId, assetId));
     } catch (error) {
+      this.removeMissingStorageAsset(assetId, error);
       const result = this.failureResult(error, 'You do not have permission to preview this asset.');
       this.notifications.error('Preview failed', result.message ?? 'Asset preview could not be opened.');
       return null;
@@ -470,6 +471,7 @@ export class AssetStore {
     try {
       return await firstValueFrom(this.assetService.getDownloadUrl(workspaceId, assetId));
     } catch (error) {
+      this.removeMissingStorageAsset(assetId, error);
       const result = this.failureResult(error, 'You do not have permission to download this asset.');
       this.notifications.error('Download failed', result.message ?? 'Asset download could not be opened.');
       return null;
@@ -599,6 +601,22 @@ export class AssetStore {
 
   private assetRequestContext(): HttpContext {
     return new HttpContext().set(SKIP_ERROR_TOAST, true);
+  }
+
+  private removeMissingStorageAsset(assetId: string, error: unknown): void {
+    const normalized = normalizeHttpError(error);
+    const missingStorage = normalized.errors.some((item) => item.code === 'ASSET_STORAGE_OBJECT_MISSING');
+    if (!missingStorage) {
+      return;
+    }
+    this.assetsSignal.update((assets) => assets.filter((asset) => asset.id !== assetId));
+    if (this.selectedAssetSignal()?.id === assetId) {
+      this.selectedAssetSignal.set(null);
+    }
+    this.paginationSignal.update((pagination) => ({
+      ...pagination,
+      totalItems: Math.max(0, pagination.totalItems - 1),
+    }));
   }
 }
 

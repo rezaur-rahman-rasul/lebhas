@@ -4,6 +4,7 @@ import com.lebhas.creativesaas.asset.application.dto.AssetListCriteria;
 import com.lebhas.creativesaas.asset.application.dto.AssetUrlView;
 import com.lebhas.creativesaas.asset.application.dto.AssetView;
 import com.lebhas.creativesaas.asset.domain.AssetEntity;
+import com.lebhas.creativesaas.asset.domain.AssetStatus;
 import com.lebhas.creativesaas.asset.infrastructure.persistence.AssetRepository;
 import com.lebhas.creativesaas.asset.infrastructure.persistence.AssetSpecifications;
 import com.lebhas.creativesaas.asset.storage.StorageService;
@@ -18,10 +19,13 @@ import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.StringUtils;
 
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
@@ -29,6 +33,7 @@ import java.util.UUID;
 @Service
 public class AssetQueryService {
 
+    private static final Logger log = LoggerFactory.getLogger(AssetQueryService.class);
     private static final int DEFAULT_PAGE_SIZE = 20;
     private static final int MAX_PAGE_SIZE = 100;
 
@@ -61,9 +66,9 @@ public class AssetQueryService {
         this.assetEventPublisher = assetEventPublisher;
     }
 
-    @Transactional(readOnly = true)
+    @Transactional
     public PagedResult<AssetView> listAssets(AssetListCriteria criteria) {
-        assetValidationService.requireViewAccess(criteria.workspaceId());
+        WorkspaceAuthorizationService.WorkspaceAccess access = assetValidationService.requireViewAccess(criteria.workspaceId());
         if (criteria.projectId() != null) {
             assetValidationService.validateProjectContext(criteria.workspaceId(), criteria.projectId());
         }
@@ -78,7 +83,15 @@ public class AssetQueryService {
             if (page.isEmpty() && isDefaultWorkspaceList(criteria) && assetRepository.countByWorkspaceIdAndDeletedFalse(criteria.workspaceId()) > 0) {
                 page = assetRepository.findAllByWorkspaceIdAndDeletedFalse(criteria.workspaceId(), pageable);
             }
-            return PagedResult.from(page.map(assetMapper::toAssetView));
+            List<AssetEntity> visibleAssets = removeMissingStorageAssets(page.getContent(), access.currentUser().userId());
+            return new PagedResult<>(
+                    visibleAssets.stream().map(assetMapper::toAssetView).toList(),
+                    Math.max(0L, page.getTotalElements() - (page.getContent().size() - visibleAssets.size())),
+                    page.getTotalPages(),
+                    page.getNumber(),
+                    page.getSize(),
+                    page.isFirst(),
+                    page.isLast());
         });
     }
 
@@ -91,21 +104,21 @@ public class AssetQueryService {
                 () -> assetMapper.toAssetView(assetValidationService.requireAsset(workspaceId, assetId)));
     }
 
-    @Transactional(readOnly = true)
+    @Transactional
     public AssetUrlView generatePreviewUrl(UUID workspaceId, UUID assetId) {
         WorkspaceAuthorizationService.WorkspaceAccess access = assetValidationService.requireViewAccess(workspaceId);
         AssetEntity asset = assetValidationService.requireAsset(workspaceId, assetId);
-        ensureStorageObjectAvailable(asset);
+        ensureStorageObjectAvailable(asset, access.currentUser().userId());
         AssetUrlView urlView = signedUrlService.previewUrl(asset);
         assetActivityLogger.logSignedUrlGenerated(workspaceId, assetId, access.currentUser().userId(), "preview");
         return urlView;
     }
 
-    @Transactional(readOnly = true)
+    @Transactional
     public AssetUrlView generateDownloadUrl(UUID workspaceId, UUID assetId) {
         WorkspaceAuthorizationService.WorkspaceAccess access = assetValidationService.requireDownloadAccess(workspaceId);
         AssetEntity asset = assetValidationService.requireAsset(workspaceId, assetId);
-        ensureStorageObjectAvailable(asset);
+        ensureStorageObjectAvailable(asset, access.currentUser().userId());
         assetActivityLogger.logDownloadRequested(workspaceId, assetId, access.currentUser().userId(), "download");
         assetEventPublisher.publish(
                 KafkaTopicConstants.ASSET_DOWNLOAD_REQUESTED,
@@ -156,8 +169,9 @@ public class AssetQueryService {
                 && criteria.createdTo() == null;
     }
 
-    private void ensureStorageObjectAvailable(AssetEntity asset) {
+    private void ensureStorageObjectAvailable(AssetEntity asset, UUID actorUserId) {
         if (!StringUtils.hasText(asset.getStorageKey())) {
+            markMissingStorageDeleted(asset, actorUserId);
             throw missingStorageObject(asset.getId());
         }
         try {
@@ -165,10 +179,58 @@ public class AssetQueryService {
         } catch (BusinessException exception) {
             if (exception.getErrorCode() == ErrorCode.ASSET_STORAGE_FAILURE
                     || exception.getErrorCode() == ErrorCode.STORAGE_FILE_NOT_FOUND) {
+                markMissingStorageDeleted(asset, actorUserId);
                 throw missingStorageObject(asset.getId());
             }
             throw exception;
         }
+    }
+
+    private List<AssetEntity> removeMissingStorageAssets(List<AssetEntity> assets, UUID actorUserId) {
+        List<AssetEntity> visibleAssets = new ArrayList<>(assets.size());
+        for (AssetEntity asset : assets) {
+            if (!shouldVerifyStorage(asset)) {
+                visibleAssets.add(asset);
+                continue;
+            }
+            try {
+                storageService.getMetadata(asset);
+                visibleAssets.add(asset);
+            } catch (BusinessException exception) {
+                if (exception.getErrorCode() == ErrorCode.ASSET_STORAGE_FAILURE
+                        || exception.getErrorCode() == ErrorCode.STORAGE_FILE_NOT_FOUND) {
+                    markMissingStorageDeleted(asset, actorUserId);
+                } else {
+                    visibleAssets.add(asset);
+                }
+            }
+        }
+        return visibleAssets;
+    }
+
+    private boolean shouldVerifyStorage(AssetEntity asset) {
+        return (asset.getStatus() == AssetStatus.AVAILABLE || asset.getStatus() == AssetStatus.READY)
+                && StringUtils.hasText(asset.getStorageKey());
+    }
+
+    private void markMissingStorageDeleted(AssetEntity asset, UUID actorUserId) {
+        if (asset.getStatus() == AssetStatus.DELETED) {
+            return;
+        }
+        asset.markDeletedAsset();
+        assetRepository.saveAndFlush(asset);
+        try {
+            assetCacheService.invalidate(asset.getWorkspaceId(), asset.getProjectId(), asset.getId(), actorUserId);
+        } catch (RuntimeException exception) {
+            log.warn("Asset missing in storage was soft-deleted but cache invalidation failed assetId={} workspaceId={}",
+                    asset.getId(),
+                    asset.getWorkspaceId(),
+                    exception);
+        }
+        log.warn("Asset soft-deleted because storage object is missing assetId={} workspaceId={} storageKey={}",
+                asset.getId(),
+                asset.getWorkspaceId(),
+                asset.getStorageKey());
     }
 
     private BusinessException missingStorageObject(UUID assetId) {

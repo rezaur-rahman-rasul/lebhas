@@ -53,6 +53,11 @@ function friendlyHttpMessage(
   body: Partial<ApiResponse<unknown>> | null,
   fallbackMessage: string,
 ): string {
+  const hasMissingStorageObject = (body?.errors ?? []).some((error) => error.code === 'ASSET_STORAGE_OBJECT_MISSING');
+  if (hasMissingStorageObject) {
+    return body?.message || 'Asset file is not available in storage. The stale asset was removed from the library.';
+  }
+
   if (status === 403) {
     return 'You do not have permission to perform this action.';
   }
