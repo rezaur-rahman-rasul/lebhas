@@ -93,7 +93,9 @@ export class AssetStore {
   readonly canEditAssets = computed(() => this.hasPermission('ASSET_UPDATE'));
   readonly canDeleteAssets = computed(() => this.hasPermission('ASSET_DELETE'));
   readonly canManageFolders = computed(() => this.hasPermission('ASSET_FOLDER_MANAGE'));
-  readonly canDownloadAssets = computed(() => this.canViewAssets());
+  readonly canDownloadAssets = computed(() =>
+    this.hasPermission('ASSET_VIEW') || this.hasPermission('CREATIVE_DOWNLOAD'),
+  );
 
   async loadLibraryContext(): Promise<void> {
     const workspaceId = this.resolveWorkspaceId();
@@ -367,10 +369,10 @@ export class AssetStore {
         totalItems: Math.max(0, pagination.totalItems - 1),
       }));
       this.notifications.success('Asset deleted', 'The asset has been removed from this workspace.');
-      await this.reloadAssets();
+      void this.reloadAssets();
       return this.successResult();
     } catch (error) {
-      return this.failureResult(error);
+      return this.failureResult(error, 'You do not have permission to delete assets.');
     } finally {
       this.deletingAssetIdSignal.set(null);
     }
@@ -452,7 +454,8 @@ export class AssetStore {
     try {
       return await firstValueFrom(this.assetService.getPreviewUrl(workspaceId, assetId));
     } catch (error) {
-      this.failureResult(error);
+      const result = this.failureResult(error, 'You do not have permission to preview this asset.');
+      this.notifications.error('Preview failed', result.message ?? 'Asset preview could not be opened.');
       return null;
     }
   }
@@ -467,7 +470,8 @@ export class AssetStore {
     try {
       return await firstValueFrom(this.assetService.getDownloadUrl(workspaceId, assetId));
     } catch (error) {
-      this.failureResult(error);
+      const result = this.failureResult(error, 'You do not have permission to download this asset.');
+      this.notifications.error('Download failed', result.message ?? 'Asset download could not be opened.');
       return null;
     }
   }
@@ -495,7 +499,7 @@ export class AssetStore {
     return null;
   }
 
-  private hasPermission(permission: 'ASSET_VIEW' | 'ASSET_UPLOAD' | 'ASSET_UPDATE' | 'ASSET_DELETE' | 'ASSET_FOLDER_MANAGE'): boolean {
+  private hasPermission(permission: 'ASSET_VIEW' | 'ASSET_UPLOAD' | 'ASSET_UPDATE' | 'ASSET_DELETE' | 'ASSET_FOLDER_MANAGE' | 'CREATIVE_DOWNLOAD'): boolean {
     return this.auth.permissions().includes(permission);
   }
 
@@ -553,10 +557,10 @@ export class AssetStore {
     return { ok: false, message, fieldErrors: {} };
   }
 
-  private failureResult(error: unknown): AssetActionResult {
+  private failureResult(error: unknown, forbiddenMessage = 'You do not have permission to perform this asset action.'): AssetActionResult {
     const normalized = normalizeHttpError(error);
     const message = normalized.status === 403
-      ? 'You do not have permission to delete assets.'
+      ? forbiddenMessage
       : normalized.message;
     this.assetErrorSignal.set(message);
     return {

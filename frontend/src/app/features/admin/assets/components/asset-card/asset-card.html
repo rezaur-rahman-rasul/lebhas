@@ -5,7 +5,7 @@
       class="relative block w-full overflow-hidden border-b border-white/10 bg-slate-900 text-left"
       (click)="previewRequested.emit(asset())"
     >
-      <div class="aspect-[4/3]">
+      <div class="aspect-[5/4]">
         @switch (asset().fileType) {
           @case ('VIDEO') {
             @if (asset().thumbnailUrl || asset().previewUrl) {
@@ -59,8 +59,8 @@
       </div>
     </button>
 
-    <div class="p-4">
-      <div class="flex items-start justify-between gap-3">
+    <div class="p-3">
+      <div class="flex items-start justify-between gap-2">
         <div class="min-w-0">
           <button
             type="button"
@@ -74,31 +74,31 @@
           </p>
         </div>
 
-        <span class="rounded-full border border-white/10 bg-white/[0.06] px-2.5 py-1 text-[11px] font-semibold uppercase tracking-[0.14em] text-slate-300">
+        <span class="rounded-full border border-white/10 bg-white/[0.06] px-2 py-0.5 text-[10px] font-semibold uppercase tracking-[0.12em] text-slate-300">
           {{ asset().fileExtension }}
         </span>
       </div>
 
-      <dl class="mt-4 grid grid-cols-2 gap-3 text-sm">
+      <dl class="mt-3 grid grid-cols-2 gap-2 text-xs">
         <div>
-          <dt class="text-xs uppercase tracking-[0.14em] text-slate-500">Type</dt>
-          <dd class="mt-1 font-medium text-slate-100">{{ assetFileTypeLabel(asset().fileType) }}</dd>
+          <dt class="text-[10px] uppercase tracking-[0.12em] text-slate-500">Type</dt>
+          <dd class="mt-0.5 font-medium text-slate-100">{{ assetFileTypeLabel(asset().fileType) }}</dd>
         </div>
         <div>
-          <dt class="text-xs uppercase tracking-[0.14em] text-slate-500">Size</dt>
-          <dd class="mt-1 font-medium text-slate-100">{{ formatFileSize(asset().fileSize) }}</dd>
+          <dt class="text-[10px] uppercase tracking-[0.12em] text-slate-500">Size</dt>
+          <dd class="mt-0.5 font-medium text-slate-100">{{ formatFileSize(asset().fileSize) }}</dd>
         </div>
         <div>
-          <dt class="text-xs uppercase tracking-[0.14em] text-slate-500">Created</dt>
-          <dd class="mt-1 font-medium text-slate-100">{{ asset().createdAt | date: 'd MMM y' }}</dd>
+          <dt class="text-[10px] uppercase tracking-[0.12em] text-slate-500">Created</dt>
+          <dd class="mt-0.5 font-medium text-slate-100">{{ asset().createdAt | date: 'd MMM y' }}</dd>
         </div>
         <div>
-          <dt class="text-xs uppercase tracking-[0.14em] text-slate-500">Tags</dt>
-          <dd class="mt-1 font-medium text-slate-100">{{ asset().tags.length || 0 }}</dd>
+          <dt class="text-[10px] uppercase tracking-[0.12em] text-slate-500">Tags</dt>
+          <dd class="mt-0.5 font-medium text-slate-100">{{ asset().tags.length || 0 }}</dd>
         </div>
       </dl>
 
-      <div class="mt-4 flex flex-wrap gap-2">
+      <div class="mt-3 flex flex-wrap gap-1.5">
         <app-button
           size="sm"
           variant="secondary"

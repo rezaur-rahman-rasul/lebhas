@@ -142,7 +142,7 @@ public class AssetController {
     }
 
     @GetMapping("/{assetId}/download-url")
-    @PreAuthorize("hasAuthority('CREATIVE_DOWNLOAD')")
+    @PreAuthorize("hasAnyAuthority('CREATIVE_DOWNLOAD', 'ASSET_VIEW')")
     @Operation(summary = "Generate a signed download URL")
     public ApiResponse<AssetUrlView> downloadUrl(@PathVariable UUID workspaceId, @PathVariable UUID assetId) {
         return ApiResponse.success(assetManagementService.generateDownloadUrl(workspaceId, assetId));
