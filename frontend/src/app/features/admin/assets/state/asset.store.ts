@@ -359,7 +359,6 @@ export class AssetStore {
     try {
       this.deletingAssetIdSignal.set(assetId);
       this.assetErrorSignal.set(null);
-      await firstValueFrom(this.assetService.deleteAsset(workspaceId, assetId));
       this.assetsSignal.update((assets) => assets.filter((asset) => asset.id !== assetId));
       if (this.selectedAssetSignal()?.id === assetId) {
         this.selectedAssetSignal.set(null);
@@ -368,6 +367,8 @@ export class AssetStore {
         ...pagination,
         totalItems: Math.max(0, pagination.totalItems - 1),
       }));
+      this.deletingAssetIdSignal.set(null);
+      await firstValueFrom(this.assetService.deleteAsset(workspaceId, assetId));
       this.notifications.success('Asset deleted', 'The asset has been removed from this workspace.');
       void this.reloadAssets();
       return this.successResult();

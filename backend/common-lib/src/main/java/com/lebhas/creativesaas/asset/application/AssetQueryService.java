@@ -25,6 +25,8 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.StringUtils;
 
+import java.time.Duration;
+import java.time.Instant;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
@@ -36,6 +38,7 @@ public class AssetQueryService {
     private static final Logger log = LoggerFactory.getLogger(AssetQueryService.class);
     private static final int DEFAULT_PAGE_SIZE = 20;
     private static final int MAX_PAGE_SIZE = 100;
+    private static final Duration STALE_UPLOAD_GRACE = Duration.ofMinutes(5);
 
     private final AssetValidationService assetValidationService;
     private final AssetRepository assetRepository;
@@ -193,12 +196,17 @@ public class AssetQueryService {
                 visibleAssets.add(asset);
                 continue;
             }
+            if (!StringUtils.hasText(asset.getStorageKey())) {
+                markMissingStorageDeleted(asset, actorUserId);
+                continue;
+            }
             try {
                 storageService.getMetadata(asset);
                 visibleAssets.add(asset);
             } catch (BusinessException exception) {
                 if (exception.getErrorCode() == ErrorCode.ASSET_STORAGE_FAILURE
-                        || exception.getErrorCode() == ErrorCode.STORAGE_FILE_NOT_FOUND) {
+                        || exception.getErrorCode() == ErrorCode.STORAGE_FILE_NOT_FOUND
+                        || isStaleUpload(asset)) {
                     markMissingStorageDeleted(asset, actorUserId);
                 } else {
                     visibleAssets.add(asset);
@@ -209,8 +217,21 @@ public class AssetQueryService {
     }
 
     private boolean shouldVerifyStorage(AssetEntity asset) {
-        return (asset.getStatus() == AssetStatus.AVAILABLE || asset.getStatus() == AssetStatus.READY)
-                && StringUtils.hasText(asset.getStorageKey());
+        if (asset.getStatus() == AssetStatus.GENERATED_METADATA_ONLY || asset.getStatus() == AssetStatus.DELETED) {
+            return false;
+        }
+        return asset.getStatus() == AssetStatus.AVAILABLE
+                || asset.getStatus() == AssetStatus.READY
+                || asset.getStatus() == AssetStatus.FAILED
+                || isStaleUpload(asset);
+    }
+
+    private boolean isStaleUpload(AssetEntity asset) {
+        if (asset.getStatus() != AssetStatus.UPLOADING && asset.getStatus() != AssetStatus.UPLOAD_PENDING) {
+            return false;
+        }
+        Instant createdAt = asset.getCreatedAt();
+        return createdAt != null && createdAt.isBefore(Instant.now().minus(STALE_UPLOAD_GRACE));
     }
 
     private void markMissingStorageDeleted(AssetEntity asset, UUID actorUserId) {

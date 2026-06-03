@@ -197,16 +197,12 @@ export class AssetLibraryPage {
       return;
     }
 
-    const result = await this.store.deleteAsset(asset.id);
-    if (!result.ok) {
-      return;
-    }
-
     if (this.store.selectedAsset()?.id === asset.id) {
       this.closePreview();
     }
 
     this.cancelDelete();
+    await this.store.deleteAsset(asset.id);
   }
 
   protected async createFolder(payload: CreateAssetFolderPayload): Promise<void> {

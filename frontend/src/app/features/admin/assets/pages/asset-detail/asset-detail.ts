@@ -136,11 +136,9 @@ export class AssetDetailPage {
       return;
     }
 
-    const result = await this.store.deleteAsset(asset.id);
-    if (result.ok) {
-      this.closeDeleteDialog();
-      void this.router.navigate(['../'], { relativeTo: this.route });
-    }
+    this.closeDeleteDialog();
+    void this.router.navigate(['../'], { relativeTo: this.route });
+    await this.store.deleteAsset(asset.id);
   }
 
   protected async saveTags(tags: readonly string[]): Promise<void> {
