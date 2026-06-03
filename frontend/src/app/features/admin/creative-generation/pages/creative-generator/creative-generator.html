@@ -235,6 +235,30 @@
           </label>
         </section>
 
+        <section class="generator-section readiness-checklist">
+          <div class="readiness-header">
+            <span>Generation Readiness</span>
+            <app-badge [tone]="store.campaignReadiness()?.ready ? 'brand' : 'neutral'">
+              {{ store.campaignReadiness()?.ready ? 'Ready' : 'Needs setup' }}
+            </app-badge>
+          </div>
+          <div class="readiness-grid">
+            @for (item of readinessChecklist(); track item.label) {
+              <div class="readiness-item" [class.is-ready]="item.ready">
+                <app-icon [name]="item.ready ? 'check-circle-2' : 'circle-alert'" [size]="15" />
+                <span>{{ item.label }}</span>
+              </div>
+            }
+          </div>
+          @if (store.campaignReadiness()?.messages?.length) {
+            <div class="readiness-messages">
+              @for (message of store.campaignReadiness()?.messages ?? []; track message) {
+                <p>{{ message }}</p>
+              }
+            </div>
+          }
+        </section>
+
         @if (submitDisabledReason(); as reason) {
           <p class="dependency-note">{{ reason }}</p>
         }

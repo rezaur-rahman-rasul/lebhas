@@ -27,6 +27,13 @@ export function normalizeHttpError(error: unknown): NormalizedHttpError {
   }
 
   if (error instanceof Error && error.message.trim()) {
+    if (error.name === 'TimeoutError' || error.message.toLowerCase().includes('timeout')) {
+      return {
+        status: 0,
+        message: 'The request timed out. Please try again.',
+        errors: [],
+      };
+    }
     return {
       status: 0,
       message: error.message,

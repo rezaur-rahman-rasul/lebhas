@@ -8,7 +8,7 @@ import {
   HttpResponse,
 } from '@angular/common/http';
 import { Injectable, inject } from '@angular/core';
-import { catchError, filter, map, switchMap, throwError } from 'rxjs';
+import { catchError, filter, map, switchMap, throwError, timeout } from 'rxjs';
 
 import { ApiEndpoints } from '@app/core/api/api-endpoints';
 import { ApiService } from '@app/core/api/api.service';
@@ -177,7 +177,9 @@ export class AssetService {
   }
 
   deleteAsset(workspaceId: string, assetId: string) {
-    return this.api.delete<void>(ApiEndpoints.assets.detail(workspaceId, assetId));
+    return this.api
+      .delete<void>(ApiEndpoints.assets.detail(workspaceId, assetId))
+      .pipe(timeout({ first: 20000 }));
   }
 
   listFolders(workspaceId: string, context?: HttpContext) {
@@ -213,7 +215,10 @@ export class AssetService {
   getPreviewUrl(workspaceId: string, assetId: string, context?: HttpContext) {
     return this.api
       .get<AssetUrlResponseDto>(ApiEndpoints.assets.previewUrl(workspaceId, assetId), { context })
-      .pipe(map(({ data }) => data));
+      .pipe(
+        timeout({ first: 15000 }),
+        map(({ data }) => data),
+      );
   }
 
   getDownloadUrl(workspaceId: string, assetId: string, context?: HttpContext) {
@@ -222,7 +227,10 @@ export class AssetService {
         ApiEndpoints.assets.downloadUrl(workspaceId, assetId),
         { context },
       )
-      .pipe(map(({ data }) => data));
+      .pipe(
+        timeout({ first: 15000 }),
+        map(({ data }) => data),
+      );
   }
 
   uploadAsset(workspaceId: string, payload: UploadAssetPayload) {

@@ -6,7 +6,11 @@ import com.lebhas.creativesaas.asset.application.dto.AssetView;
 import com.lebhas.creativesaas.asset.domain.AssetEntity;
 import com.lebhas.creativesaas.asset.infrastructure.persistence.AssetRepository;
 import com.lebhas.creativesaas.asset.infrastructure.persistence.AssetSpecifications;
+import com.lebhas.creativesaas.asset.storage.StorageService;
+import com.lebhas.creativesaas.common.api.ApiError;
 import com.lebhas.creativesaas.common.api.PagedResult;
+import com.lebhas.creativesaas.common.exception.BusinessException;
+import com.lebhas.creativesaas.common.exception.ErrorCode;
 import com.lebhas.creativesaas.common.security.Permission;
 import com.lebhas.creativesaas.identity.application.WorkspaceAuthorizationService;
 import com.lebhas.creativesaas.messaging.kafka.KafkaTopicConstants;
@@ -18,6 +22,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.StringUtils;
 
+import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 
@@ -32,6 +37,7 @@ public class AssetQueryService {
     private final AssetCacheService assetCacheService;
     private final AssetMapper assetMapper;
     private final SignedUrlService signedUrlService;
+    private final StorageService storageService;
     private final AssetActivityLogger assetActivityLogger;
     private final AssetEventPublisher assetEventPublisher;
 
@@ -41,6 +47,7 @@ public class AssetQueryService {
             AssetCacheService assetCacheService,
             AssetMapper assetMapper,
             SignedUrlService signedUrlService,
+            StorageService storageService,
             AssetActivityLogger assetActivityLogger,
             AssetEventPublisher assetEventPublisher
     ) {
@@ -49,6 +56,7 @@ public class AssetQueryService {
         this.assetCacheService = assetCacheService;
         this.assetMapper = assetMapper;
         this.signedUrlService = signedUrlService;
+        this.storageService = storageService;
         this.assetActivityLogger = assetActivityLogger;
         this.assetEventPublisher = assetEventPublisher;
     }
@@ -87,6 +95,7 @@ public class AssetQueryService {
     public AssetUrlView generatePreviewUrl(UUID workspaceId, UUID assetId) {
         WorkspaceAuthorizationService.WorkspaceAccess access = assetValidationService.requireViewAccess(workspaceId);
         AssetEntity asset = assetValidationService.requireAsset(workspaceId, assetId);
+        ensureStorageObjectAvailable(asset);
         AssetUrlView urlView = signedUrlService.previewUrl(asset);
         assetActivityLogger.logSignedUrlGenerated(workspaceId, assetId, access.currentUser().userId(), "preview");
         return urlView;
@@ -96,6 +105,7 @@ public class AssetQueryService {
     public AssetUrlView generateDownloadUrl(UUID workspaceId, UUID assetId) {
         WorkspaceAuthorizationService.WorkspaceAccess access = assetValidationService.requireDownloadAccess(workspaceId);
         AssetEntity asset = assetValidationService.requireAsset(workspaceId, assetId);
+        ensureStorageObjectAvailable(asset);
         assetActivityLogger.logDownloadRequested(workspaceId, assetId, access.currentUser().userId(), "download");
         assetEventPublisher.publish(
                 KafkaTopicConstants.ASSET_DOWNLOAD_REQUESTED,
@@ -144,5 +154,30 @@ public class AssetQueryService {
                 && !StringUtils.hasText(criteria.keyword())
                 && criteria.createdFrom() == null
                 && criteria.createdTo() == null;
+    }
+
+    private void ensureStorageObjectAvailable(AssetEntity asset) {
+        if (!StringUtils.hasText(asset.getStorageKey()) || !StringUtils.hasText(asset.getStorageBucket())) {
+            throw missingStorageObject(asset.getId());
+        }
+        try {
+            storageService.getMetadata(asset);
+        } catch (BusinessException exception) {
+            if (exception.getErrorCode() == ErrorCode.ASSET_STORAGE_FAILURE
+                    || exception.getErrorCode() == ErrorCode.STORAGE_FILE_NOT_FOUND) {
+                throw missingStorageObject(asset.getId());
+            }
+            throw exception;
+        }
+    }
+
+    private BusinessException missingStorageObject(UUID assetId) {
+        return new BusinessException(
+                ErrorCode.STORAGE_FILE_NOT_FOUND,
+                "Asset file is not available in storage. Re-upload or delete this asset.",
+                List.of(ApiError.of(
+                        "ASSET_STORAGE_OBJECT_MISSING",
+                        "assetId",
+                        "The asset database record exists, but the R2 object is missing for asset " + assetId)));
     }
 }

@@ -200,7 +200,7 @@ public class ProductImageCreativeService {
             String requestedQualityMode,
             int requestedVersionCount
     ) {
-        List<String> messages = new ArrayList<>();
+        List<ProductImageCreativeReadinessView.ReadinessMessage> messages = new ArrayList<>();
         boolean workspaceReady = true;
         boolean packageReady = true;
         boolean creditsReady = true;
@@ -216,7 +216,7 @@ public class ProductImageCreativeService {
                     .orElseThrow(() -> new BusinessException(ErrorCode.PROJECT_CAMPAIGN_NOT_FOUND, "Project not found"));
         } catch (RuntimeException exception) {
             workspaceReady = false;
-            messages.add("Project hierarchy is not ready.");
+            addReadinessMessage(messages, "PROJECT_MISSING", "Project hierarchy is not ready.");
         }
 
         CreativeTool tool = toolRepository.findByToolCodeAndDeletedFalse(TOOL_CODE).orElse(null);
@@ -225,37 +225,37 @@ public class ProductImageCreativeService {
             planContext = planContextService.getWorkspacePlanContext(workspaceId);
             if (planContext.pricingPlan() == null && planContext.subscription() == null) {
                 packageReady = false;
-                messages.add("Workspace has no active package.");
+                addReadinessMessage(messages, "PACKAGE_MISSING", "Workspace has no active package.");
             }
             if (!isPolicyReadyForReadiness(planContext.featurePolicy(), messages)) {
                 packageReady = false;
             }
         } catch (RuntimeException exception) {
             packageReady = false;
-            messages.add("Workspace has no active package.");
+            addReadinessMessage(messages, "PACKAGE_MISSING", "Workspace has no active package.");
         }
 
+        ImageCreativeQualityMode qualityMode = parseQualityMode(requestedQualityMode);
         BigDecimal totalCreditCost = BigDecimal.ZERO;
         if (tool != null) {
             try {
-                totalCreditCost = resolveCreditCost(tool.getId()).multiply(BigDecimal.valueOf(Math.max(1, requestedVersionCount)));
+                totalCreditCost = resolveCreditCost(tool.getId(), qualityMode).multiply(BigDecimal.valueOf(Math.max(1, requestedVersionCount)));
                 CreditBalanceView balance = creditBalanceService.getBalance(workspaceId);
                 if (balance.availableBalance() == null || balance.availableBalance().compareTo(totalCreditCost) < 0) {
                     creditsReady = false;
-                    messages.add("Workspace has insufficient credits.");
+                    addReadinessMessage(messages, "CREDITS_INSUFFICIENT", "Workspace has insufficient credits.");
                 }
             } catch (RuntimeException exception) {
                 creditsReady = false;
-                messages.add("Workspace has insufficient credits.");
+                addReadinessMessage(messages, "CREDIT_POLICY_MISSING", "Master tool credit cost policy is not configured.");
             }
         } else {
             routingReady = false;
             providerReady = false;
-            messages.add("No active IMAGE provider is configured by Master.");
+            addReadinessMessage(messages, "TOOL_MISSING", "CAMPAIGN_CREATIVE_GENERATOR creative tool is not configured by Master.");
         }
 
         if (tool != null) {
-            ImageCreativeQualityMode qualityMode = parseQualityMode(requestedQualityMode);
             try {
                 ResolvedProviderRouteView route = providerToolRegistryService.resolveProvider(tool.getId(), qualityMode.name());
                 AiToolProvider routedProvider = route.providerId() == null
@@ -263,27 +263,27 @@ public class ProductImageCreativeService {
                         : providerRepository.findByIdAndDeletedFalse(route.providerId()).orElse(null);
                 if (!isOpenAiProviderReady(routedProvider)) {
                     providerReady = false;
-                    messages.add("No active IMAGE provider is configured by Master.");
+                    addReadinessMessage(messages, "PROVIDER_NOT_CONFIGURED", "No active OpenAI or image provider is configured by Master.");
                 } else if (!hasActiveConfiguredCredential(routedProvider.getId())) {
                     providerReady = false;
-                    messages.add("OpenAI credential is missing or inactive.");
+                    addReadinessMessage(messages, "PROVIDER_CREDENTIAL_MISSING", "OpenAI credential is missing or inactive.");
                 }
             } catch (RuntimeException exception) {
                 routingReady = false;
                 providerReady = false;
-                messages.add("No active IMAGE provider is configured by Master.");
+                addReadinessMessage(messages, "PROVIDER_ROUTING_MISSING", "Configure OpenAI in Master Provider Settings and Provider Routing.");
             }
         }
 
         if (productAssetId == null) {
             productAssetReady = false;
-            messages.add("Product image id was not sent with the readiness request.");
+            addReadinessMessage(messages, "PRODUCT_IMAGE_MISSING", "Upload or select a READY product image before generating creative.");
         } else {
             try {
                 resolveProductAsset(workspaceId, projectId, productAssetId, true);
             } catch (RuntimeException exception) {
                 productAssetReady = false;
-                messages.add(productAssetReadinessMessage(exception));
+                addReadinessMessage(messages, "PRODUCT_IMAGE_NOT_READY", productAssetReadinessMessage(exception));
             }
         }
 
@@ -296,6 +296,7 @@ public class ProductImageCreativeService {
                 providerReady,
                 routingReady,
                 productAssetReady,
+                messages.stream().map(ProductImageCreativeReadinessView.ReadinessMessage::message).distinct().toList(),
                 messages.stream().distinct().toList());
     }
 
@@ -488,7 +489,7 @@ public class ProductImageCreativeService {
         if (product == null) {
             throw new BusinessException(ErrorCode.VALIDATION_FAILED, "Product/service context is required for image creative generation");
         }
-        BigDecimal unitCost = resolveCreditCost(tool.getId());
+        BigDecimal unitCost = resolveCreditCost(tool.getId(), qualityMode);
         BigDecimal totalCost = unitCost.multiply(BigDecimal.valueOf(count));
         return new ValidationContext(workspaceId, project, brand, product, productAsset, tool, planContext, request, qualityMode, count, unitCost, totalCost);
     }
@@ -613,12 +614,23 @@ public class ProductImageCreativeService {
         return Boolean.TRUE.equals(value) || "true".equalsIgnoreCase(String.valueOf(value));
     }
 
-    private BigDecimal resolveCreditCost(UUID toolId) {
+    private BigDecimal resolveCreditCost(UUID toolId, ImageCreativeQualityMode qualityMode) {
         Instant now = Instant.now();
-        return costPolicyRepository.findFirstByToolIdAndEnabledTrueAndDeletedFalseOrderByUpdatedAtDesc(toolId)
+        return costPolicyRepository.findAllByToolIdAndDeletedFalseOrderByPolicyCodeAsc(toolId).stream()
+                .filter(ToolCreditCostPolicy::isEnabled)
+                .filter(policy -> matchesQualityMode(policy, qualityMode))
                 .filter(policy -> isEffective(policy, now))
                 .map(ToolCreditCostPolicy::getCreditCost)
+                .findFirst()
                 .orElseThrow(() -> new BusinessException(ErrorCode.RESOURCE_NOT_FOUND, "Master tool credit cost policy is not configured"));
+    }
+
+    private boolean matchesQualityMode(ToolCreditCostPolicy policy, ImageCreativeQualityMode qualityMode) {
+        Object metadataQualityMode = policy.getMetadata().get("qualityMode");
+        if (metadataQualityMode == null) {
+            return qualityMode == ImageCreativeQualityMode.BASIC;
+        }
+        return qualityMode.name().equalsIgnoreCase(String.valueOf(metadataQualityMode));
     }
 
     private boolean isEffective(ToolCreditCostPolicy policy, Instant now) {
@@ -786,21 +798,32 @@ public class ProductImageCreativeService {
         return require(value, field);
     }
 
-    private boolean isPolicyReadyForReadiness(PlanFeaturePolicyView policy, List<String> messages) {
+    private boolean isPolicyReadyForReadiness(
+            PlanFeaturePolicyView policy,
+            List<ProductImageCreativeReadinessView.ReadinessMessage> messages
+    ) {
         if (policy == null || !policy.creativeGenerationEnabled()) {
-            messages.add("CAMPAIGN_CREATIVE_GENERATOR is not enabled in plan feature policy.");
+            addReadinessMessage(messages, "PACKAGE_FEATURE_DISABLED", "CAMPAIGN_CREATIVE_GENERATOR is not enabled in plan feature policy.");
             return false;
         }
         Set<String> enabledCodes = policy.enabledCreativeToolCodes();
         if (enabledCodes == null || !enabledCodes.contains(TOOL_CODE)) {
-            messages.add("CAMPAIGN_CREATIVE_GENERATOR is not enabled in plan feature policy.");
+            addReadinessMessage(messages, "PACKAGE_TOOL_DISABLED", "CAMPAIGN_CREATIVE_GENERATOR is not enabled in plan feature policy.");
             return false;
         }
         if (policy.maxGeneratedVersionsPerRequest() == null || policy.maxGeneratedVersionsPerRequest() < 1) {
-            messages.add("CAMPAIGN_CREATIVE_GENERATOR is not enabled in plan feature policy.");
+            addReadinessMessage(messages, "PACKAGE_VERSION_LIMIT_MISSING", "Package generated-version limit is not configured.");
             return false;
         }
         return true;
+    }
+
+    private void addReadinessMessage(
+            List<ProductImageCreativeReadinessView.ReadinessMessage> messages,
+            String code,
+            String message
+    ) {
+        messages.add(new ProductImageCreativeReadinessView.ReadinessMessage(code, message));
     }
 
     private ResolvedProviderRouteView requireResolvedOpenAiRoute(UUID toolId, String qualityMode) {
@@ -825,12 +848,12 @@ public class ProductImageCreativeService {
 
     private BusinessException providerUnavailable() {
         return new BusinessException(
-                ErrorCode.GENERATION_PROVIDER_UNAVAILABLE,
-                "No active AI provider with configured credentials is available for this creative tool",
+                ErrorCode.AI_ROUTING_POLICY_INVALID,
+                "No active AI provider is configured for image creative generation.",
                 List.of(ApiError.of(
-                        "GENERATION_PROVIDER_UNAVAILABLE",
+                        "PROVIDER_ROUTING_MISSING",
                         "provider",
-                        "Configure OpenAI in Master Provider Settings and enable Provider Routing.")));
+                        "Configure OpenAI in Master Provider Settings and Provider Routing.")));
     }
 
     private boolean isOpenAiProviderReady(AiToolProvider provider) {

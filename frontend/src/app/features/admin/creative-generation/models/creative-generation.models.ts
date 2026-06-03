@@ -140,6 +140,12 @@ export interface ProductImageCreativeReadiness {
   readonly routingReady: boolean;
   readonly productAssetReady: boolean;
   readonly messages: readonly string[];
+  readonly readinessMessages: readonly ProductImageCreativeReadinessMessage[];
+}
+
+export interface ProductImageCreativeReadinessMessage {
+  readonly code: string;
+  readonly message: string;
 }
 
 export interface CreativeGenerationFilter {

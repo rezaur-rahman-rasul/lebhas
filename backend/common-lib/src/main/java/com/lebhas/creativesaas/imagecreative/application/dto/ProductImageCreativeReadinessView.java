@@ -10,6 +10,12 @@ public record ProductImageCreativeReadinessView(
         boolean providerReady,
         boolean routingReady,
         boolean productAssetReady,
-        List<String> messages
+        List<String> messages,
+        List<ReadinessMessage> readinessMessages
 ) {
+    public record ReadinessMessage(
+            String code,
+            String message
+    ) {
+    }
 }

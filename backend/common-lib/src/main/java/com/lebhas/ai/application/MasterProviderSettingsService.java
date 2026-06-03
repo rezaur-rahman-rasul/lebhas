@@ -26,9 +26,14 @@ import com.lebhas.creativesaas.common.exception.ErrorCode;
 import com.lebhas.creativesaas.messaging.kafka.KafkaTopicConstants;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.io.IOException;
 import java.net.URI;
+import java.net.http.HttpClient;
+import java.net.http.HttpRequest;
+import java.net.http.HttpResponse;
 import java.time.Clock;
 import java.time.Instant;
+import java.time.Duration;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -43,6 +48,7 @@ public class MasterProviderSettingsService {
     private final AssetEventPublisher eventPublisher;
     private final AuditLogService auditLogService;
     private final Clock clock;
+    private final HttpClient httpClient;
 
     public MasterProviderSettingsService(
             AiToolProviderRepository providerRepository,
@@ -58,6 +64,9 @@ public class MasterProviderSettingsService {
         this.eventPublisher = eventPublisher;
         this.auditLogService = auditLogService;
         this.clock = clock;
+        this.httpClient = HttpClient.newBuilder()
+                .connectTimeout(Duration.ofSeconds(10))
+                .build();
     }
 
     @Transactional(readOnly = true)
@@ -214,21 +223,9 @@ public class MasterProviderSettingsService {
                     testedAt,
                     "Provider credential is not configured");
         }
-        Instant testedAt = clock.instant();
-        ProviderConnectionTestResult result = new ProviderConnectionTestResult(
-                provider.getProviderCode(),
-                provider.getProviderCode(),
-                provider.getProviderName(),
-                categoryForView(provider),
-                environment,
-                true,
-                "HEALTHY",
-                ProviderConnectionTestStatus.SUCCESS,
-                null,
-                testedAt,
-                provider.getProviderName() + " connection test successful");
+        ProviderConnectionTestResult result = runRealConnectionTest(provider, environment, secret);
         if (credential != null) {
-            credential.recordTest(result.testStatus(), testedAt, result.message());
+            credential.recordTest(result.testStatus(), result.testedAt(), result.message());
             credentialRepository.save(credential);
         }
         publish(KafkaTopicConstants.AI_PROVIDER_HEALTH_UPDATED, provider, "provider.connection.tested");
@@ -379,6 +376,91 @@ public class MasterProviderSettingsService {
         } catch (RuntimeException exception) {
             throw new BusinessException(ErrorCode.VALIDATION_FAILED, "Webhook URL must be a valid HTTP or HTTPS URL");
         }
+    }
+
+    private ProviderConnectionTestResult runRealConnectionTest(
+            AiToolProvider provider,
+            ProviderEnvironment environment,
+            String secret
+    ) {
+        Instant startedAt = clock.instant();
+        if (!"OPENAI".equals(provider.getProviderCode())) {
+            return new ProviderConnectionTestResult(
+                    provider.getProviderCode(),
+                    provider.getProviderCode(),
+                    provider.getProviderName(),
+                    categoryForView(provider),
+                    environment,
+                    false,
+                    "NOT_IMPLEMENTED",
+                    ProviderConnectionTestStatus.NOT_IMPLEMENTED,
+                    null,
+                    startedAt,
+                    "Real connection test is not implemented for this provider");
+        }
+
+        try {
+            HttpRequest httpRequest = HttpRequest.newBuilder(URI.create("https://api.openai.com/v1/models"))
+                    .timeout(Duration.ofSeconds(15))
+                    .header("Authorization", "Bearer " + secret)
+                    .GET()
+                    .build();
+            HttpResponse<String> response = httpClient.send(httpRequest, HttpResponse.BodyHandlers.ofString());
+            long latencyMs = Math.max(0L, Duration.between(startedAt, clock.instant()).toMillis());
+            if (response.statusCode() >= 200 && response.statusCode() < 300) {
+                return new ProviderConnectionTestResult(
+                        provider.getProviderCode(),
+                        provider.getProviderCode(),
+                        provider.getProviderName(),
+                        categoryForView(provider),
+                        environment,
+                        true,
+                        "HEALTHY",
+                        ProviderConnectionTestStatus.SUCCESS,
+                        latencyMs,
+                        startedAt,
+                        "OpenAI credential accepted");
+            }
+            return new ProviderConnectionTestResult(
+                    provider.getProviderCode(),
+                    provider.getProviderCode(),
+                    provider.getProviderName(),
+                    categoryForView(provider),
+                    environment,
+                    false,
+                    response.statusCode() == 401 || response.statusCode() == 403 ? "INVALID_CREDENTIAL" : "FAILED",
+                    ProviderConnectionTestStatus.FAILED,
+                    latencyMs,
+                    startedAt,
+                    response.statusCode() == 401 || response.statusCode() == 403
+                            ? "OpenAI rejected the configured credential"
+                            : "OpenAI connection test failed with HTTP " + response.statusCode());
+        } catch (IOException exception) {
+            return failedConnectionResult(provider, environment, startedAt, "OpenAI connection test could not reach the provider");
+        } catch (InterruptedException exception) {
+            Thread.currentThread().interrupt();
+            return failedConnectionResult(provider, environment, startedAt, "OpenAI connection test was interrupted");
+        }
+    }
+
+    private ProviderConnectionTestResult failedConnectionResult(
+            AiToolProvider provider,
+            ProviderEnvironment environment,
+            Instant startedAt,
+            String message
+    ) {
+        return new ProviderConnectionTestResult(
+                provider.getProviderCode(),
+                provider.getProviderCode(),
+                provider.getProviderName(),
+                categoryForView(provider),
+                environment,
+                false,
+                "FAILED",
+                ProviderConnectionTestStatus.FAILED,
+                Math.max(0L, Duration.between(startedAt, clock.instant()).toMillis()),
+                startedAt,
+                message);
     }
 
     private String required(String value, String field) {

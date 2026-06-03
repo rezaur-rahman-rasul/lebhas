@@ -98,6 +98,61 @@ textarea:focus {
   grid-template-columns: minmax(0, 1fr) 7rem;
 }
 
+.readiness-checklist {
+  border: 1px solid rgb(var(--color-border) / 0.78);
+  border-radius: 0.9rem;
+  background: rgb(var(--color-panel) / 0.42);
+}
+
+.readiness-header,
+.readiness-item {
+  align-items: center;
+  display: flex;
+}
+
+.readiness-header {
+  justify-content: space-between;
+  gap: 0.75rem;
+}
+
+.readiness-header > span {
+  color: rgb(var(--color-ink));
+  font-weight: 900;
+}
+
+.readiness-grid {
+  display: grid;
+  gap: 0.5rem;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.readiness-item {
+  border-radius: 0.75rem;
+  color: rgb(var(--color-muted));
+  gap: 0.45rem;
+  padding: 0.5rem 0.6rem;
+  background: rgb(var(--color-muted) / 0.08);
+  font-size: 0.78rem;
+  font-weight: 800;
+}
+
+.readiness-item.is-ready {
+  color: #047857;
+  background: rgba(16, 185, 129, 0.12);
+}
+
+.readiness-messages {
+  display: grid;
+  gap: 0.35rem;
+}
+
+.readiness-messages p {
+  margin: 0;
+  color: rgb(var(--color-muted));
+  font-size: 0.78rem;
+  line-height: 1.45;
+}
+
 .dependency-note,
 .upload-progress,
 .panel-muted,

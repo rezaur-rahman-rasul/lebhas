@@ -155,20 +155,25 @@ export class AssetLibraryPage {
 
   protected async refreshPreview(asset: Asset): Promise<void> {
     this.previewLoadingSignal.set(true);
-    const preview = await this.store.getPreviewUrl(asset.id);
-    if (preview?.url) {
-      this.previewUrlSignal.set(preview.url);
+    try {
+      const preview = await this.store.getPreviewUrl(asset.id);
+      if (preview?.url) {
+        this.previewUrlSignal.set(preview.url);
+      }
+    } finally {
+      this.previewLoadingSignal.set(false);
     }
-    this.previewLoadingSignal.set(false);
   }
 
   protected async downloadAsset(asset: Asset): Promise<void> {
     this.downloadingAssetIdSignal.set(asset.id);
-    const downloadUrl = await this.store.getDownloadUrl(asset.id);
-    this.downloadingAssetIdSignal.set(null);
-
-    if (downloadUrl?.url) {
-      window.open(downloadUrl.url, '_blank', 'noopener,noreferrer');
+    try {
+      const downloadUrl = await this.store.getDownloadUrl(asset.id);
+      if (downloadUrl?.url) {
+        window.open(downloadUrl.url, '_blank', 'noopener,noreferrer');
+      }
+    } finally {
+      this.downloadingAssetIdSignal.set(null);
     }
   }
 

@@ -118,6 +118,7 @@ export class CreativeGeneratorPage implements OnDestroy {
   protected readonly localProductImagePreviewUrl = signal<string | null>(null);
   protected readonly assetPickerOpen = signal(false);
   protected readonly assetPickerSearch = signal('');
+  private readonly readinessRequestKey = signal<string | null>(null);
   private readonly formRevision = signal(0);
   protected readonly generationSteps = ['Understanding brand', 'Analyzing product', 'Creating ad layout', 'Preparing output'] as const;
   protected readonly tools = [
@@ -236,6 +237,17 @@ export class CreativeGeneratorPage implements OnDestroy {
       null
     );
   });
+  protected readonly readinessChecklist = computed(() => {
+    const readiness = this.store.campaignReadiness();
+    return [
+      { label: 'Project hierarchy ready', ready: readiness?.workspaceReady ?? false },
+      { label: 'Package ready', ready: readiness?.packageReady ?? false },
+      { label: 'Credits ready', ready: readiness?.creditsReady ?? false },
+      { label: 'Provider ready', ready: readiness?.providerReady ?? false },
+      { label: 'Routing ready', ready: readiness?.routingReady ?? false },
+      { label: 'Product image ready', ready: readiness?.productAssetReady ?? false },
+    ] as const;
+  });
   protected readonly promptLength = computed(() => {
     this.formRevision();
     return this.generationForm.controls.sourcePrompt.value.length;
@@ -269,6 +281,7 @@ export class CreativeGeneratorPage implements OnDestroy {
         this.qualityMode() &&
         this.productAssetId() &&
         this.selectedProductImageReady() &&
+        this.store.campaignReadiness()?.ready === true &&
         value.sourcePrompt.trim().length > 0 &&
         this.packageReadyForSubmit() &&
         this.hasSufficientCredits() &&
@@ -294,6 +307,7 @@ export class CreativeGeneratorPage implements OnDestroy {
     if (!this.isSelectedLanguageAllowed()) return 'Selected language does not match the brand language preference.';
     if (!this.productAssetId()) return 'Upload or select a product image first.';
     if (!this.selectedProductImageReady()) return 'Selected product image is not ready yet.';
+    if (this.store.campaignReadiness()?.ready !== true) return 'Generation setup is not ready. Check the readiness checklist.';
     if (!value.sourcePrompt.trim()) return 'Add a campaign idea or prompt.';
     if (this.uploadInProgress()) return 'Wait for image upload to finish.';
     if (this.store.generationLoading()) return 'Generation request is in progress.';
@@ -366,6 +380,7 @@ export class CreativeGeneratorPage implements OnDestroy {
       .subscribe(() => {
         this.formRevision.update((revision) => revision + 1);
         this.store.updateDraft(this.buildDraft());
+        void this.refreshCampaignReadiness();
       });
   }
 
@@ -381,12 +396,14 @@ export class CreativeGeneratorPage implements OnDestroy {
     const project = this.projectStore.items().find((item) => item.productServiceId === product?.id);
     this.setSelectedProject(project?.id ?? '');
     this.ensureAllowedLanguageForSelectedBrand();
+    void this.refreshCampaignReadiness();
   }
 
   protected selectProduct(productId: string): void {
     this.selectedProductId.set(productId);
     const project = this.projectStore.items().find((item) => item.productServiceId === productId);
     this.setSelectedProject(project?.id ?? '');
+    void this.refreshCampaignReadiness();
   }
 
   protected selectPlatform(platform: PromptPlatform | 'MORE'): void {
@@ -415,6 +432,7 @@ export class CreativeGeneratorPage implements OnDestroy {
       height: preset.height,
       duration: null,
     });
+    void this.refreshCampaignReadiness();
   }
 
   protected toggleAsset(asset: Asset): void {
@@ -447,6 +465,7 @@ export class CreativeGeneratorPage implements OnDestroy {
 
   protected removeSelectedProductImage(): void {
     this.store.clearSelectedAssets();
+    this.readinessRequestKey.set(null);
     this.revokeLocalProductImagePreview();
   }
 
@@ -494,6 +513,7 @@ export class CreativeGeneratorPage implements OnDestroy {
       this.selectSingleProductAsset(uploaded);
     }
     void this.store.loadGeneratorContext('', this.selectedProjectId() || null);
+    void this.refreshCampaignReadiness();
   }
 
   protected async onSubmit(): Promise<void> {
@@ -673,6 +693,7 @@ export class CreativeGeneratorPage implements OnDestroy {
     }
 
     void this.store.loadGeneratorContext('', projectId || null);
+    void this.refreshCampaignReadiness();
   }
 
   private buildDraft(): CreativeGenerationDraft {
@@ -770,6 +791,39 @@ export class CreativeGeneratorPage implements OnDestroy {
     if (!this.store.selectedAssets().some((selected) => selected.id === asset.id)) {
       this.store.toggleAsset(asset);
     }
+    void this.refreshCampaignReadiness();
+  }
+
+  private async refreshCampaignReadiness(): Promise<void> {
+    const projectId = this.selectedProjectId();
+    const productAssetId = this.productAssetId();
+    const value = this.generationForm.getRawValue();
+    const key = [
+      projectId,
+      productAssetId,
+      this.qualityMode(),
+      value.requestedVersionCount,
+      value.platform,
+      value.language,
+      this.resolvedCreativeFormat(),
+    ].join(':');
+
+    if (!projectId || !productAssetId || !this.selectedProductImageReady()) {
+      this.readinessRequestKey.set(null);
+      return;
+    }
+
+    if (this.readinessRequestKey() === key) {
+      return;
+    }
+
+    this.readinessRequestKey.set(key);
+    await this.store.checkCampaignCreativeReadiness(
+      projectId,
+      productAssetId,
+      this.qualityMode(),
+      value.requestedVersionCount,
+    );
   }
 
   private setLocalProductImagePreview(file: File): void {

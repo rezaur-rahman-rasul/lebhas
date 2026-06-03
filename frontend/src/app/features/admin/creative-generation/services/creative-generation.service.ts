@@ -196,7 +196,13 @@ interface ProductImageCreativeReadinessDto {
   readonly providerReady: boolean;
   readonly routingReady: boolean;
   readonly productAssetReady: boolean;
-  readonly messages: readonly string[] | null;
+  readonly messages: readonly (string | ProductImageCreativeReadinessMessageDto)[] | null;
+  readonly readinessMessages?: readonly ProductImageCreativeReadinessMessageDto[] | null;
+}
+
+interface ProductImageCreativeReadinessMessageDto {
+  readonly code: string | null;
+  readonly message: string;
 }
 
 @Injectable({ providedIn: 'root' })
@@ -489,6 +495,17 @@ function mapCampaignCreativeRequest(
 function mapProductImageCreativeReadiness(
   source: ProductImageCreativeReadinessDto,
 ): ProductImageCreativeReadiness {
+  const structuredMessages = [
+    ...(source.readinessMessages ?? []),
+    ...(source.messages ?? []).filter(isReadinessMessageDto),
+  ].map((item) => ({
+    code: item.code ?? 'READINESS_BLOCKED',
+    message: item.message,
+  }));
+  const stringMessages = (source.messages ?? [])
+    .map((item) => typeof item === 'string' ? item : item.message)
+    .filter((message) => message.trim().length > 0);
+
   return {
     ready: source.ready,
     workspaceReady: source.workspaceReady,
@@ -497,8 +514,15 @@ function mapProductImageCreativeReadiness(
     providerReady: source.providerReady,
     routingReady: source.routingReady,
     productAssetReady: source.productAssetReady,
-    messages: source.messages ?? [],
+    messages: stringMessages.length > 0 ? stringMessages : structuredMessages.map((item) => item.message),
+    readinessMessages: structuredMessages,
   };
+}
+
+function isReadinessMessageDto(
+  value: string | ProductImageCreativeReadinessMessageDto,
+): value is ProductImageCreativeReadinessMessageDto {
+  return typeof value === 'object' && value !== null && 'message' in value;
 }
 
 function mapOutputUrl(source: CreativeOutputUrlDto): CreativeOutputUrl {

@@ -41,6 +41,7 @@ export class AssetStore {
   private readonly viewModeSignal = signal<AssetViewMode>('grid');
   private readonly uploadProgressSignal = signal<number | null>(null);
   private readonly assetLoadingSignal = signal(false);
+  private readonly deletingAssetIdSignal = signal<string | null>(null);
   private readonly assetErrorSignal = signal<string | null>(null);
 
   private activeUploadSubscription: Subscription | null = null;
@@ -54,6 +55,7 @@ export class AssetStore {
   readonly viewMode = this.viewModeSignal.asReadonly();
   readonly uploadProgress = this.uploadProgressSignal.asReadonly();
   readonly assetLoading = this.assetLoadingSignal.asReadonly();
+  readonly deletingAssetId = this.deletingAssetIdSignal.asReadonly();
   readonly assetError = this.assetErrorSignal.asReadonly();
 
   readonly hasAssets = computed(() => this.filteredAssets().length > 0);
@@ -353,7 +355,7 @@ export class AssetStore {
     }
 
     try {
-      this.assetLoadingSignal.set(true);
+      this.deletingAssetIdSignal.set(assetId);
       this.assetErrorSignal.set(null);
       await firstValueFrom(this.assetService.deleteAsset(workspaceId, assetId));
       this.assetsSignal.update((assets) => assets.filter((asset) => asset.id !== assetId));
@@ -370,7 +372,7 @@ export class AssetStore {
     } catch (error) {
       return this.failureResult(error);
     } finally {
-      this.assetLoadingSignal.set(false);
+      this.deletingAssetIdSignal.set(null);
     }
   }
 
@@ -553,10 +555,13 @@ export class AssetStore {
 
   private failureResult(error: unknown): AssetActionResult {
     const normalized = normalizeHttpError(error);
-    this.assetErrorSignal.set(normalized.message);
+    const message = normalized.status === 403
+      ? 'You do not have permission to delete assets.'
+      : normalized.message;
+    this.assetErrorSignal.set(message);
     return {
       ok: false,
-      message: normalized.message,
+      message,
       fieldErrors: this.mapFieldErrors(normalized.errors),
     };
   }
