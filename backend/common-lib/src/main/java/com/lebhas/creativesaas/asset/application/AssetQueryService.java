@@ -157,7 +157,7 @@ public class AssetQueryService {
     }
 
     private void ensureStorageObjectAvailable(AssetEntity asset) {
-        if (!StringUtils.hasText(asset.getStorageKey()) || !StringUtils.hasText(asset.getStorageBucket())) {
+        if (!StringUtils.hasText(asset.getStorageKey())) {
             throw missingStorageObject(asset.getId());
         }
         try {

@@ -22,7 +22,6 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.Duration;
-import java.util.Optional;
 import java.util.UUID;
 
 @Service
@@ -125,29 +124,22 @@ public class AssetService {
     @Transactional
     public void deleteAsset(UUID workspaceId, UUID assetId) {
         WorkspaceAuthorizationService.WorkspaceAccess access = assetValidationService.requireDeleteAccess(workspaceId);
-        Optional<RedisLockService.RedisLockToken> lockToken = tryAcquireAssetLock(assetId);
-        try {
-            AssetEntity asset = assetValidationService.requireAsset(workspaceId, assetId);
-            assetValidationService.validateOwnership(asset, access, Permission.ASSET_DELETE);
-            long activeReferences = asset.getStorageFileId() == null ? 0L : assetRepository.countByStorageFileIdAndDeletedFalse(asset.getStorageFileId());
-            boolean cleanupNeeded = asset.getStorageFileId() != null && activeReferences <= 1L;
-            asset.markDeletedAsset();
-            AssetEntity deletedAsset = assetRepository.saveAndFlush(asset);
+        AssetEntity asset = assetValidationService.requireAsset(workspaceId, assetId);
+        assetValidationService.validateOwnership(asset, access, Permission.ASSET_DELETE);
+        asset.markDeletedAsset();
+        AssetEntity deletedAsset = assetRepository.saveAndFlush(asset);
 
-            safeDeleteSideEffect("signed-url-cache", workspaceId, assetId, () -> signedUrlService.invalidate(deletedAsset));
-            safeDeleteSideEffect("hot-cache", workspaceId, assetId, () -> assetHotRedisCacheService.invalidate(workspaceId, assetId));
-            safeDeleteSideEffect("preview-state", workspaceId, assetId, () -> previewStateService.invalidate(deletedAsset.getId()));
-            safeDeleteSideEffect("storage-usage", workspaceId, assetId, () -> assetStorageUsageService.recordSoftDelete(deletedAsset, false));
-            safeDeleteSideEffect("asset-cache", workspaceId, assetId,
-                    () -> assetCacheService.invalidate(workspaceId, deletedAsset.getProjectId(), deletedAsset.getId(), access.currentUser().userId()));
-            safeDeleteSideEffect("activity-log", workspaceId, assetId,
-                    () -> assetActivityLogger.logAssetDeleted(workspaceId, assetId, access.currentUser().userId()));
-            safeDeleteSideEffect("deleted-event", workspaceId, assetId, () -> assetEventPublisher.publishDeleted(deletedAsset, false));
-            if (cleanupNeeded) {
-                safeDeleteSideEffect("cleanup-event", workspaceId, assetId, () -> assetEventPublisher.publishCleanup(deletedAsset, false));
-            }
-        } finally {
-            lockToken.ifPresent(redisLockService::release);
+        safeDeleteSideEffect("signed-url-cache", workspaceId, assetId, () -> signedUrlService.invalidate(deletedAsset));
+        safeDeleteSideEffect("hot-cache", workspaceId, assetId, () -> assetHotRedisCacheService.invalidate(workspaceId, assetId));
+        safeDeleteSideEffect("preview-state", workspaceId, assetId, () -> previewStateService.invalidate(deletedAsset.getId()));
+        safeDeleteSideEffect("storage-usage", workspaceId, assetId, () -> assetStorageUsageService.recordSoftDelete(deletedAsset, false));
+        safeDeleteSideEffect("asset-cache", workspaceId, assetId,
+                () -> assetCacheService.invalidate(workspaceId, deletedAsset.getProjectId(), deletedAsset.getId(), access.currentUser().userId()));
+        safeDeleteSideEffect("activity-log", workspaceId, assetId,
+                () -> assetActivityLogger.logAssetDeleted(workspaceId, assetId, access.currentUser().userId()));
+        safeDeleteSideEffect("deleted-event", workspaceId, assetId, () -> assetEventPublisher.publishDeleted(deletedAsset, false));
+        if (deletedAsset.getStorageFileId() != null) {
+            safeDeleteSideEffect("cleanup-event", workspaceId, assetId, () -> assetEventPublisher.publishCleanup(deletedAsset, false));
         }
     }
 
@@ -174,15 +166,6 @@ public class AssetService {
     private RedisLockService.RedisLockToken acquireAssetLock(UUID assetId) {
         return redisLockService.acquire(redisKeyBuilder.lockAsset(assetId), Duration.ofSeconds(15))
                 .orElseThrow(() -> new BusinessException(ErrorCode.BUSINESS_RULE_VIOLATION, "Asset mutation is already in progress"));
-    }
-
-    private Optional<RedisLockService.RedisLockToken> tryAcquireAssetLock(UUID assetId) {
-        try {
-            return redisLockService.acquire(redisKeyBuilder.lockAsset(assetId), Duration.ofSeconds(2));
-        } catch (RuntimeException exception) {
-            log.warn("Proceeding with asset delete without Redis lock assetId={}", assetId, exception);
-            return Optional.empty();
-        }
     }
 
     private void safeDeleteSideEffect(String operation, UUID workspaceId, UUID assetId, Runnable action) {

@@ -179,7 +179,7 @@ export class AssetService {
   deleteAsset(workspaceId: string, assetId: string) {
     return this.api
       .delete<void>(ApiEndpoints.assets.detail(workspaceId, assetId))
-      .pipe(timeout({ first: 20000 }));
+      .pipe(timeout({ first: 8000 }));
   }
 
   listFolders(workspaceId: string, context?: HttpContext) {
