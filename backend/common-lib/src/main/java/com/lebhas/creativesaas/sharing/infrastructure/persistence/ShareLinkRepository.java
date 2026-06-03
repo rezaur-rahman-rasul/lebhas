@@ -17,5 +17,11 @@ public interface ShareLinkRepository extends JpaRepository<ShareLink, UUID> {
 
     Optional<ShareLink> findByTokenAndWorkspaceId(String token, UUID workspaceId);
 
+    Optional<ShareLink> findByTokenHash(String tokenHash);
+
+    boolean existsByTokenHash(String tokenHash);
+
+    Optional<ShareLink> findByTokenHashAndWorkspaceId(String tokenHash, UUID workspaceId);
+
     List<ShareLink> findAllByWorkspaceIdAndGeneratedVersionIdOrderByCreatedAtDesc(UUID workspaceId, UUID generatedVersionId);
 }

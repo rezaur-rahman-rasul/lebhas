@@ -2,6 +2,7 @@ import { inject, Injectable } from '@angular/core';
 import { firstValueFrom } from 'rxjs';
 
 import { ApiService } from '@app/core/api/api.service';
+import { ApiEndpoints } from '@app/core/api/api-endpoints';
 import { unwrapApiResponse } from '@app/shared/utils/api-response';
 import { GeneratedVersion, GeneratedVersionLink } from './generated-version.models';
 
@@ -15,7 +16,7 @@ export class GeneratedVersionApiService {
   ): Promise<readonly GeneratedVersion[]> {
     const response = await firstValueFrom(
       this.api.get<readonly GeneratedVersion[]>(
-        `/api/v1/workspaces/${workspaceId}/creative-requests/${creativeRequestId}/generated-versions`,
+        ApiEndpoints.creativeRequests.generatedVersions(workspaceId, creativeRequestId),
       ),
     );
     return unwrapApiResponse(response);
@@ -24,7 +25,7 @@ export class GeneratedVersionApiService {
   async get(workspaceId: string, generatedVersionId: string): Promise<GeneratedVersion> {
     const response = await firstValueFrom(
       this.api.get<GeneratedVersion>(
-        `/api/v1/workspaces/${workspaceId}/generated-versions/${generatedVersionId}`,
+        ApiEndpoints.generatedVersions.detail(workspaceId, generatedVersionId),
       ),
     );
     return unwrapApiResponse(response);
@@ -32,8 +33,9 @@ export class GeneratedVersionApiService {
 
   async getDownloadUrl(workspaceId: string, generatedVersionId: string): Promise<GeneratedVersionLink> {
     const response = await firstValueFrom(
-      this.api.get<GeneratedVersionLink>(
-        `/api/v1/workspaces/${workspaceId}/generated-versions/${generatedVersionId}/download-url`,
+      this.api.post<GeneratedVersionLink, Record<string, never>>(
+        ApiEndpoints.generatedVersions.downloadUrl(workspaceId, generatedVersionId),
+        {},
       ),
     );
     return unwrapApiResponse(response);
@@ -41,8 +43,9 @@ export class GeneratedVersionApiService {
 
   async getShareUrl(workspaceId: string, generatedVersionId: string): Promise<GeneratedVersionLink> {
     const response = await firstValueFrom(
-      this.api.get<GeneratedVersionLink>(
-        `/api/v1/workspaces/${workspaceId}/generated-versions/${generatedVersionId}/share-url`,
+      this.api.post<GeneratedVersionLink, Record<string, never>>(
+        ApiEndpoints.generatedVersions.shareLinks(workspaceId, generatedVersionId),
+        {},
       ),
     );
     return unwrapApiResponse(response);

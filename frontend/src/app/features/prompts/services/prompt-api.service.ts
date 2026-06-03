@@ -2,6 +2,7 @@ import { HttpContext } from '@angular/common/http';
 import { Injectable, inject } from '@angular/core';
 import { firstValueFrom } from 'rxjs';
 
+import { ApiEndpoints } from '@app/core/api/api-endpoints';
 import { ApiService } from '@app/core/api/api.service';
 import { unwrapApiResponse } from '@app/shared/utils/api-response';
 import {
@@ -121,7 +122,7 @@ export class PromptApiService {
   ): Promise<readonly PromptTemplate[]> {
     const response = await firstValueFrom(
       this.api.get<readonly PromptTemplateViewDto[]>(
-        `/api/v1/workspaces/${workspaceId}/prompt-templates`,
+        ApiEndpoints.prompts.templates(workspaceId),
         {
           params: {
             category: filters.category,
@@ -149,7 +150,7 @@ export class PromptApiService {
   ): Promise<PromptTemplate> {
     const response = await firstValueFrom(
       this.api.post<PromptTemplateViewDto, ReturnType<typeof mapCreatePromptTemplateRequest>>(
-        `/api/v1/workspaces/${workspaceId}/prompt-templates`,
+        ApiEndpoints.prompts.templates(workspaceId),
         mapCreatePromptTemplateRequest(payload),
         { context },
       ),
@@ -166,7 +167,7 @@ export class PromptApiService {
   ): Promise<PromptTemplate> {
     const response = await firstValueFrom(
       this.api.put<PromptTemplateViewDto, ReturnType<typeof mapCreatePromptTemplateRequest>>(
-        `/api/v1/workspaces/${workspaceId}/prompt-templates/${templateId}`,
+        `${ApiEndpoints.prompts.templates(workspaceId)}/${encodeURIComponent(templateId)}`,
         mapCreatePromptTemplateRequest(payload),
         { context },
       ),
@@ -177,14 +178,23 @@ export class PromptApiService {
 
   async deleteTemplate(workspaceId: string, templateId: string, context?: HttpContext): Promise<void> {
     await firstValueFrom(
-      this.api.delete<void>(`/api/v1/workspaces/${workspaceId}/prompt-templates/${templateId}`, {
+      this.api.delete<void>(`${ApiEndpoints.prompts.templates(workspaceId)}/${encodeURIComponent(templateId)}`, {
         context,
       }),
     );
   }
 
   private projectPromptsPath(workspaceId: string, projectId: string, suffix: string): string {
-    return `/api/v1/workspaces/${workspaceId}/projects/${projectId}/prompts/${suffix}`;
+    switch (suffix) {
+      case 'enhance':
+        return ApiEndpoints.prompts.enhance(workspaceId, projectId);
+      case 'suggestions':
+        return ApiEndpoints.prompts.suggestions(workspaceId, projectId);
+      case 'history':
+        return ApiEndpoints.prompts.history(workspaceId, projectId);
+      default:
+        return `/api/v1/workspaces/${encodeURIComponent(workspaceId)}/projects/${encodeURIComponent(projectId)}/prompts/${encodeURIComponent(suffix)}`;
+    }
   }
 }
 

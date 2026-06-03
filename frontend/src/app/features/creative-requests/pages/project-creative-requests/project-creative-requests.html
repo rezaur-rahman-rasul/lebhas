@@ -3,7 +3,7 @@
   [title]="project()?.name ?? 'Project creative requests'"
   description="Create campaign creative requests and review generated versions without leaving the project."
 >
-  <a routerLink="/projects" class="text-sm font-medium text-brand-600 hover:text-brand-700">Projects</a>
+      <a routerLink="/projects-campaigns" class="text-sm font-medium text-brand-600 hover:text-brand-700">Projects</a>
   <app-badge tone="neutral">{{ requestCountLabel() }}</app-badge>
   @if (project()) {
     <app-button icon="plus" (click)="openDrawer()">Create request</app-button>

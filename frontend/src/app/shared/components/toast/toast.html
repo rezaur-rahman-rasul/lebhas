@@ -1,27 +1,25 @@
 
-    <div class="fixed right-3 top-20 z-50 flex w-[min(92vw,24rem)] flex-col gap-3 sm:right-4">
-      @for (notification of notifications.notifications(); track notification.id) {
-        <div class="rounded-[var(--app-radius-card)] border border-border bg-surface/95 p-4 shadow-soft backdrop-blur-xl">
-          <div class="flex gap-3">
-            <div [class]="iconWrap(notification.tone)">
-              <app-icon [name]="iconName(notification.tone)" [size]="18" />
-            </div>
-            <div class="min-w-0 flex-1">
-              <p class="text-sm font-semibold text-ink">{{ notification.title }}</p>
-              @if (notification.message) {
-                <p class="mt-1 text-sm leading-5 text-muted">{{ notification.message }}</p>
-              }
-            </div>
-            <button
-              type="button"
-              class="rounded-md p-1 text-slate-400 hover:bg-slate-100 hover:text-ink focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500"
-              (click)="notifications.dismiss(notification.id)"
-              [attr.aria-label]="'Dismiss notification: ' + notification.title"
-            >
-              <app-icon name="x" [size]="16" />
-            </button>
-          </div>
-        </div>
-      }
-    </div>
+<div class="toast-stack">
+  @for (notification of notifications.notifications(); track notification.id) {
+    <article class="toast-card" [class]="'toast-card tone-' + notification.tone">
+      <div [class]="iconWrap(notification.tone)">
+        <app-icon [name]="iconName(notification.tone)" [size]="18" />
+      </div>
+      <div class="toast-copy">
+        <p>{{ notification.title }}</p>
+        @if (notification.message) {
+          <span>{{ notification.message }}</span>
+        }
+      </div>
+      <button
+        type="button"
+        class="toast-close"
+        (click)="notifications.dismiss(notification.id)"
+        [attr.aria-label]="'Dismiss notification: ' + notification.title"
+      >
+        <app-icon name="x" [size]="16" />
+      </button>
+    </article>
+  }
+</div>
   

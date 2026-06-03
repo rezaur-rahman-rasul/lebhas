@@ -88,6 +88,18 @@ public class ProfileSessionService {
         }
     }
 
+    @Transactional
+    public List<UserSessionView> revokeOtherOwnSessions() {
+        CurrentUser currentUser = currentUserContext.requireCurrentUser();
+        String currentDeviceId = normalizeDeviceId(currentUser.deviceId());
+        return listOwnSessions().stream()
+                .filter(session -> !session.current())
+                .map(UserSessionView::sessionId)
+                .filter(sessionId -> !currentDeviceId.equals(normalizeDeviceId(sessionId)))
+                .map(this::revokeOwnSession)
+                .toList();
+    }
+
     private UserSessionView toView(String deviceId, List<RefreshTokenEntity> tokens, CurrentUser currentUser, Instant now) {
         RefreshTokenEntity latest = tokens.stream()
                 .max(Comparator.comparing(this::lastSeenAt, Comparator.nullsLast(Comparator.naturalOrder())))

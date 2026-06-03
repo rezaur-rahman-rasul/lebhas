@@ -3,6 +3,9 @@ package com.lebhas.creativesaas.asset.domain;
 public enum AssetType {
     RAW_IMAGE,
     GENERATED_CREATIVE,
+    PROFILE_IMAGE,
+    DOCUMENT,
+    OTHER,
     BRAND_LOGO,
     PRODUCT_IMAGE,
     PACKAGING_IMAGE,

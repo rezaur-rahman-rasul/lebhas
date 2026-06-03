@@ -10,6 +10,7 @@ import com.lebhas.creativesaas.common.api.PagedResult;
 import com.lebhas.creativesaas.common.security.Permission;
 import com.lebhas.creativesaas.identity.application.WorkspaceAuthorizationService;
 import com.lebhas.creativesaas.messaging.kafka.KafkaTopicConstants;
+import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
@@ -65,7 +66,11 @@ public class AssetQueryService {
                     Sort.by(
                             criteria.sortDirection() == null ? Sort.Direction.DESC : criteria.sortDirection(),
                             resolveSortBy(criteria.sortBy())));
-            return PagedResult.from(assetRepository.findAll(AssetSpecifications.forList(criteria), pageable).map(assetMapper::toAssetView));
+            Page<AssetEntity> page = assetRepository.findAll(AssetSpecifications.forList(criteria), pageable);
+            if (page.isEmpty() && isDefaultWorkspaceList(criteria) && assetRepository.countByWorkspaceIdAndDeletedFalse(criteria.workspaceId()) > 0) {
+                page = assetRepository.findAllByWorkspaceIdAndDeletedFalse(criteria.workspaceId(), pageable);
+            }
+            return PagedResult.from(page.map(assetMapper::toAssetView));
         });
     }
 
@@ -99,7 +104,7 @@ public class AssetQueryService {
                 Map.of(
                         "workspaceId", workspaceId.toString(),
                         "assetId", assetId.toString(),
-                        "projectId", asset.getProjectId().toString(),
+                        "projectId", asset.getProjectId() == null ? "" : asset.getProjectId().toString(),
                         "actorUserId", access.currentUser().userId().toString(),
                         "permission", Permission.CREATIVE_DOWNLOAD.name()));
         AssetUrlView urlView = signedUrlService.downloadUrl(asset);
@@ -126,5 +131,18 @@ public class AssetQueryService {
             case "updatedAt" -> "updatedAt";
             default -> "createdAt";
         };
+    }
+
+    private boolean isDefaultWorkspaceList(AssetListCriteria criteria) {
+        return criteria.projectId() == null
+                && criteria.assetType() == null
+                && criteria.assetCategory() == null
+                && criteria.previewStatus() == null
+                && criteria.processingStatus() == null
+                && criteria.uploadedBy() == null
+                && criteria.status() == null
+                && !StringUtils.hasText(criteria.keyword())
+                && criteria.createdFrom() == null
+                && criteria.createdTo() == null;
     }
 }

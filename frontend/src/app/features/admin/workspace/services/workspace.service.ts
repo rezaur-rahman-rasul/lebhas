@@ -3,6 +3,7 @@ import { Injectable, inject } from '@angular/core';
 import { map } from 'rxjs';
 
 import { ApiService } from '@app/core/api/api.service';
+import { ApiEndpoints } from '@app/core/api/api-endpoints';
 import { Permission, UserRole } from '@app/features/auth/models/user.models';
 import {
   CreateWorkspacePayload,
@@ -53,38 +54,38 @@ export class WorkspaceService {
 
   createWorkspace(payload: CreateWorkspacePayload) {
     return this.api
-      .post<WorkspaceResponseDto, CreateWorkspacePayload>('/api/v1/workspaces', payload)
+      .post<WorkspaceResponseDto, CreateWorkspacePayload>(ApiEndpoints.workspaces.create, payload)
       .pipe(map(({ data }) => mapWorkspace(data)));
   }
 
   getMyWorkspaces(context?: HttpContext) {
     return this.api
-      .get<readonly WorkspaceSummaryResponseDto[]>('/api/v1/workspaces/me', { context })
+      .get<readonly WorkspaceSummaryResponseDto[]>(ApiEndpoints.workspaces.my, { context })
       .pipe(map(({ data }) => data.map(mapWorkspaceSummary)));
   }
 
   getWorkspace(id: string, context?: HttpContext) {
     return this.api
-      .get<WorkspaceResponseDto>(`/api/v1/workspaces/${id}`, { context })
+      .get<WorkspaceResponseDto>(ApiEndpoints.workspaces.detail(id), { context })
       .pipe(map(({ data }) => mapWorkspace(data)));
   }
 
   updateWorkspace(id: string, payload: UpdateWorkspacePayload) {
     return this.api
-      .put<WorkspaceResponseDto, UpdateWorkspacePayload>(`/api/v1/workspaces/${id}`, payload)
+      .put<WorkspaceResponseDto, UpdateWorkspacePayload>(ApiEndpoints.workspaces.detail(id), payload)
       .pipe(map(({ data }) => mapWorkspace(data)));
   }
 
   getSettings(id: string, context?: HttpContext) {
     return this.api
-      .get<WorkspaceSettingsResponseDto>(`/api/v1/workspaces/${id}/settings`, { context })
+      .get<WorkspaceSettingsResponseDto>(ApiEndpoints.workspaces.settings(id), { context })
       .pipe(map(({ data }) => mapWorkspaceSettings(data)));
   }
 
   updateSettings(id: string, payload: UpdateWorkspaceSettingsPayload) {
     return this.api
       .put<WorkspaceSettingsResponseDto, UpdateWorkspaceSettingsPayload>(
-        `/api/v1/workspaces/${id}/settings`,
+        ApiEndpoints.workspaces.settings(id),
         payload,
       )
       .pipe(map(({ data }) => mapWorkspaceSettings(data)));

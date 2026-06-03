@@ -1,29 +1,43 @@
 package com.lebhas.ai.config;
 
 import com.lebhas.ai.job.AiGenerationJobService;
+import com.lebhas.ai.application.AiCredentialEncryptionService;
 import com.lebhas.ai.application.AiProviderRegistryMapper;
 import com.lebhas.ai.application.CreativePipelineMapper;
 import com.lebhas.ai.application.MasterAiProviderManagementService;
+import com.lebhas.ai.application.MasterAiProviderToolRegistryService;
 import com.lebhas.ai.application.MasterCreativePipelineManagementService;
+import com.lebhas.ai.application.MasterProviderSettingsService;
 import com.lebhas.ai.infrastructure.persistence.AiModelRepository;
+import com.lebhas.ai.infrastructure.persistence.AiProviderCredentialRepository;
 import com.lebhas.ai.infrastructure.persistence.AiToolCapabilityRepository;
 import com.lebhas.ai.infrastructure.persistence.AiToolProviderRepository;
+import com.lebhas.ai.infrastructure.persistence.CreativeToolCapabilityRepository;
+import com.lebhas.ai.infrastructure.persistence.CreativeToolRepository;
 import com.lebhas.ai.infrastructure.persistence.CreativePipelineLayerRepository;
 import com.lebhas.ai.infrastructure.persistence.CreativePipelineRepository;
 import com.lebhas.ai.infrastructure.persistence.LayerCostPolicyRepository;
 import com.lebhas.ai.infrastructure.persistence.LayerQualityPolicyRepository;
 import com.lebhas.ai.infrastructure.persistence.LayerRoutingPolicyRepository;
 import com.lebhas.ai.infrastructure.persistence.LayerToolMappingRepository;
+import com.lebhas.ai.infrastructure.persistence.ProviderHealthSnapshotRepository;
+import com.lebhas.ai.infrastructure.persistence.ProviderRoutingPolicyRepository;
+import com.lebhas.ai.infrastructure.persistence.ToolCreditCostPolicyRepository;
+import com.lebhas.creativesaas.asset.application.AssetEventPublisher;
 import com.lebhas.ai.provider.AiProvider;
 import com.lebhas.ai.provider.AiProviderRouter;
 import com.lebhas.ai.provider.GeminiProviderFoundation;
 import com.lebhas.ai.provider.MockAiProviderForTests;
 import com.lebhas.ai.provider.OpenAiProviderFoundation;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
+import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.context.annotation.Import;
+import org.springframework.core.env.Environment;
+import com.lebhas.creativesaas.auditlog.application.AuditLogService;
 
+import java.time.Clock;
 import java.util.List;
 
 @Configuration
@@ -46,9 +60,66 @@ public class AiProviderFoundationConfiguration {
             AiToolProviderRepository providerRepository,
             AiModelRepository modelRepository,
             AiToolCapabilityRepository capabilityRepository,
-            AiProviderRegistryMapper mapper
+            AiProviderRegistryMapper mapper,
+            ObjectProvider<AssetEventPublisher> eventPublisher
     ) {
-        return new MasterAiProviderManagementService(providerRepository, modelRepository, capabilityRepository, mapper);
+        return new MasterAiProviderManagementService(
+                providerRepository,
+                modelRepository,
+                capabilityRepository,
+                mapper,
+                eventPublisher.getIfAvailable());
+    }
+
+    @Bean
+    AiCredentialEncryptionService aiCredentialEncryptionService(Environment environment) {
+        return new AiCredentialEncryptionService(environment);
+    }
+
+    @Bean
+    MasterAiProviderToolRegistryService masterAiProviderToolRegistryService(
+            AiToolProviderRepository providerRepository,
+            AiModelRepository modelRepository,
+            AiProviderCredentialRepository credentialRepository,
+            CreativeToolRepository toolRepository,
+            CreativeToolCapabilityRepository toolCapabilityRepository,
+            ToolCreditCostPolicyRepository costPolicyRepository,
+            ProviderRoutingPolicyRepository routingPolicyRepository,
+            ProviderHealthSnapshotRepository healthSnapshotRepository,
+            AiCredentialEncryptionService encryptionService,
+            ObjectProvider<AssetEventPublisher> eventPublisher,
+            Clock clock
+    ) {
+        return new MasterAiProviderToolRegistryService(
+                providerRepository,
+                modelRepository,
+                credentialRepository,
+                toolRepository,
+                toolCapabilityRepository,
+                costPolicyRepository,
+                routingPolicyRepository,
+                healthSnapshotRepository,
+                encryptionService,
+                eventPublisher.getIfAvailable(),
+                clock);
+    }
+
+    @Bean
+    MasterProviderSettingsService masterProviderSettingsService(
+            AiToolProviderRepository providerRepository,
+            AiProviderCredentialRepository credentialRepository,
+            AiCredentialEncryptionService encryptionService,
+            ObjectProvider<AssetEventPublisher> eventPublisher,
+            ObjectProvider<AuditLogService> auditLogService,
+            Clock clock
+    ) {
+        return new MasterProviderSettingsService(
+                providerRepository,
+                credentialRepository,
+                encryptionService,
+                eventPublisher.getIfAvailable(),
+                auditLogService.getIfAvailable(),
+                clock);
     }
 
     @Bean

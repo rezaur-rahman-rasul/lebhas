@@ -78,13 +78,13 @@ class Day4R2StorageProviderTest {
         assertThat(requestCaptor.getValue().bucket()).isEqualTo("creative-r2-assets");
         assertThat(requestCaptor.getValue().contentType()).isEqualTo("image/png");
         assertThat(requestCaptor.getValue().key())
-                .isEqualTo("assets/workspaces/%s/projects/%s/%s/launch.png".formatted(workspaceId, projectId, assetId));
+                .isEqualTo("workspaces/%s/projects/%s/assets/%s.png".formatted(workspaceId, projectId, assetId));
         assertThat(response.provider()).isEqualTo(com.lebhas.creativesaas.asset.domain.StorageProvider.R2);
         assertThat(response.bucket()).isEqualTo("creative-r2-assets");
         assertThat(response.objectKey())
-                .isEqualTo("assets/workspaces/%s/projects/%s/%s/launch.png".formatted(workspaceId, projectId, assetId));
+                .isEqualTo("workspaces/%s/projects/%s/assets/%s.png".formatted(workspaceId, projectId, assetId));
         assertThat(response.cdnUrl())
-                .isEqualTo("https://cdn.example.com/assets/workspaces/%s/projects/%s/%s/launch.png"
+                .isEqualTo("https://cdn.example.com/workspaces/%s/projects/%s/assets/%s.png"
                         .formatted(workspaceId, projectId, assetId));
     }
 

@@ -99,6 +99,7 @@ export class AssetStore {
       return;
     }
 
+    this.resetLibraryScope();
     await this.runLoader(async () => {
       const [folders, page] = await Promise.all([
         firstValueFrom(this.assetService.listFolders(workspaceId, this.assetRequestContext())),
@@ -106,8 +107,8 @@ export class AssetStore {
           this.assetService.listAssets(
             workspaceId,
             this.filtersSignal(),
-            this.paginationSignal().page,
-            this.paginationSignal().size,
+            0,
+            DEFAULT_ASSET_PAGINATION.size,
             this.assetRequestContext(),
           ),
         ),
@@ -154,6 +155,12 @@ export class AssetStore {
           this.assetRequestContext(),
         ),
       );
+
+      if (page.items.length === 0 && page.pagination.totalItems > 0 && page.pagination.page > 0) {
+        this.paginationSignal.update((pagination) => ({ ...pagination, page: 0 }));
+        await this.reloadAssets();
+        return;
+      }
 
       this.assetsSignal.set(page.items);
       this.paginationSignal.set(page.pagination);
@@ -218,19 +225,80 @@ export class AssetStore {
             return;
           }
 
-          this.assetsSignal.update((assets) => [event.asset, ...assets.filter((item) => item.id !== event.asset.id)]);
-          this.selectedAssetSignal.set(event.asset);
-          this.paginationSignal.update((pagination) => ({
-            ...pagination,
-            totalItems: pagination.totalItems + 1,
-          }));
-          this.notifications.success('Asset uploaded', `${event.asset.originalFileName} is ready in the library.`);
-          this.assetLoadingSignal.set(false);
-          this.uploadProgressSignal.set(100);
-          this.activeUploadSubscription?.unsubscribe();
+          void this.completeUpload(
+            event.asset,
+            `${event.asset.originalFileName} is ready in the library.`,
+            resolve,
+          );
+        },
+        error: (error) => {
           this.activeUploadSubscription = null;
-          window.setTimeout(() => this.uploadProgressSignal.set(null), 400);
-          resolve(this.successResult());
+          this.uploadProgressSignal.set(null);
+          this.assetLoadingSignal.set(false);
+          resolve(this.failureResult(error));
+        },
+      });
+    });
+  }
+
+  async uploadProjectAsset(projectId: string, payload: UploadAssetPayload): Promise<AssetActionResult> {
+    const workspaceId = this.resolveWorkspaceId();
+    if (!workspaceId) {
+      return this.missingWorkspaceResult();
+    }
+
+    this.cancelUpload(false);
+    this.assetLoadingSignal.set(true);
+    this.assetErrorSignal.set(null);
+    this.uploadProgressSignal.set(0);
+
+    return new Promise<AssetActionResult>((resolve) => {
+      this.activeUploadSubscription = this.assetService.uploadProjectAsset(workspaceId, projectId, payload).subscribe({
+        next: (event) => {
+          void this.completeUpload(
+            event.asset,
+            `${event.asset.originalFileName} is ready in the library.`,
+            resolve,
+          );
+        },
+        error: (error) => {
+          this.activeUploadSubscription = null;
+          this.uploadProgressSignal.set(null);
+          this.assetLoadingSignal.set(false);
+          resolve(this.failureResult(error));
+        },
+      });
+    });
+  }
+
+  async uploadProjectAssetSigned(projectId: string, payload: UploadAssetPayload): Promise<AssetActionResult> {
+    const workspaceId = this.resolveWorkspaceId();
+    if (!workspaceId) {
+      return this.missingWorkspaceResult();
+    }
+
+    this.cancelUpload(false);
+    this.assetLoadingSignal.set(true);
+    this.assetErrorSignal.set(null);
+    this.uploadProgressSignal.set(0);
+
+    return new Promise<AssetActionResult>((resolve) => {
+      this.activeUploadSubscription = this.assetService.uploadProjectAssetSigned(workspaceId, projectId, payload).subscribe({
+        next: (event) => {
+          if (!event) {
+            return;
+          }
+
+          if (event.kind === 'progress') {
+            this.uploadProgressSignal.set(event.progress);
+            return;
+          }
+
+          void this.completeUpload(
+            event.asset,
+            `${event.asset.originalFileName} is ready for creative generation.`,
+            resolve,
+          );
         },
         error: (error) => {
           this.activeUploadSubscription = null;
@@ -297,6 +365,7 @@ export class AssetStore {
         totalItems: Math.max(0, pagination.totalItems - 1),
       }));
       this.notifications.success('Asset deleted', 'The asset has been removed from this workspace.');
+      await this.reloadAssets();
       return this.successResult();
     } catch (error) {
       return this.failureResult(error);
@@ -437,6 +506,38 @@ export class AssetStore {
     const refreshedAsset = this.assetsSignal().find((asset) => asset.id === selectedAssetId);
     if (refreshedAsset) {
       this.selectedAssetSignal.set(refreshedAsset);
+    }
+  }
+
+  private resetLibraryScope(): void {
+    this.selectedFolderSignal.set('all');
+    this.filtersSignal.set(DEFAULT_ASSET_FILTERS);
+    this.paginationSignal.set(DEFAULT_ASSET_PAGINATION);
+  }
+
+  private async completeUpload(
+    asset: Asset,
+    successMessage: string,
+    resolve: (result: AssetActionResult) => void,
+  ): Promise<void> {
+    const wasAlreadyListed = this.assetsSignal().some((item) => item.id === asset.id);
+    this.assetsSignal.update((assets) => upsertAsset(assets, asset));
+    this.selectedAssetSignal.set(asset);
+    this.paginationSignal.update((pagination) => ({
+      ...pagination,
+      totalItems: pagination.totalItems + (wasAlreadyListed ? 0 : 1),
+    }));
+    this.notifications.success('Asset uploaded', successMessage);
+    this.assetLoadingSignal.set(false);
+    this.uploadProgressSignal.set(100);
+    this.activeUploadSubscription?.unsubscribe();
+    this.activeUploadSubscription = null;
+
+    try {
+      await this.reloadAssets();
+    } finally {
+      window.setTimeout(() => this.uploadProgressSignal.set(null), 400);
+      resolve(this.successResult());
     }
   }
 

@@ -1,6 +1,8 @@
 import { CurrencyPipe, DecimalPipe } from '@angular/common';
 import { ChangeDetectionStrategy, Component, computed, effect, inject } from '@angular/core';
+import { toSignal } from '@angular/core/rxjs-interop';
 import { ActivatedRoute, RouterLink } from '@angular/router';
+import { map, startWith } from 'rxjs';
 
 import { PermissionStore } from '@app/core/permissions/permission.store';
 import { ButtonComponent } from '@app/shared/components/app-button/app-button';
@@ -55,31 +57,34 @@ export class MasterUsageOverviewPage {
   protected readonly permissions = inject(PermissionStore);
   protected readonly store = inject(UsageBillingStore);
 
+  private readonly routeSection = toSignal(
+    this.route.data.pipe(
+      map((data) => (data['section'] as MasterUsageSection | undefined) ?? 'overview'),
+      startWith((this.route.snapshot.data['section'] as MasterUsageSection | undefined) ?? 'overview'),
+    ),
+    { initialValue: (this.route.snapshot.data['section'] as MasterUsageSection | undefined) ?? 'overview' },
+  );
   protected readonly section = computed<MasterUsageSection>(
-    () => (this.route.snapshot.data['section'] as MasterUsageSection | undefined) ?? 'overview',
+    () => this.routeSection(),
   );
   protected readonly accessDenied = computed(() => !this.permissions.canViewMasterUsage());
   protected readonly planAccessDenied = computed(
     () => this.section() === 'plan-utilization' && !this.permissions.canViewPlanUtilization(),
   );
   protected readonly hasData = computed(
-    () =>
-      this.store.masterWorkspaceUsage().length > 0 ||
-      this.store.masterAiCosts().length > 0 ||
-      this.store.topCostWorkspaces().length > 0 ||
-      this.store.planUtilization().length > 0,
+    () => this.sectionHasData(this.section()),
   );
 
   protected readonly sectionTitle = computed(() => {
     switch (this.section()) {
       case 'workspaces':
-        return 'Workspace usage';
+        return 'Workspace Usage';
       case 'ai-costs':
-        return 'AI cost usage';
+        return 'AI Cost Usage';
       case 'plan-utilization':
-        return 'Plan utilization';
+        return 'Plan Utilization';
       default:
-        return 'Master usage overview';
+        return 'Master Usage Overview';
     }
   });
 
@@ -201,21 +206,65 @@ export class MasterUsageOverviewPage {
   protected readonly navItems = [
     { label: 'Overview', route: '/master/usage-overview', section: 'overview' },
     { label: 'Workspaces', route: '/master/workspace-usage', section: 'workspaces' },
-    { label: 'AI costs', route: '/master/usage/ai-costs', section: 'ai-costs' },
-    { label: 'Plan utilization', route: '/master/plan-utilization', section: 'plan-utilization' },
+    { label: 'AI Costs', route: '/master/usage/ai-costs', section: 'ai-costs' },
+    { label: 'Plan Utilization', route: '/master/plan-utilization', section: 'plan-utilization' },
   ] as const;
 
   constructor() {
     effect(() => {
       if (this.permissions.canViewMasterUsage()) {
-        void this.store.loadMasterUsageOverview();
+        void this.store.loadMasterUsageSection(this.section());
       }
     });
   }
 
   protected refresh(): void {
     if (this.permissions.canViewMasterUsage()) {
-      void this.store.loadMasterUsageOverview();
+      void this.store.loadMasterUsageSection(this.section());
+    }
+  }
+
+  protected emptyTitle(): string {
+    switch (this.section()) {
+      case 'workspaces':
+        return 'No workspace usage records found';
+      case 'ai-costs':
+        return 'No AI cost usage has been reported yet';
+      case 'plan-utilization':
+        return 'No plan utilization records are available yet';
+      default:
+        return 'No master usage summary has been reported yet';
+    }
+  }
+
+  protected emptyDescription(): string {
+    switch (this.section()) {
+      case 'workspaces':
+        return 'No workspace usage records found for the selected filters.';
+      case 'ai-costs':
+        return 'No AI cost usage has been reported yet.';
+      case 'plan-utilization':
+        return 'No plan utilization records are available yet.';
+      default:
+        return 'No master usage summary has been reported yet.';
+    }
+  }
+
+  protected sectionHasData(section: MasterUsageSection): boolean {
+    switch (section) {
+      case 'workspaces':
+        return this.store.masterWorkspaceUsage().length > 0;
+      case 'ai-costs':
+        return this.store.masterAiCosts().length > 0;
+      case 'plan-utilization':
+        return this.store.planUtilization().length > 0;
+      default:
+        return (
+          this.store.masterWorkspaceUsage().length > 0 ||
+          this.store.masterAiCosts().length > 0 ||
+          this.store.topCostWorkspaces().length > 0 ||
+          this.store.planUtilization().length > 0
+        );
     }
   }
 

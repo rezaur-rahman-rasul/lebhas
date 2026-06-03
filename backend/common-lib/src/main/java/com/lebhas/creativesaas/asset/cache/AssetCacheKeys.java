@@ -5,6 +5,8 @@ import java.util.UUID;
 public final class AssetCacheKeys {
 
     public static final String ASSET = "asset:%s";
+    public static final String ASSET_LIST_WORKSPACE_PAGE = "asset:list:workspace:%s:page:%d";
+    public static final String ASSET_LIST_WORKSPACE_PATTERN = "asset:list:workspace:%s:page:*";
     public static final String ASSET_LIST_PROJECT_PAGE = "asset:list:project:%s:page:%d";
     public static final String ASSET_LIST_PROJECT_PATTERN = "asset:list:project:%s:page:*";
     public static final String SIGNED_URL = "signed-url:%s:%s";
@@ -29,8 +31,22 @@ public final class AssetCacheKeys {
         return ASSET_LIST_PROJECT_PAGE.formatted(required(projectId, "projectId"), Math.max(page, 0));
     }
 
+    public static String assetList(UUID workspaceId, UUID projectId, int page) {
+        if (projectId == null) {
+            return ASSET_LIST_WORKSPACE_PAGE.formatted(required(workspaceId, "workspaceId"), Math.max(page, 0));
+        }
+        return assetListProject(projectId, page);
+    }
+
     public static String assetListProjectPattern(UUID projectId) {
         return ASSET_LIST_PROJECT_PATTERN.formatted(required(projectId, "projectId"));
+    }
+
+    public static String assetListPattern(UUID workspaceId, UUID projectId) {
+        if (projectId == null) {
+            return ASSET_LIST_WORKSPACE_PATTERN.formatted(required(workspaceId, "workspaceId"));
+        }
+        return assetListProjectPattern(projectId);
     }
 
     public static String signedUrl(UUID assetId, String type) {

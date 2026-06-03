@@ -3,6 +3,7 @@ import { Injectable, inject } from '@angular/core';
 import { map } from 'rxjs';
 
 import { ApiService } from '@app/core/api/api.service';
+import { ApiEndpoints } from '@app/core/api/api-endpoints';
 import {
   CrewInvitation,
   CrewMember,
@@ -44,7 +45,7 @@ export class CrewService {
   inviteCrew(workspaceId: string, payload: InviteCrewPayload) {
     return this.api
       .post<CrewInvitationResponseDto, InviteCrewPayload>(
-        `/api/v1/workspaces/${workspaceId}/crew/invite`,
+        ApiEndpoints.workspaces.memberInvite(workspaceId),
         payload,
       )
       .pipe(map(({ data }) => mapCrewInvitation(data)));
@@ -52,27 +53,27 @@ export class CrewService {
 
   listCrew(workspaceId: string, context?: HttpContext) {
     return this.api
-      .get<readonly CrewMemberResponseDto[]>(`/api/v1/workspaces/${workspaceId}/crew`, { context })
+      .get<readonly CrewMemberResponseDto[]>(ApiEndpoints.workspaces.members(workspaceId), { context })
       .pipe(map(({ data }) => data.map(mapCrewMember)));
   }
 
   getCrewMember(workspaceId: string, crewId: string) {
     return this.api
-      .get<CrewMemberResponseDto>(`/api/v1/workspaces/${workspaceId}/crew/${crewId}`)
+      .get<CrewMemberResponseDto>(ApiEndpoints.workspaces.member(workspaceId, crewId))
       .pipe(map(({ data }) => mapCrewMember(data)));
   }
 
   updateCrewMember(workspaceId: string, crewId: string, payload: UpdateCrewMemberPayload) {
     return this.api
       .put<CrewMemberResponseDto, UpdateCrewMemberPayload>(
-        `/api/v1/workspaces/${workspaceId}/crew/${crewId}`,
+        ApiEndpoints.workspaces.member(workspaceId, crewId),
         payload,
       )
       .pipe(map(({ data }) => mapCrewMember(data)));
   }
 
   removeCrewMember(workspaceId: string, crewId: string) {
-    return this.api.delete<void>(`/api/v1/workspaces/${workspaceId}/crew/${crewId}`);
+    return this.api.delete<void>(ApiEndpoints.workspaces.member(workspaceId, crewId));
   }
 }
 

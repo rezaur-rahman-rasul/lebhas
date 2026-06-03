@@ -74,6 +74,7 @@
       type="submit"
       [fullWidth]="true"
       [loading]="loading()"
+      [disabled]="form.invalid || loading()"
       [testId]="'register-submit'"
     >
       Create workspace account

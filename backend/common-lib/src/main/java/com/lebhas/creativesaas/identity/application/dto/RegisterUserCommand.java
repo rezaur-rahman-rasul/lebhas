@@ -8,6 +8,8 @@ public record RegisterUserCommand(
         String email,
         String phone,
         String password,
+        String confirmPassword,
+        String workspaceName,
         UUID workspaceId,
         String invitationToken
 ) {

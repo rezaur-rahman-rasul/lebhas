@@ -1,1 +1,89 @@
 
+.toast-stack {
+  position: fixed;
+  z-index: 50;
+  top: 5rem;
+  right: 0.75rem;
+  display: flex;
+  width: min(92vw, 24rem);
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.toast-card {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  gap: 0.75rem;
+  align-items: start;
+  overflow: hidden;
+  border: 1px solid rgb(var(--color-border) / 0.82);
+  border-radius: var(--app-radius-card);
+  background: rgb(var(--color-surface) / 0.96);
+  box-shadow: 0 18px 48px rgb(0 0 0 / 0.16);
+  padding: 1rem;
+  backdrop-filter: blur(16px);
+}
+
+.toast-card::after {
+  grid-column: 1 / -1;
+  height: 2px;
+  width: 100%;
+  border-radius: 999px;
+  background: rgb(var(--color-accent-purple) / 0.36);
+  content: '';
+}
+
+.toast-card.tone-success::after {
+  background: rgb(var(--color-success) / 0.5);
+}
+
+.toast-card.tone-error::after {
+  background: rgb(var(--color-danger) / 0.5);
+}
+
+.toast-card.tone-warning::after {
+  background: rgb(var(--color-warning) / 0.58);
+}
+
+.toast-copy {
+  min-width: 0;
+}
+
+.toast-copy p {
+  margin: 0;
+  color: rgb(var(--color-ink));
+  font-size: 0.88rem;
+  font-weight: 850;
+}
+
+.toast-copy span {
+  display: block;
+  margin-top: 0.25rem;
+  color: rgb(var(--color-muted));
+  font-size: 0.83rem;
+  line-height: 1.45;
+}
+
+.toast-close {
+  display: grid;
+  width: 1.75rem;
+  aspect-ratio: 1;
+  place-items: center;
+  border: 0;
+  border-radius: 0.5rem;
+  background: transparent;
+  color: rgb(var(--color-muted));
+}
+
+.toast-close:hover,
+.toast-close:focus-visible {
+  background: rgb(var(--color-panel));
+  color: rgb(var(--color-ink));
+  outline: none;
+}
+
+@media (min-width: 640px) {
+  .toast-stack {
+    right: 1rem;
+  }
+}

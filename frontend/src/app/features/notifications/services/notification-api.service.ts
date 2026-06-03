@@ -1,6 +1,7 @@
 import { Injectable, inject } from '@angular/core';
 import { firstValueFrom } from 'rxjs';
 
+import { ApiEndpoints } from '@app/core/api/api-endpoints';
 import { ApiService } from '@app/core/api/api.service';
 import { unwrapApiResponse } from '@app/shared/utils/api-response';
 import {
@@ -22,32 +23,32 @@ export class NotificationApiService {
     filters?: NotificationFilters,
   ): Promise<readonly Notification[]> {
     return this.get<readonly Notification[]>(
-      `/api/v1/workspaces/${this.path(workspaceId)}/notifications`,
+      ApiEndpoints.notifications.list(workspaceId),
       filters,
     );
   }
 
   getUnreadCount(workspaceId: string): Promise<number> {
-    return this.get<number>(`/api/v1/workspaces/${this.path(workspaceId)}/notifications/unread-count`);
+    return this.get<number>(ApiEndpoints.notifications.unreadCount(workspaceId));
   }
 
   markAsRead(workspaceId: string, notificationId: string): Promise<Notification> {
     return this.post<Notification, Record<string, never>>(
-      `/api/v1/workspaces/${this.path(workspaceId)}/notifications/${this.path(notificationId)}/read`,
+      ApiEndpoints.notifications.read(workspaceId, notificationId),
       {},
     );
   }
 
   markAllAsRead(workspaceId: string): Promise<readonly Notification[]> {
     return this.post<readonly Notification[], Record<string, never>>(
-      `/api/v1/workspaces/${this.path(workspaceId)}/notifications/read-all`,
+      ApiEndpoints.notifications.readAll(workspaceId),
       {},
     );
   }
 
   getPreferences(workspaceId: string): Promise<readonly NotificationPreference[]> {
     return this.get<readonly NotificationPreference[]>(
-      `/api/v1/workspaces/${this.path(workspaceId)}/notification-preferences`,
+      ApiEndpoints.notifications.preferences(workspaceId),
     );
   }
 
@@ -56,7 +57,7 @@ export class NotificationApiService {
     payload: readonly NotificationPreferenceUpdateRequest[],
   ): Promise<readonly NotificationPreference[]> {
     return this.put<readonly NotificationPreference[], readonly NotificationPreferenceUpdateRequest[]>(
-      `/api/v1/workspaces/${this.path(workspaceId)}/notification-preferences`,
+      ApiEndpoints.notifications.preferences(workspaceId),
       payload,
     );
   }
@@ -84,9 +85,5 @@ export class NotificationApiService {
       }
     }
     return params;
-  }
-
-  private path(value: string): string {
-    return encodeURIComponent(value);
   }
 }

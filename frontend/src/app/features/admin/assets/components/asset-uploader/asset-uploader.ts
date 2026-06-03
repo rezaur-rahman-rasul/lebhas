@@ -1,8 +1,10 @@
-import { ChangeDetectionStrategy, Component, computed, effect, inject, input, OnDestroy, output, signal } from '@angular/core';
+import { ChangeDetectionStrategy, Component, DestroyRef, computed, effect, inject, input, OnDestroy, output, signal } from '@angular/core';
+import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { FormControl, FormGroup, ReactiveFormsModule, Validators } from '@angular/forms';
 
 import { ButtonComponent } from '@app/shared/components/button/button';
 import { IconComponent } from '@app/shared/components/icon/icon';
+import { ModalComponent } from '@app/shared/components/app-dialog/app-dialog';
 import {
   AssetCategory,
   AssetFolder,
@@ -73,30 +75,34 @@ const OTHER_RULE: AssetUploadValidationRule = {
 };
 const VALIDATION_RULES: Record<AssetCategory, AssetUploadValidationRule> = {
   PRODUCT_IMAGE: IMAGE_RULE,
-  RAW_IMAGE: IMAGE_RULE,
-  GENERATED_IMAGE: IMAGE_RULE,
-  THUMBNAIL: IMAGE_RULE,
+  PACKAGING_IMAGE: IMAGE_RULE,
+  REFERENCE_IMAGE: IMAGE_RULE,
+  EXPORT_IMAGE: IMAGE_RULE,
   PRODUCT_VIDEO: VIDEO_RULE,
-  RAW_VIDEO: VIDEO_RULE,
-  GENERATED_VIDEO: VIDEO_RULE,
+  REFERENCE_VIDEO: VIDEO_RULE,
+  EXPORT_VIDEO: VIDEO_RULE,
   BRAND_LOGO: LOGO_RULE,
+  REFERENCE_ASSET: OTHER_RULE,
   OTHER: OTHER_RULE,
 };
 
 @Component({
   selector: 'app-asset-uploader',
   standalone: true,
-  imports: [ReactiveFormsModule, ButtonComponent, IconComponent],
+  imports: [ReactiveFormsModule, ButtonComponent, IconComponent, ModalComponent],
   templateUrl: './asset-uploader.html',
   styleUrl: './asset-uploader.scss',
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class AssetUploader implements OnDestroy {
+  private readonly destroyRef = inject(DestroyRef);
+
   readonly open = input(false);
   readonly folders = input<readonly AssetFolder[]>([]);
   readonly uploading = input(false);
   readonly uploadProgress = input<number | null>(null);
   readonly fieldErrors = input<Readonly<Record<string, string>>>({});
+  readonly formError = input<string | null>(null);
 
   readonly submitted = output<UploadAssetPayload>();
   readonly closed = output<void>();
@@ -140,6 +146,25 @@ export class AssetUploader implements OnDestroy {
       !this.validationMessageSignal() &&
       this.uploadForm.valid,
   );
+  protected readonly submitDisabledReason = computed(() => {
+    if (this.uploading()) {
+      return 'Upload is already in progress.';
+    }
+
+    if (!this.selectedFileSignal()) {
+      return 'Choose a valid asset file to continue.';
+    }
+
+    if (this.validationMessageSignal()) {
+      return this.validationMessageSignal();
+    }
+
+    if (this.uploadForm.invalid) {
+      return 'Complete the required asset details.';
+    }
+
+    return null;
+  });
 
   constructor() {
     effect(() => {
@@ -156,6 +181,15 @@ export class AssetUploader implements OnDestroy {
 
       this.validateFile(file, this.uploadForm.controls.assetCategory.value);
     });
+
+    this.uploadForm.controls.assetCategory.valueChanges
+      .pipe(takeUntilDestroyed(this.destroyRef))
+      .subscribe((category) => {
+        const file = this.selectedFileSignal();
+        if (file) {
+          this.validateFile(file, category);
+        }
+      });
   }
 
   ngOnDestroy(): void {
@@ -210,6 +244,8 @@ export class AssetUploader implements OnDestroy {
   }
 
   protected submit(): void {
+    this.uploadForm.markAllAsTouched();
+
     const file = this.selectedFileSignal();
     if (!file) {
       this.validationMessageSignal.set('Choose a file before uploading.');
@@ -232,6 +268,12 @@ export class AssetUploader implements OnDestroy {
       tags,
       metadata: {},
     });
+  }
+
+  protected removeSelectedFile(): void {
+    this.selectedFileSignal.set(null);
+    this.validationMessageSignal.set(null);
+    this.releasePreviewUrl();
   }
 
   private acceptFile(file: File): void {

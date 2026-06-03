@@ -1,6 +1,13 @@
 package com.lebhas.creativesaas.product.application;
 
 import com.lebhas.creativesaas.brand.application.BrandService;
+import com.lebhas.creativesaas.brand.domain.BrandEntity;
+import com.lebhas.creativesaas.brand.domain.BrandStatus;
+import com.lebhas.creativesaas.auditlog.application.AuditLogService;
+import com.lebhas.creativesaas.auditlog.domain.AuditActionType;
+import com.lebhas.creativesaas.auditlog.domain.AuditOutcome;
+import com.lebhas.creativesaas.common.exception.BusinessException;
+import com.lebhas.creativesaas.common.exception.ErrorCode;
 import com.lebhas.creativesaas.common.security.Permission;
 import com.lebhas.creativesaas.identity.application.SessionProperties;
 import com.lebhas.creativesaas.identity.application.WorkspaceAuthorizationService;
@@ -15,6 +22,7 @@ import com.lebhas.creativesaas.redis.RedisCacheService;
 import com.lebhas.creativesaas.redis.RedisKeyBuilder;
 import com.lebhas.creativesaas.redis.RedisLockService;
 import com.lebhas.creativesaas.workspace.application.WorkspaceActivityLogger;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -37,6 +45,7 @@ public class ProductServiceCatalogService {
     private final DomainEventPublisher domainEventPublisher;
     private final WorkspaceActivityLogger workspaceActivityLogger;
     private final SessionProperties sessionProperties;
+    private AuditLogService auditLogService;
 
     public ProductServiceCatalogService(
             WorkspaceAuthorizationService workspaceAuthorizationService,
@@ -60,6 +69,11 @@ public class ProductServiceCatalogService {
         this.domainEventPublisher = domainEventPublisher;
         this.workspaceActivityLogger = workspaceActivityLogger;
         this.sessionProperties = sessionProperties;
+    }
+
+    @Autowired(required = false)
+    void setAuditLogService(AuditLogService auditLogService) {
+        this.auditLogService = auditLogService;
     }
 
     @Transactional(readOnly = true)
@@ -109,7 +123,10 @@ public class ProductServiceCatalogService {
     ) {
         WorkspaceAuthorizationService.WorkspaceAccess access =
                 workspaceAuthorizationService.requirePermission(workspaceId, Permission.PRODUCT_MANAGE);
-        brandService.requireBrand(workspaceId, brandId);
+        BrandEntity brand = brandService.requireBrand(workspaceId, brandId);
+        if (brand.getStatus() != BrandStatus.ACTIVE) {
+            throw new BusinessException(ErrorCode.BUSINESS_RULE_VIOLATION, "Product/Service requires an active brand");
+        }
         RedisLockService.RedisLockToken lockToken = acquireWorkspaceLock(workspaceId);
         try {
             ProductServiceEntity productService = productServiceRepository.save(ProductServiceEntity.create(
@@ -123,6 +140,7 @@ public class ProductServiceCatalogService {
             ProductServiceView productServiceView = productServiceViewMapper.toView(productService);
             invalidateCaches(workspaceId, productService.getId(), access.currentUser().userId());
             workspaceActivityLogger.logProductServiceMutation("created", workspaceId, access.currentUser().userId(), productService.getId());
+            auditMutation("created", AuditActionType.CREATE, workspaceId, access.currentUser().userId(), productService.getId(), productService.getName(), brandId);
             publishSafely(
                     KafkaTopicConstants.PRODUCT_SERVICE_CREATED,
                     new BaseDomainEvent(
@@ -160,6 +178,7 @@ public class ProductServiceCatalogService {
             ProductServiceView productServiceView = productServiceViewMapper.toView(productServiceRepository.save(productService));
             invalidateCaches(workspaceId, productServiceId, access.currentUser().userId());
             workspaceActivityLogger.logProductServiceMutation("updated", workspaceId, access.currentUser().userId(), productServiceId);
+            auditMutation("updated", AuditActionType.UPDATE, workspaceId, access.currentUser().userId(), productServiceId, productService.getName(), productService.getBrandId());
             publishSafely(
                     KafkaTopicConstants.PRODUCT_SERVICE_UPDATED,
                     new BaseDomainEvent(
@@ -186,6 +205,7 @@ public class ProductServiceCatalogService {
             productServiceRepository.save(productService);
             invalidateCaches(workspaceId, productServiceId, access.currentUser().userId());
             workspaceActivityLogger.logProductServiceMutation("deleted", workspaceId, access.currentUser().userId(), productServiceId);
+            auditMutation("deleted", AuditActionType.DELETE, workspaceId, access.currentUser().userId(), productServiceId, productService.getName(), productService.getBrandId());
             publishSafely(
                     KafkaTopicConstants.PRODUCT_SERVICE_DELETED,
                     new BaseDomainEvent(
@@ -224,6 +244,35 @@ public class ProductServiceCatalogService {
             domainEventPublisher.publish(topic, event);
         } catch (RuntimeException ignored) {
         }
+    }
+
+    private void auditMutation(
+            String action,
+            AuditActionType auditAction,
+            UUID workspaceId,
+            UUID actorUserId,
+            UUID productServiceId,
+            String name,
+            UUID brandId
+    ) {
+        if (auditLogService == null) {
+            return;
+        }
+        auditLogService.appendUserAction(
+                workspaceId,
+                "product_service.%s.%s".formatted(action, productServiceId),
+                actorUserId,
+                auditAction,
+                AuditOutcome.SUCCESS,
+                "ProductService",
+                productServiceId,
+                "Product/Service %s".formatted(action),
+                Map.of(
+                        "productServiceId", productServiceId.toString(),
+                        "brandId", brandId.toString(),
+                        "name", name == null ? "" : name),
+                null,
+                null);
     }
 
     private record ProductServiceListCacheEntry(List<ProductServiceView> productServices, Instant cachedAt) {

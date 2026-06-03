@@ -1,6 +1,8 @@
 package com.lebhas.creativesaas.asset.infrastructure.persistence;
 
 import com.lebhas.creativesaas.asset.domain.AssetEntity;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.JpaSpecificationExecutor;
 
@@ -27,6 +29,8 @@ public interface AssetRepository extends JpaRepository<AssetEntity, UUID>, JpaSp
     );
 
     List<AssetEntity> findAllByWorkspaceIdAndDeletedFalse(UUID workspaceId);
+
+    Page<AssetEntity> findAllByWorkspaceIdAndDeletedFalse(UUID workspaceId, Pageable pageable);
 
     long countByStorageFileIdAndDeletedFalse(UUID storageFileId);
 }

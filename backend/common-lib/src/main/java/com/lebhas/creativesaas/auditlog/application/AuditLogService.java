@@ -90,10 +90,10 @@ public class AuditLogService {
             String summary,
             Map<String, ?> metadata,
             String ipAddress,
-            String userAgent
+        String userAgent
     ) {
         CurrentUser currentUser = currentUserContext.requireCurrentUser();
-        UUID effectiveWorkspaceId = workspaceId == null ? currentUser.workspaceId() : workspaceId;
+        UUID effectiveWorkspaceId = workspaceId == null ? currentUserContext.requireWorkspaceId() : workspaceId;
         return appendUserAction(
                 effectiveWorkspaceId,
                 sourceEventId,
@@ -108,8 +108,35 @@ public class AuditLogService {
                 userAgent);
     }
 
+    @Transactional
+    public Optional<AuditLogView> appendCurrentPlatformAction(
+            String sourceEventId,
+            AuditActionType actionType,
+            AuditOutcome outcome,
+            String entityType,
+            UUID entityId,
+            String summary,
+            Map<String, ?> metadata,
+            String ipAddress,
+            String userAgent
+    ) {
+        CurrentUser currentUser = currentUserContext.requireCurrentUser();
+        return appendUserAction(
+                null,
+                sourceEventId,
+                currentUser.userId(),
+                actionType,
+                outcome,
+                entityType,
+                entityId,
+                summary,
+                metadata,
+                ipAddress,
+                userAgent);
+    }
+
     private void invalidateAuditCache(UUID workspaceId) {
-        if (auditRecentCacheService != null) {
+        if (workspaceId != null && auditRecentCacheService != null) {
             auditRecentCacheService.invalidateRecentAudit(workspaceId);
         }
     }

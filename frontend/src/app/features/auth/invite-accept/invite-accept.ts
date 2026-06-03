@@ -96,7 +96,7 @@ export class InviteAcceptPageComponent {
     }
 
     if (this.form.hasError('mismatch')) {
-      return 'Passwords do not match.';
+      return 'Password and confirm password do not match.';
     }
 
     return '';
@@ -111,7 +111,7 @@ export class InviteAcceptPageComponent {
       return;
     }
 
-    const { confirmPassword: _confirmPassword, ...payload } = this.form.getRawValue();
+    const payload = this.form.getRawValue();
     const result = await this.auth.acceptInvite({
       ...payload,
       phone: null,

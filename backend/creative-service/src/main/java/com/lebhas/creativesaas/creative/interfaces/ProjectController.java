@@ -3,6 +3,8 @@ package com.lebhas.creativesaas.creative.interfaces;
 import com.lebhas.creativesaas.campaign.application.ProjectCampaignService;
 import com.lebhas.creativesaas.campaign.application.dto.ProjectCampaignView;
 import com.lebhas.creativesaas.common.api.ApiResponse;
+import com.lebhas.creativesaas.common.exception.BusinessException;
+import com.lebhas.creativesaas.common.exception.ErrorCode;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import io.swagger.v3.oas.annotations.tags.Tag;
@@ -32,10 +34,30 @@ public class ProjectController {
         this.projectCampaignService = projectCampaignService;
     }
 
-    @PostMapping("/{workspaceId}/product-services/{productServiceId}/projects")
+    @PostMapping("/{workspaceId}/projects")
     @PreAuthorize("hasAuthority('PROJECT_CREATE')")
     @Operation(summary = "Create a project or campaign")
     public ApiResponse<ProjectCampaignView> createProject(
+            @PathVariable UUID workspaceId,
+            @Valid @RequestBody CreateProjectCampaignRequest request
+    ) {
+        if (request.productServiceId() == null) {
+            throw new BusinessException(ErrorCode.VALIDATION_FAILED, "productServiceId is required.");
+        }
+        return ApiResponse.success(projectCampaignService.createProjectCampaign(
+                workspaceId,
+                request.productServiceId(),
+                request.name(),
+                request.description(),
+                request.campaignObjective(),
+                request.targetPlatform(),
+                request.campaignType()));
+    }
+
+    @PostMapping("/{workspaceId}/product-services/{productServiceId}/projects")
+    @PreAuthorize("hasAuthority('PROJECT_CREATE')")
+    @Operation(summary = "Create a project or campaign")
+    public ApiResponse<ProjectCampaignView> createProjectUnderProductService(
             @PathVariable UUID workspaceId,
             @PathVariable UUID productServiceId,
             @Valid @RequestBody CreateProjectCampaignRequest request
@@ -55,6 +77,18 @@ public class ProjectController {
     @Operation(summary = "List project campaigns in a workspace")
     public ApiResponse<List<ProjectCampaignView>> listProjects(@PathVariable UUID workspaceId) {
         return ApiResponse.success(projectCampaignService.listProjectCampaigns(workspaceId));
+    }
+
+    @GetMapping("/{workspaceId}/product-services/{productServiceId}/projects")
+    @PreAuthorize("hasAuthority('PROJECT_VIEW')")
+    @Operation(summary = "List project campaigns for a product or service")
+    public ApiResponse<List<ProjectCampaignView>> listProjectsByProductService(
+            @PathVariable UUID workspaceId,
+            @PathVariable UUID productServiceId
+    ) {
+        return ApiResponse.success(projectCampaignService.listProjectCampaigns(workspaceId).stream()
+                .filter(project -> productServiceId.equals(project.productServiceId()))
+                .toList());
     }
 
     @GetMapping("/{workspaceId}/projects/{projectId}")

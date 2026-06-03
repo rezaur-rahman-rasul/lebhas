@@ -3,16 +3,22 @@ import {
   HttpContext,
   HttpEvent,
   HttpEventType,
+  HttpHeaders,
   HttpRequest,
   HttpResponse,
 } from '@angular/common/http';
 import { Injectable, inject } from '@angular/core';
-import { map } from 'rxjs';
+import { catchError, filter, map, switchMap, throwError } from 'rxjs';
 
+import { ApiEndpoints } from '@app/core/api/api-endpoints';
 import { ApiService } from '@app/core/api/api.service';
-import { ApiResponse } from '@app/shared/models/api-response.model';
-import { joinUrl } from '@app/shared/utils/join-url';
-import { environment } from '@env/environment';
+import {
+  SKIP_APP_HEADERS,
+  SKIP_AUTH,
+  SKIP_ERROR_TOAST,
+  SKIP_GLOBAL_LOADING,
+  SKIP_REFRESH,
+} from '@app/core/auth/auth-request-context';
 import {
   Asset,
   AssetActionResult,
@@ -32,11 +38,21 @@ import {
   UploadAssetPayload,
 } from '../models/asset.models';
 
-type AssetApiStatus = 'PROCESSING' | 'ACTIVE' | 'FAILED' | 'DELETED';
+type AssetApiStatus =
+  | 'UPLOAD_PENDING'
+  | 'UPLOADING'
+  | 'AVAILABLE'
+  | 'READY'
+  | 'FAILED'
+  | 'DELETED'
+  | 'GENERATED_METADATA_ONLY';
 
 interface AssetResponseDto {
   readonly id: string;
   readonly workspaceId: string;
+  readonly brandId?: string | null;
+  readonly productServiceId?: string | null;
+  readonly projectCampaignId?: string | null;
   readonly uploadedBy: string;
   readonly folderId: string | null;
   readonly originalFileName: string;
@@ -88,6 +104,36 @@ interface AssetUrlResponseDto {
   readonly expiresAt: string;
 }
 
+interface AssetUploadUrlResponseDto {
+  readonly assetId: string;
+  readonly uploadReferenceId: string | null;
+  readonly uploadUrl: string;
+  readonly method: string | null;
+  readonly headers: Readonly<Record<string, string>> | null;
+  readonly expiresAt: string;
+  readonly maxFileSizeBytes: number;
+}
+
+interface CreateAssetUploadUrlRequestDto {
+  readonly assetType: string | null;
+  readonly assetCategory: AssetCategory;
+  readonly folderId: string | null;
+  readonly originalFileName: string;
+  readonly contentType: string;
+  readonly sizeBytes: number;
+  readonly checksum: string | null;
+  readonly displayName: string;
+  readonly description: string | null;
+  readonly tags: readonly string[];
+  readonly metadata: Readonly<Record<string, unknown>>;
+}
+
+interface ConfirmAssetUploadRequestDto {
+  readonly assetId: string;
+  readonly uploadReferenceId: string | null;
+  readonly checksum: string | null;
+}
+
 @Injectable({ providedIn: 'root' })
 export class AssetService {
   private readonly api = inject(ApiService);
@@ -100,23 +146,11 @@ export class AssetService {
     size: number,
     context?: HttpContext,
   ) {
+    const params = buildAssetListParams(filters, page, size);
+
     return this.api
-      .get<PagedResultDto<AssetResponseDto>>(`/api/v1/workspaces/${workspaceId}/assets`, {
-        params: {
-          assetCategory: filters.assetCategory,
-          fileType: filters.fileType,
-          folderId: filters.folderId,
-          tag: filters.tag || null,
-          uploadedBy: filters.uploadedBy,
-          status: mapStatusToApi(filters.status),
-          search: filters.search || null,
-          createdFrom: filters.createdFrom,
-          createdTo: filters.createdTo,
-          page,
-          size,
-          sortBy: filters.sortBy,
-          direction: filters.direction.toUpperCase(),
-        },
+      .get<PagedResultDto<AssetResponseDto>>(ApiEndpoints.assets.list(workspaceId), {
+        params,
         context,
       })
       .pipe(
@@ -129,26 +163,26 @@ export class AssetService {
 
   getAsset(workspaceId: string, assetId: string, context?: HttpContext) {
     return this.api
-      .get<AssetResponseDto>(`/api/v1/workspaces/${workspaceId}/assets/${assetId}`, { context })
+      .get<AssetResponseDto>(ApiEndpoints.assets.detail(workspaceId, assetId), { context })
       .pipe(map(({ data }) => mapAsset(data)));
   }
 
   updateAsset(workspaceId: string, assetId: string, payload: UpdateAssetPayload) {
     return this.api
       .put<AssetResponseDto, UpdateAssetPayload>(
-        `/api/v1/workspaces/${workspaceId}/assets/${assetId}`,
+        ApiEndpoints.assets.detail(workspaceId, assetId),
         payload,
       )
       .pipe(map(({ data }) => mapAsset(data)));
   }
 
   deleteAsset(workspaceId: string, assetId: string) {
-    return this.api.delete<void>(`/api/v1/workspaces/${workspaceId}/assets/${assetId}`);
+    return this.api.delete<void>(ApiEndpoints.assets.detail(workspaceId, assetId));
   }
 
   listFolders(workspaceId: string, context?: HttpContext) {
     return this.api
-      .get<readonly AssetFolderResponseDto[]>(`/api/v1/workspaces/${workspaceId}/asset-folders`, {
+      .get<readonly AssetFolderResponseDto[]>(ApiEndpoints.assets.folders(workspaceId), {
         context,
       })
       .pipe(map(({ data }) => data.map(mapFolder)));
@@ -157,7 +191,7 @@ export class AssetService {
   createFolder(workspaceId: string, payload: CreateAssetFolderPayload) {
     return this.api
       .post<AssetFolderResponseDto, CreateAssetFolderPayload>(
-        `/api/v1/workspaces/${workspaceId}/asset-folders`,
+        ApiEndpoints.assets.folders(workspaceId),
         payload,
       )
       .pipe(map(({ data }) => mapFolder(data)));
@@ -166,65 +200,216 @@ export class AssetService {
   updateFolder(workspaceId: string, folderId: string, payload: UpdateAssetFolderPayload) {
     return this.api
       .put<AssetFolderResponseDto, UpdateAssetFolderPayload>(
-        `/api/v1/workspaces/${workspaceId}/asset-folders/${folderId}`,
+        ApiEndpoints.assets.folder(workspaceId, folderId),
         payload,
       )
       .pipe(map(({ data }) => mapFolder(data)));
   }
 
   deleteFolder(workspaceId: string, folderId: string) {
-    return this.api.delete<void>(`/api/v1/workspaces/${workspaceId}/asset-folders/${folderId}`);
+    return this.api.delete<void>(ApiEndpoints.assets.folder(workspaceId, folderId));
   }
 
-  getPreviewUrl(workspaceId: string, assetId: string) {
+  getPreviewUrl(workspaceId: string, assetId: string, context?: HttpContext) {
     return this.api
-      .get<AssetUrlResponseDto>(`/api/v1/workspaces/${workspaceId}/assets/${assetId}/preview-url`)
+      .get<AssetUrlResponseDto>(ApiEndpoints.assets.previewUrl(workspaceId, assetId), { context })
       .pipe(map(({ data }) => data));
   }
 
-  getDownloadUrl(workspaceId: string, assetId: string) {
+  getDownloadUrl(workspaceId: string, assetId: string, context?: HttpContext) {
     return this.api
       .get<AssetUrlResponseDto>(
-        `/api/v1/workspaces/${workspaceId}/assets/${assetId}/download-url`,
+        ApiEndpoints.assets.downloadUrl(workspaceId, assetId),
+        { context },
       )
       .pipe(map(({ data }) => data));
   }
 
   uploadAsset(workspaceId: string, payload: UploadAssetPayload) {
+    return this.api
+      .post<AssetUploadUrlResponseDto, CreateAssetUploadUrlRequestDto>(
+        ApiEndpoints.assets.uploadUrl(workspaceId),
+        {
+          assetType: payload.assetCategory === 'PRODUCT_IMAGE' || payload.assetCategory === 'REFERENCE_IMAGE'
+            ? 'RAW_IMAGE'
+            : null,
+          assetCategory: payload.assetCategory,
+          folderId: payload.folderId,
+          originalFileName: payload.file.name,
+          contentType: payload.file.type || 'application/octet-stream',
+          sizeBytes: payload.file.size,
+          checksum: null,
+          displayName: payload.file.name,
+          description: null,
+          tags: payload.tags,
+          metadata: payload.metadata,
+        },
+      )
+      .pipe(
+        switchMap(({ data }) => {
+          const request = new HttpRequest(data.method || 'PUT', data.uploadUrl, payload.file, {
+            reportProgress: true,
+            headers: signedUploadHeaders(data.headers, payload.file),
+            context: new HttpContext()
+              .set(SKIP_AUTH, true)
+              .set(SKIP_REFRESH, true)
+              .set(SKIP_ERROR_TOAST, true)
+              .set(SKIP_GLOBAL_LOADING, true)
+              .set(SKIP_APP_HEADERS, true),
+          });
+
+          return this.http.request(request).pipe(
+            catchError((error) => {
+              if (isLikelyBrowserNetworkBlock(error)) {
+                return throwError(
+                  () =>
+                    new Error(
+                      'Cloudflare R2 blocked the browser upload. Configure R2 bucket CORS to allow PUT from http://localhost:4200, then retry.',
+                    ),
+                );
+              }
+
+              return throwError(() => error);
+            }),
+            map((event) => mapSignedUploadProgress(event)),
+            filter((event): event is AssetUploadEvent => event !== null),
+            switchMap((event) => {
+              if (event.kind === 'progress') {
+                return [event];
+              }
+
+              return this.api
+                .post<AssetResponseDto, ConfirmAssetUploadRequestDto>(
+                  ApiEndpoints.assets.confirm(workspaceId),
+                  {
+                    assetId: data.assetId,
+                    uploadReferenceId: data.uploadReferenceId,
+                    checksum: null,
+                  },
+                )
+                .pipe(map((response) => ({ kind: 'completed', asset: mapAsset(response.data) }) as const));
+            }),
+          );
+        }),
+      );
+  }
+
+  listProjectAssets(
+    workspaceId: string,
+    projectId: string,
+    filters: AssetFilter,
+    page: number,
+    size: number,
+    context?: HttpContext,
+  ) {
+    const params = buildAssetListParams(filters, page, size);
+
+    return this.api
+      .get<PagedResultDto<AssetResponseDto>>(ApiEndpoints.assets.projectList(workspaceId, projectId), {
+        params,
+        context,
+      })
+      .pipe(
+        map(({ data }) => ({
+          items: data.items.map(mapAsset),
+          pagination: mapPagination(data),
+        })),
+      );
+  }
+
+  uploadProjectAsset(workspaceId: string, projectId: string, payload: UploadAssetPayload) {
     const formData = new FormData();
     formData.append('file', payload.file);
     formData.append('assetCategory', payload.assetCategory);
+    formData.append('displayName', payload.file.name);
 
-    if (payload.folderId) {
-      formData.append('folderId', payload.folderId);
-    }
-
-    if (payload.tags.length) {
+    if (payload.tags.length > 0) {
       formData.append('tags', payload.tags.join(','));
     }
 
-    if (Object.keys(payload.metadata).length) {
-      formData.append('metadata', JSON.stringify(payload.metadata));
-    }
-
-    const request = new HttpRequest(
-      'POST',
-      joinUrl(environment.apiBaseUrl, `/api/v1/workspaces/${workspaceId}/assets/upload`),
-      formData,
-      { reportProgress: true },
-    );
-
-    return this.http.request<ApiResponse<AssetResponseDto>>(request).pipe(
-      map((event) => mapUploadEvent(event)),
-      map((event) => {
-        if (!event) {
-          return null;
-        }
-
-        return event;
+    formData.append(
+      'metadata',
+      JSON.stringify({
+        ...payload.metadata,
+        folderId: payload.folderId,
       }),
-      map((event) => event as AssetUploadEvent | null),
     );
+
+    return this.api
+      .post<AssetResponseDto, FormData>(
+        ApiEndpoints.assets.projectUpload(workspaceId, projectId),
+        formData,
+      )
+      .pipe(map(({ data }) => ({ kind: 'completed', asset: mapAsset(data) }) as const));
+  }
+
+  uploadProjectAssetSigned(workspaceId: string, projectId: string, payload: UploadAssetPayload) {
+    return this.api
+      .post<AssetUploadUrlResponseDto, CreateAssetUploadUrlRequestDto>(
+        ApiEndpoints.assets.projectUploadUrl(workspaceId, projectId),
+        {
+          assetType: payload.assetCategory === 'PRODUCT_IMAGE' || payload.assetCategory === 'REFERENCE_IMAGE'
+            ? 'RAW_IMAGE'
+            : null,
+          assetCategory: payload.assetCategory,
+          folderId: payload.folderId,
+          originalFileName: payload.file.name,
+          contentType: payload.file.type || 'application/octet-stream',
+          sizeBytes: payload.file.size,
+          checksum: null,
+          displayName: payload.file.name,
+          description: null,
+          tags: payload.tags,
+          metadata: payload.metadata,
+        },
+      )
+      .pipe(
+        switchMap(({ data }) => {
+          const request = new HttpRequest(data.method || 'PUT', data.uploadUrl, payload.file, {
+            reportProgress: true,
+            headers: signedUploadHeaders(data.headers, payload.file),
+            context: new HttpContext()
+              .set(SKIP_AUTH, true)
+              .set(SKIP_REFRESH, true)
+              .set(SKIP_ERROR_TOAST, true)
+              .set(SKIP_GLOBAL_LOADING, true)
+              .set(SKIP_APP_HEADERS, true),
+          });
+
+          return this.http.request(request).pipe(
+            catchError((error) => {
+              if (isLikelyBrowserNetworkBlock(error)) {
+                return throwError(
+                  () =>
+                    new Error(
+                      'Cloudflare R2 blocked the browser upload. Configure R2 bucket CORS to allow PUT from http://localhost:4200, then retry.',
+                    ),
+                );
+              }
+
+              return throwError(() => error);
+            }),
+            map((event) => mapSignedUploadProgress(event)),
+            filter((event): event is AssetUploadEvent => event !== null),
+            switchMap((event) => {
+              if (event.kind === 'progress') {
+                return [event];
+              }
+
+              return this.api
+                .post<AssetResponseDto, ConfirmAssetUploadRequestDto>(
+                  ApiEndpoints.assets.confirm(workspaceId),
+                  {
+                    assetId: data.assetId,
+                    uploadReferenceId: data.uploadReferenceId,
+                    checksum: null,
+                  },
+                )
+                .pipe(map((response) => ({ kind: 'completed', asset: mapAsset(response.data) }) as const));
+            }),
+          );
+        }),
+      );
   }
 }
 
@@ -233,6 +418,7 @@ function mapAsset(source: AssetResponseDto): Asset {
     id: source.id,
     workspaceId: source.workspaceId,
     uploadedBy: source.uploadedBy,
+    projectId: source.projectCampaignId,
     folderId: source.folderId,
     originalFileName: source.originalFileName,
     storedFileName: source.storedFileName,
@@ -284,10 +470,15 @@ function mapPagination(source: PagedResultDto<AssetResponseDto>): AssetPaginatio
 
 function mapAssetStatus(status: AssetApiStatus): AssetStatus {
   switch (status) {
-    case 'PROCESSING':
+    case 'UPLOAD_PENDING':
+    case 'UPLOADING':
       return 'UPLOADING';
-    case 'ACTIVE':
+    case 'AVAILABLE':
+      return 'AVAILABLE';
+    case 'READY':
       return 'READY';
+    case 'GENERATED_METADATA_ONLY':
+      return 'GENERATED_METADATA_ONLY';
     case 'FAILED':
       return 'FAILED';
     case 'DELETED':
@@ -299,9 +490,13 @@ function mapAssetStatus(status: AssetApiStatus): AssetStatus {
 function mapStatusToApi(status: AssetStatus | null): AssetApiStatus | null {
   switch (status) {
     case 'UPLOADING':
-      return 'PROCESSING';
+      return 'UPLOADING';
+    case 'AVAILABLE':
+      return 'AVAILABLE';
     case 'READY':
-      return 'ACTIVE';
+      return 'READY';
+    case 'GENERATED_METADATA_ONLY':
+      return 'GENERATED_METADATA_ONLY';
     case 'FAILED':
       return 'FAILED';
     case 'DELETED':
@@ -311,9 +506,37 @@ function mapStatusToApi(status: AssetStatus | null): AssetApiStatus | null {
   }
 }
 
-function mapUploadEvent(
-  event: HttpEvent<ApiResponse<AssetResponseDto>>,
-): AssetUploadEvent | null {
+function buildAssetListParams(filters: AssetFilter, page: number, size: number) {
+  const search = filters.search.trim();
+
+  return {
+    assetCategory: filters.assetCategory,
+    uploadedBy: filters.uploadedBy,
+    status: mapStatusToApi(filters.status),
+    search: search || null,
+    createdFrom: filters.createdFrom,
+    createdTo: filters.createdTo,
+    page: Number.isFinite(page) && page >= 0 ? page : DEFAULT_ASSET_PAGINATION.page,
+    size: Number.isFinite(size) && size > 0 ? size : DEFAULT_ASSET_PAGINATION.size,
+    sortBy: mapSortField(filters.sortBy),
+    direction: filters.direction.toUpperCase(),
+  };
+}
+
+function mapSortField(sortBy: AssetFilter['sortBy']): string {
+  switch (sortBy) {
+    case 'updatedAt':
+      return 'updatedAt';
+    case 'originalFileName':
+      return 'displayName';
+    case 'createdAt':
+    case 'fileSize':
+    default:
+      return 'createdAt';
+  }
+}
+
+function mapSignedUploadProgress(event: HttpEvent<unknown>): AssetUploadEvent | null {
   if (event.type === HttpEventType.UploadProgress) {
     const total = event.total ?? 0;
     return {
@@ -322,12 +545,27 @@ function mapUploadEvent(
     };
   }
 
-  if (event instanceof HttpResponse && event.body?.data) {
+  if (event instanceof HttpResponse) {
     return {
       kind: 'completed',
-      asset: mapAsset(event.body.data),
+      asset: null as unknown as Asset,
     };
   }
 
   return null;
+}
+
+function signedUploadHeaders(
+  headers: Readonly<Record<string, string>> | null | undefined,
+  file: File,
+): HttpHeaders {
+  let result = new HttpHeaders(headers ?? {});
+  if (file.type && !result.has('Content-Type')) {
+    result = result.set('Content-Type', file.type);
+  }
+  return result;
+}
+
+function isLikelyBrowserNetworkBlock(error: unknown): boolean {
+  return typeof error === 'object' && error !== null && 'status' in error && error.status === 0;
 }

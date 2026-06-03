@@ -271,6 +271,10 @@ platform:
   kafka:
     enabled: ${KAFKA_ENABLED:false}
 
+ai:
+  credentials:
+    encryption-key: ${AI_CREDENTIAL_ENCRYPTION_KEY:TGViaGFzTG9jYWxBaUNyZWRLZXlEZXZPbmx5MjAyNiE=}
+
 ---
 spring:
   config:
@@ -315,8 +319,34 @@ spring:
       port: ${REDIS_PORT:6379}
       password: ${REDIS_PASSWORD}
 
+management:
+  endpoint:
+    health:
+      show-details: never
+
+springdoc:
+  api-docs:
+    enabled: ${OPENAPI_ENABLED:false}
+  swagger-ui:
+    enabled: ${SWAGGER_UI_ENABLED:false}
+
 logging:
   level:
     root: INFO
     com.lebhas.creativesaas: INFO
     org.springframework.security: WARN
+
+platform:
+  security:
+    jwt:
+      secret-base64: ${JWT_SECRET_BASE64}
+  storage:
+    provider: ${STORAGE_PROVIDER:R2}
+  ai:
+    generation:
+      mock:
+        enabled: ${AI_MOCK_ENABLED:false}
+
+ai:
+  credentials:
+    encryption-key: ${AI_CREDENTIAL_ENCRYPTION_KEY}

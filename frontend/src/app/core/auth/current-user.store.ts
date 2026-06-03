@@ -12,7 +12,7 @@ export class CurrentUserStore {
   private readonly tokenStorage = inject(TokenStorageService);
   private readonly restoredSession = this.tokenStorage.getSession();
   private readonly persistentSessionSignal = signal(
-    this.tokenStorage.getSessionSource() !== 'session',
+    this.tokenStorage.getSessionSource() === 'local',
   );
 
   private readonly accessTokenSignal = signal<string | null>(
@@ -137,7 +137,7 @@ export class CurrentUserStore {
     this.authLoadingSignal.set(false);
     this.authErrorSignal.set(null);
     this.authResolutionSignal.set('anonymous');
-    this.persistentSessionSignal.set(true);
+    this.persistentSessionSignal.set(false);
   }
 
   hasAnyRole(roles: readonly UserRole[]): boolean {

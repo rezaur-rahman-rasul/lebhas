@@ -1,8 +1,8 @@
 <div class="space-y-4">
-  <div class="hidden overflow-hidden rounded-lg border border-border bg-white shadow-sm lg:block">
-    <table class="min-w-full divide-y divide-border text-sm">
-      <thead class="bg-slate-50">
-        <tr class="text-left text-xs uppercase tracking-[0.14em] text-slate-500">
+  <div class="hidden overflow-hidden rounded-lg border border-white/10 bg-slate-950/70 shadow-2xl shadow-black/20 lg:block">
+    <table class="min-w-full divide-y divide-white/10 text-sm">
+      <thead class="bg-white/[0.04]">
+        <tr class="text-left text-xs uppercase tracking-[0.14em] text-slate-400">
           <th class="px-4 py-3 font-medium">Asset</th>
           <th class="px-4 py-3 font-medium">Category</th>
           <th class="px-4 py-3 font-medium">Type</th>
@@ -13,12 +13,12 @@
           <th class="px-4 py-3 font-medium text-right">Actions</th>
         </tr>
       </thead>
-      <tbody class="divide-y divide-border">
+      <tbody class="divide-y divide-white/10">
         @for (asset of assets(); track asset.id) {
-          <tr class="align-top">
+          <tr class="align-top hover:bg-white/[0.03]">
             <td class="px-4 py-4">
               <div class="flex items-start gap-3">
-                <div class="grid h-11 w-11 shrink-0 place-items-center overflow-hidden rounded-lg bg-slate-100">
+                <div class="grid h-11 w-11 shrink-0 place-items-center overflow-hidden rounded-lg bg-slate-900">
                   @if (asset.thumbnailUrl || asset.previewUrl || asset.publicUrl) {
                     <img
                       [src]="asset.thumbnailUrl || asset.previewUrl || asset.publicUrl || ''"
@@ -37,20 +37,20 @@
                 <div class="min-w-0">
                   <button
                     type="button"
-                    class="block max-w-full truncate text-left font-semibold text-ink hover:text-brand-700"
+                    class="block max-w-full truncate text-left font-semibold text-white hover:text-brand-300"
                     (click)="detailRequested.emit(asset)"
                   >
                     {{ asset.originalFileName }}
                   </button>
-                  <p class="mt-1 text-xs text-muted">{{ asset.storageProvider }}</p>
+                  <p class="mt-1 text-xs text-slate-400">{{ asset.storageProvider }}</p>
                 </div>
               </div>
             </td>
-            <td class="px-4 py-4 text-ink">{{ assetCategoryLabel(asset.assetCategory) }}</td>
-            <td class="px-4 py-4 text-ink">{{ assetFileTypeLabel(asset.fileType) }}</td>
-            <td class="px-4 py-4 text-ink">{{ formatFileSize(asset.fileSize) }}</td>
-            <td class="px-4 py-4 text-ink">{{ asset.uploadedBy }}</td>
-            <td class="px-4 py-4 text-ink">{{ asset.createdAt | date: 'd MMM y, h:mm a' }}</td>
+            <td class="px-4 py-4 text-slate-200">{{ assetCategoryLabel(asset.assetCategory) }}</td>
+            <td class="px-4 py-4 text-slate-200">{{ assetFileTypeLabel(asset.fileType) }}</td>
+            <td class="px-4 py-4 text-slate-200">{{ formatFileSize(asset.fileSize) }}</td>
+            <td class="px-4 py-4 text-slate-200">{{ asset.uploadedBy }}</td>
+            <td class="px-4 py-4 text-slate-200">{{ asset.createdAt | date: 'd MMM y, h:mm a' }}</td>
             <td class="px-4 py-4">
               <app-badge [tone]="assetStatusTone(asset.status)">
                 {{ assetStatusLabel(asset.status) }}
@@ -101,7 +101,7 @@
     @for (asset of assets(); track asset.id) {
       <app-card>
         <div class="flex items-start gap-3">
-          <div class="grid h-14 w-14 shrink-0 place-items-center overflow-hidden rounded-lg bg-slate-100">
+          <div class="grid h-14 w-14 shrink-0 place-items-center overflow-hidden rounded-lg bg-slate-900">
             @if (asset.thumbnailUrl || asset.previewUrl || asset.publicUrl) {
               <img
                 [src]="asset.thumbnailUrl || asset.previewUrl || asset.publicUrl || ''"
@@ -121,7 +121,7 @@
             <div class="flex items-start justify-between gap-3">
               <button
                 type="button"
-                class="max-w-full truncate text-left text-sm font-semibold text-ink"
+                class="max-w-full truncate text-left text-sm font-semibold text-white"
                 (click)="detailRequested.emit(asset)"
               >
                 {{ asset.originalFileName }}
@@ -134,19 +134,19 @@
             <dl class="mt-3 grid grid-cols-2 gap-3 text-sm">
               <div>
                 <dt class="text-xs uppercase tracking-[0.14em] text-slate-500">Category</dt>
-                <dd class="mt-1 text-ink">{{ assetCategoryLabel(asset.assetCategory) }}</dd>
+                <dd class="mt-1 text-slate-100">{{ assetCategoryLabel(asset.assetCategory) }}</dd>
               </div>
               <div>
                 <dt class="text-xs uppercase tracking-[0.14em] text-slate-500">Type</dt>
-                <dd class="mt-1 text-ink">{{ assetFileTypeLabel(asset.fileType) }}</dd>
+                <dd class="mt-1 text-slate-100">{{ assetFileTypeLabel(asset.fileType) }}</dd>
               </div>
               <div>
                 <dt class="text-xs uppercase tracking-[0.14em] text-slate-500">Size</dt>
-                <dd class="mt-1 text-ink">{{ formatFileSize(asset.fileSize) }}</dd>
+                <dd class="mt-1 text-slate-100">{{ formatFileSize(asset.fileSize) }}</dd>
               </div>
               <div>
                 <dt class="text-xs uppercase tracking-[0.14em] text-slate-500">Date</dt>
-                <dd class="mt-1 text-ink">{{ asset.createdAt | date: 'd MMM y' }}</dd>
+                <dd class="mt-1 text-slate-100">{{ asset.createdAt | date: 'd MMM y' }}</dd>
               </div>
             </dl>
 

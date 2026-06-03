@@ -1,10 +1,16 @@
 package com.lebhas.creativesaas.usage.application;
 
+import com.lebhas.creativesaas.common.api.PagedResult;
 import com.lebhas.creativesaas.usage.application.dto.CreditLedgerView;
+import com.lebhas.creativesaas.usage.application.dto.DownloadUsageView;
 import com.lebhas.creativesaas.usage.application.dto.MonthlyUsageSnapshotView;
 import com.lebhas.creativesaas.usage.application.dto.PlanUtilizationReportView;
+import com.lebhas.creativesaas.usage.application.dto.ShareUsageView;
 import com.lebhas.creativesaas.usage.application.dto.UsageBillingLogView;
 import com.lebhas.creativesaas.usage.application.dto.WorkspaceUsageSummaryView;
+import com.lebhas.creativesaas.usage.infrastructure.persistence.DownloadUsageLogRepository;
+import com.lebhas.creativesaas.usage.infrastructure.persistence.ShareUsageLogRepository;
+import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -23,6 +29,10 @@ public class UsageBillingApiQueryService {
     private final UsageBillingQueryService usageBillingQueryService;
     private final PlanUtilizationReportService planUtilizationReportService;
     private final UsageSummaryMapper usageSummaryMapper;
+    private final DownloadUsageLogRepository downloadUsageLogRepository;
+    private final DownloadUsageMapper downloadUsageMapper;
+    private final ShareUsageLogRepository shareUsageLogRepository;
+    private final ShareUsageMapper shareUsageMapper;
 
     public UsageBillingApiQueryService(
             UsageBillingAccessService usageBillingAccessService,
@@ -32,7 +42,11 @@ public class UsageBillingApiQueryService {
             CreditLedgerService creditLedgerService,
             UsageBillingQueryService usageBillingQueryService,
             PlanUtilizationReportService planUtilizationReportService,
-            UsageSummaryMapper usageSummaryMapper
+            UsageSummaryMapper usageSummaryMapper,
+            DownloadUsageLogRepository downloadUsageLogRepository,
+            DownloadUsageMapper downloadUsageMapper,
+            ShareUsageLogRepository shareUsageLogRepository,
+            ShareUsageMapper shareUsageMapper
     ) {
         this.usageBillingAccessService = usageBillingAccessService;
         this.workspaceUsageSummaryService = workspaceUsageSummaryService;
@@ -42,12 +56,16 @@ public class UsageBillingApiQueryService {
         this.usageBillingQueryService = usageBillingQueryService;
         this.planUtilizationReportService = planUtilizationReportService;
         this.usageSummaryMapper = usageSummaryMapper;
+        this.downloadUsageLogRepository = downloadUsageLogRepository;
+        this.downloadUsageMapper = downloadUsageMapper;
+        this.shareUsageLogRepository = shareUsageLogRepository;
+        this.shareUsageMapper = shareUsageMapper;
     }
 
-    @Transactional(readOnly = true)
+    @Transactional
     public WorkspaceUsageSummaryView currentUsage(UUID workspaceId) {
         UUID authorizedWorkspaceId = usageBillingAccessService.requireUsageBillingView(workspaceId);
-        return workspaceUsageSummaryService.getCurrentMonthUsage(authorizedWorkspaceId).orElse(null);
+        return usageSummaryMapper.toView(workspaceUsageAggregator.aggregateMonth(authorizedWorkspaceId, null));
     }
 
     @Transactional
@@ -69,9 +87,35 @@ public class UsageBillingApiQueryService {
     }
 
     @Transactional(readOnly = true)
+    public PagedResult<CreditLedgerView> creditLedger(UUID workspaceId, Pageable pageable) {
+        UUID authorizedWorkspaceId = usageBillingAccessService.requireUsageBillingView(workspaceId);
+        return creditLedgerService.findWorkspaceLedger(authorizedWorkspaceId, pageable);
+    }
+
+    @Transactional(readOnly = true)
     public List<UsageBillingLogView> billingLogs(UUID workspaceId) {
         UUID authorizedWorkspaceId = usageBillingAccessService.requireUsageBillingView(workspaceId);
         return usageBillingQueryService.findWorkspaceBillingLogs(authorizedWorkspaceId);
+    }
+
+    @Transactional(readOnly = true)
+    public PagedResult<UsageBillingLogView> billingLogs(UUID workspaceId, Pageable pageable) {
+        UUID authorizedWorkspaceId = usageBillingAccessService.requireUsageBillingView(workspaceId);
+        return usageBillingQueryService.findWorkspaceBillingLogs(authorizedWorkspaceId, pageable);
+    }
+
+    @Transactional(readOnly = true)
+    public PagedResult<DownloadUsageView> downloadUsage(UUID workspaceId, Pageable pageable) {
+        UUID authorizedWorkspaceId = usageBillingAccessService.requireUsageBillingView(workspaceId);
+        return PagedResult.from(downloadUsageLogRepository.findAllByWorkspaceIdOrderByCreatedAtDesc(authorizedWorkspaceId, pageable)
+                .map(downloadUsageMapper::toView));
+    }
+
+    @Transactional(readOnly = true)
+    public PagedResult<ShareUsageView> shareUsage(UUID workspaceId, Pageable pageable) {
+        UUID authorizedWorkspaceId = usageBillingAccessService.requireUsageBillingView(workspaceId);
+        return PagedResult.from(shareUsageLogRepository.findAllByWorkspaceIdOrderByCreatedAtDesc(authorizedWorkspaceId, pageable)
+                .map(log -> shareUsageMapper.toView(log, shareUsageLogRepository.countByShareLinkId(log.getShareLinkId()))));
     }
 
     @Transactional

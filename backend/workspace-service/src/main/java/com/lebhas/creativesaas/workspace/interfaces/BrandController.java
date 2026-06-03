@@ -46,6 +46,13 @@ public class BrandController {
         return ApiResponse.success(brandService.getBrand(workspaceId, brandId));
     }
 
+    @GetMapping("/{brandId}/summary")
+    @PreAuthorize("hasAuthority('BRAND_VIEW')")
+    @Operation(summary = "Get a lightweight brand summary")
+    public ApiResponse<BrandView> getBrandSummary(@PathVariable UUID workspaceId, @PathVariable UUID brandId) {
+        return ApiResponse.success(brandService.getBrand(workspaceId, brandId));
+    }
+
     @PostMapping
     @PreAuthorize("hasAuthority('BRAND_MANAGE')")
     @Operation(summary = "Create a brand")

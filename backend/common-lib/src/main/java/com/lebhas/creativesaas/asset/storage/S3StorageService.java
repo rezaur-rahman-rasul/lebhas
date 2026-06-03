@@ -13,7 +13,9 @@ import software.amazon.awssdk.services.s3.model.HeadObjectResponse;
 import software.amazon.awssdk.services.s3.model.PutObjectRequest;
 import software.amazon.awssdk.services.s3.presigner.S3Presigner;
 import software.amazon.awssdk.services.s3.presigner.model.GetObjectPresignRequest;
+import software.amazon.awssdk.services.s3.presigner.model.PutObjectPresignRequest;
 
+import java.time.Duration;
 import java.io.InputStream;
 import java.time.Instant;
 
@@ -105,6 +107,29 @@ public class S3StorageService implements StorageService {
     }
 
     @Override
+    public SignedAssetUrl generateUploadUrl(
+            String bucket,
+            String objectKey,
+            String mimeType,
+            long contentLength,
+            Duration ttl
+    ) {
+        Duration effectiveTtl = ttl == null || ttl.isZero() || ttl.isNegative()
+                ? storageProperties.getSignedUrlTtl()
+                : ttl;
+        Instant expiresAt = Instant.now().plus(effectiveTtl);
+        PutObjectRequest putObjectRequest = PutObjectRequest.builder()
+                .bucket(bucket == null || bucket.isBlank() ? storageProperties.getBucket() : bucket.trim())
+                .key(objectKey)
+                .build();
+        PutObjectPresignRequest request = PutObjectPresignRequest.builder()
+                .signatureDuration(effectiveTtl)
+                .putObjectRequest(putObjectRequest)
+                .build();
+        return new SignedAssetUrl(s3Presigner.presignPutObject(request).url().toString(), expiresAt);
+    }
+
+    @Override
     public void delete(AssetEntity asset) {
         try {
             s3Client.deleteObject(DeleteObjectRequest.builder()
@@ -126,6 +151,18 @@ public class S3StorageService implements StorageService {
             return new StoredObjectMetadata(response.contentLength(), response.lastModified());
         } catch (Exception exception) {
             throw new BusinessException(ErrorCode.ASSET_STORAGE_FAILURE, "S3 asset metadata could not be read");
+        }
+    }
+
+    @Override
+    public byte[] readBytes(AssetEntity asset) {
+        try {
+            return s3Client.getObjectAsBytes(GetObjectRequest.builder()
+                    .bucket(asset.getStorageBucket())
+                    .key(asset.getStorageKey())
+                    .build()).asByteArray();
+        } catch (Exception exception) {
+            throw new BusinessException(ErrorCode.ASSET_STORAGE_FAILURE, "S3 asset content could not be read");
         }
     }
 

@@ -110,6 +110,48 @@ public class AssetFileValidationService {
                 null);
     }
 
+    public ValidatedAssetFile validateMetadata(
+            String originalFileName,
+            String contentType,
+            long size,
+            AssetCategory category
+    ) {
+        if (!StringUtils.hasText(originalFileName)) {
+            throw new BusinessException(ErrorCode.ASSET_FILENAME_INVALID, "Filename is required");
+        }
+        if (!StringUtils.hasText(contentType)) {
+            throw new BusinessException(ErrorCode.ASSET_FILE_TYPE_INVALID, "Content type is required");
+        }
+        if (size <= 0) {
+            throw new BusinessException(ErrorCode.ASSET_FILE_EMPTY);
+        }
+        String extension = resolveExtension(originalFileName.trim());
+        ValidationRule rule = rulesByCategory.getOrDefault(category, rulesByCategory.get(AssetCategory.OTHER));
+        if (!rule.allowedExtensions().contains(extension)) {
+            throw new BusinessException(ErrorCode.ASSET_FILE_TYPE_INVALID, "File extension '" + extension + "' is not allowed for " + category.name());
+        }
+        if (size > rule.maxSizeBytes()) {
+            throw new BusinessException(
+                    ErrorCode.ASSET_FILE_SIZE_EXCEEDED,
+                    "File size exceeds the limit for " + category.name() + " (" + rule.maxSizeBytes() + " bytes)");
+        }
+        String normalizedContentType = contentType.trim().toLowerCase(Locale.ROOT);
+        if (!rule.allowedMimeTypes().contains(normalizedContentType)) {
+            throw new BusinessException(ErrorCode.ASSET_FILE_TYPE_INVALID, "Content type is not allowed for " + category.name());
+        }
+        String sanitizedFilename = sanitizeFilename(originalFileName.trim(), extension);
+        return new ValidatedAssetFile(
+                originalFileName.trim(),
+                sanitizedFilename,
+                extension,
+                normalizedContentType,
+                size,
+                fileTypeFromMimeType(normalizedContentType),
+                null,
+                null,
+                null);
+    }
+
     private String resolveExtension(String originalFileName) {
         String normalized = originalFileName.trim();
         if (normalized.chars().anyMatch(Character::isISOControl)) {
@@ -235,6 +277,19 @@ public class AssetFileValidationService {
             return "";
         }
         return new String(value, start, length, StandardCharsets.US_ASCII);
+    }
+
+    private AssetFileType fileTypeFromMimeType(String mimeType) {
+        if (SVG_MIME_TYPE.equals(mimeType)) {
+            return AssetFileType.VECTOR_IMAGE;
+        }
+        if (mimeType != null && mimeType.startsWith("image/")) {
+            return AssetFileType.IMAGE;
+        }
+        if (mimeType != null && mimeType.startsWith("video/")) {
+            return AssetFileType.VIDEO;
+        }
+        return AssetFileType.IMAGE;
     }
 
     private boolean isSafeSvg(InputStream inputStream) {

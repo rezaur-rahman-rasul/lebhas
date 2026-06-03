@@ -9,6 +9,7 @@ export interface NavigationItem {
   readonly requiresWorkspace?: boolean;
   readonly roles?: readonly UserRole[];
   readonly permissionKey?: NavigationPermissionKey;
+  readonly exact?: boolean;
   readonly activeMatch?: 'exact' | 'prefix';
   readonly activePaths?: readonly string[];
 }

@@ -23,6 +23,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.time.Duration;
 import java.util.Map;
+import java.util.Objects;
 import java.util.UUID;
 
 @Service
@@ -218,7 +219,7 @@ public class AssetUploadService {
                         Map.of(
                                 "workspaceId", command.workspaceId().toString(),
                                 "assetId", asset.getId().toString(),
-                                "projectId", command.projectId().toString(),
+                                "projectId", projectIdValue(command.projectId()),
                                 "reason", safeReason(exception)));
             }
             if (uploadSession != null) {
@@ -305,7 +306,7 @@ public class AssetUploadService {
         UUID rememberedAssetId = uploadDeduplicationService.findRememberedDuplicate(sha256).orElse(null);
         if (rememberedAssetId != null) {
             AssetEntity remembered = assetRepository.findByIdAndWorkspaceIdAndDeletedFalse(rememberedAssetId, workspaceId).orElse(null);
-            if (remembered != null && remembered.getProjectId().equals(projectId) && remembered.isReady()) {
+            if (remembered != null && Objects.equals(remembered.getProjectId(), projectId) && remembered.isReady()) {
                 return assetMapper.toAssetView(remembered);
             }
         }
@@ -351,7 +352,7 @@ public class AssetUploadService {
                 Map.of(
                         "workspaceId", command.workspaceId().toString(),
                         "assetId", assetId.toString(),
-                        "projectId", command.projectId().toString(),
+                        "projectId", projectIdValue(command.projectId()),
                         "uploadSessionId", uploadSessionId.toString()));
     }
 
@@ -395,7 +396,7 @@ public class AssetUploadService {
                 Map.of(
                         "workspaceId", asset.getWorkspaceId().toString(),
                         "assetId", asset.getId().toString(),
-                        "projectId", asset.getProjectId().toString()));
+                        "projectId", projectIdValue(asset.getProjectId())));
     }
 
     private void publishPreviewCompleted(AssetEntity asset) {
@@ -406,7 +407,7 @@ public class AssetUploadService {
                 Map.of(
                         "workspaceId", asset.getWorkspaceId().toString(),
                         "assetId", asset.getId().toString(),
-                        "projectId", asset.getProjectId().toString()));
+                        "projectId", projectIdValue(asset.getProjectId())));
     }
 
     private void publishProcessRequested(AssetEntity asset) {
@@ -424,5 +425,9 @@ public class AssetUploadService {
         }
         String normalized = throwable.getMessage().replaceAll("\\s+", " ").trim();
         return normalized.length() <= 1000 ? normalized : normalized.substring(0, 1000);
+    }
+
+    private String projectIdValue(UUID projectId) {
+        return projectId == null ? "" : projectId.toString();
     }
 }

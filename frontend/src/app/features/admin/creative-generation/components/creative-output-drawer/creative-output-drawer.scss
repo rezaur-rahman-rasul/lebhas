@@ -1,3 +1,49 @@
 :host {
   display: block;
 }
+
+.drawer-backdrop {
+  background: rgb(2 6 23 / 0.72);
+  backdrop-filter: blur(10px);
+}
+
+.drawer-shell {
+  border-left: 1px solid rgb(var(--color-border) / 0.72);
+  background:
+    linear-gradient(180deg, rgb(var(--color-surface-elevated) / 0.98), rgb(var(--color-surface) / 0.98)),
+    rgb(var(--color-surface-elevated));
+  color: rgb(var(--color-ink));
+  box-shadow: -28px 0 80px rgb(0 0 0 / 0.45);
+}
+
+.drawer-header {
+  border-bottom: 1px solid rgb(var(--color-border) / 0.72);
+  background: rgb(var(--color-surface-elevated) / 0.94);
+  backdrop-filter: blur(14px);
+}
+
+.drawer-icon-button {
+  border: 1px solid transparent;
+  transition:
+    background-color 160ms ease,
+    border-color 160ms ease,
+    color 160ms ease;
+}
+
+.drawer-icon-button:hover {
+  border-color: rgb(var(--color-border) / 0.8);
+  background: rgb(var(--color-surface-soft) / 0.86);
+}
+
+.drawer-preview,
+.drawer-card {
+  border: 1px solid rgb(var(--color-border) / 0.72);
+  background: rgb(var(--color-surface-soft) / 0.76);
+}
+
+.drawer-placeholder {
+  color: rgb(var(--color-muted));
+  background:
+    radial-gradient(circle at 20% 20%, rgb(var(--color-accent) / 0.16), transparent 30%),
+    rgb(var(--color-surface-soft) / 0.84);
+}

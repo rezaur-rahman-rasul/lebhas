@@ -13,6 +13,7 @@ export interface RegisterFormValue {
   readonly phone: string | null;
   readonly workspaceName: string | null;
   readonly password: string;
+  readonly confirmPassword: string;
 }
 
 @Component({
@@ -63,6 +64,7 @@ export class RegisterFormComponent {
       phone: value.phone.trim() || null,
       workspaceName: value.workspaceName.trim() || null,
       password: value.password,
+      confirmPassword: value.confirmPassword,
     });
   }
 
@@ -114,6 +116,11 @@ export class RegisterFormComponent {
 
   protected confirmPasswordError(): string {
     const control = this.form.controls.confirmPassword;
+    const serverError = this.fieldErrors()['confirmPassword'];
+
+    if (serverError) {
+      return serverError;
+    }
 
     if (!this.attemptedSubmit() && !control.touched) {
       return '';
@@ -124,7 +131,7 @@ export class RegisterFormComponent {
     }
 
     if (this.form.hasError('mismatch')) {
-      return 'Passwords do not match.';
+      return 'Password and confirm password do not match.';
     }
 
     return '';

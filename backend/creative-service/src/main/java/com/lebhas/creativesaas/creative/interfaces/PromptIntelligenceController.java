@@ -1,8 +1,7 @@
 package com.lebhas.creativesaas.creative.interfaces;
 
 import com.lebhas.creativesaas.common.api.ApiResponse;
-import com.lebhas.creativesaas.prompt.application.PromptEnhancementService;
-import com.lebhas.creativesaas.prompt.application.PromptSuggestionService;
+import com.lebhas.creativesaas.prompt.application.PromptBuilderService;
 import com.lebhas.creativesaas.prompt.application.dto.PromptEnhancementCommand;
 import com.lebhas.creativesaas.prompt.application.dto.PromptEnhancementView;
 import com.lebhas.creativesaas.prompt.application.dto.PromptSuggestionCommand;
@@ -28,15 +27,10 @@ import java.util.UUID;
 @SecurityRequirement(name = "bearerAuth")
 public class PromptIntelligenceController {
 
-    private final PromptEnhancementService promptEnhancementService;
-    private final PromptSuggestionService promptSuggestionService;
+    private final PromptBuilderService promptBuilderService;
 
-    public PromptIntelligenceController(
-            PromptEnhancementService promptEnhancementService,
-            PromptSuggestionService promptSuggestionService
-    ) {
-        this.promptEnhancementService = promptEnhancementService;
-        this.promptSuggestionService = promptSuggestionService;
+    public PromptIntelligenceController(PromptBuilderService promptBuilderService) {
+        this.promptBuilderService = promptBuilderService;
     }
 
     @PostMapping("/enhance")
@@ -48,7 +42,7 @@ public class PromptIntelligenceController {
             @Valid @RequestBody PromptEnhanceRequest request,
             HttpServletRequest httpServletRequest
     ) {
-        return ApiResponse.success(promptEnhancementService.enhance(new PromptEnhancementCommand(
+        return ApiResponse.success(promptBuilderService.enhance(new PromptEnhancementCommand(
                 workspaceId,
                 projectId,
                 request.customPrompt(),
@@ -76,7 +70,7 @@ public class PromptIntelligenceController {
             @Valid @RequestBody PromptSuggestionsRequest request,
             HttpServletRequest httpServletRequest
     ) {
-        return ApiResponse.success(promptSuggestionService.generateSuggestions(new PromptSuggestionCommand(
+        return ApiResponse.success(promptBuilderService.suggestions(new PromptSuggestionCommand(
                 workspaceId,
                 projectId,
                 request.customPrompt(),

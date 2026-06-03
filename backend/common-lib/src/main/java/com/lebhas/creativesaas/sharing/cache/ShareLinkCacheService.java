@@ -26,8 +26,8 @@ public class ShareLinkCacheService {
         this.approvalRedisTtlStrategy = approvalRedisTtlStrategy;
     }
 
-    public Optional<ShareLinkCacheEntry> getShareLink(String token) {
-        String normalizedToken = normalizeToken(token);
+    public Optional<ShareLinkCacheEntry> getShareLink(String tokenHash) {
+        String normalizedToken = normalizeToken(tokenHash);
         return approvalRedisAccessSupport.read(
                 approvalRedisKeys.shareLink(normalizedToken),
                 ShareLinkCacheEntry.class,
@@ -36,17 +36,17 @@ public class ShareLinkCacheService {
     }
 
     public boolean cacheShareLink(ShareLink shareLink) {
-        if (shareLink == null || shareLink.getToken() == null) {
+        if (shareLink == null || shareLink.getTokenHash() == null) {
             return false;
         }
         return cacheShareLink(ShareLinkCacheEntry.from(shareLink));
     }
 
     public boolean cacheShareLink(ShareLinkCacheEntry entry) {
-        if (entry == null || entry.token() == null) {
+        if (entry == null || entry.tokenHash() == null) {
             return false;
         }
-        String normalizedToken = normalizeToken(entry.token());
+        String normalizedToken = normalizeToken(entry.tokenHash());
         return approvalRedisAccessSupport.write(
                 approvalRedisKeys.shareLink(normalizedToken),
                 entry,
@@ -56,17 +56,17 @@ public class ShareLinkCacheService {
     }
 
     public boolean invalidateShareLink(ShareLinkCacheEntry entry) {
-        if (entry == null || entry.token() == null) {
+        if (entry == null || entry.tokenHash() == null) {
             return false;
         }
-        return invalidateShareLink(entry.workspaceId(), entry.generatedVersionId(), entry.token());
+        return invalidateShareLink(entry.workspaceId(), entry.generatedVersionId(), entry.tokenHash());
     }
 
     public boolean invalidateShareLink(ShareLink shareLink) {
-        if (shareLink == null || shareLink.getToken() == null) {
+        if (shareLink == null || shareLink.getTokenHash() == null) {
             return false;
         }
-        return invalidateShareLink(shareLink.getWorkspaceId(), shareLink.getGeneratedVersionId(), shareLink.getToken());
+        return invalidateShareLink(shareLink.getWorkspaceId(), shareLink.getGeneratedVersionId(), shareLink.getTokenHash());
     }
 
     public boolean invalidateShareLink(java.util.UUID workspaceId, java.util.UUID generatedVersionId, String token) {

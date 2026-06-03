@@ -55,7 +55,7 @@ public class MasterWorkspaceSubscriptionController {
                 request.trialEndsAt(),
                 request.autoRenew()));
         return ApiResponse.success(pricingApiMapper.toWorkspacePlanContextResponse(
-                workspacePlanContextService.getWorkspacePlanContext(workspaceId)));
+                workspacePlanContextService.getWorkspacePlanContextForMaster(workspaceId)));
     }
 
     @GetMapping("/{workspaceId}/subscription")
@@ -63,6 +63,6 @@ public class MasterWorkspaceSubscriptionController {
     @Operation(summary = "Get workspace subscription and active plan context")
     public ApiResponse<WorkspacePlanContextResponse> getWorkspaceSubscription(@PathVariable UUID workspaceId) {
         return ApiResponse.success(pricingApiMapper.toWorkspacePlanContextResponse(
-                workspacePlanContextService.getWorkspacePlanContext(workspaceId)));
+                workspacePlanContextService.getWorkspacePlanContextForMaster(workspaceId)));
     }
 }

@@ -12,10 +12,14 @@ import {
   CreativeOutputFormat,
   CreativeOutputUrl,
   CreativeType,
+  CreateCampaignCreativeRequest,
+  ProductImageCreativeReadiness,
   DEFAULT_CREATIVE_GENERATION_PAGINATION,
   GenerationJob,
   GenerationJobType,
   CreateCreativeGenerationRequest,
+  ImageCreativeFormat,
+  ImageCreativeQualityMode,
 } from '../models/creative-generation.models';
 import {
   CampaignObjective,
@@ -124,6 +128,77 @@ interface CreateCreativeGenerationRequestDto {
   readonly useBrandContext: boolean;
 }
 
+interface CreateCampaignCreativeRequestDto {
+  readonly promptDraftId: string | null;
+  readonly sourcePrompt: string;
+  readonly productAssetId: string;
+  readonly creativeFormat: ImageCreativeFormat;
+  readonly platform: PromptPlatform;
+  readonly language: Exclude<PromptLanguage, 'MIXED'>;
+  readonly qualityMode: ImageCreativeQualityMode;
+  readonly requestedVersionCount: number;
+  readonly stylePreset: string | null;
+  readonly backgroundStyle: string | null;
+  readonly cta: string | null;
+}
+
+interface ImageCreativeGenerationDto {
+  readonly id: string;
+  readonly workspaceId: string;
+  readonly projectId: string;
+  readonly creativeRequestId: string;
+  readonly brandId: string | null;
+  readonly productServiceId: string | null;
+  readonly productAssetId: string;
+  readonly toolCode: string | null;
+  readonly creativeFormat: ImageCreativeFormat;
+  readonly platform: PromptPlatform;
+  readonly language: Exclude<PromptLanguage, 'MIXED'>;
+  readonly qualityMode: ImageCreativeQualityMode;
+  readonly requestedVersionCount: number;
+  readonly creditCost: number | string | null;
+  readonly creditReservationId: string | null;
+  readonly status: string;
+  readonly failureReason: string | null;
+  readonly generatedVersionIds: readonly string[] | null;
+  readonly request: Readonly<Record<string, unknown>> | null;
+  readonly createdAt: string;
+}
+
+interface GeneratedVersionDto {
+  readonly id: string;
+  readonly workspaceId: string;
+  readonly creativeRequestId: string;
+  readonly projectCampaignId: string;
+  readonly versionNumber: number;
+  readonly versionName: string;
+  readonly storageFileId: string | null;
+  readonly assetId: string | null;
+  readonly previewUrl: string | null;
+  readonly thumbnailUrl: string | null;
+  readonly generationStatus: string;
+  readonly approvalStatus: string;
+  readonly status: string;
+  readonly createdAt: string;
+  readonly updatedAt: string;
+}
+
+interface CampaignCreativeResultDto {
+  readonly generation: ImageCreativeGenerationDto;
+  readonly generatedVersions: readonly GeneratedVersionDto[];
+}
+
+interface ProductImageCreativeReadinessDto {
+  readonly ready: boolean;
+  readonly workspaceReady: boolean;
+  readonly packageReady: boolean;
+  readonly creditsReady: boolean;
+  readonly providerReady: boolean;
+  readonly routingReady: boolean;
+  readonly productAssetReady: boolean;
+  readonly messages: readonly string[] | null;
+}
+
 @Injectable({ providedIn: 'root' })
 export class CreativeGenerationService {
   private readonly api = inject(ApiService);
@@ -140,6 +215,44 @@ export class CreativeGenerationService {
         { context },
       )
       .pipe(map(({ data }) => mapGenerationRequest(data)));
+  }
+
+  submitCampaignCreative(
+    workspaceId: string,
+    projectId: string,
+    payload: CreateCampaignCreativeRequest,
+    context?: HttpContext,
+  ) {
+    return this.api
+      .post<CampaignCreativeResultDto, CreateCampaignCreativeRequestDto>(
+        `/api/v1/workspaces/${workspaceId}/projects/${projectId}/image-creatives/generate`,
+        mapCampaignCreativeRequest(payload),
+        { context },
+      )
+      .pipe(map(({ data }) => data));
+  }
+
+  getCampaignCreativeReadiness(
+    workspaceId: string,
+    projectId: string,
+    productAssetId: string | null,
+    qualityMode: ImageCreativeQualityMode,
+    requestedVersionCount: number,
+    context?: HttpContext,
+  ) {
+    return this.api
+      .get<ProductImageCreativeReadinessDto>(
+        `/api/v1/workspaces/${workspaceId}/projects/${projectId}/image-creatives/readiness`,
+        {
+          params: {
+            productAssetId,
+            qualityMode,
+            requestedVersionCount,
+          },
+          context,
+        },
+      )
+      .pipe(map(({ data }) => mapProductImageCreativeReadiness(data)));
   }
 
   listGenerations(
@@ -352,6 +465,39 @@ function mapCreateRequest(
     duration: payload.duration,
     generationConfig: payload.generationConfig,
     useBrandContext: payload.useBrandContext,
+  };
+}
+
+function mapCampaignCreativeRequest(
+  payload: CreateCampaignCreativeRequest,
+): CreateCampaignCreativeRequestDto {
+  return {
+    promptDraftId: payload.promptDraftId,
+    sourcePrompt: payload.sourcePrompt.trim(),
+    productAssetId: payload.productAssetId,
+    creativeFormat: payload.creativeFormat,
+    platform: payload.platform,
+    language: payload.language,
+    qualityMode: payload.qualityMode,
+    requestedVersionCount: payload.requestedVersionCount,
+    stylePreset: payload.stylePreset,
+    backgroundStyle: payload.backgroundStyle,
+    cta: payload.cta,
+  };
+}
+
+function mapProductImageCreativeReadiness(
+  source: ProductImageCreativeReadinessDto,
+): ProductImageCreativeReadiness {
+  return {
+    ready: source.ready,
+    workspaceReady: source.workspaceReady,
+    packageReady: source.packageReady,
+    creditsReady: source.creditsReady,
+    providerReady: source.providerReady,
+    routingReady: source.routingReady,
+    productAssetReady: source.productAssetReady,
+    messages: source.messages ?? [],
   };
 }
 

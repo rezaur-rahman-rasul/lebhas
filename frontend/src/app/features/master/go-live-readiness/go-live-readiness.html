@@ -1,0 +1,87 @@
+<app-page-header
+  eyebrow="BETA READINESS"
+  title="Go-live Readiness"
+  description="Review final readiness across product, workspace, AI, payments, monitoring, and security foundations."
+>
+  <a class="go-live-header-action" routerLink="/master/dashboard">
+    <app-icon name="layout-dashboard" [size]="16" />
+    Master Dashboard
+  </a>
+  <button type="button" class="go-live-header-action" (click)="load()">
+    <app-icon name="refresh-cw" [size]="16" />
+    Refresh
+  </button>
+</app-page-header>
+
+<section class="go-live-summary" aria-label="Readiness summary">
+  <app-card>
+    <div class="summary-card">
+      <span class="summary-card__label">Ready</span>
+      <strong>{{ readyCount() }}</strong>
+      <p>Areas available for beta use</p>
+    </div>
+  </app-card>
+
+  <app-card>
+    <div class="summary-card summary-card--attention">
+      <span class="summary-card__label">Needs Attention</span>
+      <strong>{{ attentionCount() }}</strong>
+      <p>Areas to review before go-live</p>
+    </div>
+  </app-card>
+
+  <app-card>
+    <div class="summary-card summary-card--blocked">
+      <span class="summary-card__label">Blocked</span>
+      <strong>{{ blockedCount() }}</strong>
+      <p>Areas requiring access or completion</p>
+    </div>
+  </app-card>
+</section>
+
+@if (error()) {
+  <app-error-state title="Go-live readiness could not load" [description]="error() || 'Please try again.'">
+    <button type="button" class="go-live-header-action" (click)="load()">Retry</button>
+  </app-error-state>
+} @else if (loading()) {
+  <section class="go-live-grid" aria-label="Loading go-live checklist">
+    @for (row of [0, 1, 2, 3, 4, 5]; track row) {
+      <app-card><article class="go-live-card"><div class="go-live-skeleton"></div></article></app-card>
+    }
+  </section>
+} @else {
+<section class="go-live-grid" aria-label="Go-live checklist">
+  @for (item of checks(); track item.key) {
+    <app-card [interactive]="true">
+      <article class="go-live-card">
+        <div class="go-live-card__top">
+          <span
+            class="go-live-icon"
+            [class.go-live-icon--ready]="item.status === 'READY'"
+            [class.go-live-icon--attention]="item.status === 'NEEDS_ATTENTION'"
+            [class.go-live-icon--blocked]="item.status === 'BLOCKED'"
+          >
+            <app-icon
+              [name]="item.status === 'READY' ? 'circle-check' : item.status === 'BLOCKED' ? 'triangle-alert' : 'circle-alert'"
+              [size]="18"
+            />
+          </span>
+          <app-status-badge [tone]="statusTone(item.status)">{{ statusLabel(item.status) }}</app-status-badge>
+        </div>
+
+        <div>
+          <h2>{{ item.title }}</h2>
+          <p>{{ item.description }}</p>
+        </div>
+
+        <a class="go-live-card__link" [routerLink]="item.relatedRoute">
+          Open area
+          <app-icon name="arrow-right" [size]="15" />
+        </a>
+      </article>
+    </app-card>
+  } @empty {
+    <app-card><article class="go-live-card"><h2>No readiness checks returned</h2><p>Readiness checks have not been reported yet.</p></article></app-card>
+  }
+</section>
+}

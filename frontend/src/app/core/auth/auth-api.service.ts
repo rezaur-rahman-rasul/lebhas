@@ -3,8 +3,8 @@ import { inject, Injectable } from '@angular/core';
 import { firstValueFrom } from 'rxjs';
 
 import { ApiService } from '@app/core/api/api.service';
+import { ApiEndpoints } from '@app/core/api/api-endpoints';
 import { unwrapApiResponse } from '@app/shared/utils/api-response';
-import { environment } from '@env/environment';
 import {
   AuthSessionResponse,
   LoginRequest,
@@ -27,11 +27,10 @@ import {
 @Injectable({ providedIn: 'root' })
 export class AuthApiService {
   private readonly api = inject(ApiService);
-  private readonly authBasePath = environment.authApiPrefix;
 
   async login(payload: LoginRequest): Promise<AuthSession> {
     const response = await firstValueFrom(
-      this.api.post<LoginResponse, LoginRequest>(`${this.authBasePath}/login`, payload, {
+      this.api.post<LoginResponse, LoginRequest>(ApiEndpoints.auth.login, payload, {
         context: this.authRequestContext({ skipRefresh: true }),
       }),
     );
@@ -41,7 +40,7 @@ export class AuthApiService {
 
   async register(payload: RegisterRequest): Promise<AuthSession> {
     const response = await firstValueFrom(
-      this.api.post<RegisterResponse, RegisterRequest>(`${this.authBasePath}/register`, payload, {
+      this.api.post<RegisterResponse, RegisterRequest>(ApiEndpoints.auth.register, payload, {
         context: this.authRequestContext({ skipRefresh: true }),
       }),
     );
@@ -52,7 +51,7 @@ export class AuthApiService {
   async refreshSession(payload: RefreshTokenRequest): Promise<AuthSession> {
     const response = await firstValueFrom(
       this.api.post<RefreshTokenResponse, RefreshTokenRequest>(
-        `${this.authBasePath}/refresh`,
+        ApiEndpoints.auth.refresh,
         payload,
         {
           context: this.authRequestContext({
@@ -69,7 +68,7 @@ export class AuthApiService {
 
   async getCurrentUser(): Promise<CurrentUser> {
     const response = await firstValueFrom(
-      this.api.get<CurrentUserResponse>(`${this.authBasePath}/me`, {
+      this.api.get<CurrentUserResponse>(ApiEndpoints.auth.me, {
         context: this.authRequestContext({
           skipGlobalLoading: true,
           skipRefresh: true,
@@ -82,7 +81,7 @@ export class AuthApiService {
 
   async logout(payload: LogoutRequest): Promise<void> {
     await firstValueFrom(
-      this.api.post<void, LogoutRequest>(`${this.authBasePath}/logout`, payload, {
+      this.api.post<void, LogoutRequest>(ApiEndpoints.auth.logout, payload, {
         context: this.authRequestContext({
           skipErrorToast: true,
           skipRefresh: true,

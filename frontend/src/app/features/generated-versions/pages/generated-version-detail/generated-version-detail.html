@@ -3,7 +3,7 @@
   title="Generated creative detail"
   description="Review one generated creative version, its preview, status, and available actions."
 >
-  <a routerLink="/projects" class="text-sm font-medium text-brand-600 hover:text-brand-700">Projects</a>
+      <a routerLink="/projects-campaigns" class="text-sm font-medium text-brand-600 hover:text-brand-700">Projects</a>
   @if (store.selectedVersion(); as version) {
     <app-badge [tone]="generatedVersionStatusTone(version.status)">
       {{ generatedVersionStatusLabel(version.status) }}

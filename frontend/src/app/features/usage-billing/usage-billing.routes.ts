@@ -11,6 +11,13 @@ import {
 
 export const USAGE_BILLING_ROUTES: Routes = [
   {
+    path: 'master/workspaces',
+    canActivate: [masterUsageAccessGuard],
+    loadComponent: () =>
+      import('./master-usage/master-usage-overview').then((m) => m.MasterUsageOverviewPage),
+    data: { section: 'workspaces' },
+  },
+  {
     path: 'credit-usage',
     loadComponent: () =>
       import('./dashboard/usage-billing-dashboard').then(

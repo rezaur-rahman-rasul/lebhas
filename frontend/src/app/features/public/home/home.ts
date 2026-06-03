@@ -1,5 +1,5 @@
-﻿import { DOCUMENT } from '@angular/common';
-import { ChangeDetectionStrategy, Component, computed, inject, signal } from '@angular/core';
+import { DOCUMENT } from '@angular/common';
+import { ChangeDetectionStrategy, Component, DestroyRef, computed, inject, signal } from '@angular/core';
 import { Router, RouterLink } from '@angular/router';
 
 import { CurrentUserStore } from '@app/core/auth/current-user.store';
@@ -16,14 +16,14 @@ interface NavItem {
   readonly hasDropdown?: boolean;
 }
 
-interface HeroHighlight {
+interface IconCard {
   readonly icon: string;
   readonly title: string;
+  readonly description: string;
 }
 
-interface OutcomeChip {
-  readonly icon: string;
-  readonly label: string;
+interface WorkflowStep extends IconCard {
+  readonly step: string;
 }
 
 interface PlatformBadge {
@@ -32,40 +32,27 @@ interface PlatformBadge {
   readonly accentClass: string;
 }
 
-interface WorkflowStep {
-  readonly step: string;
-  readonly title: string;
-  readonly description: string;
-  readonly icon: string;
-}
-
-interface WorkspaceMetric {
-  readonly value: string;
-  readonly delta: string;
+interface DashboardMetric {
   readonly label: string;
-}
-
-interface ActivityItem {
-  readonly title: string;
-  readonly age: string;
-  readonly icon: string;
-}
-
-interface TopPlatform {
-  readonly name: string;
-  readonly share: number;
-  readonly color: string;
-}
-
-interface AboutPoint {
-  readonly icon: string;
-  readonly title: string;
-  readonly description: string;
-}
-
-interface AboutStat {
   readonly value: string;
-  readonly label: string;
+}
+
+interface ConversionExample {
+  readonly id: string;
+  readonly rawLabel: string;
+  readonly creativeLabel: string;
+  readonly productName: string;
+  readonly productType: 'apparel' | 'skincare' | 'coffee';
+  readonly rawImage?: string;
+  readonly creativeImage?: string;
+  readonly campaignTitle: string;
+  readonly campaignSubtitle: string;
+  readonly cta: string;
+  readonly platform: string;
+  readonly tone: string;
+  readonly progress: number;
+  readonly stages: readonly string[];
+  readonly accentClass: string;
 }
 
 interface HomeCopy {
@@ -81,330 +68,299 @@ interface HomeCopy {
   };
   readonly hero: {
     readonly eyebrow: string;
-    readonly lineOne: string;
-    readonly lineTwo: string;
-    readonly accentOne: string;
-    readonly accentTwo: string;
+    readonly headline: string;
+    readonly highlight: string;
     readonly description: string;
     readonly primaryCta: string;
     readonly secondaryCta: string;
+    readonly proofChips: readonly string[];
     readonly rawProduct: string;
     readonly rawBadge: string;
     readonly aiProcessing: string;
     readonly campaignCreative: string;
-    readonly highlights: readonly HeroHighlight[];
     readonly processingStages: readonly string[];
-    readonly outcomes: readonly OutcomeChip[];
   };
   readonly platformStrip: {
     readonly title: string;
-    readonly moreLabel: string;
   };
   readonly workflow: {
     readonly title: string;
     readonly description: string;
     readonly steps: readonly WorkflowStep[];
   };
-  readonly workspace: {
+  readonly transformation: {
     readonly title: string;
-    readonly period: string;
-    readonly metrics: readonly WorkspaceMetric[];
-    readonly activityTitle: string;
-    readonly activities: readonly ActivityItem[];
-    readonly chartTitle: string;
+    readonly description: string;
+    readonly cta: string;
+  };
+  readonly features: {
+    readonly title: string;
+    readonly cards: readonly IconCard[];
+  };
+  readonly dashboard: {
+    readonly title: string;
+    readonly subtitle: string;
+    readonly metrics: readonly DashboardMetric[];
+  };
+  readonly audience: {
+    readonly title: string;
+    readonly cards: readonly IconCard[];
+  };
+  readonly trust: {
+    readonly title: string;
+    readonly items: readonly IconCard[];
   };
   readonly about: {
     readonly eyebrow: string;
     readonly title: string;
     readonly description: string;
-    readonly paragraphs: readonly string[];
-    readonly points: readonly AboutPoint[];
-    readonly stats: readonly AboutStat[];
-    readonly primaryCta: string;
-    readonly secondaryCta: string;
   };
-  readonly footer: string;
+  readonly finalCta: {
+    readonly title: string;
+    readonly subtitle: string;
+  };
+  readonly footer: {
+    readonly slogan: string;
+    readonly note: string;
+  };
 }
 
-const TOP_PLATFORMS: readonly TopPlatform[] = [
-  { name: 'Facebook', share: 45, color: '#1d9bf0' },
-  { name: 'Instagram', share: 30, color: '#a3a3a3' },
-  { name: 'TikTok', share: 15, color: '#22d3ee' },
-  { name: 'LinkedIn', share: 10, color: '#38bdf8' },
+const PLATFORMS: readonly PlatformBadge[] = [
+  { name: 'Facebook', shortLabel: 'f', accentClass: 'platform-facebook' },
+  { name: 'Instagram', shortLabel: 'ig', accentClass: 'platform-instagram' },
+  { name: 'TikTok', shortLabel: 'tk', accentClass: 'platform-tiktok' },
+  { name: 'LinkedIn', shortLabel: 'in', accentClass: 'platform-linkedin' },
+  { name: 'YouTube Shorts', shortLabel: 'yt', accentClass: 'platform-youtube' },
+  { name: 'Google Ads', shortLabel: 'g', accentClass: 'platform-google' },
+  { name: 'Marketplace', shortLabel: 'm', accentClass: 'platform-market' },
+  { name: 'And more', shortLabel: '+', accentClass: 'platform-more' },
 ];
 
+const CONVERSION_EXAMPLES: readonly ConversionExample[] = [
+  {
+    id: 'apparel',
+    rawLabel: 'Raw apparel photo',
+    creativeLabel: 'Fashion launch ad',
+    productName: 'Premium Sweatshirt',
+    productType: 'apparel',
+    rawImage: '/assets/hero-raw-product-card.png',
+    creativeImage: '/assets/hero-campaign-creative-card.png',
+    campaignTitle: 'Elevate Your Brand Style',
+    campaignSubtitle: 'Premium quality. Timeless design. Made for impact.',
+    cta: 'Shop Now',
+    platform: 'Instagram Feed',
+    tone: 'Premium fashion',
+    progress: 75,
+    stages: ['Reading fabric and color cues', 'Applying fashion brand voice', 'Preparing Instagram layout'],
+    accentClass: 'conversion-apparel',
+  },
+  {
+    id: 'skincare',
+    rawLabel: 'Raw skincare pack',
+    creativeLabel: 'Beauty campaign ad',
+    productName: 'Hydra Glow Serum',
+    productType: 'skincare',
+    rawImage: '/assets/homepage-skincare-raw.png',
+    creativeImage: '/assets/homepage-skincare-creative.png',
+    campaignTitle: 'Glow Starts Here',
+    campaignSubtitle: 'Clean skincare visuals with soft launch messaging.',
+    cta: 'Try the Serum',
+    platform: 'Facebook Ad',
+    tone: 'Clean beauty',
+    progress: 82,
+    stages: ['Detecting bottle silhouette', 'Matching clean beauty tone', 'Writing benefit-led copy'],
+    accentClass: 'conversion-skincare',
+  },
+  {
+    id: 'coffee',
+    rawLabel: 'Raw coffee package',
+    creativeLabel: 'Marketplace creative',
+    productName: 'Roasted Coffee Pack',
+    productType: 'coffee',
+    campaignTitle: 'Fresh Roast, Bold Start',
+    campaignSubtitle: 'Marketplace-ready product ad with clear offer copy.',
+    cta: 'Order Today',
+    platform: 'Marketplace',
+    tone: 'Warm retail',
+    progress: 88,
+    stages: ['Reading package shape', 'Building marketplace offer', 'Exporting product-first creative'],
+    accentClass: 'conversion-coffee',
+  },
+];
+
+const CONVERSION_ROTATION_MS = 5 * 60 * 1000;
+
+const EN_COPY: HomeCopy = {
+  nav: {
+    home: 'Home',
+    features: 'Features',
+    resources: 'Resources',
+    about: 'About Us',
+    login: 'Login',
+    dashboard: 'Dashboard',
+    theme: 'Theme',
+    language: 'Language',
+  },
+  hero: {
+    eyebrow: 'AI Creative Operating System',
+    headline: 'Turn Raw Product Photos Into',
+    highlight: 'Ready-to-Publish Ads',
+    description:
+      'Lebhas helps brands, agencies, and marketing teams generate campaign creatives, captions, ad copy, hashtags, and platform-ready assets from one workspace.',
+    primaryCta: 'Start Creating',
+    secondaryCta: 'See How It Works',
+    proofChips: ['No design skill needed', 'Bangla + English', 'Brand-safe outputs', 'Multi-platform ready'],
+    rawProduct: 'Raw Product',
+    rawBadge: 'Product image',
+    aiProcessing: 'AI Processing',
+    campaignCreative: 'Campaign Creative',
+    processingStages: ['Reading product details', 'Applying brand context', 'Preparing platform formats'],
+  },
+  platformStrip: {
+    title: 'Publish across all major platforms',
+  },
+  workflow: {
+    title: 'AI Creative Workflow',
+    description: 'From product upload to approved campaign output in one connected workspace.',
+    steps: [
+      { step: '01', icon: 'upload-cloud', title: 'Upload Product', description: 'Add raw product images from your library.' },
+      { step: '02', icon: 'palette', title: 'Add Brand Context', description: 'Keep tone, colors, language, and audience consistent.' },
+      { step: '03', icon: 'monitor-smartphone', title: 'Choose Platform', description: 'Select Facebook, Instagram, TikTok, LinkedIn, or more.' },
+      { step: '04', icon: 'sparkles', title: 'Generate Creative', description: 'Create multiple campaign-ready variations.' },
+      { step: '05', icon: 'badge-check', title: 'Review & Approve', description: 'Collaborate with your team before publishing.' },
+      { step: '06', icon: 'download', title: 'Export & Publish', description: 'Download, share, or prepare assets for campaigns.' },
+    ],
+  },
+  transformation: {
+    title: 'From Raw Product to Campaign Creative',
+    description:
+      'Upload a simple product photo and let Lebhas create campaign-ready visuals, captions, and ad directions for your brand.',
+    cta: 'Try with your product',
+  },
+  features: {
+    title: 'Everything your brand needs to create faster',
+    cards: [
+      { icon: 'wand-sparkles', title: 'Campaign Creative Generator', description: 'Create platform-ready campaign visuals from product and brand context.' },
+      { icon: 'layout-grid', title: 'Post Generator', description: 'Generate social media post ideas for multiple platforms.' },
+      { icon: 'captions', title: 'Caption Generator', description: 'Write captions that match your tone and campaign goal.' },
+      { icon: 'megaphone', title: 'Ad Copy Generator', description: 'Create persuasive headlines and ad text.' },
+      { icon: 'folder-open', title: 'Asset Library', description: 'Organize product images, logos, and campaign media.' },
+      { icon: 'route', title: 'Approval Workflow', description: 'Review, approve, reject, and manage creative versions.' },
+    ],
+  },
+  dashboard: {
+    title: 'Built around your creative workspace',
+    subtitle: 'Manage product assets, generation flow, approvals, credits, and ready-to-export campaign outputs in one SaaS workspace.',
+    metrics: [
+      { label: 'Credits', value: '1,240' },
+      { label: 'Plan', value: 'Growth' },
+      { label: 'Pending approvals', value: '06' },
+    ],
+  },
+  audience: {
+    title: 'Made for brands and teams that need campaign speed',
+    cards: [
+      { icon: 'gem', title: 'Fashion brands', description: 'Launch seasonal creative without slowing down design teams.' },
+      { icon: 'package-open', title: 'E-commerce sellers', description: 'Turn product shots into campaign assets for every channel.' },
+      { icon: 'building-2', title: 'Local businesses', description: 'Create polished ads without a full creative department.' },
+      { icon: 'briefcase', title: 'Marketing agencies', description: 'Scale campaign variations across clients and platforms.' },
+      { icon: 'pencil-line', title: 'Freelancers', description: 'Deliver stronger creative concepts faster.' },
+      { icon: 'users', title: 'Social media teams', description: 'Generate copy, captions, hashtags, and visual directions together.' },
+    ],
+  },
+  trust: {
+    title: 'Designed for brand-safe creative operations',
+    items: [
+      { icon: 'shield-check', title: 'Workspace-based access', description: 'Keep brand and campaign work scoped by workspace.' },
+      { icon: 'circle-check', title: 'Approval before publishing', description: 'Review generated versions before campaign use.' },
+      { icon: 'lock-keyhole', title: 'Private asset storage foundation', description: 'Build campaigns from controlled product and brand media.' },
+      { icon: 'wallet-cards', title: 'Usage and credit visibility', description: 'Track generation usage and credit movement.' },
+      { icon: 'route', title: 'Provider-independent AI architecture', description: 'Support multiple AI provider foundations as the platform evolves.' },
+    ],
+  },
+  about: {
+    eyebrow: 'About Us',
+    title: 'Creative speed with brand control',
+    description:
+      'Lebhas focuses on the space between raw product assets and campaign-ready execution, giving teams one place to generate, review, approve, and prepare creatives for launch.',
+  },
+  finalCta: {
+    title: 'Ready to create ads beyond imagination?',
+    subtitle: 'Start with one product image and build campaign-ready creative assets in minutes.',
+  },
+  footer: {
+    slogan: 'Create Ads Beyond Imagination',
+    note: 'Built for brands, agencies, and marketing teams.',
+  },
+};
+
+const BN_COPY: HomeCopy = {
+  ...EN_COPY,
+  nav: {
+    ...EN_COPY.nav,
+    home: 'হোম',
+    features: 'ফিচার',
+    resources: 'রিসোর্স',
+    about: 'আমাদের সম্পর্কে',
+    login: 'লগইন',
+    dashboard: 'ড্যাশবোর্ড',
+    language: 'ভাষা',
+  },
+  hero: {
+    ...EN_COPY.hero,
+    eyebrow: 'এআই ক্রিয়েটিভ অপারেটিং সিস্টেম',
+    headline: 'র প্রোডাক্ট ছবি থেকে',
+    highlight: 'রেডি-টু-পাবলিশ বিজ্ঞাপন',
+    description:
+      'Lebhas ব্র্যান্ড, এজেন্সি ও মার্কেটিং টিমকে এক ওয়ার্কস্পেস থেকে ক্যাম্পেইন ক্রিয়েটিভ, ক্যাপশন, অ্যাড কপি, হ্যাশট্যাগ ও প্ল্যাটফর্ম-রেডি অ্যাসেট তৈরি করতে সাহায্য করে।',
+    primaryCta: 'ক্রিয়েটিভ শুরু করুন',
+    secondaryCta: 'কীভাবে কাজ করে দেখুন',
+    proofChips: ['ডিজাইন স্কিল ছাড়াই', 'বাংলা + ইংরেজি', 'ব্র্যান্ড-সেফ আউটপুট', 'মাল্টি-প্ল্যাটফর্ম রেডি'],
+  },
+  platformStrip: {
+    title: 'সব প্রধান প্ল্যাটফর্মের জন্য প্রস্তুত',
+  },
+  workflow: {
+    ...EN_COPY.workflow,
+    title: 'AI Creative Workflow',
+    description: 'প্রোডাক্ট আপলোড থেকে অনুমোদিত ক্যাম্পেইন আউটপুট পর্যন্ত এক সংযুক্ত ওয়ার্কস্পেস।',
+  },
+  transformation: {
+    ...EN_COPY.transformation,
+    title: 'র প্রোডাক্ট থেকে ক্যাম্পেইন ক্রিয়েটিভ',
+    cta: 'আপনার প্রোডাক্ট দিয়ে চেষ্টা করুন',
+  },
+  features: {
+    ...EN_COPY.features,
+    title: 'দ্রুত ক্রিয়েটিভ বানাতে আপনার ব্র্যান্ডের যা দরকার',
+  },
+  dashboard: {
+    ...EN_COPY.dashboard,
+    title: 'আপনার ক্রিয়েটিভ ওয়ার্কস্পেসকে কেন্দ্র করে তৈরি',
+  },
+  audience: {
+    ...EN_COPY.audience,
+    title: 'যেসব ব্র্যান্ড ও টিম দ্রুত ক্যাম্পেইন চালাতে চায়',
+  },
+  trust: {
+    ...EN_COPY.trust,
+    title: 'ব্র্যান্ড-সেফ ক্রিয়েটিভ অপারেশনের জন্য ডিজাইন করা',
+  },
+  about: {
+    eyebrow: 'আমাদের সম্পর্কে',
+    title: 'ব্র্যান্ড নিয়ন্ত্রণ রেখে দ্রুত ক্রিয়েটিভ',
+    description:
+      'Lebhas র প্রোডাক্ট অ্যাসেট থেকে ক্যাম্পেইন-রেডি এক্সিকিউশন পর্যন্ত কাজকে এক জায়গায় আনে, যাতে টিম দ্রুত জেনারেট, রিভিউ, অনুমোদন ও লঞ্চের প্রস্তুতি নিতে পারে।',
+  },
+  finalCta: {
+    title: 'কল্পনার বাইরে বিজ্ঞাপন তৈরি করতে প্রস্তুত?',
+    subtitle: 'একটি প্রোডাক্ট ছবি দিয়ে শুরু করুন এবং মিনিটে ক্যাম্পেইন-রেডি ক্রিয়েটিভ অ্যাসেট তৈরি করুন।',
+  },
+};
+
 const HOME_COPY: Record<HomeLanguage, HomeCopy> = {
-  en: {
-    nav: {
-      home: 'Home',
-      features: 'Features',
-      resources: 'Resources',
-      about: 'About Us',
-      login: 'Login',
-      dashboard: 'Dashboard',
-      theme: 'Theme',
-      language: 'Language',
-    },
-    hero: {
-      eyebrow: 'AI Creative Operating System',
-      lineOne: 'Transform Raw Product',
-      lineTwo: 'Images Into',
-      accentOne: 'High-Converting',
-      accentTwo: 'Campaign Creatives',
-      description:
-        'Lebhas - Brand Attire helps brands, agencies, and marketing teams produce on-brand, platform-ready ads in minutes.',
-      primaryCta: 'Start Creating',
-      secondaryCta: 'See How It Works',
-      rawProduct: 'Raw Product',
-      rawBadge: 'RAW IMAGE',
-      aiProcessing: 'AI Processing',
-      campaignCreative: 'Campaign Creative',
-      highlights: [
-        { icon: 'sparkles', title: 'AI-Powered Intelligence' },
-        { icon: 'users', title: 'Workspace Based' },
-        { icon: 'globe', title: 'Multi-Platform Ready' },
-        { icon: 'shield-check', title: 'Secure & Scalable' },
-      ],
-      processingStages: [
-        'Analyzing product...',
-        'Understanding brand...',
-        'Generating creatives...',
-      ],
-      outcomes: [
-        { icon: 'shield-check', label: 'Brand Consistency' },
-        { icon: 'rocket', label: 'Faster Time to Market' },
-        { icon: 'zap', label: 'Higher Engagement' },
-        { icon: 'bar-chart-3', label: 'Better ROI' },
-      ],
-    },
-    platformStrip: {
-      title: 'Publish across all major platforms',
-      moreLabel: 'And more',
-    },
-    workflow: {
-      title: 'AI Creative Workflow',
-      description: 'End-to-end creative production pipeline for modern marketing teams',
-      steps: [
-        {
-          step: '01',
-          title: 'Upload or Select Raw Product',
-          description: 'Add product images from your library.',
-          icon: 'image',
-        },
-        {
-          step: '02',
-          title: 'AI Prompt Intelligence',
-          description: 'AI understands your brand, product, and campaign goal.',
-          icon: 'box',
-        },
-        {
-          step: '03',
-          title: 'Generate Creatives',
-          description: 'AI creates multiple high-impact variations.',
-          icon: 'sparkles',
-        },
-        {
-          step: '04',
-          title: 'Review and Approve',
-          description: 'Collaborate, review, and approve the best creatives.',
-          icon: 'share-2',
-        },
-        {
-          step: '05',
-          title: 'Export and Publish',
-          description: 'Export in any format and publish across platforms.',
-          icon: 'sun',
-        },
-      ],
-    },
-    workspace: {
-      title: 'Workspace Overview',
-      period: 'This Month',
-      metrics: [
-        { value: '24', delta: '+12%', label: 'Brands' },
-        { value: '156', delta: '+18%', label: 'Products / Services' },
-        { value: '78', delta: '+8%', label: 'Projects / Campaigns' },
-        { value: '342', delta: '+23%', label: 'Creative Requests' },
-      ],
-      activityTitle: 'Recent Activity',
-      activities: [
-        { title: 'New campaign "Winter Collection" created', age: '2h ago', icon: 'target' },
-        { title: '10 creatives generated for "Summer Sale"', age: '6h ago', icon: 'target' },
-        { title: 'Creative "Instagram Poster 01" approved', age: '1d ago', icon: 'circle-check' },
-      ],
-      chartTitle: 'Top Platforms',
-    },
-    about: {
-      eyebrow: 'About Us',
-      title: 'Built for brands that need speed without losing control',
-      description:
-        'Lebhas focuses on the gap between raw product assets and campaign-ready creative execution.',
-      paragraphs: [
-        'The platform keeps product assets, brand context, review, and export readiness in one workspace so teams can move from raw images to approved campaign output with less back-and-forth.',
-      ],
-      points: [
-        {
-          icon: 'sparkles',
-          title: 'Creative intelligence with guardrails',
-          description: 'Generate faster while keeping tone, product context, and brand direction consistent.',
-        },
-        {
-          icon: 'users',
-          title: 'Team-ready workflow',
-          description: 'Support marketing, design, and approval stakeholders in the same operating flow.',
-        },
-        {
-          icon: 'shield-check',
-          title: 'Operational reliability',
-          description: 'Keep asset review, export decisions, and platform readiness visible for the whole team.',
-        },
-      ],
-      stats: [
-        { value: '10x', label: 'Faster concept turnaround' },
-        { value: '4', label: 'Primary publishing channels' },
-        { value: '1', label: 'Connected creative workspace' },
-      ],
-      primaryCta: 'Explore Workflow',
-      secondaryCta: 'Start Creating',
-    },
-    footer: 'Lebhas - Create Ads Beyond Imagination',
-  },
-  bn: {
-    nav: {
-      home: 'হোম',
-      features: 'ফিচার',
-      resources: 'রিসোর্স',
-      about: 'আমাদের সম্পর্কে',
-      login: 'লগইন',
-      dashboard: 'ড্যাশবোর্ড',
-      theme: 'থিম',
-      language: 'ভাষা',
-    },
-    hero: {
-      eyebrow: 'এআই ক্রিয়েটিভ অপারেটিং সিস্টেম',
-      lineOne: 'র' + "'" + ' প্রোডাক্ট ইমেজকে',
-      lineTwo: 'রূপ দিন',
-      accentOne: 'হাই-কনভার্টিং',
-      accentTwo: 'ক্যাম্পেইন ক্রিয়েটিভে',
-      description:
-        'Lebhas - Brand Attire একটি এআই-চালিত ক্রিয়েটিভ অপারেটিং সিস্টেম, যা ব্র্যান্ড, এজেন্সি এবং মার্কেটিং টিমকে মিনিটের মধ্যে অন-ব্র্যান্ড ও প্ল্যাটফর্ম-রেডি বিজ্ঞাপন তৈরি করতে সাহায্য করে।',
-      primaryCta: 'ক্রিয়েটিভ শুরু করুন',
-      secondaryCta: 'কীভাবে কাজ করে দেখুন',
-      rawProduct: 'র' + "'" + ' প্রোডাক্ট',
-      rawBadge: 'র' + "'" + ' ইমেজ',
-      aiProcessing: 'এআই প্রসেসিং',
-      campaignCreative: 'ক্যাম্পেইন ক্রিয়েটিভ',
-      highlights: [
-        { icon: 'sparkles', title: 'এআই-চালিত ইন্টেলিজেন্স' },
-        { icon: 'users', title: 'ওয়ার্কস্পেস ভিত্তিক' },
-        { icon: 'globe', title: 'মাল্টি-প্ল্যাটফর্ম রেডি' },
-        { icon: 'shield-check', title: 'সিকিউর ও স্কেলেবল' },
-      ],
-      processingStages: [
-        'প্রোডাক্ট বিশ্লেষণ করা হচ্ছে...',
-        'ব্র্যান্ড বুঝে নেওয়া হচ্ছে...',
-        'ক্রিয়েটিভ তৈরি করা হচ্ছে...',
-      ],
-      outcomes: [
-        { icon: 'shield-check', label: 'ব্র্যান্ড কনসিস্টেন্সি' },
-        { icon: 'rocket', label: 'দ্রুততর গো-টু-মার্কেট' },
-        { icon: 'zap', label: 'উচ্চতর এনগেজমেন্ট' },
-        { icon: 'bar-chart-3', label: 'ভালো ROI' },
-      ],
-    },
-    platformStrip: {
-      title: 'সব প্রধান প্ল্যাটফর্মে প্রচার করুন',
-      moreLabel: 'আরও অনেক',
-    },
-    workflow: {
-      title: 'এআই ক্রিয়েটিভ ওয়ার্কফ্লো',
-      description: 'আধুনিক মার্কেটিং টিমের জন্য শুরু থেকে শেষ পর্যন্ত ক্রিয়েটিভ প্রোডাকশন পাইপলাইন',
-      steps: [
-        {
-          step: '01',
-          title: 'র' + "'" + ' প্রোডাক্ট আপলোড বা সিলেক্ট করুন',
-          description: 'আপনার লাইব্রেরি থেকে প্রোডাক্ট ইমেজ যোগ করুন।',
-          icon: 'image',
-        },
-        {
-          step: '02',
-          title: 'এআই প্রম্পট ইন্টেলিজেন্স',
-          description: 'এআই আপনার ব্র্যান্ড, প্রোডাক্ট এবং ক্যাম্পেইন লক্ষ্য বুঝে নেয়।',
-          icon: 'box',
-        },
-        {
-          step: '03',
-          title: 'ক্রিয়েটিভ জেনারেট করুন',
-          description: 'এআই একাধিক উচ্চ-প্রভাবশালী ভ্যারিয়েশন তৈরি করে।',
-          icon: 'sparkles',
-        },
-        {
-          step: '04',
-          title: 'রিভিউ ও অনুমোদন',
-          description: 'সহযোগিতার মাধ্যমে সেরা ক্রিয়েটিভ বেছে অনুমোদন দিন।',
-          icon: 'share-2',
-        },
-        {
-          step: '05',
-          title: 'এক্সপোর্ট ও প্রকাশ',
-          description: 'যেকোনো ফরম্যাটে এক্সপোর্ট করে বিভিন্ন প্ল্যাটফর্মে প্রকাশ করুন।',
-          icon: 'sun',
-        },
-      ],
-    },
-    workspace: {
-      title: 'ওয়ার্কস্পেস ওভারভিউ',
-      period: 'এই মাস',
-      metrics: [
-        { value: '24', delta: '+12%', label: 'ব্র্যান্ড' },
-        { value: '156', delta: '+18%', label: 'প্রোডাক্ট / সার্ভিস' },
-        { value: '78', delta: '+8%', label: 'প্রজেক্ট / ক্যাম্পেইন' },
-        { value: '342', delta: '+23%', label: 'ক্রিয়েটিভ রিকোয়েস্ট' },
-      ],
-      activityTitle: 'সাম্প্রতিক কার্যক্রম',
-      activities: [
-        { title: 'নতুন "Winter Collection" ক্যাম্পেইন তৈরি হয়েছে', age: '২ ঘন্টা আগে', icon: 'target' },
-        { title: '"Summer Sale" এর জন্য ১০টি ক্রিয়েটিভ তৈরি হয়েছে', age: '৬ ঘন্টা আগে', icon: 'target' },
-        { title: '"Instagram Poster 01" ক্রিয়েটিভ অনুমোদিত হয়েছে', age: '১ দিন আগে', icon: 'circle-check' },
-      ],
-      chartTitle: 'শীর্ষ প্ল্যাটফর্ম',
-    },
-    about: {
-      eyebrow: 'আমাদের সম্পর্কে',
-      title: 'যেসব ব্র্যান্ড গতি চায় কিন্তু নিয়ন্ত্রণ হারাতে চায় না, তাদের জন্য তৈরি',
-      description:
-        'Lebhas কাঁচা প্রোডাক্ট অ্যাসেট থেকে ক্যাম্পেইন-রেডি ক্রিয়েটিভ এক্সিকিউশন পর্যন্ত ব্যবধানটি কমায়।',
-      paragraphs: [
-        'এই প্ল্যাটফর্ম এমন টিমের জন্য তৈরি, যাদের দ্রুত র' + "'" + ' ইমেজ থেকে অনুমোদিত ক্রিয়েটিভ আউটপুটে যেতে হয়। ব্র্যান্ড কনটেক্সট, রিভিউ ফ্লো এবং পাবলিশিং রেডিনেস একই ওয়ার্কস্পেসে যুক্ত থাকে।',
-        'ফলে দ্রুত লঞ্চ, পরিষ্কার কোলাবোরেশন এবং বেশি ক্যাম্পেইন ভলিউমেও ব্র্যান্ড-সম্মত আউটপুট বজায় রাখা সহজ হয়।',
-      ],
-      points: [
-        {
-          icon: 'sparkles',
-          title: 'গার্ডরেইলসহ ক্রিয়েটিভ ইন্টেলিজেন্স',
-          description: 'দ্রুত জেনারেট করুন, কিন্তু টোন, প্রোডাক্ট কনটেক্সট ও ব্র্যান্ড নির্দেশনা ঠিক রাখুন।',
-        },
-        {
-          icon: 'users',
-          title: 'টিম-রেডি ওয়ার্কফ্লো',
-          description: 'মার্কেটিং, ডিজাইন ও অনুমোদন স্টেকহোল্ডারদের একই ফ্লোতে যুক্ত রাখুন।',
-        },
-        {
-          icon: 'shield-check',
-          title: 'অপারেশনাল নির্ভরযোগ্যতা',
-          description: 'অ্যাসেট রিভিউ, এক্সপোর্ট সিদ্ধান্ত এবং প্ল্যাটফর্ম রেডিনেস সবার জন্য দৃশ্যমান রাখুন।',
-        },
-      ],
-      stats: [
-        { value: '10x', label: 'দ্রুততর কনসেপ্ট টার্নঅ্যারাউন্ড' },
-        { value: '4', label: 'প্রধান পাবলিশিং চ্যানেল' },
-        { value: '1', label: 'সংযুক্ত ক্রিয়েটিভ ওয়ার্কস্পেস' },
-      ],
-      primaryCta: 'ওয়ার্কফ্লো দেখুন',
-      secondaryCta: 'ক্রিয়েটিভ শুরু করুন',
-    },
-    footer: 'Lebhas - Create Ads Beyond Imagination',
-  },
+  en: EN_COPY,
+  bn: BN_COPY,
 };
 
 @Component({
@@ -416,6 +372,7 @@ const HOME_COPY: Record<HomeLanguage, HomeCopy> = {
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class HomeComponent {
+  private readonly destroyRef = inject(DestroyRef);
   private readonly document = inject(DOCUMENT);
   private readonly router = inject(Router);
   private readonly auth = inject(CurrentUserStore);
@@ -428,8 +385,13 @@ export class HomeComponent {
   protected readonly authInitialTab = signal<AuthTab>('login');
   protected readonly menuOpen = signal(false);
   protected readonly language = signal<HomeLanguage>('en');
+  protected readonly activeConversionIndex = signal(0);
 
   protected readonly copy = computed(() => HOME_COPY[this.language()]);
+  protected readonly conversionExamples = CONVERSION_EXAMPLES;
+  protected readonly activeConversion = computed(
+    () => CONVERSION_EXAMPLES[this.activeConversionIndex() % CONVERSION_EXAMPLES.length],
+  );
   protected readonly themeToggleIcon = computed(() => (this.currentTheme() === 'dark' ? 'sun' : 'moon'));
   protected readonly themeToggleLabel = computed(() =>
     this.currentTheme() === 'dark' ? 'Switch to light mode' : 'Switch to dark mode',
@@ -438,45 +400,11 @@ export class HomeComponent {
   protected readonly navItems = computed<readonly NavItem[]>(() => [
     { label: this.copy().nav.home, href: '#home' },
     { label: this.copy().nav.features, href: '#features' },
-    { label: this.copy().nav.resources, href: '#workflow', hasDropdown: true },
+    { label: this.copy().nav.resources, href: '#resources', hasDropdown: true },
     { label: this.copy().nav.about, href: '#about' },
   ]);
 
-  protected readonly heroHighlights = computed(() => this.copy().hero.highlights);
-  protected readonly processingStages = computed(() => this.copy().hero.processingStages);
-  protected readonly outcomeChips = computed(() => this.copy().hero.outcomes);
-
-  protected readonly platformBadges = computed<readonly PlatformBadge[]>(() => [
-    { name: 'Facebook', shortLabel: 'f', accentClass: 'platform-facebook' },
-    { name: 'Instagram', shortLabel: 'ig', accentClass: 'platform-instagram' },
-    { name: 'TikTok', shortLabel: 'tt', accentClass: 'platform-tiktok' },
-    { name: 'LinkedIn', shortLabel: 'in', accentClass: 'platform-linkedin' },
-    {
-      name: this.copy().platformStrip.moreLabel,
-      shortLabel: '...',
-      accentClass: 'platform-more',
-    },
-  ]);
-
-  protected readonly workflowSteps = computed(() => this.copy().workflow.steps);
-  protected readonly workspaceMetrics = computed(() => this.copy().workspace.metrics);
-  protected readonly activityItems = computed(() => this.copy().workspace.activities);
-  protected readonly aboutPoints = computed(() => this.copy().about.points);
-  protected readonly aboutStats = computed(() => this.copy().about.stats);
-  protected readonly topPlatforms = TOP_PLATFORMS;
-
-  protected readonly donutGradient = computed(() => {
-    let start = 0;
-
-    const segments = this.topPlatforms.map((platform) => {
-      const end = start + platform.share;
-      const segment = `${platform.color} ${start}% ${end}%`;
-      start = end;
-      return segment;
-    });
-
-    return `conic-gradient(${segments.join(', ')})`;
-  });
+  protected readonly platformBadges = PLATFORMS;
 
   constructor() {
     const searchParams = new URLSearchParams(globalThis.location.search);
@@ -484,6 +412,20 @@ export class HomeComponent {
     const openedFromQuery = searchParams.get('auth') === 'login';
 
     this.loginModalOpen.set(openedFromLoginRoute || openedFromQuery);
+
+    const conversionTimer = globalThis.setInterval(() => {
+      this.nextConversion();
+    }, CONVERSION_ROTATION_MS);
+
+    this.destroyRef.onDestroy(() => globalThis.clearInterval(conversionTimer));
+  }
+
+  protected selectConversion(index: number): void {
+    this.activeConversionIndex.set(index);
+  }
+
+  private nextConversion(): void {
+    this.activeConversionIndex.update((index) => (index + 1) % CONVERSION_EXAMPLES.length);
   }
 
   protected toggleMenu(): void {
@@ -550,5 +492,3 @@ export class HomeComponent {
     });
   }
 }
-
-

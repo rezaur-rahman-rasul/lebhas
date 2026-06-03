@@ -3,6 +3,7 @@ import { Router } from '@angular/router';
 
 import { normalizeHttpError } from '@app/core/api/http-error';
 import { AuthApiService } from '@app/core/auth/auth-api.service';
+import { resolvePostLoginRedirect } from '@app/core/auth/auth-redirects';
 import { CurrentUserStore } from '@app/core/auth/current-user.store';
 import { AuthActionFailure, AuthActionResult, AuthSession } from '@app/core/auth/auth.types';
 import { NotificationStateService } from '@app/core/state/notification-state.service';
@@ -95,10 +96,10 @@ export class AuthFacade {
       () => this.authService.login(payload),
       async (session) => {
         this.currentUserStore.setSession(session, {
-          persistent: options?.rememberMe ?? true,
+          persistent: options?.rememberMe ?? false,
         });
         this.initializeProfileState();
-        await this.router.navigateByUrl(returnUrl || '/dashboard');
+        await this.router.navigateByUrl(resolvePostLoginRedirect(session.user.role, returnUrl));
       },
     );
   }
@@ -107,7 +108,7 @@ export class AuthFacade {
     return this.runSessionAction(
       () => this.authService.register(payload),
       async (session) => {
-        this.currentUserStore.setSession(session, { persistent: true });
+        this.currentUserStore.setSession(session, { persistent: false });
         this.initializeProfileState();
         this.notifications.success('Workspace created', 'Your account is ready.');
         await this.router.navigateByUrl('/dashboard');
@@ -119,7 +120,7 @@ export class AuthFacade {
     return this.runSessionAction(
       () => this.authService.register(payload),
       async (session) => {
-        this.currentUserStore.setSession(session, { persistent: true });
+        this.currentUserStore.setSession(session, { persistent: false });
         this.initializeProfileState();
         this.notifications.success('Invitation accepted', 'You can start working immediately.');
         await this.router.navigateByUrl('/dashboard');
@@ -206,7 +207,9 @@ export class AuthFacade {
       return { ok: true, data: undefined };
     } catch (error) {
       const failure = this.toActionFailure(error);
-      this.currentUserStore.setAuthError(failure.message);
+      this.currentUserStore.setAuthError(
+        Object.keys(failure.fieldErrors).length === 0 ? failure.message : null,
+      );
       return failure;
     } finally {
       this.currentUserStore.setAuthLoading(false);

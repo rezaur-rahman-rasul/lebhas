@@ -17,6 +17,8 @@ public record GeneratedVersionView(
         String versionName,
         UUID storageFileId,
         UUID assetId,
+        String previewUrl,
+        String thumbnailUrl,
         GenerationStatus generationStatus,
         ApprovalStatus approvalStatus,
         boolean editableBeforeApproval,

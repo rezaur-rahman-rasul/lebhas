@@ -42,7 +42,10 @@ public class R2StorageConfig {
     @Bean
     S3Presigner r2S3Presigner(R2StorageProperties properties) {
         var builder = S3Presigner.builder()
-                .region(Region.of(properties.getRegion()));
+                .region(Region.of(properties.getRegion()))
+                .serviceConfiguration(S3Configuration.builder()
+                        .pathStyleAccessEnabled(properties.isPathStyleAccessEnabled())
+                        .build());
         if (properties.getEndpoint() != null) {
             builder.endpointOverride(properties.getEndpoint());
         }

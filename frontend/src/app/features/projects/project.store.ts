@@ -35,6 +35,11 @@ export class ProjectStore {
       return;
     }
 
+    if (this.loadedWorkspaceIdSignal() !== workspaceId) {
+      this.itemsSignal.set([]);
+      this.loadedWorkspaceIdSignal.set(workspaceId);
+    }
+
     this.loadingSignal.set(true);
     this.errorSignal.set(null);
 
@@ -107,5 +112,13 @@ export class ProjectStore {
     } finally {
       this.savingSignal.set(false);
     }
+  }
+
+  reset(): void {
+    this.itemsSignal.set([]);
+    this.loadedWorkspaceIdSignal.set(null);
+    this.errorSignal.set(null);
+    this.loadingSignal.set(false);
+    this.savingSignal.set(false);
   }
 }

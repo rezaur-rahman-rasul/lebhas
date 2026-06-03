@@ -58,6 +58,7 @@ export class AssetLibraryPage {
   private readonly pendingDeleteAssetSignal = signal<Asset | null>(null);
   private readonly downloadingAssetIdSignal = signal<string | null>(null);
   private readonly uploadFieldErrorsSignal = signal<Readonly<Record<string, string>>>({});
+  private readonly uploadFormErrorSignal = signal<string | null>(null);
 
   protected readonly uploaderOpen = this.uploaderOpenSignal.asReadonly();
   protected readonly previewOpen = this.previewOpenSignal.asReadonly();
@@ -67,6 +68,7 @@ export class AssetLibraryPage {
   protected readonly pendingDeleteAsset = this.pendingDeleteAssetSignal.asReadonly();
   protected readonly downloadingAssetId = this.downloadingAssetIdSignal.asReadonly();
   protected readonly uploadFieldErrors = this.uploadFieldErrorsSignal.asReadonly();
+  protected readonly uploadFormError = this.uploadFormErrorSignal.asReadonly();
 
   protected readonly hasWorkspaceContext = computed(() => Boolean(this.auth.activeWorkspaceId()));
   protected readonly roleLabel = computed(() => this.auth.currentRole() ?? 'ADMIN');
@@ -91,16 +93,19 @@ export class AssetLibraryPage {
 
   protected openUploader(): void {
     this.uploadFieldErrorsSignal.set({});
+    this.uploadFormErrorSignal.set(null);
     this.uploaderOpenSignal.set(true);
   }
 
   protected closeUploader(): void {
     this.uploadFieldErrorsSignal.set({});
+    this.uploadFormErrorSignal.set(null);
     this.uploaderOpenSignal.set(false);
   }
 
   protected async submitUpload(payload: UploadAssetPayload): Promise<void> {
     this.uploadFieldErrorsSignal.set({});
+    this.uploadFormErrorSignal.set(null);
     const result = await this.store.uploadAsset(payload);
 
     if (result.ok) {
@@ -109,6 +114,7 @@ export class AssetLibraryPage {
     }
 
     this.uploadFieldErrorsSignal.set(result.fieldErrors);
+    this.uploadFormErrorSignal.set(result.message ?? 'Image upload failed. Check the file and try again.');
   }
 
   protected cancelUpload(): void {

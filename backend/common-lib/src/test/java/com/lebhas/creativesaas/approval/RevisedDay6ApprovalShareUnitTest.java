@@ -314,16 +314,19 @@ class RevisedDay6ApprovalShareUnitTest {
             ShareLinkCacheService cacheService,
             ShareLinkEventProducer eventProducer
     ) {
+        SecureTokenService secureTokenService = mock(SecureTokenService.class);
+        when(secureTokenService.hashToken(any())).thenAnswer(invocation -> invocation.getArgument(0));
         return new ShareLinkService(
                 authorizationService,
                 mock(GeneratedVersionRepository.class),
-                mock(SecureTokenService.class),
+                secureTokenService,
                 shareLinkRepository,
                 validationService,
                 mock(ApprovalPermissionValidationService.class),
                 cacheService,
                 new ShareLinkMapper(),
                 eventProducer,
+                null,
                 CLOCK);
     }
 

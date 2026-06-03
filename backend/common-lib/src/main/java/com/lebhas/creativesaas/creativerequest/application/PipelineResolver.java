@@ -53,7 +53,7 @@ public class PipelineResolver {
                 .filter(CreativePipelineLayer::isEnabled)
                 .toList();
         if (layers.isEmpty()) {
-            throw new BusinessException(ErrorCode.BUSINESS_RULE_VIOLATION, "Active creative pipeline has no enabled layers");
+            throw new BusinessException(ErrorCode.BUSINESS_RULE_VIOLATION, "Creative generation layers are not configured");
         }
         return new PipelineResolutionContext(planContext, pipeline, layers);
     }

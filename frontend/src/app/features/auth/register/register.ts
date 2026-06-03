@@ -90,7 +90,7 @@ export class RegisterPageComponent {
     }
 
     if (this.form.hasError('mismatch')) {
-      return 'Passwords do not match.';
+      return 'Password and confirm password do not match.';
     }
 
     return '';
@@ -105,7 +105,7 @@ export class RegisterPageComponent {
       return;
     }
 
-    const { confirmPassword: _confirmPassword, ...payload } = this.form.getRawValue();
+    const payload = this.form.getRawValue();
     const result = await this.auth.register({
       ...payload,
       phone: payload.phone || null,

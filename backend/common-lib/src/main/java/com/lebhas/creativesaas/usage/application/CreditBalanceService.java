@@ -44,8 +44,7 @@ public class CreditBalanceService {
 
     @Transactional(readOnly = true)
     public CreditBalanceView getBalance(UUID workspaceId) {
-        CreditWalletEntity wallet = creditWalletRepository.findByWorkspaceIdAndDeletedFalse(requireWorkspaceId(workspaceId))
-                .orElseThrow(() -> new BusinessException(ErrorCode.CREDIT_WALLET_NOT_FOUND));
+        CreditWalletEntity wallet = initializeWallet(requireWorkspaceId(workspaceId));
         return creditUsageMapper.toBalanceView(wallet);
     }
 
@@ -83,6 +82,15 @@ public class CreditBalanceService {
         CreditWalletEntity wallet = initializeWallet(workspaceId);
         BigDecimal before = wallet.getBalance();
         wallet.addBalance(amount);
+        wallet = creditWalletRepository.save(wallet);
+        cache(wallet);
+        return new BalanceMovement(wallet, before, wallet.getBalance());
+    }
+
+    BalanceMovement adjust(UUID workspaceId, BigDecimal amount) {
+        CreditWalletEntity wallet = initializeWallet(workspaceId);
+        BigDecimal before = wallet.getBalance();
+        wallet.adjustBalance(amount);
         wallet = creditWalletRepository.save(wallet);
         cache(wallet);
         return new BalanceMovement(wallet, before, wallet.getBalance());

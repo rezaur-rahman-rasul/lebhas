@@ -9,6 +9,7 @@ import {
   inject,
   signal,
 } from '@angular/core';
+import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
 import { ActivatedRoute, RouterLink } from '@angular/router';
 
@@ -124,22 +125,37 @@ export class ProjectsComponent implements AfterViewInit {
   constructor() {
     afterNextRender(() => this.resetRouteViewport());
 
+    this.route.queryParamMap.pipe(takeUntilDestroyed(this.destroyRef)).subscribe((params) => {
+      this.selectedProjectId.set(params.get('projectId'));
+    });
+
     effect(() => {
       const workspaceId = this.workspaceId();
       if (!workspaceId) {
+        this.brandStore.reset();
+        this.productStore.reset();
+        this.store.reset();
+        this.selectedProjectId.set(null);
         return;
       }
 
       if (this.permissions.canViewBrands()) {
         void this.brandStore.load(workspaceId);
+      } else {
+        this.brandStore.reset();
       }
 
       if (this.permissions.canViewProducts()) {
         void this.productStore.load(workspaceId);
+      } else {
+        this.productStore.reset();
       }
 
       if (this.canView()) {
         void this.store.load(workspaceId);
+      } else {
+        this.store.reset();
+        this.selectedProjectId.set(null);
       }
     });
 
@@ -311,6 +327,7 @@ export class ProjectsComponent implements AfterViewInit {
     const value = this.form.getRawValue();
 
     return {
+      productServiceId: value.productServiceId,
       name: value.name.trim(),
       description: this.normalize(value.description),
       campaignObjective: this.normalize(value.campaignObjective),

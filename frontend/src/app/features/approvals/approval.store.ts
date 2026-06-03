@@ -71,7 +71,9 @@ export class ApprovalStore {
     this.errorSignal.set(null);
 
     try {
-      const approval = await this.api.decide(workspaceId, approvalId, payload);
+      const currentApproval = this.approvalsSignal().find((item) => item.id === approvalId);
+      const generatedVersionId = currentApproval?.generatedVersionId ?? approvalId;
+      const approval = await this.api.decide(workspaceId, generatedVersionId, payload);
       this.approvalsSignal.update((approvals) => upsertApproval(approvals, approval));
       this.selectedApprovalSignal.set(approval);
       this.notifications.success('Approval updated', 'Your review decision has been saved.');

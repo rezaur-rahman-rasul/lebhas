@@ -1,6 +1,6 @@
 package com.lebhas.creativesaas.auditlog.domain;
 
-import com.lebhas.creativesaas.common.audit.TenantAwareEntity;
+import com.lebhas.creativesaas.common.audit.BaseEntity;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.EnumType;
@@ -23,7 +23,10 @@ import java.util.UUID;
                 @Index(name = "idx_audit_logs_reference", columnList = "entity_type,entity_id"),
                 @Index(name = "idx_audit_logs_action_outcome", columnList = "action_type,outcome")
         })
-public class AuditLog extends TenantAwareEntity {
+public class AuditLog extends BaseEntity {
+
+    @Column(name = "workspace_id", updatable = false)
+    private UUID workspaceId;
 
     @Column(name = "source_event_id", nullable = false, updatable = false, length = 120)
     private String sourceEventId;
@@ -78,7 +81,7 @@ public class AuditLog extends TenantAwareEntity {
             Instant auditAt
     ) {
         AuditLog auditLog = new AuditLog();
-        auditLog.assignWorkspace(workspaceId);
+        auditLog.workspaceId = workspaceId;
         auditLog.sourceEventId = normalizeRequired(sourceEventId, "sourceEventId");
         auditLog.actorUserId = actorUserId;
         auditLog.actionType = require(actionType, "actionType");
@@ -95,6 +98,10 @@ public class AuditLog extends TenantAwareEntity {
 
     public String getSourceEventId() {
         return sourceEventId;
+    }
+
+    public UUID getWorkspaceId() {
+        return workspaceId;
     }
 
     public UUID getActorUserId() {

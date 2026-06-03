@@ -99,7 +99,7 @@ public class StorageProperties {
     public static class LocalProperties {
         private Path rootPath = Path.of("./var/storage");
         private URI baseUrl = URI.create("http://localhost:8084");
-        private String signingSecret = "creative-saas-local-asset-url-secret";
+        private String signingSecret;
 
         public Path getRootPath() {
             return rootPath;

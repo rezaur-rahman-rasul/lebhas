@@ -1,5 +1,4 @@
-import { Injectable, inject, signal } from '@angular/core';
-import { Router } from '@angular/router';
+import { Injectable, signal } from '@angular/core';
 import { timer } from 'rxjs';
 
 export type NotificationTone = 'success' | 'error' | 'info' | 'warning';
@@ -14,8 +13,7 @@ export interface AppNotification {
 
 @Injectable({ providedIn: 'root' })
 export class NotificationStateService {
-  private readonly router = inject(Router);
-  private readonly duplicateWindowMs = 8000;
+  private readonly duplicateWindowMs = 3000;
   private readonly visibleLimit = 2;
   private readonly lastShownByKey = new Map<string, number>();
   private readonly notificationsSignal = signal<readonly AppNotification[]>([]);
@@ -56,7 +54,7 @@ export class NotificationStateService {
   }
 
   private notificationKey(notification: Omit<AppNotification, 'id' | 'key'>): string {
-    return [this.router.url, notification.tone, notification.title, notification.message ?? '']
+    return [notification.tone, notification.title, notification.message ?? '']
       .join('|')
       .toLowerCase();
   }

@@ -2,6 +2,7 @@ import { inject, Injectable } from '@angular/core';
 import { firstValueFrom } from 'rxjs';
 
 import { ApiService } from '@app/core/api/api.service';
+import { ApiEndpoints } from '@app/core/api/api-endpoints';
 import { unwrapApiResponse } from '@app/shared/utils/api-response';
 import {
   CreateProductServicePayload,
@@ -15,7 +16,7 @@ export class ProductServiceApiService {
 
   async list(workspaceId: string): Promise<readonly ProductServiceRecord[]> {
     const response = await firstValueFrom(
-      this.api.get<ProductServiceRecord[]>(`/api/v1/workspaces/${workspaceId}/product-services`),
+      this.api.get<ProductServiceRecord[]>(ApiEndpoints.productServices.list(workspaceId)),
     );
 
     return unwrapApiResponse(response);
@@ -28,7 +29,7 @@ export class ProductServiceApiService {
   ): Promise<ProductServiceRecord> {
     const response = await firstValueFrom(
       this.api.post<ProductServiceRecord, CreateProductServicePayload>(
-        `/api/v1/workspaces/${workspaceId}/brands/${brandId}/product-services`,
+        ApiEndpoints.brands.productServices(workspaceId, brandId),
         payload,
       ),
     );
@@ -43,7 +44,7 @@ export class ProductServiceApiService {
   ): Promise<ProductServiceRecord> {
     const response = await firstValueFrom(
       this.api.put<ProductServiceRecord, UpdateProductServicePayload>(
-        `/api/v1/workspaces/${workspaceId}/product-services/${productServiceId}`,
+        ApiEndpoints.productServices.detail(workspaceId, productServiceId),
         payload,
       ),
     );
@@ -53,7 +54,7 @@ export class ProductServiceApiService {
 
   async remove(workspaceId: string, productServiceId: string): Promise<void> {
     await firstValueFrom(
-      this.api.delete<void>(`/api/v1/workspaces/${workspaceId}/product-services/${productServiceId}`),
+      this.api.delete<void>(ApiEndpoints.productServices.detail(workspaceId, productServiceId)),
     );
   }
 }

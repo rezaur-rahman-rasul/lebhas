@@ -143,6 +143,20 @@
   padding: 0 0.78rem;
 }
 
+.ai-master-toolbar select,
+.ai-routing-form select {
+  appearance: none;
+  background-image:
+    linear-gradient(45deg, transparent 50%, rgb(var(--color-muted)) 50%),
+    linear-gradient(135deg, rgb(var(--color-muted)) 50%, transparent 50%);
+  background-position:
+    calc(100% - 18px) 50%,
+    calc(100% - 13px) 50%;
+  background-size: 5px 5px, 5px 5px;
+  background-repeat: no-repeat;
+  padding-right: 2.35rem;
+}
+
 .ai-master-toolbar select:focus,
 .ai-routing-form select:focus,
 .ai-routing-form input[type='number']:focus {
@@ -227,10 +241,41 @@
 .ai-routing-form small,
 .ai-routing-footer span,
 .ai-routing-selected span,
-.ai-routing-warning span {
+.ai-routing-warning span,
+.ai-routing-policy-list span {
   color: rgb(var(--color-muted));
   font-size: 0.78rem;
   line-height: 1.45;
+}
+
+.ai-routing-policy-list {
+  display: grid;
+  gap: 0.7rem;
+}
+
+.ai-routing-policy-list p {
+  color: rgb(var(--color-muted));
+  font-size: 0.68rem;
+  font-weight: 850;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+
+.ai-routing-policy-list div {
+  display: grid;
+  gap: 0.2rem;
+  border: 1px solid rgb(var(--color-border) / 0.66);
+  border-radius: 0.85rem;
+  background: rgb(var(--color-panel) / 0.34);
+  padding: 0.75rem;
+}
+
+.ai-routing-policy-list strong {
+  overflow: hidden;
+  color: rgb(var(--color-ink));
+  font-size: 0.9rem;
+  font-weight: 900;
+  text-overflow: ellipsis;
 }
 
 .ai-tool-costs strong,

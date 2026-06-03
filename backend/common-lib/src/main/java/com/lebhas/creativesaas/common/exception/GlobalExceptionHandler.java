@@ -1,5 +1,7 @@
 package com.lebhas.creativesaas.common.exception;
 
+import com.fasterxml.jackson.databind.JsonMappingException;
+import com.fasterxml.jackson.databind.exc.InvalidFormatException;
 import com.lebhas.creativesaas.common.api.ApiError;
 import com.lebhas.creativesaas.common.api.ApiResponse;
 import jakarta.servlet.http.HttpServletRequest;
@@ -64,6 +66,21 @@ public class GlobalExceptionHandler {
 
     @ExceptionHandler(HttpMessageNotReadableException.class)
     ResponseEntity<ApiResponse<Void>> handleUnreadableMessage(HttpMessageNotReadableException exception) {
+        if (exception.getCause() instanceof InvalidFormatException invalidFormatException) {
+            String field = invalidFormatException.getPath().stream()
+                    .map(JsonMappingException.Reference::getFieldName)
+                    .filter(name -> name != null && !name.isBlank())
+                    .reduce((first, second) -> second)
+                    .orElse(null);
+            String targetType = invalidFormatException.getTargetType() == null
+                    ? "the required type"
+                    : invalidFormatException.getTargetType().getSimpleName();
+            ApiError error = ApiError.of(
+                    ErrorCode.VALIDATION_FAILED.code(),
+                    field,
+                    "Value could not be converted to " + targetType);
+            return failure(ErrorCode.VALIDATION_FAILED, List.of(error));
+        }
         ApiError error = ApiError.of(ErrorCode.VALIDATION_FAILED.code(), "Malformed request body");
         return failure(ErrorCode.VALIDATION_FAILED, List.of(error));
     }

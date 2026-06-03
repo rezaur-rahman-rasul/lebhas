@@ -35,11 +35,13 @@ public class KafkaConsumerConfig {
 
     @Bean
     ConcurrentKafkaListenerContainerFactory<String, Object> kafkaListenerContainerFactory(
-            ConsumerFactory<String, Object> domainEventConsumerFactory
+            ConsumerFactory<String, Object> domainEventConsumerFactory,
+            KafkaMessagingProperties kafkaMessagingProperties
     ) {
         ConcurrentKafkaListenerContainerFactory<String, Object> factory =
                 new ConcurrentKafkaListenerContainerFactory<>();
         factory.setConsumerFactory(domainEventConsumerFactory);
+        factory.setAutoStartup(kafkaMessagingProperties.isEnabled());
         return factory;
     }
 }

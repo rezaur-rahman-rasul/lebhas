@@ -169,17 +169,17 @@ export class UsageBillingStore {
     }
 
     return this.run(async () => {
-      const [workspaceUsage, aiCosts, topCostWorkspaces, planUtilization] = await Promise.all([
-        this.api.getMasterWorkspaceUsage(),
-        this.api.getMasterAiCosts(),
-        this.api.getMasterTopCostWorkspaces(),
-        this.api.getMasterPlanUtilization(),
-      ]);
+      await this.loadMasterUsageSectionData('overview');
+    });
+  }
 
-      this.masterWorkspaceUsageSignal.set(workspaceUsage);
-      this.masterAiCostsSignal.set(aiCosts);
-      this.topCostWorkspacesSignal.set(topCostWorkspaces);
-      this.planUtilizationSignal.set(planUtilization);
+  async loadMasterUsageSection(section: 'overview' | 'workspaces' | 'ai-costs' | 'plan-utilization'): Promise<UsageBillingActionResult> {
+    if (!this.permissions.canViewMasterUsage()) {
+      return this.restricted();
+    }
+
+    return this.run(async () => {
+      await this.loadMasterUsageSectionData(section);
     });
   }
 
@@ -207,7 +207,39 @@ export class UsageBillingStore {
     };
   }
 
-  private async run(action: () => Promise<void>): Promise<UsageBillingActionResult> {
+  private async loadMasterUsageSectionData(section: 'overview' | 'workspaces' | 'ai-costs' | 'plan-utilization'): Promise<void> {
+    switch (section) {
+      case 'workspaces': {
+        const [workspaceUsage, topCostWorkspaces] = await Promise.all([
+          this.api.getMasterWorkspaceUsage(),
+          this.api.getMasterTopCostWorkspaces(),
+        ]);
+        this.masterWorkspaceUsageSignal.set(workspaceUsage);
+        this.topCostWorkspacesSignal.set(topCostWorkspaces);
+        return;
+      }
+      case 'ai-costs':
+        this.masterAiCostsSignal.set(await this.api.getMasterAiCosts());
+        return;
+      case 'plan-utilization':
+        this.planUtilizationSignal.set(await this.api.getMasterPlanUtilization());
+        return;
+      default: {
+        const [workspaceUsage, aiCosts, topCostWorkspaces, planUtilization] = await Promise.all([
+          this.api.getMasterWorkspaceUsage(),
+          this.api.getMasterAiCosts(),
+          this.api.getMasterTopCostWorkspaces(),
+          this.api.getMasterPlanUtilization(),
+        ]);
+        this.masterWorkspaceUsageSignal.set(workspaceUsage);
+        this.masterAiCostsSignal.set(aiCosts);
+        this.topCostWorkspacesSignal.set(topCostWorkspaces);
+        this.planUtilizationSignal.set(planUtilization);
+      }
+    }
+  }
+
+  private async run(action: () => Promise<void>, notify = false): Promise<UsageBillingActionResult> {
     this.loadingSignal.set(true);
     this.errorSignal.set(null);
 
@@ -217,7 +249,9 @@ export class UsageBillingStore {
     } catch (error) {
       const message = friendlyError(error);
       this.errorSignal.set(message);
-      this.notifications.error('Usage & Billing', message);
+      if (notify) {
+        this.notifications.error('Usage & Billing', message);
+      }
       return { ok: false, message };
     } finally {
       this.loadingSignal.set(false);

@@ -37,7 +37,7 @@ type ProductDialogMode = 'create' | 'edit' | null;
     SectionHeaderComponent,
   ],
   templateUrl: './product-services.html',
-  styleUrl: './product-services.scss',
+  styleUrls: ['./product-services.scss'],
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class ProductServicesComponent {
@@ -82,15 +82,21 @@ export class ProductServicesComponent {
     effect(() => {
       const workspaceId = this.workspaceId();
       if (!workspaceId) {
+        this.brandStore.reset();
+        this.store.reset();
         return;
       }
 
       if (this.permissions.canViewBrands()) {
         void this.brandStore.load(workspaceId);
+      } else {
+        this.brandStore.reset();
       }
 
       if (this.canView()) {
         void this.store.load(workspaceId);
+      } else {
+        this.store.reset();
       }
     });
   }

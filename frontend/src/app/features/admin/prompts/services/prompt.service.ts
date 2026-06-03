@@ -2,6 +2,7 @@ import { HttpContext } from '@angular/common/http';
 import { Injectable, inject } from '@angular/core';
 import { map } from 'rxjs';
 
+import { ApiEndpoints } from '@app/core/api/api-endpoints';
 import { ApiService } from '@app/core/api/api.service';
 import {
   CampaignObjective,
@@ -137,7 +138,7 @@ export class PromptService {
 
   listTemplates(workspaceId: string, filters: PromptTemplateFilter, context?: HttpContext) {
     return this.api
-      .get<readonly PromptTemplateResponseDto[]>(`/api/v1/workspaces/${workspaceId}/prompt-templates`, {
+      .get<readonly PromptTemplateResponseDto[]>(ApiEndpoints.prompts.templates(workspaceId), {
         params: {
           platform: filters.platform,
           campaignObjective: filters.campaignObjective,
@@ -156,7 +157,7 @@ export class PromptService {
   getTemplate(workspaceId: string, templateId: string, context?: HttpContext) {
     return this.api
       .get<PromptTemplateResponseDto>(
-        `/api/v1/workspaces/${workspaceId}/prompt-templates/${templateId}`,
+        `${ApiEndpoints.prompts.templates(workspaceId)}/${encodeURIComponent(templateId)}`,
         { context },
       )
       .pipe(map(({ data }) => mapPromptTemplate(data)));
@@ -165,7 +166,7 @@ export class PromptService {
   createTemplate(workspaceId: string, payload: PromptTemplatePayload) {
     return this.api
       .post<PromptTemplateResponseDto, PromptTemplateRequestDto>(
-        `/api/v1/workspaces/${workspaceId}/prompt-templates`,
+        ApiEndpoints.prompts.templates(workspaceId),
         mapPromptTemplateRequest(payload),
       )
       .pipe(map(({ data }) => mapPromptTemplate(data)));
@@ -174,14 +175,14 @@ export class PromptService {
   updateTemplate(workspaceId: string, templateId: string, payload: PromptTemplatePayload) {
     return this.api
       .put<PromptTemplateResponseDto, PromptTemplateRequestDto>(
-        `/api/v1/workspaces/${workspaceId}/prompt-templates/${templateId}`,
+        `${ApiEndpoints.prompts.templates(workspaceId)}/${encodeURIComponent(templateId)}`,
         mapPromptTemplateRequest(payload),
       )
       .pipe(map(({ data }) => mapPromptTemplate(data)));
   }
 
   deleteTemplate(workspaceId: string, templateId: string) {
-    return this.api.delete<void>(`/api/v1/workspaces/${workspaceId}/prompt-templates/${templateId}`);
+    return this.api.delete<void>(`${ApiEndpoints.prompts.templates(workspaceId)}/${encodeURIComponent(templateId)}`);
   }
 
   enhancePrompt(workspaceId: string, payload: PromptEnhanceRequest) {

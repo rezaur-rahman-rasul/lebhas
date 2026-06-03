@@ -15,6 +15,8 @@ import java.util.UUID;
 @Table(name = "credit_wallets", schema = "platform")
 public class CreditWalletEntity extends TenantAwareEntity {
 
+    private static final BigDecimal DEFAULT_STARTER_CREDITS = new BigDecimal("25.0000");
+
     @Column(name = "balance", nullable = false, precision = 19, scale = 4)
     private BigDecimal balance;
 
@@ -27,7 +29,7 @@ public class CreditWalletEntity extends TenantAwareEntity {
     public static CreditWalletEntity initialize(UUID workspaceId) {
         CreditWalletEntity entity = new CreditWalletEntity();
         entity.assignWorkspace(workspaceId);
-        entity.balance = BigDecimal.ZERO.setScale(4, RoundingMode.HALF_UP);
+        entity.balance = DEFAULT_STARTER_CREDITS.setScale(4, RoundingMode.HALF_UP);
         entity.reservedBalance = BigDecimal.ZERO.setScale(4, RoundingMode.HALF_UP);
         return entity;
     }
@@ -46,6 +48,14 @@ public class CreditWalletEntity extends TenantAwareEntity {
 
     public void addBalance(BigDecimal amount) {
         this.balance = normalize(balance.add(normalize(amount)));
+    }
+
+    public void adjustBalance(BigDecimal amount) {
+        BigDecimal adjusted = normalize(balance.add(normalize(amount)));
+        if (adjusted.signum() < 0) {
+            throw new BusinessException(ErrorCode.CREDIT_BALANCE_INSUFFICIENT, "Credit adjustment cannot make balance negative");
+        }
+        this.balance = adjusted;
     }
 
     public void reserve(BigDecimal amount) {

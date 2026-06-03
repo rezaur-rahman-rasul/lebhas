@@ -48,6 +48,26 @@ export class AuditStore {
     });
   }
 
+  async loadMasterAuditLogs(): Promise<AuditActionResult> {
+    if (!this.permissions.canViewAuditLogs()) {
+      return this.restricted();
+    }
+
+    return this.run(async () => {
+      const dateRange = this.selectedDateRangeSignal();
+      this.auditLogsSignal.set(
+        await this.api.getMasterAuditLogs({
+          module: this.selectedModuleSignal(),
+          severity: this.selectedSeveritySignal(),
+          action: this.selectedActionSignal(),
+          actorUserId: this.selectedActorSignal(),
+          from: dateRange?.from,
+          to: dateRange?.to,
+        }),
+      );
+    });
+  }
+
   setSelectedModule(module: string | null): void {
     this.selectedModuleSignal.set(module);
   }

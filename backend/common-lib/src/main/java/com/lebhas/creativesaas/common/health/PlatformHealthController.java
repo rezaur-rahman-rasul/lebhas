@@ -35,7 +35,7 @@ public class PlatformHealthController {
         return ResponseEntity.ok(ApiResponse.success("Service is healthy", status("UP", "RUNNING")));
     }
 
-    @GetMapping("/liveness")
+    @GetMapping({"/liveness", "/health/live"})
     @Operation(summary = "Returns Kubernetes liveness state")
     ResponseEntity<ApiResponse<HealthStatusResponse>> liveness() {
         LivenessState state = availability.getState(LivenessState.class, LivenessState.CORRECT);
@@ -44,7 +44,7 @@ public class PlatformHealthController {
                 .body(ApiResponse.success("Liveness state resolved", status(status, state.name())));
     }
 
-    @GetMapping("/readiness")
+    @GetMapping({"/readiness", "/health/ready"})
     @Operation(summary = "Returns Kubernetes readiness state")
     ResponseEntity<ApiResponse<HealthStatusResponse>> readiness() {
         ReadinessState state = availability.getState(ReadinessState.class, ReadinessState.ACCEPTING_TRAFFIC);

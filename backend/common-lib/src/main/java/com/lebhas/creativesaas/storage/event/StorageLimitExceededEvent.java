@@ -27,7 +27,6 @@ public record StorageLimitExceededEvent(
         eventId = normalizeEventId(eventId);
         occurredAt = occurredAt == null ? Instant.now() : occurredAt;
         workspaceId = Objects.requireNonNull(workspaceId, "workspaceId must not be null");
-        projectId = Objects.requireNonNull(projectId, "projectId must not be null");
         pricingPlanCode = normalizeNullable(pricingPlanCode);
         subscriptionStatus = normalizeNullable(subscriptionStatus);
         assetType = normalizeNullable(assetType);

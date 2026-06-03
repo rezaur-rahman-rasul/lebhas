@@ -165,7 +165,8 @@ class AuthSecurityIntegrationTest {
                         "lastName", "Rahman",
                         "email", "ariana@example.com",
                         "phone", "+8801700000000",
-                        "password", "CorrectPassword!1"))
+                        "password", "CorrectPassword!1",
+                        "confirmPassword", "CorrectPassword!1"))
                 .when()
                 .post("/api/v1/auth/register")
                 .then()
@@ -190,5 +191,45 @@ class AuthSecurityIntegrationTest {
         assertThat(settings.isNotificationEmailEnabled()).isTrue();
         assertThat(settings.isNotificationInAppEnabled()).isTrue();
         assertThat(settings.isMarketingEmailEnabled()).isFalse();
+    }
+
+    @Test
+    void shouldRejectRegistrationWhenConfirmPasswordIsMissing() {
+        given()
+                .contentType(ContentType.JSON)
+                .body(Map.of(
+                        "firstName", "Ariana",
+                        "lastName", "Rahman",
+                        "email", "missing-confirm@example.com",
+                        "phone", "+8801700000001",
+                        "password", "CorrectPassword!1"))
+                .when()
+                .post("/api/v1/auth/register")
+                .then()
+                .statusCode(400)
+                .body("success", equalTo(false))
+                .body("message", equalTo("Validation failed"))
+                .body("errors[0].field", equalTo("confirmPassword"));
+    }
+
+    @Test
+    void shouldRejectRegistrationWhenPasswordConfirmationDoesNotMatch() {
+        given()
+                .contentType(ContentType.JSON)
+                .body(Map.of(
+                        "firstName", "Ariana",
+                        "lastName", "Rahman",
+                        "email", "mismatch-confirm@example.com",
+                        "phone", "+8801700000002",
+                        "password", "CorrectPassword!1",
+                        "confirmPassword", "DifferentPassword!1"))
+                .when()
+                .post("/api/v1/auth/register")
+                .then()
+                .statusCode(400)
+                .body("success", equalTo(false))
+                .body("message", equalTo("Validation failed"))
+                .body("errors[0].field", equalTo("confirmPassword"))
+                .body("errors[0].message", equalTo("Password and confirm password do not match."));
     }
 }

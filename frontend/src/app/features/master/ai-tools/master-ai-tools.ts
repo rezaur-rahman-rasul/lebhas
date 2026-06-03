@@ -1,4 +1,5 @@
 import { ChangeDetectionStrategy, Component, computed, effect, inject, signal } from '@angular/core';
+import { toSignal } from '@angular/core/rxjs-interop';
 import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
 import { ActivatedRoute, RouterLink, RouterLinkActive } from '@angular/router';
 
@@ -75,6 +76,7 @@ const LAYER_BLUEPRINTS: readonly LayerBlueprint[] = [
 export class MasterAiToolsPage {
   private readonly route = inject(ActivatedRoute);
   private readonly formBuilder = inject(FormBuilder).nonNullable;
+  private readonly routeData = toSignal(this.route.data, { initialValue: this.route.snapshot.data });
   protected readonly permissions = inject(PermissionStore);
   protected readonly pipelines = inject(CreativePipelineStore);
   protected readonly payments = inject(PaymentStore);
@@ -85,7 +87,7 @@ export class MasterAiToolsPage {
   protected readonly layerBlueprints = LAYER_BLUEPRINTS;
 
   protected readonly mode = computed<MasterAiToolMode>(
-    () => (this.route.snapshot.data['mode'] as MasterAiToolMode | undefined) ?? 'tools',
+    () => (this.routeData()['mode'] as MasterAiToolMode | undefined) ?? 'tools',
   );
   protected readonly title = computed(() => {
     switch (this.mode()) {
@@ -108,6 +110,9 @@ export class MasterAiToolsPage {
     }
   });
   protected readonly pipelinesList = this.pipelines.pipelines;
+  protected readonly backendTools = this.pipelines.tools;
+  protected readonly backendLayers = this.pipelines.standaloneLayers;
+  protected readonly routingPolicies = this.pipelines.routingPolicies;
   protected readonly providers = this.payments.paymentProviders;
   protected readonly activeProviders = this.payments.activeProviders;
   protected readonly selectedPipeline = computed<CreativePipelineView | null>(
@@ -118,7 +123,7 @@ export class MasterAiToolsPage {
     return pipeline?.layers.find((layer) => layer.id === this.selectedLayerId()) ?? pipeline?.layers[0] ?? null;
   });
   protected readonly orderedLayers = computed(() =>
-    [...(this.selectedPipeline()?.layers ?? [])].sort((left, right) => left.sortOrder - right.sortOrder),
+    [...(this.selectedPipeline()?.layers ?? this.backendLayers())].sort((left, right) => left.sortOrder - right.sortOrder),
   );
   protected readonly totalLayerCost = computed(() => {
     const total = this.orderedLayers().reduce((sum, layer) => {
@@ -253,5 +258,27 @@ export class MasterAiToolsPage {
 
   protected disabledActionMessage(action: string): string {
     return `${action} will be enabled when the Master creative tool management API is available.`;
+  }
+
+  protected endpointUnavailableTitle(): string {
+    switch (this.mode()) {
+      case 'layers':
+        return 'Creative layer API is not available yet';
+      case 'routing':
+        return 'Provider routing policy API is not available yet';
+      default:
+        return 'Creative tool configuration API is not available yet';
+    }
+  }
+
+  protected loadErrorTitle(): string {
+    switch (this.mode()) {
+      case 'layers':
+        return 'Creative layers could not load';
+      case 'routing':
+        return 'Provider routing policy could not load';
+      default:
+        return 'Creative tools could not load';
+    }
   }
 }

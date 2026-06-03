@@ -2,6 +2,11 @@ package com.lebhas.creativesaas.usage.application;
 
 import com.lebhas.creativesaas.common.exception.BusinessException;
 import com.lebhas.creativesaas.common.exception.ErrorCode;
+import com.lebhas.creativesaas.common.security.context.CurrentUser;
+import com.lebhas.creativesaas.common.security.context.CurrentUserContext;
+import com.lebhas.creativesaas.auditlog.application.AuditLogService;
+import com.lebhas.creativesaas.auditlog.domain.AuditActionType;
+import com.lebhas.creativesaas.auditlog.domain.AuditOutcome;
 import com.lebhas.creativesaas.credit.domain.CreditTransactionEntity;
 import com.lebhas.creativesaas.credit.domain.CreditTransactionStatus;
 import com.lebhas.creativesaas.credit.domain.CreditTransactionType;
@@ -11,6 +16,9 @@ import com.lebhas.creativesaas.creativerequest.infrastructure.persistence.Creati
 import com.lebhas.creativesaas.generation.application.CreditEstimationService;
 import com.lebhas.creativesaas.generation.event.CreditLifecycleEventDto;
 import com.lebhas.creativesaas.generation.event.GenerationEventProducer;
+import com.lebhas.creativesaas.messaging.kafka.BaseDomainEvent;
+import com.lebhas.creativesaas.messaging.kafka.DomainEventPublisher;
+import com.lebhas.creativesaas.messaging.kafka.KafkaTopicConstants;
 import com.lebhas.creativesaas.usage.application.dto.CreditUsageCommand;
 import com.lebhas.creativesaas.usage.application.dto.CreditPurchaseCreditCommand;
 import com.lebhas.creativesaas.usage.application.dto.CreditUsageResult;
@@ -19,6 +27,7 @@ import com.lebhas.creativesaas.usage.domain.CreditLedger;
 import com.lebhas.creativesaas.usage.domain.CreditLedgerTransactionType;
 import com.lebhas.creativesaas.usage.domain.WorkspaceUsageSummary;
 import org.springframework.beans.factory.ObjectProvider;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -27,6 +36,7 @@ import java.math.RoundingMode;
 import java.time.Instant;
 import java.time.LocalDate;
 import java.time.ZoneOffset;
+import java.util.Map;
 import java.util.UUID;
 
 @Service
@@ -42,6 +52,9 @@ public class CreditUsageService {
     private final WorkspaceUsageSummaryService workspaceUsageSummaryService;
     private final CreditEstimationService creditEstimationService;
     private final ObjectProvider<GenerationEventProducer> generationEventProducerProvider;
+    private CurrentUserContext currentUserContext;
+    private DomainEventPublisher domainEventPublisher;
+    private AuditLogService auditLogService;
 
     public CreditUsageService(
             CreditBalanceService creditBalanceService,
@@ -61,6 +74,21 @@ public class CreditUsageService {
         this.workspaceUsageSummaryService = workspaceUsageSummaryService;
         this.creditEstimationService = creditEstimationService;
         this.generationEventProducerProvider = generationEventProducerProvider;
+    }
+
+    @Autowired(required = false)
+    void setCurrentUserContext(CurrentUserContext currentUserContext) {
+        this.currentUserContext = currentUserContext;
+    }
+
+    @Autowired(required = false)
+    void setDomainEventPublisher(DomainEventPublisher domainEventPublisher) {
+        this.domainEventPublisher = domainEventPublisher;
+    }
+
+    @Autowired(required = false)
+    void setAuditLogService(AuditLogService auditLogService) {
+        this.auditLogService = auditLogService;
     }
 
     @Transactional
@@ -99,6 +127,55 @@ public class CreditUsageService {
                     amount,
                     referenceType,
                     referenceId);
+        });
+    }
+
+    @Transactional
+    public CreditUsageResult adjustCredits(
+            UUID workspaceId,
+            BigDecimal creditsAmount,
+            String referenceType,
+            UUID referenceId,
+            String description
+    ) {
+        CurrentUser currentUser = requireMaster();
+        UUID effectiveWorkspaceId = require(workspaceId, "workspaceId");
+        BigDecimal amount = normalizeNonZero(creditsAmount, "creditsAmount");
+        String effectiveReferenceType = referenceType(referenceType == null ? "MASTER_CREDIT_ADJUSTMENT" : referenceType);
+        UUID effectiveReferenceId = referenceId == null ? UUID.randomUUID() : referenceId;
+
+        return creditBalanceService.withCreditLock(effectiveWorkspaceId, () -> {
+            CreditBalanceService.BalanceMovement movement = creditBalanceService.adjust(effectiveWorkspaceId, amount);
+            CreditTransactionEntity transaction = creditTransactionRepository.save(CreditTransactionEntity.create(
+                    effectiveWorkspaceId,
+                    CreditTransactionType.ADJUSTMENT,
+                    amount,
+                    effectiveReferenceType,
+                    effectiveReferenceId,
+                    CreditTransactionStatus.COMPLETED));
+            CreditLedger ledger = creditLedgerService.append(
+                    effectiveWorkspaceId,
+                    null,
+                    null,
+                    null,
+                    CreditLedgerTransactionType.MANUAL_ADJUSTMENT,
+                    amount,
+                    movement.balanceBefore(),
+                    movement.balanceAfter(),
+                    effectiveReferenceType,
+                    effectiveReferenceId,
+                    normalizeDescription(description, "Master credit adjustment"),
+                    currentUser.userId());
+            publishCreditAdjusted(effectiveWorkspaceId, ledger.getId(), amount, effectiveReferenceType, effectiveReferenceId);
+            publishCreditLedgerCreated(effectiveWorkspaceId, ledger.getId(), amount);
+            auditCreditAdjusted(effectiveWorkspaceId, ledger.getId(), amount, effectiveReferenceType, effectiveReferenceId);
+            return creditUsageMapper.toUsageResult(
+                    ledger,
+                    transaction.getId(),
+                    movement.wallet(),
+                    amount,
+                    effectiveReferenceType,
+                    effectiveReferenceId);
         });
     }
 
@@ -328,6 +405,72 @@ public class CreditUsageService {
             throw new BusinessException(ErrorCode.VALIDATION_FAILED, field + " must be greater than zero");
         }
         return normalized;
+    }
+
+    private BigDecimal normalizeNonZero(BigDecimal amount, String field) {
+        if (amount == null) {
+            throw new IllegalArgumentException(field + " must not be null");
+        }
+        BigDecimal normalized = amount.setScale(4, RoundingMode.HALF_UP);
+        if (normalized.signum() == 0) {
+            throw new BusinessException(ErrorCode.VALIDATION_FAILED, field + " must not be zero");
+        }
+        return normalized;
+    }
+
+    private CurrentUser requireMaster() {
+        if (currentUserContext == null) {
+            throw new BusinessException(ErrorCode.UNAUTHORIZED);
+        }
+        CurrentUser currentUser = currentUserContext.requireCurrentUser();
+        if (!currentUser.isMaster()) {
+            throw new BusinessException(ErrorCode.FORBIDDEN);
+        }
+        return currentUser;
+    }
+
+    private void publishCreditAdjusted(UUID workspaceId, UUID ledgerId, BigDecimal amount, String referenceType, UUID referenceId) {
+        publishUsageEvent(KafkaTopicConstants.CREDITS_ADJUSTED, workspaceId, ledgerId, amount, referenceType, referenceId);
+    }
+
+    private void publishCreditLedgerCreated(UUID workspaceId, UUID ledgerId, BigDecimal amount) {
+        publishUsageEvent(KafkaTopicConstants.CREDIT_LEDGER_CREATED, workspaceId, ledgerId, amount, "CREDIT_LEDGER", ledgerId);
+    }
+
+    private void publishUsageEvent(String topic, UUID workspaceId, UUID aggregateId, BigDecimal amount, String referenceType, UUID referenceId) {
+        if (domainEventPublisher == null) {
+            return;
+        }
+        domainEventPublisher.publish(topic, new BaseDomainEvent(
+                topic,
+                workspaceId,
+                aggregateId,
+                Instant.now(),
+                Map.of(
+                        "amount", amount,
+                        "referenceType", referenceType,
+                        "referenceId", referenceId.toString())));
+    }
+
+    private void auditCreditAdjusted(UUID workspaceId, UUID ledgerId, BigDecimal amount, String referenceType, UUID referenceId) {
+        if (auditLogService == null) {
+            return;
+        }
+        auditLogService.appendCurrentUserAction(
+                workspaceId,
+                "credits.adjusted.%s".formatted(ledgerId),
+                AuditActionType.UPDATE,
+                AuditOutcome.SUCCESS,
+                "CreditLedger",
+                ledgerId,
+                "Workspace credits adjusted",
+                Map.of(
+                        "ledgerId", ledgerId.toString(),
+                        "amount", amount.toPlainString(),
+                        "referenceType", referenceType,
+                        "referenceId", referenceId.toString()),
+                null,
+                null);
     }
 
     private <T> T require(T value, String field) {

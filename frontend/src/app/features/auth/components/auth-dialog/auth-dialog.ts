@@ -111,6 +111,7 @@ export class AuthDialogComponent {
       email: value.email,
       phone: value.phone,
       password: value.password,
+      confirmPassword: value.confirmPassword,
     };
     const result = await this.auth.register(payload);
     if (result.ok) {

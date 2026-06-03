@@ -2,6 +2,7 @@ package com.lebhas.creativesaas.identity.application;
 
 import com.lebhas.creativesaas.common.exception.BusinessException;
 import com.lebhas.creativesaas.common.exception.ErrorCode;
+import com.lebhas.creativesaas.common.api.ApiError;
 import com.lebhas.creativesaas.common.security.Permission;
 import com.lebhas.creativesaas.common.security.Role;
 import com.lebhas.creativesaas.common.security.SecurityAuditLogger;
@@ -136,6 +137,7 @@ public class AuthenticationService {
 
     @Transactional
     public AuthSessionView register(RegisterUserCommand command, String clientIp, String userAgent) {
+        validatePasswordConfirmation(command);
         String normalizedEmail = normalizeEmail(command.email());
         if (userRepository.existsByEmailIgnoreCaseAndDeletedFalse(normalizedEmail)) {
             throw new BusinessException(ErrorCode.EMAIL_ALREADY_EXISTS);
@@ -170,7 +172,7 @@ public class AuthenticationService {
         WorkspaceProvisioningService.ProvisionedWorkspace provisionedWorkspace = workspaceProvisioningService.provisionOwnedWorkspace(
                 user.getId(),
                 new WorkspaceProvisioningService.WorkspaceSeed(
-                        defaultWorkspaceName(command.firstName(), command.lastName()),
+                        defaultWorkspaceName(command),
                         null,
                         null,
                         null,
@@ -470,7 +472,24 @@ public class AuthenticationService {
         return "device-" + UUID.randomUUID();
     }
 
-    private String defaultWorkspaceName(String firstName, String lastName) {
+    private void validatePasswordConfirmation(RegisterUserCommand command) {
+        if (command.confirmPassword() == null || !command.password().equals(command.confirmPassword())) {
+            throw new BusinessException(
+                    ErrorCode.VALIDATION_FAILED,
+                    ErrorCode.VALIDATION_FAILED.defaultMessage(),
+                    List.of(ApiError.of(
+                            ErrorCode.VALIDATION_FAILED.code(),
+                            "confirmPassword",
+                            "Password and confirm password do not match.")));
+        }
+    }
+
+    private String defaultWorkspaceName(RegisterUserCommand command) {
+        if (command.workspaceName() != null && !command.workspaceName().isBlank()) {
+            return command.workspaceName().trim();
+        }
+        String firstName = command.firstName();
+        String lastName = command.lastName();
         String normalizedFirstName = firstName == null ? "" : firstName.trim();
         String normalizedLastName = lastName == null ? "" : lastName.trim();
         String fullName = (normalizedFirstName + " " + normalizedLastName).trim();

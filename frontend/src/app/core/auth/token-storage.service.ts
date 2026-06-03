@@ -7,11 +7,12 @@ const REFRESH_TOKEN_KEY = 'creative_saas.refresh_token';
 const ACCESS_TOKEN_EXPIRES_AT_KEY = 'creative_saas.access_token_expires_at';
 const REFRESH_TOKEN_EXPIRES_AT_KEY = 'creative_saas.refresh_token_expires_at';
 const ACTIVE_WORKSPACE_ID_KEY = 'creative_saas.active_workspace_id';
+const PERSISTENT_SESSION_KEY = 'creative_saas.persistent_session';
 
 @Injectable({ providedIn: 'root' })
 export class TokenStorageService {
   getSessionSource(): 'local' | 'session' | null {
-    if (this.readSession(globalThis.localStorage)) {
+    if (this.readSession(globalThis.localStorage, true)) {
       return 'local';
     }
 
@@ -31,7 +32,7 @@ export class TokenStorageService {
   }
 
   getSession(): PersistedAuthSession | null {
-    return this.readSession(globalThis.localStorage) ?? this.readSession(globalThis.sessionStorage);
+    return this.readSession(globalThis.localStorage, true) ?? this.readSession(globalThis.sessionStorage);
   }
 
   setSession(session: PersistedAuthSession, options?: { readonly persistent?: boolean }): void {
@@ -44,6 +45,10 @@ export class TokenStorageService {
     this.write(storage, ACCESS_TOKEN_EXPIRES_AT_KEY, session.accessTokenExpiresAt);
     this.write(storage, REFRESH_TOKEN_EXPIRES_AT_KEY, session.refreshTokenExpiresAt);
 
+    if (persistent) {
+      this.write(storage, PERSISTENT_SESSION_KEY, 'true');
+    }
+
     if (session.activeWorkspaceId) {
       this.write(storage, ACTIVE_WORKSPACE_ID_KEY, session.activeWorkspaceId);
     }
@@ -55,18 +60,25 @@ export class TokenStorageService {
     this.remove(globalThis.localStorage, ACCESS_TOKEN_EXPIRES_AT_KEY);
     this.remove(globalThis.localStorage, REFRESH_TOKEN_EXPIRES_AT_KEY);
     this.remove(globalThis.localStorage, ACTIVE_WORKSPACE_ID_KEY);
+    this.remove(globalThis.localStorage, PERSISTENT_SESSION_KEY);
     this.remove(globalThis.sessionStorage, ACCESS_TOKEN_KEY);
     this.remove(globalThis.sessionStorage, REFRESH_TOKEN_KEY);
     this.remove(globalThis.sessionStorage, ACCESS_TOKEN_EXPIRES_AT_KEY);
     this.remove(globalThis.sessionStorage, REFRESH_TOKEN_EXPIRES_AT_KEY);
     this.remove(globalThis.sessionStorage, ACTIVE_WORKSPACE_ID_KEY);
+    this.remove(globalThis.sessionStorage, PERSISTENT_SESSION_KEY);
   }
 
   private read(key: string): string | null {
     return this.readFrom(globalThis.localStorage, key) ?? this.readFrom(globalThis.sessionStorage, key);
   }
 
-  private readSession(storage?: Storage): PersistedAuthSession | null {
+  private readSession(storage?: Storage, requirePersistentMarker = false): PersistedAuthSession | null {
+    if (requirePersistentMarker && this.readFrom(storage, PERSISTENT_SESSION_KEY) !== 'true') {
+      this.clearStorage(storage);
+      return null;
+    }
+
     const accessToken = this.readFrom(storage, ACCESS_TOKEN_KEY);
     const refreshToken = this.readFrom(storage, REFRESH_TOKEN_KEY);
     const accessTokenExpiresAt = this.readFrom(storage, ACCESS_TOKEN_EXPIRES_AT_KEY);
@@ -107,5 +119,14 @@ export class TokenStorageService {
     } catch {
       // Ignore storage availability issues.
     }
+  }
+
+  private clearStorage(storage: Storage | undefined): void {
+    this.remove(storage, ACCESS_TOKEN_KEY);
+    this.remove(storage, REFRESH_TOKEN_KEY);
+    this.remove(storage, ACCESS_TOKEN_EXPIRES_AT_KEY);
+    this.remove(storage, REFRESH_TOKEN_EXPIRES_AT_KEY);
+    this.remove(storage, ACTIVE_WORKSPACE_ID_KEY);
+    this.remove(storage, PERSISTENT_SESSION_KEY);
   }
 }

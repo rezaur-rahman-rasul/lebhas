@@ -173,6 +173,7 @@
             }
           </div>
 
+          @if (showWorkspaceBillingChips()) {
           <div class="topbar-summary hidden items-center gap-2 xl:flex">
             <div class="topbar-pill">
               <app-icon name="zap" [size]="16" />
@@ -180,10 +181,12 @@
             </div>
             <div class="topbar-pill topbar-pill--plan">
               <app-icon name="package-check" [size]="16" />
-              <span>{{ workspace.activePlanLabel() }}</span>
+              <span>{{ planSummaryLabel() }}</span>
             </div>
           </div>
+          }
 
+          @if (showBuyCredits()) {
           <button
             type="button"
             class="topbar-buy"
@@ -193,6 +196,7 @@
             <app-icon name="wallet-cards" [size]="17" />
             <span class="hidden sm:inline">Buy Credits</span>
           </button>
+          }
 
           <app-theme-toggle tone="ghost" />
 
@@ -222,7 +226,7 @@
 
         <main class="min-w-0 p-[var(--app-page-padding)]">
           <div class="dashboard-page-container">
-            <router-outlet />
+            <router-outlet (activate)="onRouteActivated()" />
           </div>
         </main>
       </div>

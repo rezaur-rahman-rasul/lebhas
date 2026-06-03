@@ -1,5 +1,8 @@
 package com.lebhas.creativesaas.campaign.application;
 
+import com.lebhas.creativesaas.auditlog.application.AuditLogService;
+import com.lebhas.creativesaas.auditlog.domain.AuditActionType;
+import com.lebhas.creativesaas.auditlog.domain.AuditOutcome;
 import com.lebhas.creativesaas.common.exception.BusinessException;
 import com.lebhas.creativesaas.common.exception.ErrorCode;
 import com.lebhas.creativesaas.campaign.application.dto.ProjectCampaignView;
@@ -15,10 +18,12 @@ import com.lebhas.creativesaas.messaging.kafka.KafkaTopicConstants;
 import com.lebhas.creativesaas.project.infrastructure.persistence.ProjectRepository;
 import com.lebhas.creativesaas.product.application.ProductServiceCatalogService;
 import com.lebhas.creativesaas.product.domain.ProductServiceEntity;
+import com.lebhas.creativesaas.product.domain.ProductServiceStatus;
 import com.lebhas.creativesaas.redis.RedisCacheService;
 import com.lebhas.creativesaas.redis.RedisKeyBuilder;
 import com.lebhas.creativesaas.redis.RedisLockService;
 import com.lebhas.creativesaas.workspace.application.WorkspaceActivityLogger;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -42,6 +47,7 @@ public class ProjectCampaignService {
     private final DomainEventPublisher domainEventPublisher;
     private final WorkspaceActivityLogger workspaceActivityLogger;
     private final SessionProperties sessionProperties;
+    private AuditLogService auditLogService;
 
     public ProjectCampaignService(
             WorkspaceAuthorizationService workspaceAuthorizationService,
@@ -67,6 +73,11 @@ public class ProjectCampaignService {
         this.domainEventPublisher = domainEventPublisher;
         this.workspaceActivityLogger = workspaceActivityLogger;
         this.sessionProperties = sessionProperties;
+    }
+
+    @Autowired(required = false)
+    void setAuditLogService(AuditLogService auditLogService) {
+        this.auditLogService = auditLogService;
     }
 
     @Transactional(readOnly = true)
@@ -129,6 +140,9 @@ public class ProjectCampaignService {
         WorkspaceAuthorizationService.WorkspaceAccess access =
                 workspaceAuthorizationService.requirePermission(workspaceId, Permission.PROJECT_CREATE);
         ProductServiceEntity productService = productServiceCatalogService.requireProductService(workspaceId, productServiceId);
+        if (productService.getStatus() != ProductServiceStatus.ACTIVE) {
+            throw new BusinessException(ErrorCode.BUSINESS_RULE_VIOLATION, "Project/Campaign requires an active product or service");
+        }
         RedisLockService.RedisLockToken lockToken = acquireWorkspaceLock(workspaceId);
         try {
             ProjectCampaignEntity projectCampaign = projectCampaignRepository.save(ProjectCampaignEntity.create(
@@ -144,6 +158,18 @@ public class ProjectCampaignService {
             ProjectCampaignView view = projectCampaignViewMapper.toView(projectCampaign);
             invalidateCaches(workspaceId, projectCampaign.getId(), access.currentUser().userId());
             workspaceActivityLogger.logProjectCampaignMutation("created", workspaceId, access.currentUser().userId(), projectCampaign.getId());
+            auditMutation("created", AuditActionType.CREATE, workspaceId, access.currentUser().userId(), projectCampaign.getId(), projectCampaign.getName(), productServiceId, productService.getBrandId());
+            publishSafely(
+                    KafkaTopicConstants.PROJECT_CREATED,
+                    new BaseDomainEvent(
+                            KafkaTopicConstants.PROJECT_CREATED,
+                            workspaceId,
+                            projectCampaign.getId(),
+                            Instant.now(),
+                            Map.of(
+                                    "projectId", projectCampaign.getId().toString(),
+                                    "productServiceId", productServiceId.toString(),
+                                    "brandId", productService.getBrandId().toString())));
             publishSafely(
                     KafkaTopicConstants.PROJECT_CAMPAIGN_CREATED,
                     new BaseDomainEvent(
@@ -184,6 +210,15 @@ public class ProjectCampaignService {
             ProjectCampaignView view = projectCampaignViewMapper.toView(projectCampaignRepository.save(projectCampaign));
             invalidateCaches(workspaceId, projectId, access.currentUser().userId());
             workspaceActivityLogger.logProjectCampaignMutation("updated", workspaceId, access.currentUser().userId(), projectId);
+            auditMutation("updated", AuditActionType.UPDATE, workspaceId, access.currentUser().userId(), projectId, projectCampaign.getName(), projectCampaign.getProductServiceId(), projectCampaign.getBrandId());
+            publishSafely(
+                    KafkaTopicConstants.PROJECT_UPDATED,
+                    new BaseDomainEvent(
+                            KafkaTopicConstants.PROJECT_UPDATED,
+                            workspaceId,
+                            projectId,
+                            Instant.now(),
+                            Map.of("projectId", projectId.toString(), "productServiceId", projectCampaign.getProductServiceId().toString())));
             publishSafely(
                     KafkaTopicConstants.PROJECT_CAMPAIGN_UPDATED,
                     new BaseDomainEvent(
@@ -210,6 +245,15 @@ public class ProjectCampaignService {
             projectCampaignRepository.save(projectCampaign);
             invalidateCaches(workspaceId, projectId, access.currentUser().userId());
             workspaceActivityLogger.logProjectCampaignMutation("deleted", workspaceId, access.currentUser().userId(), projectId);
+            auditMutation("deleted", AuditActionType.DELETE, workspaceId, access.currentUser().userId(), projectId, projectCampaign.getName(), projectCampaign.getProductServiceId(), projectCampaign.getBrandId());
+            publishSafely(
+                    KafkaTopicConstants.PROJECT_DELETED,
+                    new BaseDomainEvent(
+                            KafkaTopicConstants.PROJECT_DELETED,
+                            workspaceId,
+                            projectId,
+                            Instant.now(),
+                            Map.of("projectId", projectId.toString())));
             publishSafely(
                     KafkaTopicConstants.PROJECT_CAMPAIGN_DELETED,
                     new BaseDomainEvent(
@@ -251,6 +295,37 @@ public class ProjectCampaignService {
             domainEventPublisher.publish(topic, event);
         } catch (RuntimeException ignored) {
         }
+    }
+
+    private void auditMutation(
+            String action,
+            AuditActionType auditAction,
+            UUID workspaceId,
+            UUID actorUserId,
+            UUID projectId,
+            String name,
+            UUID productServiceId,
+            UUID brandId
+    ) {
+        if (auditLogService == null) {
+            return;
+        }
+        auditLogService.appendUserAction(
+                workspaceId,
+                "project.%s.%s".formatted(action, projectId),
+                actorUserId,
+                auditAction,
+                AuditOutcome.SUCCESS,
+                "ProjectCampaign",
+                projectId,
+                "Project/Campaign %s".formatted(action),
+                Map.of(
+                        "projectId", projectId.toString(),
+                        "productServiceId", productServiceId.toString(),
+                        "brandId", brandId.toString(),
+                        "name", name == null ? "" : name),
+                null,
+                null);
     }
 
     private record ProjectCampaignListCacheEntry(List<ProjectCampaignView> projects, Instant cachedAt) {

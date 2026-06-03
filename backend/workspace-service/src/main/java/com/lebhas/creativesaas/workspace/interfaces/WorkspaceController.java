@@ -57,32 +57,32 @@ public class WorkspaceController {
                 request.country())));
     }
 
-    @GetMapping("/me")
+    @GetMapping("/my")
     @Operation(summary = "List workspaces accessible to the current user")
     public ApiResponse<List<WorkspaceSummaryView>> listMyWorkspaces() {
         return ApiResponse.success(workspaceManagementService.listAccessibleWorkspaces());
     }
 
-    @GetMapping("/{id}")
+    @GetMapping("/{workspaceId}")
     @PreAuthorize("hasAuthority('WORKSPACE_VIEW')")
     @Operation(summary = "Get workspace details")
-    public ApiResponse<WorkspaceView> getWorkspace(@PathVariable UUID id) {
-        return ApiResponse.success(workspaceManagementService.getWorkspace(id));
+    public ApiResponse<WorkspaceView> getWorkspace(@PathVariable UUID workspaceId) {
+        return ApiResponse.success(workspaceManagementService.getWorkspace(workspaceId));
     }
 
-    @GetMapping("/{id}/context")
+    @GetMapping("/{workspaceId}/context")
     @PreAuthorize("hasAuthority('WORKSPACE_VIEW')")
     @Operation(summary = "Get workspace context for the current user")
-    public ApiResponse<WorkspaceContextView> getWorkspaceContext(@PathVariable UUID id) {
-        return ApiResponse.success(workspaceContextService.getWorkspaceContext(id));
+    public ApiResponse<WorkspaceContextView> getWorkspaceContext(@PathVariable UUID workspaceId) {
+        return ApiResponse.success(workspaceContextService.getWorkspaceContext(workspaceId));
     }
 
-    @PutMapping("/{id}")
+    @PutMapping("/{workspaceId}")
     @PreAuthorize("hasAuthority('WORKSPACE_UPDATE')")
     @Operation(summary = "Update workspace details or status")
-    public ApiResponse<WorkspaceView> updateWorkspace(@PathVariable UUID id, @Valid @RequestBody UpdateWorkspaceRequest request) {
+    public ApiResponse<WorkspaceView> updateWorkspace(@PathVariable UUID workspaceId, @Valid @RequestBody UpdateWorkspaceRequest request) {
         return ApiResponse.success(workspaceManagementService.updateWorkspace(new UpdateWorkspaceCommand(
-                id,
+                workspaceId,
                 request.name(),
                 request.slug(),
                 request.logoUrl(),

@@ -3,7 +3,9 @@ package com.lebhas.creativesaas.creative.interfaces;
 import com.lebhas.creativesaas.asset.application.AssetManagementService;
 import com.lebhas.creativesaas.asset.application.AssetMetadataSerializer;
 import com.lebhas.creativesaas.asset.application.dto.AssetListCriteria;
+import com.lebhas.creativesaas.asset.application.dto.AssetUploadUrlView;
 import com.lebhas.creativesaas.asset.application.dto.AssetView;
+import com.lebhas.creativesaas.asset.application.dto.CreateAssetUploadUrlCommand;
 import com.lebhas.creativesaas.asset.application.dto.UploadAssetCommand;
 import com.lebhas.creativesaas.common.api.ApiResponse;
 import com.lebhas.creativesaas.common.api.PagedResult;
@@ -43,6 +45,30 @@ public class ProjectAssetController {
     ) {
         this.assetManagementService = assetManagementService;
         this.assetMetadataSerializer = assetMetadataSerializer;
+    }
+
+    @PostMapping("/upload-url")
+    @PreAuthorize("hasAuthority('ASSET_UPLOAD')")
+    @Operation(summary = "Create a signed project asset upload URL")
+    public ApiResponse<AssetUploadUrlView> createUploadUrl(
+            @PathVariable UUID workspaceId,
+            @PathVariable UUID projectId,
+            @Valid @org.springframework.web.bind.annotation.RequestBody CreateAssetUploadUrlRequest request
+    ) {
+        return ApiResponse.success("Project asset upload URL created", assetManagementService.createUploadUrl(new CreateAssetUploadUrlCommand(
+                workspaceId,
+             projectId,
+             request.assetType(),
+             request.assetCategory(),
+             request.folderId(),
+             request.originalFileName(),
+                request.contentType(),
+                request.sizeBytes(),
+                request.checksum(),
+                request.displayName(),
+                request.description(),
+                request.tags(),
+                request.metadata())));
     }
 
     @PostMapping(path = "/upload", consumes = "multipart/form-data")

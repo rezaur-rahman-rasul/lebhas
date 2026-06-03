@@ -8,11 +8,22 @@ import java.util.UUID;
 public class StoragePathBuilder {
 
     public String buildAssetPath(UUID workspaceId, UUID projectId, UUID assetId, String filename) {
-        return "assets/workspaces/%s/projects/%s/%s/%s".formatted(
+        return "workspaces/%s/projects/%s/assets/%s".formatted(
                 require(workspaceId, "workspaceId"),
                 require(projectId, "projectId"),
-                require(assetId, "assetId"),
-                sanitizeFilename(filename));
+                objectName(assetId, filename));
+    }
+
+    public String buildWorkspaceAssetPath(UUID workspaceId, UUID assetId, String filename) {
+        return "workspaces/%s/assets/%s".formatted(
+                require(workspaceId, "workspaceId"),
+                objectName(assetId, filename));
+    }
+
+    public String buildProfilePath(UUID userId, UUID assetId, String filename) {
+        return "profiles/%s/%s".formatted(
+                require(userId, "userId"),
+                objectName(assetId, filename));
     }
 
     public String buildVariantPath(UUID workspaceId, UUID assetId, String variantType, String filename) {
@@ -38,6 +49,13 @@ public class StoragePathBuilder {
             throw new IllegalArgumentException("filename must not be blank");
         }
         return sanitized;
+    }
+
+    private String objectName(UUID assetId, String filename) {
+        String sanitized = sanitizeFilename(filename);
+        int dotIndex = sanitized.lastIndexOf('.');
+        String extension = dotIndex >= 0 ? sanitized.substring(dotIndex) : "";
+        return require(assetId, "assetId") + extension;
     }
 
     private String sanitizeSegment(String value, String field) {

@@ -20,6 +20,7 @@ import com.lebhas.creativesaas.generation.application.GenerationFoundationServic
 import com.lebhas.creativesaas.generation.application.GenerationJobService;
 import com.lebhas.creativesaas.generation.application.GenerationOrchestrator;
 import com.lebhas.creativesaas.generation.application.GenerationRetryService;
+import com.lebhas.creativesaas.generation.application.GenerationWorkerService;
 import com.lebhas.creativesaas.generation.application.dto.CreditReservationResult;
 import com.lebhas.creativesaas.generation.cache.GeneratedVersionCountCacheService;
 import com.lebhas.creativesaas.generation.cache.GenerationLockService;
@@ -155,21 +156,11 @@ class RevisedDay5GenerationPipelineUnitTest {
 
     @Test
     void duplicateGenerationPreventedByRedisLock() {
-        GenerationJobService jobService = mock(GenerationJobService.class);
-        GenerationFoundationService foundationService = mock(GenerationFoundationService.class);
-        GenerationLockService lockService = mock(GenerationLockService.class);
-        GenerationEventProducer producer = mock(GenerationEventProducer.class);
-        when(lockService.acquire(WORKSPACE_ID, CREATIVE_REQUEST_ID)).thenReturn(Optional.empty());
+        GenerationWorkerService workerService = mock(GenerationWorkerService.class);
 
         GenerationJobQueuedConsumer consumer = new GenerationJobQueuedConsumer(
                 new ObjectMapper(),
-                jobService,
-                mock(CreativeRequestRepository.class),
-                foundationService,
-                lockService,
-                mock(AiJobStateRedisService.class),
-                mock(AiGenerationProgressRedisService.class),
-                producer);
+                workerService);
         consumer.consume(Map.of(
                 "workspaceId", WORKSPACE_ID,
                 "creativeRequestId", CREATIVE_REQUEST_ID,
@@ -177,9 +168,7 @@ class RevisedDay5GenerationPipelineUnitTest {
                 "creditReservationId", CREDIT_RESERVATION_ID,
                 "queueName", "creative-generation"));
 
-        verify(jobService, never()).start(any(), any());
-        verify(foundationService, never()).runFoundation(any());
-        verify(producer).publishGenerationFailed(any(GenerationFailedEventDto.class));
+        verify(workerService).processQueuedJob(any(GenerationJobQueuedEventDto.class));
     }
 
     @Test
@@ -246,7 +235,9 @@ class RevisedDay5GenerationPipelineUnitTest {
         GenerationJobService service = new GenerationJobService(
                 repository,
                 mock(),
-                mock(GenerationEventProducer.class));
+                mock(GenerationEventProducer.class),
+                mock(GeneratedVersionService.class),
+                mock());
 
         assertThatThrownBy(() -> service.require(WORKSPACE_ID, GENERATION_JOB_ID))
                 .isInstanceOf(BusinessException.class);

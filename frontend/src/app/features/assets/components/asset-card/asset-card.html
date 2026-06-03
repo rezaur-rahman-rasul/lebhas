@@ -6,8 +6,7 @@
       (click)="previewRequested.emit(asset())"
     >
       <div class="aspect-[4/3]">
-        @switch (asset().assetType) {
-          @case ('VIDEO') {
+        @if (isVideoAsset(asset())) {
             @if (asset().thumbnailUrl || asset().previewUrl) {
               <img
                 [src]="asset().thumbnailUrl || asset().previewUrl || ''"
@@ -30,8 +29,7 @@
                 <app-icon name="play" [size]="20" />
               </div>
             </div>
-          }
-          @default {
+          } @else {
             @if (asset().thumbnailUrl || asset().previewUrl) {
               <img
                 [src]="asset().thumbnailUrl || asset().previewUrl || ''"
@@ -49,7 +47,6 @@
               </div>
             }
           }
-        }
       </div>
 
       <div class="absolute left-3 top-3 flex flex-wrap gap-2">

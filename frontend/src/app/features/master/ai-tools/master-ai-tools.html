@@ -21,7 +21,7 @@
   <div class="mt-5">
     <app-empty-state
       icon="circle-alert"
-      title="Creative pipeline configuration could not load"
+      [title]="pipelines.endpointUnavailable() ? endpointUnavailableTitle() : loadErrorTitle()"
       [description]="pipelines.error()!"
     >
       <app-button type="button" icon="refresh-cw" (click)="pipelines.load()">Retry</app-button>
@@ -33,7 +33,7 @@
       <section class="ai-master-toolbar">
         <div>
           <p>Tool catalog</p>
-          <strong>{{ pipelinesList().length }} backend pipelines connected</strong>
+          <strong>{{ backendTools().length }} backend tools connected</strong>
         </div>
         <div class="ai-master-actions">
           <button type="button" [disabled]="true" [title]="disabledActionMessage('Create Tool')">
@@ -47,45 +47,52 @@
         </div>
       </section>
 
-      <section class="ai-master-tool-grid">
-        @for (tool of toolBlueprints; track tool.code) {
-          <app-card>
-            <article class="ai-tool-card">
-              <div class="ai-tool-card__head">
-                <div>
-                  <p>{{ tool.category }}</p>
-                  <h2>{{ tool.name }}</h2>
+      @if (backendTools().length) {
+        <section class="ai-master-tool-grid">
+          @for (tool of backendTools(); track tool.id) {
+            <app-card>
+              <article class="ai-tool-card">
+                <div class="ai-tool-card__head">
+                  <div>
+                    <p>{{ tool.toolCategory }}</p>
+                    <h2>{{ tool.toolName }}</h2>
+                  </div>
+                  <app-badge [tone]="tool.enabled ? 'brand' : 'neutral'">
+                    {{ tool.enabled ? 'Enabled' : 'Disabled' }}
+                  </app-badge>
                 </div>
-                <app-badge [tone]="toolStatus(tool)">
-                  {{ pipelineForTool(tool)?.active ? 'Enabled' : 'Not configured' }}
-                </app-badge>
-              </div>
 
-              <div class="ai-tool-costs">
-                <div>
-                  <span>Basic cost</span>
-                  <strong>{{ tool.basicCost }} credits</strong>
+                <div class="ai-tool-costs">
+                  <div>
+                    <span>Tool code</span>
+                    <strong>{{ tool.toolCode }}</strong>
+                  </div>
+                  <div>
+                    <span>Routing policies</span>
+                    <strong>{{ routingPolicies().length }}</strong>
+                  </div>
                 </div>
-                <div>
-                  <span>Premium cost</span>
-                  <strong>{{ tool.premiumCost }} credits</strong>
+
+                <dl class="ai-tool-meta">
+                  <div><dt>Description</dt><dd>{{ tool.description || 'No description provided.' }}</dd></div>
+                  <div><dt>Provider policy</dt><dd>{{ routingPolicies().length ? 'Configured in Provider Routing Policy' : 'No provider routing policies configured yet.' }}</dd></div>
+                </dl>
+
+                <div class="ai-tool-actions">
+                  <button type="button" [disabled]="true" [title]="disabledActionMessage('Edit Tool')">Edit Tool</button>
+                  <button type="button" [disabled]="true" [title]="disabledActionMessage('Enable/Disable')">Enable/Disable</button>
                 </div>
-              </div>
-
-              <dl class="ai-tool-meta">
-                <div><dt>Allowed plans/packages</dt><dd>{{ tool.plans }}</dd></div>
-                <div><dt>Provider policy</dt><dd>{{ pipelineForTool(tool)?.pipelineName || tool.providerPolicy }}</dd></div>
-                <div><dt>Last updated</dt><dd>{{ pipelineForTool(tool)?.version ? 'Version ' + pipelineForTool(tool)?.version : 'Pending backend setup' }}</dd></div>
-              </dl>
-
-              <div class="ai-tool-actions">
-                <button type="button" [disabled]="true" [title]="disabledActionMessage('Edit Tool')">Edit Tool</button>
-                <button type="button" [disabled]="true" [title]="disabledActionMessage('Enable/Disable')">Enable/Disable</button>
-              </div>
-            </article>
-          </app-card>
-        }
-      </section>
+              </article>
+            </app-card>
+          }
+        </section>
+      } @else {
+        <div class="mt-5">
+          <app-empty-state icon="wand-sparkles" title="No creative tools configured yet" description="Creative tools will appear here after the backend tool catalog is seeded or configured.">
+            <button type="button" [disabled]="true" [title]="disabledActionMessage('Add Creative Tool')">Add Creative Tool</button>
+          </app-empty-state>
+        </div>
+      }
     }
 
     @case ('layers') {
@@ -122,13 +129,6 @@
             <span>{{ layer.sortOrder }}</span>
             {{ layer.layerName }}
           </button>
-        } @empty {
-          @for (layer of layerBlueprints; track layer.type) {
-            <div class="ai-pipeline-node">
-              <span>{{ layer.order }}</span>
-              {{ layer.name }}
-            </div>
-          }
         }
         <div class="ai-pipeline-node ai-pipeline-node--edge">Output</div>
       </section>
@@ -174,30 +174,31 @@
           }
         </section>
       } @else {
-        <section class="ai-layer-grid">
-          @for (layer of layerBlueprints; track layer.type) {
-            <app-card>
-              <article class="ai-layer-card">
-                <div class="ai-layer-card__head">
-                  <span>#{{ layer.order }}</span>
-                  <app-badge tone="neutral">Blueprint</app-badge>
-                </div>
-                <h2>{{ layer.name }}</h2>
-                <p>{{ layer.type }}</p>
-                <dl>
-                  <div><dt>Quality mode</dt><dd>{{ layer.qualityMode }}</dd></div>
-                  <div><dt>Estimated cost</dt><dd>{{ layer.cost }}</dd></div>
-                  <div><dt>Timeout</dt><dd>{{ layer.timeout }}</dd></div>
-                </dl>
-              </article>
-            </app-card>
-          }
-        </section>
+        <div class="mt-5">
+          <app-empty-state icon="layers-3" title="No creative layers configured yet" description="Creative layers will appear here after the backend layer catalog is seeded or configured." />
+        </div>
       }
     }
 
     @case ('routing') {
       <section class="ai-routing-grid">
+        @if (!routingPolicies().length) {
+          <app-card>
+            <app-empty-state icon="route" title="No provider routing policies configured yet" description="Provider routing policies will appear after a Master configures tool-to-provider routing." />
+          </app-card>
+        } @else {
+          <app-card>
+            <div class="ai-routing-policy-list">
+              <p>Configured policies</p>
+              @for (policy of routingPolicies(); track policy.id) {
+                <div>
+                  <strong>{{ policy.policyCode }}</strong>
+                  <span>{{ policy.qualityMode }} - Priority {{ policy.priorityOrder }} - {{ policy.enabled ? 'Enabled' : 'Disabled' }}</span>
+                </div>
+              }
+            </div>
+          </app-card>
+        }
         <app-card>
           <form class="ai-routing-form" [formGroup]="routingForm" (ngSubmit)="saveRoutingPolicy()">
             <label>

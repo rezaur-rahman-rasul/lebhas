@@ -12,6 +12,7 @@ import {
   assetStatusTone,
   assetTypeLabel,
   formatFileSize,
+  isVideoAsset,
   resolveFileSize,
 } from '../../models/asset.models';
 
@@ -40,4 +41,5 @@ export class AssetList {
   protected readonly assetStatusTone = assetStatusTone;
   protected readonly formatFileSize = formatFileSize;
   protected readonly resolveFileSize = resolveFileSize;
+  protected readonly isVideoAsset = isVideoAsset;
 }

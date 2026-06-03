@@ -13,6 +13,7 @@ import {
   assetStatusTone,
   assetTypeLabel,
   formatFileSize,
+  isVideoAsset,
   resolveFileSize,
 } from '../../models/asset.models';
 
@@ -42,4 +43,5 @@ export class AssetCard {
   protected readonly formatFileSize = formatFileSize;
   protected readonly resolveFileSize = resolveFileSize;
   protected readonly assetFileExtension = assetFileExtension;
+  protected readonly isVideoAsset = isVideoAsset;
 }

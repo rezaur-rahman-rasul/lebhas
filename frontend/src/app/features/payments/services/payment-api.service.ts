@@ -1,6 +1,7 @@
 import { Injectable, inject } from '@angular/core';
 import { firstValueFrom } from 'rxjs';
 
+import { ApiEndpoints } from '@app/core/api/api-endpoints';
 import { ApiService } from '@app/core/api/api.service';
 import { unwrapApiResponse } from '@app/shared/utils/api-response';
 import {
@@ -31,26 +32,29 @@ export class PaymentApiService {
   private readonly api = inject(ApiService);
 
   getPaymentProviders(): Promise<readonly PaymentProvider[]> {
-    return this.get<readonly PaymentProvider[]>('/api/v1/master/payment-providers');
+    return this.get<readonly PaymentProvider[]>(ApiEndpoints.master.paymentProviders);
   }
 
   getPricingPlans(): Promise<readonly PricingPlanDetail[]> {
-    return this.get<readonly PricingPlanDetail[]>('/api/v1/master/pricing-plans');
+    return this.get<readonly PricingPlanDetail[]>(ApiEndpoints.master.pricingPlans);
   }
 
   createPricingPlan(payload: PricingPlanPayload): Promise<PricingPlanDetail> {
-    return this.post<PricingPlanDetail, PricingPlanPayload>('/api/v1/master/pricing-plans', payload);
+    return this.post<PricingPlanDetail, PricingPlanPayload>(ApiEndpoints.master.pricingPlans, payload);
   }
 
   updatePricingPlan(pricingPlanId: string, payload: PricingPlanPayload): Promise<PricingPlanDetail> {
     return this.put<PricingPlanDetail, PricingPlanPayload>(
-      `/api/v1/master/pricing-plans/${this.path(pricingPlanId)}`,
+      ApiEndpoints.master.pricingPlan(pricingPlanId),
       payload,
     );
   }
 
   disablePricingPlan(pricingPlanId: string): Promise<PricingPlanDetail> {
-    return this.delete<PricingPlanDetail>(`/api/v1/master/pricing-plans/${this.path(pricingPlanId)}`);
+    return this.patch<PricingPlanDetail, Record<string, never>>(
+      ApiEndpoints.master.pricingPlanDeactivate(pricingPlanId),
+      {},
+    );
   }
 
   updatePlanFeaturePolicy(
@@ -58,14 +62,14 @@ export class PaymentApiService {
     payload: PlanFeaturePolicyPayload,
   ): Promise<PricingPlanDetail> {
     return this.put<PricingPlanDetail, PlanFeaturePolicyPayload>(
-      `/api/v1/master/pricing-plans/${this.path(pricingPlanId)}/feature-policy`,
+      ApiEndpoints.master.pricingPlanFeaturePolicy(pricingPlanId),
       payload,
     );
   }
 
   createPaymentProvider(payload: PaymentProviderPayload): Promise<PaymentProvider> {
     return this.post<PaymentProvider, PaymentProviderPayload>(
-      '/api/v1/master/payment-providers',
+      ApiEndpoints.master.paymentProviders,
       payload,
     );
   }
@@ -75,7 +79,7 @@ export class PaymentApiService {
     payload: PaymentProviderPayload,
   ): Promise<PaymentProvider> {
     return this.put<PaymentProvider, PaymentProviderPayload>(
-      `/api/v1/master/payment-providers/${this.path(providerId)}`,
+      ApiEndpoints.master.paymentProvider(providerId),
       payload,
     );
   }
@@ -84,7 +88,7 @@ export class PaymentApiService {
     payload: PaymentProviderConfigurationPayload,
   ): Promise<PaymentProviderConfiguration> {
     return this.post<PaymentProviderConfiguration, PaymentProviderConfigurationPayload>(
-      '/api/v1/master/payment-provider-configurations',
+      ApiEndpoints.master.paymentProviderConfigurations,
       payload,
     );
   }
@@ -94,17 +98,17 @@ export class PaymentApiService {
     payload: PaymentProviderConfigurationPayload,
   ): Promise<PaymentProviderConfiguration> {
     return this.put<PaymentProviderConfiguration, PaymentProviderConfigurationPayload>(
-      `/api/v1/master/payment-provider-configurations/${this.path(configurationId)}`,
+      ApiEndpoints.master.paymentProviderConfiguration(configurationId),
       payload,
     );
   }
 
   getCreditPackages(): Promise<readonly CreditPackage[]> {
-    return this.get<readonly CreditPackage[]>('/api/v1/master/credit-packages');
+    return this.get<readonly CreditPackage[]>(ApiEndpoints.master.creditPackages);
   }
 
   createCreditPackage(payload: CreditPackagePayload): Promise<CreditPackage> {
-    return this.post<CreditPackage, CreditPackagePayload>('/api/v1/master/credit-packages', payload);
+    return this.post<CreditPackage, CreditPackagePayload>(ApiEndpoints.master.creditPackages, payload);
   }
 
   updateCreditPackage(
@@ -112,7 +116,7 @@ export class PaymentApiService {
     payload: CreditPackagePayload,
   ): Promise<CreditPackage> {
     return this.put<CreditPackage, CreditPackagePayload>(
-      `/api/v1/master/credit-packages/${this.path(creditPackageId)}`,
+      ApiEndpoints.master.creditPackage(creditPackageId),
       payload,
     );
   }
@@ -122,7 +126,7 @@ export class PaymentApiService {
     payload: SubscriptionPurchasePayload,
   ): Promise<PaymentSessionResponse> {
     return this.post<PaymentSessionResponse, SubscriptionPurchasePayload>(
-      `/api/v1/workspaces/${this.path(workspaceId)}/subscriptions/purchase`,
+      ApiEndpoints.billing.purchaseSubscription(workspaceId),
       payload,
     );
   }
@@ -132,7 +136,7 @@ export class PaymentApiService {
     payload: SubscriptionUpgradePayload,
   ): Promise<PaymentSessionResponse> {
     return this.post<PaymentSessionResponse, SubscriptionUpgradePayload>(
-      `/api/v1/workspaces/${this.path(workspaceId)}/subscriptions/upgrade`,
+      ApiEndpoints.billing.upgradeSubscription(workspaceId),
       payload,
     );
   }
@@ -142,7 +146,7 @@ export class PaymentApiService {
     payload: SubscriptionRenewPayload,
   ): Promise<PaymentSessionResponse> {
     return this.post<PaymentSessionResponse, SubscriptionRenewPayload>(
-      `/api/v1/workspaces/${this.path(workspaceId)}/subscriptions/renew`,
+      ApiEndpoints.billing.renewSubscription(workspaceId),
       payload,
     );
   }
@@ -152,7 +156,7 @@ export class PaymentApiService {
     payload: CreditPurchasePayload,
   ): Promise<PaymentSessionResponse> {
     return this.post<PaymentSessionResponse, CreditPurchasePayload>(
-      `/api/v1/workspaces/${this.path(workspaceId)}/credits/purchase`,
+      ApiEndpoints.billing.purchaseCredits(workspaceId),
       payload,
     );
   }
@@ -162,7 +166,7 @@ export class PaymentApiService {
     filters?: PaymentFilters,
   ): Promise<readonly PaymentTransaction[]> {
     return this.get<readonly PaymentTransaction[]>(
-      `/api/v1/workspaces/${this.path(workspaceId)}/payments`,
+      ApiEndpoints.billing.payments(workspaceId),
       filters,
     );
   }
@@ -172,12 +176,12 @@ export class PaymentApiService {
     paymentTransactionId: string,
   ): Promise<PaymentTransaction> {
     return this.get<PaymentTransaction>(
-      `/api/v1/workspaces/${this.path(workspaceId)}/payments/${this.path(paymentTransactionId)}`,
+      ApiEndpoints.billing.payment(workspaceId, paymentTransactionId),
     );
   }
 
   getWorkspaceInvoices(workspaceId: string): Promise<readonly Invoice[]> {
-    return this.get<readonly Invoice[]>(`/api/v1/workspaces/${this.path(workspaceId)}/invoices`);
+    return this.get<readonly Invoice[]>(ApiEndpoints.billing.invoices(workspaceId));
   }
 
   private async get<T>(path: string, filters?: PaymentFilters): Promise<T> {
@@ -192,6 +196,11 @@ export class PaymentApiService {
 
   private async put<T, TBody>(path: string, body: TBody): Promise<T> {
     const response = await firstValueFrom(this.api.put<T, TBody>(path, body));
+    return unwrapApiResponse(response);
+  }
+
+  private async patch<T, TBody>(path: string, body: TBody): Promise<T> {
+    const response = await firstValueFrom(this.api.patch<T, TBody>(path, body));
     return unwrapApiResponse(response);
   }
 

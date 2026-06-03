@@ -3,6 +3,7 @@ import { Injectable, inject } from '@angular/core';
 import { firstValueFrom } from 'rxjs';
 
 import { ApiService } from '@app/core/api/api.service';
+import { ApiEndpoints } from '@app/core/api/api-endpoints';
 import {
   SKIP_APP_HEADERS,
   SKIP_AUTH,
@@ -31,36 +32,36 @@ export class ProfileApiService {
   private readonly http = inject(HttpClient);
 
   getMyProfile(): Promise<UserProfileView> {
-    return this.get<UserProfileView>('/api/v1/profile/me');
+    return this.get<UserProfileView>(ApiEndpoints.profile.me);
   }
 
   updateMyProfile(payload: UpdateProfileRequest): Promise<UserProfileView> {
-    return this.put<UserProfileView, UpdateProfileRequest>('/api/v1/profile/me', payload);
+    return this.put<UserProfileView, UpdateProfileRequest>(ApiEndpoints.profile.me, payload);
   }
 
   updateMySettings(payload: UpdateAccountSettingsRequest): Promise<UserAccountSettings> {
     return this.put<UserAccountSettings, UpdateAccountSettingsRequest>(
-      '/api/v1/profile/me/settings',
+      ApiEndpoints.profile.accountSettings,
       payload,
     );
   }
 
   changePassword(payload: ChangePasswordRequest): Promise<void> {
-    return this.post<void, ChangePasswordRequest>('/api/v1/profile/me/change-password', payload);
+    return this.post<void, ChangePasswordRequest>(ApiEndpoints.profile.changePassword, payload);
   }
 
   requestProfileImageUploadUrl(
     payload: ProfileImageUploadUrlRequest,
   ): Promise<ProfileImageUploadUrlResponse> {
     return this.post<ProfileImageUploadUrlResponse, ProfileImageUploadUrlRequest>(
-      '/api/v1/profile/me/profile-image/upload-url',
+      ApiEndpoints.profile.profileImageUploadUrl,
       payload,
     );
   }
 
   confirmProfileImageUpload(payload: ConfirmProfileImageUploadRequest): Promise<UserProfileView> {
     return this.post<UserProfileView, ConfirmProfileImageUploadRequest>(
-      '/api/v1/profile/me/profile-image/confirm',
+      ApiEndpoints.profile.profileImageConfirm,
       payload,
     );
   }
@@ -103,22 +104,19 @@ export class ProfileApiService {
   }
 
   removeProfileImage(): Promise<UserProfileView> {
-    return this.delete<UserProfileView>('/api/v1/profile/me/profile-image');
+    return this.delete<UserProfileView>(ApiEndpoints.profile.profileImage);
   }
 
   getSecurityActivity(): Promise<readonly SecurityActivityView[]> {
-    return this.get<readonly SecurityActivityView[]>('/api/v1/profile/me/security-activity');
+    return this.get<readonly SecurityActivityView[]>(ApiEndpoints.profile.securityActivity);
   }
 
   getSessions(): Promise<readonly UserSessionView[]> {
-    return this.get<readonly UserSessionView[]>('/api/v1/profile/me/sessions');
+    return this.get<readonly UserSessionView[]>(ApiEndpoints.profile.sessions);
   }
 
   revokeSession(sessionId: string): Promise<void> {
-    return this.post<void, Record<string, never>>(
-      `/api/v1/profile/me/sessions/${this.path(sessionId)}/revoke`,
-      {},
-    );
+    return this.delete<void>(ApiEndpoints.profile.session(sessionId));
   }
 
   getMasterUserProfile(userId: string): Promise<SupportUserProfileView> {

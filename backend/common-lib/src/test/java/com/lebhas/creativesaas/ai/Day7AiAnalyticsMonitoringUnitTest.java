@@ -437,6 +437,8 @@ class Day7AiAnalyticsMonitoringUnitTest {
         return new AiAnalyticsMonitoringQueryService(
                 mock(AiProviderHealthService.class),
                 mock(AiLayerAnalyticsRepository.class),
+                mock(com.lebhas.ai.infrastructure.persistence.WorkspaceAiUsageRepository.class),
+                mock(com.lebhas.ai.application.AiUsageAnalyticsMapper.class),
                 mock(com.lebhas.ai.application.WorkspaceAiUsageQueryService.class),
                 mock(GeneratedVersionQualityService.class),
                 mock(AiFailureLogRepository.class),

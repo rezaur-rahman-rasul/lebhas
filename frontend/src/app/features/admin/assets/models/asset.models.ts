@@ -1,16 +1,17 @@
 export type AssetCategory =
   | 'PRODUCT_IMAGE'
   | 'PRODUCT_VIDEO'
+  | 'PACKAGING_IMAGE'
   | 'BRAND_LOGO'
-  | 'RAW_IMAGE'
-  | 'RAW_VIDEO'
-  | 'GENERATED_IMAGE'
-  | 'GENERATED_VIDEO'
-  | 'THUMBNAIL'
+  | 'REFERENCE_IMAGE'
+  | 'REFERENCE_VIDEO'
+  | 'REFERENCE_ASSET'
+  | 'EXPORT_IMAGE'
+  | 'EXPORT_VIDEO'
   | 'OTHER';
 
 export type AssetFileType = 'IMAGE' | 'VIDEO' | 'VECTOR_IMAGE';
-export type AssetStatus = 'UPLOADING' | 'READY' | 'FAILED' | 'DELETED';
+export type AssetStatus = 'UPLOADING' | 'AVAILABLE' | 'READY' | 'FAILED' | 'DELETED' | 'GENERATED_METADATA_ONLY';
 export type AssetViewMode = 'grid' | 'list';
 export type AssetSortField = 'createdAt' | 'updatedAt' | 'originalFileName' | 'fileSize';
 export type AssetSortDirection = 'asc' | 'desc';
@@ -20,6 +21,7 @@ export interface Asset {
   readonly id: string;
   readonly workspaceId: string;
   readonly uploadedBy: string;
+  readonly projectId?: string | null;
   readonly folderId: string | null;
   readonly originalFileName: string;
   readonly storedFileName: string | null;
@@ -130,7 +132,7 @@ export interface AssetUploadCompleted {
 export type AssetUploadEvent = AssetUploadProgress | AssetUploadCompleted;
 
 export const MAX_ASSET_TAG_LENGTH = 80;
-export const ASSET_LIST_PAGE_SIZE = 24;
+export const ASSET_LIST_PAGE_SIZE = 20;
 
 export const DEFAULT_ASSET_FILTERS: AssetFilter = {
   assetCategory: null,
@@ -161,12 +163,13 @@ export const ASSET_CATEGORY_OPTIONS: readonly {
 }[] = [
   { value: 'PRODUCT_IMAGE', label: 'Product image' },
   { value: 'PRODUCT_VIDEO', label: 'Product video' },
+  { value: 'PACKAGING_IMAGE', label: 'Packaging image' },
   { value: 'BRAND_LOGO', label: 'Brand logo' },
-  { value: 'RAW_IMAGE', label: 'Raw image' },
-  { value: 'RAW_VIDEO', label: 'Raw video' },
-  { value: 'GENERATED_IMAGE', label: 'Generated image' },
-  { value: 'GENERATED_VIDEO', label: 'Generated video' },
-  { value: 'THUMBNAIL', label: 'Thumbnail' },
+  { value: 'REFERENCE_IMAGE', label: 'Reference image' },
+  { value: 'REFERENCE_VIDEO', label: 'Reference video' },
+  { value: 'REFERENCE_ASSET', label: 'Reference asset' },
+  { value: 'EXPORT_IMAGE', label: 'Export image' },
+  { value: 'EXPORT_VIDEO', label: 'Export video' },
   { value: 'OTHER', label: 'Other' },
 ];
 
@@ -191,14 +194,14 @@ export const ASSET_UPLOAD_CATEGORY_OPTIONS: readonly {
     description: 'Approved brand marks for template and creative placement.',
   },
   {
-    value: 'RAW_IMAGE',
-    label: 'Raw image',
-    description: 'Unprocessed images from shoots, phones, or source collections.',
+    value: 'REFERENCE_IMAGE',
+    label: 'Reference image',
+    description: 'Source images from shoots, phones, or campaign references.',
   },
   {
-    value: 'RAW_VIDEO',
-    label: 'Raw video',
-    description: 'Source footage before editing or future creative processing.',
+    value: 'REFERENCE_VIDEO',
+    label: 'Reference video',
+    description: 'Source motion clips for future creative processing.',
   },
   {
     value: 'OTHER',
@@ -221,7 +224,9 @@ export const ASSET_STATUS_OPTIONS: readonly {
   readonly label: string;
 }[] = [
   { value: 'READY', label: 'Ready' },
+  { value: 'AVAILABLE', label: 'Available' },
   { value: 'UPLOADING', label: 'Uploading' },
+  { value: 'GENERATED_METADATA_ONLY', label: 'Metadata only' },
   { value: 'FAILED', label: 'Failed' },
   { value: 'DELETED', label: 'Deleted' },
 ];
@@ -239,12 +244,13 @@ export const ASSET_SORT_OPTIONS: readonly {
 export const ASSET_CATEGORY_LABELS: Record<AssetCategory, string> = {
   PRODUCT_IMAGE: 'Product image',
   PRODUCT_VIDEO: 'Product video',
+  PACKAGING_IMAGE: 'Packaging image',
   BRAND_LOGO: 'Brand logo',
-  RAW_IMAGE: 'Raw image',
-  RAW_VIDEO: 'Raw video',
-  GENERATED_IMAGE: 'Generated image',
-  GENERATED_VIDEO: 'Generated video',
-  THUMBNAIL: 'Thumbnail',
+  REFERENCE_IMAGE: 'Reference image',
+  REFERENCE_VIDEO: 'Reference video',
+  REFERENCE_ASSET: 'Reference asset',
+  EXPORT_IMAGE: 'Export image',
+  EXPORT_VIDEO: 'Export video',
   OTHER: 'Other',
 };
 
@@ -255,8 +261,10 @@ export const ASSET_FILE_TYPE_LABELS: Record<AssetFileType, string> = {
 };
 
 export const ASSET_STATUS_LABELS: Record<AssetStatus, string> = {
+  AVAILABLE: 'Available',
   READY: 'Ready',
   UPLOADING: 'Uploading',
+  GENERATED_METADATA_ONLY: 'Metadata only',
   FAILED: 'Failed',
   DELETED: 'Deleted',
 };
@@ -278,11 +286,13 @@ export function assetStatusTone(
 ): 'brand' | 'blue' | 'red' | 'neutral' {
   switch (status) {
     case 'READY':
+    case 'AVAILABLE':
       return 'brand';
     case 'UPLOADING':
       return 'blue';
     case 'FAILED':
       return 'red';
+    case 'GENERATED_METADATA_ONLY':
     case 'DELETED':
     default:
       return 'neutral';

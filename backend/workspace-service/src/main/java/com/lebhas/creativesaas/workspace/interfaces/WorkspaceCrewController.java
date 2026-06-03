@@ -24,7 +24,7 @@ import java.util.List;
 import java.util.UUID;
 
 @RestController
-@RequestMapping("/api/v1/workspaces/{id}/crew")
+@RequestMapping("/api/v1/workspaces/{workspaceId}/members")
 @Tag(name = "Workspace Crew")
 @SecurityRequirement(name = "bearerAuth")
 public class WorkspaceCrewController {
@@ -38,9 +38,9 @@ public class WorkspaceCrewController {
     @PostMapping("/invite")
     @PreAuthorize("hasAuthority('CREW_INVITE')")
     @Operation(summary = "Invite a crew member into a workspace")
-    public ApiResponse<InvitationView> inviteCrew(@PathVariable UUID id, @Valid @RequestBody InviteCrewRequest request) {
+    public ApiResponse<InvitationView> inviteCrew(@PathVariable UUID workspaceId, @Valid @RequestBody InviteCrewRequest request) {
         return ApiResponse.success(crewManagementService.inviteCrew(new InviteCrewCommand(
-                id,
+                workspaceId,
                 request.email(),
                 request.role(),
                 request.permissions())));
@@ -49,37 +49,37 @@ public class WorkspaceCrewController {
     @GetMapping
     @PreAuthorize("hasAuthority('CREW_VIEW')")
     @Operation(summary = "List workspace crew members")
-    public ApiResponse<List<CrewMemberView>> listCrew(@PathVariable UUID id) {
-        return ApiResponse.success(crewManagementService.listCrewMembers(id));
+    public ApiResponse<List<CrewMemberView>> listCrew(@PathVariable UUID workspaceId) {
+        return ApiResponse.success(crewManagementService.listCrewMembers(workspaceId));
     }
 
-    @GetMapping("/{crewId}")
+    @GetMapping("/{memberId}")
     @PreAuthorize("hasAuthority('CREW_VIEW')")
     @Operation(summary = "Get workspace crew member details")
-    public ApiResponse<CrewMemberView> getCrew(@PathVariable UUID id, @PathVariable UUID crewId) {
-        return ApiResponse.success(crewManagementService.getCrewMember(id, crewId));
+    public ApiResponse<CrewMemberView> getCrew(@PathVariable UUID workspaceId, @PathVariable UUID memberId) {
+        return ApiResponse.success(crewManagementService.getCrewMember(workspaceId, memberId));
     }
 
-    @PutMapping("/{crewId}")
+    @PutMapping("/{memberId}")
     @PreAuthorize("hasAuthority('CREW_UPDATE')")
     @Operation(summary = "Update workspace crew permissions or status")
     public ApiResponse<CrewMemberView> updateCrew(
-            @PathVariable UUID id,
-            @PathVariable UUID crewId,
+            @PathVariable UUID workspaceId,
+            @PathVariable UUID memberId,
             @Valid @RequestBody UpdateCrewMemberRequest request
     ) {
         return ApiResponse.success(crewManagementService.updateCrewMember(new UpdateCrewMemberCommand(
-                id,
-                crewId,
+                workspaceId,
+                memberId,
                 request.permissions(),
                 request.status())));
     }
 
-    @DeleteMapping("/{crewId}")
+    @DeleteMapping("/{memberId}")
     @PreAuthorize("hasAuthority('CREW_REMOVE')")
     @Operation(summary = "Remove a crew member from a workspace")
-    public ApiResponse<Void> removeCrew(@PathVariable UUID id, @PathVariable UUID crewId) {
-        crewManagementService.removeCrewMember(id, crewId);
+    public ApiResponse<Void> removeCrew(@PathVariable UUID workspaceId, @PathVariable UUID memberId) {
+        crewManagementService.removeCrewMember(workspaceId, memberId);
         return ApiResponse.success("Crew member removed", null);
     }
 }

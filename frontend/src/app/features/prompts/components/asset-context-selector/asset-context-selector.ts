@@ -5,6 +5,7 @@ import {
   assetCategoryLabel,
   assetTypeLabel,
   isImageAsset,
+  isVideoAsset,
 } from '@app/features/assets/models/asset.models';
 import { BadgeComponent } from '@app/shared/components/badge/badge';
 import { ButtonComponent } from '@app/shared/components/button/button';
@@ -41,13 +42,10 @@ export class AssetContextSelector {
       return 'image';
     }
 
-    switch (asset.assetType) {
-      case 'VIDEO':
-        return 'video';
-      case 'DOCUMENT':
-        return 'file-text';
-      default:
-        return 'file';
+    if (isVideoAsset(asset)) {
+      return 'video';
     }
+
+    return asset.assetType === 'DOCUMENT' ? 'file-text' : 'file';
   }
 }

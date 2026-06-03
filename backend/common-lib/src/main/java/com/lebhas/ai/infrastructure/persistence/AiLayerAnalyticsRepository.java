@@ -14,4 +14,6 @@ public interface AiLayerAnalyticsRepository extends JpaRepository<AiLayerAnalyti
     List<AiLayerAnalytics> findAllByLayerIdAndDeletedFalse(UUID layerId);
 
     List<AiLayerAnalytics> findAllByProviderIdAndDeletedFalse(UUID providerId);
+
+    List<AiLayerAnalytics> findAllByDeletedFalse();
 }

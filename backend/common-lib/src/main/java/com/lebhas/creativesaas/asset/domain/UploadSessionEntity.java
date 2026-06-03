@@ -19,7 +19,7 @@ public class UploadSessionEntity extends TenantAwareEntity {
     @Column(name = "product_service_id")
     private UUID productServiceId;
 
-    @Column(name = "project_id", nullable = false, updatable = false)
+    @Column(name = "project_id", updatable = false)
     private UUID projectId;
 
     @Column(name = "asset_id")
@@ -72,7 +72,7 @@ public class UploadSessionEntity extends TenantAwareEntity {
         entity.assignWorkspace(workspaceId);
         entity.brandId = brandId;
         entity.productServiceId = productServiceId;
-        entity.projectId = require(projectId, "projectId");
+        entity.projectId = projectId;
         entity.uploadedBy = require(uploadedBy, "uploadedBy");
         entity.originalFileName = normalizeRequired(originalFileName, "originalFileName");
         entity.mimeType = normalizeNullable(mimeType);

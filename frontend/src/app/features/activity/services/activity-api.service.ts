@@ -1,6 +1,7 @@
 import { Injectable, inject } from '@angular/core';
 import { firstValueFrom } from 'rxjs';
 
+import { ApiEndpoints } from '@app/core/api/api-endpoints';
 import { ApiService } from '@app/core/api/api.service';
 import { unwrapApiResponse } from '@app/shared/utils/api-response';
 import { ActivityFeed, ActivityFilters } from '../models/activity.models';
@@ -14,15 +15,18 @@ export class ActivityApiService {
 
   getActivityFeed(workspaceId: string, filters?: ActivityFilters): Promise<readonly ActivityFeed[]> {
     return this.get<readonly ActivityFeed[]>(
-      `/api/v1/workspaces/${this.path(workspaceId)}/activity-feed`,
+      ApiEndpoints.activity.feed(workspaceId),
       filters,
     );
   }
 
-  getActivityDetail(workspaceId: string, activityId: string): Promise<ActivityFeed> {
-    return this.get<ActivityFeed>(
-      `/api/v1/workspaces/${this.path(workspaceId)}/activity-feed/${this.path(activityId)}`,
-    );
+  async getActivityDetail(workspaceId: string, activityId: string): Promise<ActivityFeed> {
+    const items = await this.getActivityFeed(workspaceId);
+    const item = items.find((activity) => activity.id === activityId);
+    if (!item) {
+      throw new Error('Activity item not found in the workspace feed.');
+    }
+    return item;
   }
 
   private async get<T>(path: string, filters?: ActivityFilters): Promise<T> {
@@ -38,9 +42,5 @@ export class ActivityApiService {
       }
     }
     return params;
-  }
-
-  private path(value: string): string {
-    return encodeURIComponent(value);
   }
 }

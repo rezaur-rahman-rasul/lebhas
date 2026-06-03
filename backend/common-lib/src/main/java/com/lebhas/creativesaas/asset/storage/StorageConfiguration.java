@@ -72,7 +72,10 @@ public class StorageConfiguration {
 
     private S3Presigner buildS3Presigner(StorageProperties storageProperties) {
         var builder = S3Presigner.builder()
-                .region(Region.of(storageProperties.getS3().getRegion()));
+                .region(Region.of(storageProperties.getS3().getRegion()))
+                .serviceConfiguration(S3Configuration.builder()
+                        .pathStyleAccessEnabled(storageProperties.getS3().isPathStyleAccessEnabled())
+                        .build());
         if (storageProperties.getS3().getEndpoint() != null) {
             builder.endpointOverride(storageProperties.getS3().getEndpoint());
         }

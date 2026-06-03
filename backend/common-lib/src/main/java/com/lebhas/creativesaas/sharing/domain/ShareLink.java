@@ -22,7 +22,7 @@ import java.util.UUID;
         name = "share_links",
         schema = "platform",
         uniqueConstraints = {
-                @UniqueConstraint(name = "uk_share_links_token", columnNames = "token")
+                @UniqueConstraint(name = "uk_share_links_token_hash", columnNames = "token_hash")
         },
         indexes = {
                 @Index(name = "idx_share_links_workspace_id", columnList = "workspace_id"),
@@ -47,7 +47,10 @@ public class ShareLink {
     @JoinColumn(name = "generated_version_id", nullable = false, insertable = false, updatable = false)
     private GeneratedVersionEntity generatedVersion;
 
-    @Column(name = "token", nullable = false, unique = true, length = 120)
+    @Column(name = "token_hash", nullable = false, unique = true, length = 120)
+    private String tokenHash;
+
+    @Column(name = "token", length = 120)
     private String token;
 
     @Column(name = "expires_at", nullable = false)
@@ -62,14 +65,20 @@ public class ShareLink {
     @Column(name = "created_at", nullable = false, updatable = false)
     private Instant createdAt;
 
+    @Column(name = "revoked_at")
+    private Instant revokedAt;
+
+    @Column(name = "revoked_by")
+    private UUID revokedBy;
+
     protected ShareLink() {
     }
 
-    public static ShareLink create(UUID workspaceId, UUID generatedVersionId, String token, Instant expiresAt, UUID createdBy) {
+    public static ShareLink create(UUID workspaceId, UUID generatedVersionId, String tokenHash, Instant expiresAt, UUID createdBy) {
         ShareLink shareLink = new ShareLink();
         shareLink.workspaceId = require(workspaceId, "workspaceId");
         shareLink.generatedVersionId = require(generatedVersionId, "generatedVersionId");
-        shareLink.token = normalizeRequired(token, "token");
+        shareLink.tokenHash = normalizeRequired(tokenHash, "tokenHash");
         shareLink.expiresAt = require(expiresAt, "expiresAt");
         shareLink.accessCount = 0L;
         shareLink.createdBy = require(createdBy, "createdBy");
@@ -97,8 +106,15 @@ public class ShareLink {
         return generatedVersion;
     }
 
+    public String getTokenHash() {
+        return tokenHash;
+    }
+
+    /**
+     * Kept for older internal call sites; this value is a hash, never the raw public token.
+     */
     public String getToken() {
-        return token;
+        return tokenHash;
     }
 
     public Instant getExpiresAt() {
@@ -117,8 +133,27 @@ public class ShareLink {
         return createdAt;
     }
 
+    public Instant getRevokedAt() {
+        return revokedAt;
+    }
+
+    public UUID getRevokedBy() {
+        return revokedBy;
+    }
+
+    public boolean isRevoked() {
+        return revokedAt != null;
+    }
+
     public void incrementAccessCount() {
         this.accessCount += 1L;
+    }
+
+    public void revoke(UUID revokedBy) {
+        if (this.revokedAt == null) {
+            this.revokedAt = Instant.now();
+            this.revokedBy = revokedBy;
+        }
     }
 
     private static UUID require(UUID value, String field) {

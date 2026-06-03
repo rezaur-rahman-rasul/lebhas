@@ -7,7 +7,6 @@ import com.lebhas.creativesaas.common.api.PagedResult;
 import com.lebhas.creativesaas.workspace.application.WorkspaceActivityLogger;
 import org.springframework.stereotype.Service;
 
-import java.util.Objects;
 import java.util.UUID;
 import java.util.function.Supplier;
 
@@ -37,19 +36,7 @@ public class AssetCacheService {
     }
 
     public PagedResult<AssetView> getOrLoadList(AssetListCriteria criteria, Supplier<PagedResult<AssetView>> loader) {
-        String signature = signature(criteria);
-        var cached = assetMetadataRedisCacheService.getProjectList(criteria.workspaceId(), criteria.projectId(), criteria.page()).orElse(null);
-        if (cached != null && Objects.equals(cached.criteriaSignature(), signature)) {
-            return cached.result();
-        }
-        PagedResult<AssetView> loaded = loader.get();
-        assetMetadataRedisCacheService.cacheProjectList(
-                criteria.workspaceId(),
-                criteria.projectId(),
-                criteria.page(),
-                signature,
-                loaded);
-        return loaded;
+        return loader.get();
     }
 
     public void invalidate(UUID workspaceId, UUID projectId, UUID assetId, UUID actorUserId) {
@@ -58,30 +45,16 @@ public class AssetCacheService {
                 com.lebhas.creativesaas.asset.cache.AssetCacheKeys.asset(assetId),
                 workspaceId,
                 actorUserId);
-        long deleted = assetMetadataRedisCacheService.invalidateProjectLists(workspaceId, projectId);
+        long deleted = assetMetadataRedisCacheService.invalidateProjectLists(workspaceId, null);
+        if (projectId != null) {
+            deleted += assetMetadataRedisCacheService.invalidateProjectLists(workspaceId, projectId);
+        }
         if (deleted > 0) {
             workspaceActivityLogger.logCacheInvalidation(
-                    com.lebhas.creativesaas.asset.cache.AssetCacheKeys.assetListProjectPattern(projectId),
+                    com.lebhas.creativesaas.asset.cache.AssetCacheKeys.assetListPattern(workspaceId, projectId),
                     workspaceId,
                     actorUserId);
         }
-    }
-
-    private String signature(AssetListCriteria criteria) {
-        return String.join("|",
-                String.valueOf(criteria.assetType()),
-                String.valueOf(criteria.assetCategory()),
-                String.valueOf(criteria.previewStatus()),
-                String.valueOf(criteria.processingStatus()),
-                String.valueOf(criteria.uploadedBy()),
-                String.valueOf(criteria.status()),
-                String.valueOf(criteria.keyword()),
-                String.valueOf(criteria.createdFrom()),
-                String.valueOf(criteria.createdTo()),
-                String.valueOf(criteria.page()),
-                String.valueOf(criteria.size()),
-                String.valueOf(criteria.sortBy()),
-                String.valueOf(criteria.sortDirection()));
     }
 
 }

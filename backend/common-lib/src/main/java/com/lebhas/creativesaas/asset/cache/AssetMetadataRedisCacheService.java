@@ -44,7 +44,7 @@ public class AssetMetadataRedisCacheService {
 
     public Optional<AssetListCacheEntry> getProjectList(UUID workspaceId, UUID projectId, int page) {
         return redisAccessSupport.read(
-                AssetCacheKeys.assetListProject(projectId, page),
+                AssetCacheKeys.assetList(workspaceId, projectId, page),
                 AssetListCacheEntry.class,
                 workspaceId,
                 null);
@@ -58,7 +58,7 @@ public class AssetMetadataRedisCacheService {
             PagedResult<AssetView> result
     ) {
         redisAccessSupport.write(
-                AssetCacheKeys.assetListProject(projectId, page),
+                AssetCacheKeys.assetList(workspaceId, projectId, page),
                 new AssetListCacheEntry(
                         workspaceId,
                         projectId,
@@ -76,6 +76,6 @@ public class AssetMetadataRedisCacheService {
     }
 
     public long invalidateProjectLists(UUID workspaceId, UUID projectId) {
-        return redisAccessSupport.deleteByPattern(AssetCacheKeys.assetListProjectPattern(projectId), workspaceId, null);
+        return redisAccessSupport.deleteByPattern(AssetCacheKeys.assetListPattern(workspaceId, projectId), workspaceId, null);
     }
 }

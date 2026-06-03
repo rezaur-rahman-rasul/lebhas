@@ -33,10 +33,10 @@ public class MasterSupportModeController {
         return ApiResponse.success(masterSupportModeService.enterSupportMode(workspaceId));
     }
 
-    @PostMapping("/exit-support-mode")
+    @PostMapping("/{workspaceId}/exit-support-mode")
     @PreAuthorize("hasRole('MASTER')")
-    @Operation(summary = "Exit the current support mode session")
-    public ApiResponse<SupportModeView> exitSupportMode() {
+    @Operation(summary = "Exit support mode for a workspace")
+    public ApiResponse<SupportModeView> exitWorkspaceSupportMode(@PathVariable UUID workspaceId) {
         return ApiResponse.success(masterSupportModeService.exitSupportMode());
     }
 }

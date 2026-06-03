@@ -13,7 +13,7 @@ import java.util.UUID;
 @Table(name = "storage_files", schema = "platform")
 public class StorageFileEntity extends TenantAwareEntity {
 
-    @Column(name = "project_id", nullable = false, updatable = false)
+    @Column(name = "project_id", updatable = false)
     private UUID projectId;
 
     @Enumerated(EnumType.STRING)
@@ -80,7 +80,7 @@ public class StorageFileEntity extends TenantAwareEntity {
     ) {
         StorageFileEntity file = new StorageFileEntity();
         file.assignWorkspace(workspaceId);
-        file.projectId = requireProjectId(projectId);
+        file.projectId = projectId;
         file.provider = requireProvider(provider);
         file.bucket = normalizeRequired(bucket, "bucket");
         file.objectKey = normalizeRequired(objectKey, "objectKey");
@@ -151,13 +151,6 @@ public class StorageFileEntity extends TenantAwareEntity {
 
     public StorageFilePurpose getFilePurpose() {
         return filePurpose;
-    }
-
-    private static UUID requireProjectId(UUID projectId) {
-        if (projectId == null) {
-            throw new IllegalArgumentException("projectId must not be null");
-        }
-        return projectId;
     }
 
     private static com.lebhas.creativesaas.asset.domain.StorageProvider requireProvider(

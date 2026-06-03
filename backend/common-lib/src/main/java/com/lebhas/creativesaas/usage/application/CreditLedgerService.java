@@ -1,9 +1,11 @@
 package com.lebhas.creativesaas.usage.application;
 
+import com.lebhas.creativesaas.common.api.PagedResult;
 import com.lebhas.creativesaas.usage.application.dto.CreditLedgerView;
 import com.lebhas.creativesaas.usage.domain.CreditLedger;
 import com.lebhas.creativesaas.usage.domain.CreditLedgerTransactionType;
 import com.lebhas.creativesaas.usage.infrastructure.persistence.CreditLedgerRepository;
+import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -62,6 +64,12 @@ public class CreditLedgerService {
                 .stream()
                 .map(creditUsageMapper::toLedgerView)
                 .toList();
+    }
+
+    @Transactional(readOnly = true)
+    public PagedResult<CreditLedgerView> findWorkspaceLedger(UUID workspaceId, Pageable pageable) {
+        return PagedResult.from(creditLedgerRepository.findAllByWorkspaceIdOrderByCreatedAtDesc(workspaceId, pageable)
+                .map(creditUsageMapper::toLedgerView));
     }
 
     @Transactional(readOnly = true)

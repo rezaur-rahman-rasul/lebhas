@@ -1,9 +1,9 @@
 import { HttpClient, HttpContext, HttpParams } from '@angular/common/http';
 import { Injectable, inject } from '@angular/core';
 
-import { environment } from '@env/environment';
 import { ApiResponse } from '@app/shared/models/api-response.model';
 import { joinUrl } from '@app/shared/utils/join-url';
+import { ApiConfigService } from './api-config.service';
 
 type QueryValue = string | number | boolean | readonly (string | number | boolean)[];
 type QueryParams = Record<string, QueryValue | null | undefined>;
@@ -16,7 +16,7 @@ interface RequestOptions {
 @Injectable({ providedIn: 'root' })
 export class ApiService {
   private readonly http = inject(HttpClient);
-  private readonly baseUrl = environment.apiBaseUrl;
+  private readonly config = inject(ApiConfigService);
 
   get<T>(path: string, options?: QueryParams | RequestOptions) {
     const requestOptions = this.normalizeOptions(options);
@@ -53,7 +53,7 @@ export class ApiService {
   }
 
   private url(path: string): string {
-    return joinUrl(this.baseUrl, path);
+    return joinUrl(this.config.apiBaseUrl, path);
   }
 
   private params(params?: QueryParams): HttpParams {

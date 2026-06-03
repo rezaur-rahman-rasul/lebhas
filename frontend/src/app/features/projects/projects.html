@@ -10,7 +10,7 @@
           Create Project / Campaign
         </app-button>
       } @else {
-        <a routerLink="/product-services" title="Create a product/service first">
+        <a routerLink="/products-services" title="Create a product/service first">
           <app-button icon="package-open" variant="secondary">Create a product/service first</app-button>
         </a>
       }
@@ -68,7 +68,7 @@
               description="Create the first project once a product or service is available."
             >
               @if (products().length === 0) {
-                <a routerLink="/product-services">
+                <a routerLink="/products-services">
                   <app-button icon="package-open">Create a product/service first</app-button>
                 </a>
               }
@@ -194,7 +194,7 @@
                 <div class="project-warning-card">
                   <span>Product relationship missing</span>
                   <p>Guide this project back to a product/service before generating creatives.</p>
-                  <a routerLink="/product-services">Create a product/service first</a>
+                  <a routerLink="/products-services">Create a product/service first</a>
                 </div>
               }
 

@@ -1,7 +1,9 @@
 package com.lebhas.creativesaas.usage.application;
 
+import com.lebhas.creativesaas.common.api.PagedResult;
 import com.lebhas.creativesaas.usage.application.dto.UsageBillingLogView;
 import com.lebhas.creativesaas.usage.infrastructure.persistence.UsageBillingLogRepository;
+import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -28,6 +30,20 @@ public class UsageBillingQueryService {
                 .stream()
                 .map(usageBillingMapper::toView)
                 .toList();
+    }
+
+    @Transactional(readOnly = true)
+    public PagedResult<UsageBillingLogView> findWorkspaceBillingLogs(UUID workspaceId, Pageable pageable) {
+        return PagedResult.from(usageBillingLogRepository.findAllByWorkspaceIdOrderByCreatedAtDesc(
+                        require(workspaceId, "workspaceId"),
+                        pageable)
+                .map(usageBillingMapper::toView));
+    }
+
+    @Transactional(readOnly = true)
+    public PagedResult<UsageBillingLogView> findAiCostBillingLogs(Pageable pageable) {
+        return PagedResult.from(usageBillingLogRepository.findAllByEstimatedCostUsdIsNotNullOrderByCreatedAtDesc(pageable)
+                .map(usageBillingMapper::toView));
     }
 
     private <T> T require(T value, String field) {

@@ -2,6 +2,7 @@ import { inject, Injectable } from '@angular/core';
 import { firstValueFrom } from 'rxjs';
 
 import { ApiService } from '@app/core/api/api.service';
+import { ApiEndpoints } from '@app/core/api/api-endpoints';
 import { unwrapApiResponse } from '@app/shared/utils/api-response';
 import {
   CreateProjectCampaignPayload,
@@ -15,7 +16,7 @@ export class ProjectApiService {
 
   async list(workspaceId: string): Promise<readonly ProjectCampaign[]> {
     const response = await firstValueFrom(
-      this.api.get<ProjectCampaign[]>(`/api/v1/workspaces/${workspaceId}/projects`),
+      this.api.get<ProjectCampaign[]>(ApiEndpoints.projects.list(workspaceId)),
     );
 
     return unwrapApiResponse(response);
@@ -28,8 +29,11 @@ export class ProjectApiService {
   ): Promise<ProjectCampaign> {
     const response = await firstValueFrom(
       this.api.post<ProjectCampaign, CreateProjectCampaignPayload>(
-        `/api/v1/workspaces/${workspaceId}/product-services/${productServiceId}/projects`,
-        payload,
+        ApiEndpoints.projects.list(workspaceId),
+        {
+          ...payload,
+          productServiceId,
+        },
       ),
     );
 
@@ -43,7 +47,7 @@ export class ProjectApiService {
   ): Promise<ProjectCampaign> {
     const response = await firstValueFrom(
       this.api.put<ProjectCampaign, UpdateProjectCampaignPayload>(
-        `/api/v1/workspaces/${workspaceId}/projects/${projectId}`,
+        ApiEndpoints.projects.detail(workspaceId, projectId),
         payload,
       ),
     );
@@ -52,6 +56,6 @@ export class ProjectApiService {
   }
 
   async remove(workspaceId: string, projectId: string): Promise<void> {
-    await firstValueFrom(this.api.delete<void>(`/api/v1/workspaces/${workspaceId}/projects/${projectId}`));
+    await firstValueFrom(this.api.delete<void>(ApiEndpoints.projects.detail(workspaceId, projectId)));
   }
 }

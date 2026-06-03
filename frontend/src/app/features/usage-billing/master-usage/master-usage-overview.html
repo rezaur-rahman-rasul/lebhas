@@ -55,8 +55,8 @@
     } @else if (!hasData()) {
       <app-usage-empty-state
         icon="building-2"
-        title="No workspace usage data yet"
-        description="No workspace usage data yet. Usage will appear here once workspaces start creating creatives."
+        [title]="emptyTitle()"
+        [description]="emptyDescription()"
         retryLabel="Refresh"
         (retry)="refresh()"
       />

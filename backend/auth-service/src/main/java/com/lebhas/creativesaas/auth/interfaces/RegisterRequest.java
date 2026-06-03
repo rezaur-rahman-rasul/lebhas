@@ -8,6 +8,7 @@ import jakarta.validation.constraints.Size;
 
 import java.util.UUID;
 
+@PasswordsMatch
 public record RegisterRequest(
         @NotBlank(message = ValidationMessages.REQUIRED)
         @Size(max = 80)
@@ -21,10 +22,19 @@ public record RegisterRequest(
         String email,
         @Size(max = 30)
         String phone,
+        @Size(max = 30)
+        String phoneNumber,
         @NotBlank(message = ValidationMessages.REQUIRED)
         @StrongPassword
         String password,
+        @NotBlank(message = ValidationMessages.REQUIRED)
+        String confirmPassword,
+        @Size(max = 100)
+        String workspaceName,
         UUID workspaceId,
         String invitationToken
 ) {
+    public String resolvedPhoneNumber() {
+        return phoneNumber != null ? phoneNumber : phone;
+    }
 }

@@ -29,7 +29,7 @@
     <div class="master-skeleton-panel"></div>
   </section>
 } @else {
-  @if (error()) {
+  @if (error() && !hasAnyData()) {
     <div class="master-inline-error mt-5">
       <app-icon name="circle-alert" [size]="18" />
       <span>{{ error() }}</span>
@@ -77,7 +77,7 @@
           <p>Workspace Overview</p>
           <h2>Tenant activity</h2>
         </div>
-        <a routerLink="/master/usage/workspaces">View all</a>
+        <a routerLink="/master/workspaces">View all</a>
       </div>
 
       @if (topWorkspaces().length > 0) {
@@ -102,7 +102,7 @@
       } @else {
         <div class="master-compact-empty">
           <app-icon name="building-2" [size]="18" />
-          <span>Workspace usage will appear when the master usage API returns data.</span>
+          <span>Workspace usage has not been reported yet.</span>
         </div>
       }
     </app-card>
@@ -113,7 +113,7 @@
           <p>AI Provider Health</p>
           <h2>Creative operations</h2>
         </div>
-        <a routerLink="/ai-monitoring/providers">Open</a>
+        <a routerLink="/master/provider-health">Open</a>
       </div>
 
       <div class="master-health-grid">
@@ -144,7 +144,7 @@
         } @empty {
           <div class="master-compact-empty master-compact-empty--small">
             <app-icon name="activity" [size]="18" />
-            <span>System health events will appear here.</span>
+            <span>No AI provider health data is available yet.</span>
           </div>
         }
       </div>
@@ -181,7 +181,7 @@
       } @else {
         <div class="master-compact-empty">
           <app-icon name="wallet-cards" [size]="18" />
-          <span>Plan utilization will appear after credit usage is reported.</span>
+          <span>No credit usage has been recorded yet.</span>
         </div>
       }
     </app-card>
@@ -220,7 +220,7 @@
       } @else {
         <div class="master-compact-empty">
           <app-icon name="clock-3" [size]="18" />
-          <span>Recent system activity will appear here.</span>
+          <span>No system activity has been recorded yet.</span>
         </div>
       }
     </app-card>

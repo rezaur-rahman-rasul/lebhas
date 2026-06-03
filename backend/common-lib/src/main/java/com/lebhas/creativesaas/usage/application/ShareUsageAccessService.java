@@ -39,10 +39,11 @@ public class ShareUsageAccessService {
 
     @Transactional
     public ShareUsageView recordPublicShareAccess(ShareUsageTrackingCommand command) {
-        String token = normalizeToken(command.token());
-        ShareLink shareLink = shareLinkRepository.findByToken(token)
+        String tokenHash = normalizeToken(command.token());
+        ShareLink shareLink = shareLinkRepository.findByTokenHash(tokenHash)
                 .orElseThrow(() -> new BusinessException(ErrorCode.RESOURCE_NOT_FOUND, "Share link not found"));
         validateNotExpired(shareLink);
+        validateNotRevoked(shareLink);
         PlanUsagePolicy policy = planUsagePolicyResolver.resolve(shareLink.getWorkspaceId());
         if (!policy.featurePolicy().isAllowPublicShareLinks()) {
             throw new BusinessException(ErrorCode.PLAN_FEATURE_DISABLED, "Public share links are not enabled for the workspace plan");
@@ -57,6 +58,13 @@ public class ShareUsageAccessService {
         if (shareLink.getExpiresAt() != null && shareLink.getExpiresAt().isBefore(clock.instant())) {
             shareLinkCacheService.invalidateShareLink(shareLink);
             throw new BusinessException(ErrorCode.TOKEN_EXPIRED, "Share link has expired");
+        }
+    }
+
+    private void validateNotRevoked(ShareLink shareLink) {
+        if (shareLink.isRevoked()) {
+            shareLinkCacheService.invalidateShareLink(shareLink);
+            throw new BusinessException(ErrorCode.TOKEN_INVALID, "Share link has been revoked");
         }
     }
 

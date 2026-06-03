@@ -1,18 +1,25 @@
 import {
   ChangeDetectionStrategy,
   Component,
-  DestroyRef,
   computed,
   inject,
   input,
   output,
-  signal,
 } from '@angular/core';
-import { NavigationEnd, Router, RouterLink } from '@angular/router';
-import { filter } from 'rxjs';
+import { toSignal } from '@angular/core/rxjs-interop';
+import {
+  NavigationCancel,
+  NavigationEnd,
+  NavigationError,
+  RouterLinkActive,
+  NavigationSkipped,
+  NavigationStart,
+  Router,
+  RouterLink,
+} from '@angular/router';
+import { filter, map, startWith } from 'rxjs';
 
 import { NavigationItem } from '@app/shared/layouts/navigation.models';
-import { BrandLogoComponent } from '@app/shared/components/brand-logo/brand-logo';
 import { IconComponent } from '@app/shared/components/icon/icon';
 import { BillingModalService } from '@app/features/payments/services/billing-modal.service';
 
@@ -24,14 +31,13 @@ interface NavigationGroup {
 @Component({
   selector: 'app-sidebar',
   standalone: true,
-  imports: [RouterLink, BrandLogoComponent, IconComponent],
+  imports: [RouterLink, RouterLinkActive, IconComponent],
   templateUrl: './app-sidebar.html',
   styleUrl: './app-sidebar.scss',
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class SidebarComponent {
   private readonly router = inject(Router);
-  private readonly destroyRef = inject(DestroyRef);
   private readonly billingModal = inject(BillingModalService);
 
   readonly brandName = input('Lebhas - Brand Attire');
@@ -43,39 +49,58 @@ export class SidebarComponent {
   readonly itemSelected = output<void>();
   readonly closeRequested = output<void>();
 
-  readonly activeRoute = signal(this.router.url);
+  readonly activeRoute = toSignal(
+    this.router.events.pipe(
+      filter(
+        (
+          event,
+        ): event is
+          | NavigationStart
+          | NavigationEnd
+          | NavigationCancel
+          | NavigationError
+          | NavigationSkipped =>
+          event instanceof NavigationStart ||
+          event instanceof NavigationEnd ||
+          event instanceof NavigationCancel ||
+          event instanceof NavigationError ||
+          event instanceof NavigationSkipped,
+      ),
+      map((event) => this.normalizeRoute(this.routeFromNavigationEvent(event))),
+      startWith(this.normalizeRoute(this.router.url)),
+    ),
+    { initialValue: this.normalizeRoute(this.router.url) },
+  );
 
   protected readonly allowedNavItems = computed(() => this.items());
   protected readonly navigationGroups = computed(() => this.groupNavigationItems(this.allowedNavItems()));
   protected readonly activeNavigationItem = computed(
-    () => this.allowedNavItems().find((item) => this.isActive(item)) ?? null,
+    () => {
+      this.activeRoute();
+      return this.allowedNavItems().find((item) => this.isActive(item)) ?? null;
+    },
   );
   protected readonly roleBadgeLabel = computed(() => this.role() || 'ADMIN');
   protected readonly displayWorkspaceName = computed(() => this.workspaceLabel() || 'Select workspace');
   protected readonly displayProjectName = computed(() => this.brandName() || 'Lebhas - Brand Attire');
   protected readonly compactRoleLabel = computed(() => this.roleBadgeLabel().slice(0, 1));
 
-  constructor() {
-    const subscription = this.router.events
-      .pipe(filter((event): event is NavigationEnd => event instanceof NavigationEnd))
-      .subscribe((event) => this.activeRoute.set(event.urlAfterRedirects));
-
-    this.destroyRef.onDestroy(() => subscription.unsubscribe());
-  }
-
   protected isActive(item: NavigationItem): boolean {
-    const currentRoute = this.normalizeRoute(this.activeRoute());
-    const candidates = [item.route, ...(item.activePaths ?? [])].map((route) =>
-      this.normalizeRoute(route),
-    );
+    const candidates = [item.route, ...(item.activePaths ?? [])];
 
     return candidates.some((candidate) => {
-      if (item.activeMatch === 'exact') {
-        return currentRoute === candidate;
+      const normalizedCandidate = this.normalizeRoute(candidate);
+
+      if (this.isParameterizedRoutePattern(normalizedCandidate)) {
+        return this.matchesRoutePattern(this.activeRoute(), normalizedCandidate, this.activeMatch(item));
       }
 
-      return currentRoute === candidate || currentRoute.startsWith(`${candidate}/`);
+      return this.matchesStaticRoute(this.activeRoute(), normalizedCandidate, this.activeMatch(item));
     });
+  }
+
+  protected routerLinkActiveOptions(item: NavigationItem): { exact: boolean } {
+    return { exact: this.activeMatch(item) === 'exact' };
   }
 
   protected selectItem(): void {
@@ -97,6 +122,67 @@ export class SidebarComponent {
     return routeWithoutQuery.length > 1 && routeWithoutQuery.endsWith('/')
       ? routeWithoutQuery.slice(0, -1)
       : routeWithoutQuery;
+  }
+
+  private routeFromNavigationEvent(
+    event: NavigationStart | NavigationEnd | NavigationCancel | NavigationError | NavigationSkipped,
+  ): string {
+    if (event instanceof NavigationStart) {
+      return event.url;
+    }
+
+    if (event instanceof NavigationEnd) {
+      return event.urlAfterRedirects;
+    }
+
+    return this.router.url;
+  }
+
+  private isParameterizedRoutePattern(route: string): boolean {
+    return route.split('/').some((segment) => segment.startsWith(':'));
+  }
+
+  private matchesStaticRoute(
+    currentRoute: string,
+    candidate: string,
+    activeMatch: NavigationItem['activeMatch'],
+  ): boolean {
+    if (activeMatch === 'exact') {
+      return currentRoute === candidate;
+    }
+
+    return currentRoute === candidate || currentRoute.startsWith(`${candidate}/`);
+  }
+
+  private activeMatch(item: NavigationItem): 'exact' | 'prefix' {
+    if (typeof item.exact === 'boolean') {
+      return item.exact ? 'exact' : 'prefix';
+    }
+
+    return item.activeMatch ?? 'exact';
+  }
+
+  private matchesRoutePattern(
+    currentRoute: string,
+    candidate: string,
+    activeMatch: NavigationItem['activeMatch'],
+  ): boolean {
+    const regex = this.routePatternRegex(candidate, activeMatch);
+    return regex.test(currentRoute);
+  }
+
+  private routePatternRegex(route: string, activeMatch: NavigationItem['activeMatch']): RegExp {
+    const escapedSegments = route
+      .split('/')
+      .map((segment) => (segment.startsWith(':') ? '[^/]+' : this.escapeRegex(segment)))
+      .join('/');
+    const suffix = activeMatch === 'exact' ? '$' : '(?:/.*)?$';
+
+    return new RegExp(`^${escapedSegments}${suffix}`);
+  }
+
+  private escapeRegex(value: string): string {
+    return value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
   }
 
   private groupNavigationItems(items: readonly NavigationItem[]): readonly NavigationGroup[] {

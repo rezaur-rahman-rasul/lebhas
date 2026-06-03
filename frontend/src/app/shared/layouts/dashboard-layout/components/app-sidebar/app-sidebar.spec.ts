@@ -5,7 +5,6 @@ import { Component, input } from '@angular/core';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { provideRouter, Router } from '@angular/router';
 
-import { BrandLogoComponent } from '@app/shared/components/brand-logo/brand-logo';
 import { IconComponent } from '@app/shared/components/icon/icon';
 import { DASHBOARD_NAVIGATION } from '../../dashboard-navigation';
 import { SidebarComponent } from './app-sidebar';
@@ -18,16 +17,6 @@ import { SidebarComponent } from './app-sidebar';
 class MockIconComponent {
   readonly name = input.required<string>();
   readonly size = input(18);
-}
-
-@Component({
-  selector: 'app-brand-logo',
-  standalone: true,
-  template: '<span class="mock-logo">Lebhas logo</span>',
-})
-class MockBrandLogoComponent {
-  readonly size = input('sm');
-  readonly elevated = input(false);
 }
 
 function paymentAppFiles(directory = join(process.cwd(), 'src/app')): string[] {
@@ -55,6 +44,8 @@ function relativeAppPath(filePath: string): string {
 describe('SidebarComponent', () => {
   let fixture: ComponentFixture<SidebarComponent>;
   let router: Router;
+  const productLinkSelector = '[data-testid="sidebar-link-products---services"]';
+  const projectLinkSelector = '[data-testid="sidebar-link-projects---campaigns"]';
 
   const adminItems = DASHBOARD_NAVIGATION.filter((item) => item.roles?.includes('ADMIN')).filter(
     (item) => !item.permissionKey || ['canViewBrands', 'canViewProducts', 'canViewProjects'].includes(item.permissionKey),
@@ -66,14 +57,20 @@ describe('SidebarComponent', () => {
       providers: [
         provideRouter([
           { path: 'dashboard', component: SidebarComponent },
+          { path: 'product-services', component: SidebarComponent },
+          { path: 'products-services', component: SidebarComponent },
+          { path: 'projects', component: SidebarComponent },
+          { path: 'projects-campaigns', component: SidebarComponent },
+          { path: 'master/dashboard', component: SidebarComponent },
+          { path: 'master/workspaces', component: SidebarComponent },
           { path: 'brands/:id/edit', component: SidebarComponent },
           { path: 'projects/:id/assets', component: SidebarComponent },
         ]),
       ],
     })
       .overrideComponent(SidebarComponent, {
-        remove: { imports: [IconComponent, BrandLogoComponent] },
-        add: { imports: [MockIconComponent, MockBrandLogoComponent] },
+        remove: { imports: [IconComponent] },
+        add: { imports: [MockIconComponent] },
       })
       .compileComponents();
 
@@ -89,11 +86,10 @@ describe('SidebarComponent', () => {
     fixture.detectChanges();
   });
 
-  it('renders logo, project name, and long workspace text with truncation classes', () => {
+  it('renders logo and project name with truncation classes', () => {
     const host: HTMLElement = fixture.nativeElement;
 
     expect(host.textContent).toContain('Lebhas - Brand Attire');
-    expect(host.textContent).toContain('A very long workspace name');
     expect(host.querySelector('.sidebar-brand-title')?.className).toContain('sidebar-brand-title');
     expect(host.querySelector('.sidebar-brand-subtitle')?.className).toContain('sidebar-brand-subtitle');
   });
@@ -103,8 +99,8 @@ describe('SidebarComponent', () => {
 
     expect(host.querySelector('[data-testid="sidebar-link-dashboard"]')).not.toBeNull();
     expect(host.querySelector('[data-testid="sidebar-link-brands"]')).not.toBeNull();
-    expect(host.querySelector('[data-testid="sidebar-link-products-services"]')).not.toBeNull();
-    expect(host.querySelector('[data-testid="sidebar-link-projects-campaigns"]')).not.toBeNull();
+    expect(host.querySelector(productLinkSelector)).not.toBeNull();
+    expect(host.querySelector(projectLinkSelector)).not.toBeNull();
   });
 
   it('keeps restricted MASTER navigation out of the ADMIN item set', () => {
@@ -119,25 +115,87 @@ describe('SidebarComponent', () => {
       (item) => item.label,
     );
 
-    expect(crewLabels).not.toContain('Products/Services');
+    expect(crewLabels).not.toContain('Products/ Services');
     expect(crewLabels).not.toContain('Brands');
   });
 
-  it('highlights active parent navigation for child routes', async () => {
+  it('does not use broad prefix matching for sibling routes', async () => {
     await router.navigateByUrl('/brands/123/edit');
     fixture.detectChanges();
 
     expect(
       fixture.nativeElement.querySelector('[data-testid="sidebar-link-brands"]')?.className,
-    ).toContain('sidebar-link--active');
+    ).not.toContain('sidebar-link--active');
   });
 
-  it('keeps Projects/Campaigns active for project child routes', async () => {
+  it('keeps Assets active for project asset child routes', async () => {
     await router.navigateByUrl('/projects/123/assets');
     fixture.detectChanges();
 
     expect(
-      fixture.nativeElement.querySelector('[data-testid="sidebar-link-projects-campaigns"]')
+      fixture.nativeElement.querySelector(projectLinkSelector)?.className,
+    ).not.toContain('sidebar-link--active');
+  });
+
+  it('does not mark Products / Services active on the Projects route', async () => {
+    await router.navigateByUrl('/projects-campaigns');
+    fixture.detectChanges();
+
+    expect(
+      fixture.nativeElement.querySelector(projectLinkSelector)?.className,
+    ).toContain('sidebar-link--active');
+    expect(
+      fixture.nativeElement.querySelector(productLinkSelector)?.className,
+    ).not.toContain('sidebar-link--active');
+  });
+
+  it('does not mark Projects / Campaigns active on the Products / Services route', async () => {
+    await router.navigateByUrl('/products-services');
+    fixture.detectChanges();
+
+    expect(
+      fixture.nativeElement.querySelector(productLinkSelector)?.className,
+    ).toContain('sidebar-link--active');
+    expect(
+      fixture.nativeElement.querySelector(projectLinkSelector)?.className,
+    ).not.toContain('sidebar-link--active');
+  });
+
+  it('keeps parameterized active path aliases available for exact route ownership', async () => {
+    fixture.componentRef.setInput('items', [
+      {
+        label: 'Assets Library',
+        icon: 'image',
+        route: '/assets',
+        activePaths: ['/projects/:projectId/assets'],
+        activeMatch: 'prefix',
+      },
+    ]);
+
+    await router.navigateByUrl('/projects/123/assets');
+    fixture.detectChanges();
+
+    expect(
+      fixture.nativeElement.querySelector('[data-testid="sidebar-link-assets-library"]')
+        ?.className,
+    ).toContain('sidebar-link--active');
+  });
+
+  it('updates MASTER active state from router state when moving menu to menu', async () => {
+    fixture.componentRef.setInput('role', 'MASTER');
+    fixture.componentRef.setInput('items', DASHBOARD_NAVIGATION.filter((item) => item.roles?.includes('MASTER')));
+
+    await router.navigateByUrl('/master/dashboard');
+    fixture.detectChanges();
+    expect(
+      fixture.nativeElement.querySelector('[data-testid="sidebar-link-system-dashboard"]')
+        ?.className,
+    ).toContain('sidebar-link--active');
+
+    await router.navigateByUrl('/master/workspaces');
+    fixture.detectChanges();
+    expect(
+      fixture.nativeElement.querySelector('[data-testid="sidebar-link-workspaces"]')
         ?.className,
     ).toContain('sidebar-link--active');
   });
@@ -147,10 +205,10 @@ describe('SidebarComponent', () => {
     fixture.detectChanges();
 
     const host: HTMLElement = fixture.nativeElement;
-    expect(host.textContent).not.toContain('Products/Services');
-    expect(host.querySelector('[data-testid="sidebar-link-products-services"]')).not.toBeNull();
-    expect(host.querySelector('[data-testid="sidebar-link-products-services"]')?.getAttribute('aria-label')).toBe(
-      'Products/Services',
+    expect(host.textContent).not.toContain('Products / Services');
+    expect(host.querySelector(productLinkSelector)).not.toBeNull();
+    expect(host.querySelector(productLinkSelector)?.getAttribute('aria-label')).toBe(
+      'Products / Services',
     );
   });
 
@@ -172,12 +230,12 @@ describe('SidebarComponent', () => {
     );
   });
 
-  it('renders the access scope card with role badge content', () => {
+  it('renders the admin upgrade card without blocking navigation content', () => {
     const host: HTMLElement = fixture.nativeElement;
 
-    expect(host.textContent).toContain('ACCESS SCOPE');
-    expect(host.textContent).toContain('ADMIN');
-    expect(host.querySelector('.access-scope-card')).not.toBeNull();
+    expect(host.textContent).toContain('Upgrade creative capacity');
+    expect(host.textContent).toContain('Buy credits for faster campaign output.');
+    expect(host.querySelector('.sidebar-upgrade-card')).not.toBeNull();
   });
 
   it('contains dark and light theme compatibility styles', () => {

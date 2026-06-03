@@ -11,11 +11,14 @@ import com.lebhas.ai.domain.ProviderStatus;
 import com.lebhas.ai.infrastructure.persistence.AiModelRepository;
 import com.lebhas.ai.infrastructure.persistence.AiToolCapabilityRepository;
 import com.lebhas.ai.infrastructure.persistence.AiToolProviderRepository;
+import com.lebhas.creativesaas.asset.application.AssetEventPublisher;
 import com.lebhas.creativesaas.common.exception.BusinessException;
 import com.lebhas.creativesaas.common.exception.ErrorCode;
+import com.lebhas.creativesaas.messaging.kafka.KafkaTopicConstants;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
+import java.util.Map;
 import java.util.UUID;
 
 @Transactional
@@ -25,6 +28,7 @@ public class MasterAiProviderManagementService {
     private final AiModelRepository modelRepository;
     private final AiToolCapabilityRepository capabilityRepository;
     private final AiProviderRegistryMapper mapper;
+    private final AssetEventPublisher eventPublisher;
 
     public MasterAiProviderManagementService(
             AiToolProviderRepository providerRepository,
@@ -32,10 +36,21 @@ public class MasterAiProviderManagementService {
             AiToolCapabilityRepository capabilityRepository,
             AiProviderRegistryMapper mapper
     ) {
+        this(providerRepository, modelRepository, capabilityRepository, mapper, null);
+    }
+
+    public MasterAiProviderManagementService(
+            AiToolProviderRepository providerRepository,
+            AiModelRepository modelRepository,
+            AiToolCapabilityRepository capabilityRepository,
+            AiProviderRegistryMapper mapper,
+            AssetEventPublisher eventPublisher
+    ) {
         this.providerRepository = providerRepository;
         this.modelRepository = modelRepository;
         this.capabilityRepository = capabilityRepository;
         this.mapper = mapper;
+        this.eventPublisher = eventPublisher;
     }
 
     public AiProviderView createProvider(AiProviderCommand command) {
@@ -56,7 +71,9 @@ public class MasterAiProviderManagementService {
                 command.costMetadata(),
                 command.qualityMetadata(),
                 command.rateLimitMetadata());
-        return providerView(providerRepository.save(provider));
+        AiToolProvider saved = providerRepository.save(provider);
+        publish(KafkaTopicConstants.AI_PROVIDER_CREATED, saved);
+        return providerView(saved);
     }
 
     public AiProviderView updateProvider(UUID providerId, AiProviderCommand command) {
@@ -74,19 +91,25 @@ public class MasterAiProviderManagementService {
                 command.costMetadata(),
                 command.qualityMetadata(),
                 command.rateLimitMetadata());
-        return providerView(providerRepository.save(provider));
+        AiToolProvider saved = providerRepository.save(provider);
+        publish(KafkaTopicConstants.AI_PROVIDER_UPDATED, saved);
+        return providerView(saved);
     }
 
     public AiProviderView enableProvider(UUID providerId) {
         AiToolProvider provider = provider(providerId);
         provider.enable();
-        return providerView(providerRepository.save(provider));
+        AiToolProvider saved = providerRepository.save(provider);
+        publish(KafkaTopicConstants.AI_PROVIDER_UPDATED, saved);
+        return providerView(saved);
     }
 
     public AiProviderView disableProvider(UUID providerId) {
         AiToolProvider provider = provider(providerId);
         provider.disable();
-        return providerView(providerRepository.save(provider));
+        AiToolProvider saved = providerRepository.save(provider);
+        publish(KafkaTopicConstants.AI_PROVIDER_UPDATED, saved);
+        return providerView(saved);
     }
 
     public AiProviderView addModel(UUID providerId, AiModelCommand command) {
@@ -152,5 +175,14 @@ public class MasterAiProviderManagementService {
         return providerRepository.findById(providerId)
                 .filter(provider -> !provider.isDeleted())
                 .orElseThrow(() -> new BusinessException(ErrorCode.RESOURCE_NOT_FOUND, "AI provider not found"));
+    }
+
+    private void publish(String topic, AiToolProvider provider) {
+        if (eventPublisher != null) {
+            eventPublisher.publish(topic, null, provider.getId(), Map.of(
+                    "providerId", provider.getId().toString(),
+                    "providerCode", provider.getProviderCode(),
+                    "enabled", provider.isEnabled()));
+        }
     }
 }

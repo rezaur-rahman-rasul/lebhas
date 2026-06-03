@@ -8,6 +8,7 @@ public final class PromptRedisKeys {
 
     private static final String CREATIVE_REQUEST = "creative:request:%s";
     private static final String PROMPT_ENHANCED = "prompt:enhanced:%s";
+    private static final String PROMPT_ENHANCEMENT_LOCK = "prompt:enhancement-lock:%s";
     private static final String PROMPT_TEMPLATE = "prompt:template:%s";
     private static final String GENERATION_QUOTA = "generation:quota:%s";
     private static final String REQUEST_PROCESSING_LOCK = "request:processing-lock:%s";
@@ -21,6 +22,10 @@ public final class PromptRedisKeys {
 
     public static String promptEnhanced(String sha256) {
         return PROMPT_ENHANCED.formatted(requireText(sha256, "sha256"));
+    }
+
+    public static String promptEnhancementLock(String sha256) {
+        return PROMPT_ENHANCEMENT_LOCK.formatted(requireText(sha256, "sha256"));
     }
 
     public static String workspaceSubscription(UUID workspaceId) {

@@ -49,6 +49,10 @@ public class LocalSignedAssetUrlService {
     }
 
     private String sign(UUID assetId, LocalAssetAccessMode mode, long expiresAtEpochSeconds) {
+        if (storageProperties.getLocal().getSigningSecret() == null
+                || storageProperties.getLocal().getSigningSecret().isBlank()) {
+            throw new BusinessException(ErrorCode.ASSET_STORAGE_FAILURE, "Local asset URL signing secret is not configured");
+        }
         try {
             Mac mac = Mac.getInstance("HmacSHA256");
             mac.init(new SecretKeySpec(

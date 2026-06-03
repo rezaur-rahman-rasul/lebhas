@@ -34,6 +34,7 @@ public class GatewayRoutingProperties {
 
     public static class Services {
         private URI auth = URI.create("http://localhost:8081");
+        private URI user = URI.create("http://localhost:8082");
         private URI workspace = URI.create("http://localhost:8083");
         private URI creative = URI.create("http://localhost:8084");
         private URI billing = URI.create("http://localhost:8085");
@@ -45,6 +46,14 @@ public class GatewayRoutingProperties {
 
         public void setAuth(URI auth) {
             this.auth = auth;
+        }
+
+        public URI getUser() {
+            return user;
+        }
+
+        public void setUser(URI user) {
+            this.user = user;
         }
 
         public URI getWorkspace() {

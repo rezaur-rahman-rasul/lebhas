@@ -1,6 +1,8 @@
 package com.lebhas.creativesaas.workspace.interfaces;
 
 import com.lebhas.creativesaas.common.api.ApiResponse;
+import com.lebhas.creativesaas.common.exception.BusinessException;
+import com.lebhas.creativesaas.common.exception.ErrorCode;
 import com.lebhas.creativesaas.product.application.ProductServiceCatalogService;
 import com.lebhas.creativesaas.product.application.dto.ProductServiceView;
 import io.swagger.v3.oas.annotations.Operation;
@@ -32,10 +34,30 @@ public class ProductServiceController {
         this.productServiceCatalogService = productServiceCatalogService;
     }
 
+    @PostMapping("/{workspaceId}/product-services")
+    @PreAuthorize("hasAuthority('PRODUCT_MANAGE')")
+    @Operation(summary = "Create a product or service")
+    public ApiResponse<ProductServiceView> createProductService(
+            @PathVariable UUID workspaceId,
+            @Valid @RequestBody CreateProductServiceRequest request
+    ) {
+        if (request.brandId() == null) {
+            throw new BusinessException(ErrorCode.VALIDATION_FAILED, "brandId is required.");
+        }
+        return ApiResponse.success(productServiceCatalogService.createProductService(
+                workspaceId,
+                request.brandId(),
+                request.name(),
+                request.description(),
+                request.category(),
+                request.targetAudience(),
+                request.sellingPoints()));
+    }
+
     @PostMapping("/{workspaceId}/brands/{brandId}/product-services")
     @PreAuthorize("hasAuthority('PRODUCT_MANAGE')")
     @Operation(summary = "Create a product or service under a brand")
-    public ApiResponse<ProductServiceView> createProductService(
+    public ApiResponse<ProductServiceView> createProductServiceUnderBrand(
             @PathVariable UUID workspaceId,
             @PathVariable UUID brandId,
             @Valid @RequestBody CreateProductServiceRequest request

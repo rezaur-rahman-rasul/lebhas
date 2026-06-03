@@ -83,7 +83,7 @@ export const mockProjectAsset: Asset = {
   projectCampaignId: mockProjectId,
   storageFileId: 'file-1',
   uploadedBy: 'user-1',
-  assetType: 'IMAGE',
+  assetType: 'PRODUCT_IMAGE',
   assetCategory: 'PRODUCT_IMAGE',
   originalFileName: 'hero.jpg',
   displayName: 'Hero product shot',

@@ -12,11 +12,15 @@ import software.amazon.awssdk.services.s3.model.HeadObjectResponse;
 import software.amazon.awssdk.services.s3.model.PutObjectRequest;
 import software.amazon.awssdk.services.s3.presigner.S3Presigner;
 import software.amazon.awssdk.services.s3.presigner.model.GetObjectPresignRequest;
+import software.amazon.awssdk.services.s3.presigner.model.PutObjectPresignRequest;
 
 import java.io.ByteArrayInputStream;
 import java.io.InputStream;
 import java.time.Clock;
+import java.time.Duration;
 import java.time.Instant;
+import java.util.ArrayList;
+import java.util.List;
 
 public class R2StorageProvider implements StorageService, StorageProvider {
 
@@ -91,6 +95,7 @@ public class R2StorageProvider implements StorageService, StorageProvider {
 
     @Override
     public SignedUrlResponse generateSignedUrl(SignedUrlRequest request) {
+        requireConfigured();
         Instant expiresAt = clock.instant().plus(request.ttl());
         GetObjectRequest getObjectRequest = GetObjectRequest.builder()
                 .bucket(resolveBucket(request.bucket()))
@@ -102,10 +107,14 @@ public class R2StorageProvider implements StorageService, StorageProvider {
                 .signatureDuration(request.ttl())
                 .getObjectRequest(getObjectRequest)
                 .build();
-        return new SignedUrlResponse(
-                s3Presigner.presignGetObject(presignRequest).url().toString(),
-                expiresAt,
-                resolveCdnUrl(request.objectKey()));
+        try {
+            return new SignedUrlResponse(
+                    s3Presigner.presignGetObject(presignRequest).url().toString(),
+                    expiresAt,
+                    resolveCdnUrl(request.objectKey()));
+        } catch (Exception exception) {
+            throw new BusinessException(ErrorCode.ASSET_STORAGE_FAILURE, "Cloudflare R2 signed URL could not be generated");
+        }
     }
 
     @Override
@@ -189,6 +198,34 @@ public class R2StorageProvider implements StorageService, StorageProvider {
     }
 
     @Override
+    public SignedAssetUrl generateUploadUrl(
+            String bucket,
+            String objectKey,
+            String mimeType,
+            long contentLength,
+            Duration ttl
+    ) {
+        requireConfigured();
+        Duration effectiveTtl = ttl == null || ttl.isZero() || ttl.isNegative()
+                ? storageProperties.getSignedUrlTtl()
+                : ttl;
+        Instant expiresAt = clock.instant().plus(effectiveTtl);
+        PutObjectRequest putObjectRequest = PutObjectRequest.builder()
+                .bucket(resolveBucket(bucket))
+                .key(objectKey)
+                .build();
+        PutObjectPresignRequest request = PutObjectPresignRequest.builder()
+                .signatureDuration(effectiveTtl)
+                .putObjectRequest(putObjectRequest)
+                .build();
+        try {
+            return new SignedAssetUrl(s3Presigner.presignPutObject(request).url().toString(), expiresAt);
+        } catch (Exception exception) {
+            throw new BusinessException(ErrorCode.ASSET_STORAGE_FAILURE, "Cloudflare R2 signed upload URL could not be generated");
+        }
+    }
+
+    @Override
     public void delete(AssetEntity asset) {
         delete(asset.getStorageBucket(), asset.getStorageKey());
     }
@@ -196,6 +233,18 @@ public class R2StorageProvider implements StorageService, StorageProvider {
     @Override
     public StoredObjectMetadata getMetadata(AssetEntity asset) {
         return getMetadata(asset.getStorageBucket(), asset.getStorageKey());
+    }
+
+    @Override
+    public byte[] readBytes(AssetEntity asset) {
+        try {
+            return s3Client.getObjectAsBytes(GetObjectRequest.builder()
+                    .bucket(resolveBucket(asset.getStorageBucket()))
+                    .key(asset.getStorageKey())
+                    .build()).asByteArray();
+        } catch (Exception exception) {
+            throw new BusinessException(ErrorCode.ASSET_STORAGE_FAILURE, "Cloudflare R2 asset content could not be read");
+        }
     }
 
     private String resolveObjectKey(StorageObjectRequest request) {
@@ -224,6 +273,27 @@ public class R2StorageProvider implements StorageService, StorageProvider {
             return r2StorageProperties.getBucket().trim();
         }
         return storageProperties.getBucket();
+    }
+
+    private void requireConfigured() {
+        List<String> missing = new ArrayList<>();
+        if (r2StorageProperties.getEndpoint() == null) {
+            missing.add("R2_ENDPOINT");
+        }
+        if (r2StorageProperties.getAccessKey() == null || r2StorageProperties.getAccessKey().isBlank()) {
+            missing.add("R2_ACCESS_KEY");
+        }
+        if (r2StorageProperties.getSecretKey() == null || r2StorageProperties.getSecretKey().isBlank()) {
+            missing.add("R2_SECRET_KEY");
+        }
+        if (resolveBucket(null) == null || resolveBucket(null).isBlank()) {
+            missing.add("R2_BUCKET");
+        }
+        if (!missing.isEmpty()) {
+            throw new BusinessException(
+                    ErrorCode.ASSET_STORAGE_FAILURE,
+                    "Cloudflare R2 storage is not configured. Missing: " + String.join(", ", missing));
+        }
     }
 
     private String resolveCdnUrl(String objectKey) {

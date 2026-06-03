@@ -6,6 +6,7 @@ import { normalizeHttpError } from '@app/core/api/http-error';
 import { SKIP_ERROR_TOAST } from '@app/core/auth/auth-request-context';
 import { CurrentUserStore } from '@app/core/auth/current-user.store';
 import { NotificationStateService } from '@app/core/state/notification-state.service';
+import { WorkspaceStore } from '@app/core/workspace/workspace.store';
 import { Asset, DEFAULT_ASSET_FILTERS } from '@app/features/admin/assets/models/asset.models';
 import { AssetService } from '@app/features/admin/assets/services/asset.service';
 import { BrandProfile } from '@app/features/admin/workspace/models/brand-profile.models';
@@ -18,6 +19,7 @@ import {
 import { PromptService } from '@app/features/admin/prompts/services/prompt.service';
 import {
   CreateCreativeGenerationRequest,
+  CreateCampaignCreativeRequest,
   CreativeGenerationDraft,
   CreativeGenerationFilter,
   CreativeGenerationPagination,
@@ -28,6 +30,8 @@ import {
   DEFAULT_CREATIVE_GENERATION_PAGINATION,
   DEFAULT_GENERATION_DRAFT,
   GenerationJob,
+  ImageCreativeQualityMode,
+  ProductImageCreativeReadiness,
   isTerminalGenerationStatus,
 } from '../models/creative-generation.models';
 import {
@@ -46,6 +50,7 @@ export class CreativeGenerationStore {
   private readonly assetService = inject(AssetService);
   private readonly brandProfileService = inject(BrandProfileService);
   private readonly promptService = inject(PromptService);
+  private readonly workspace = inject(WorkspaceStore);
 
   private readonly generationRequestsSignal = signal<readonly CreativeGenerationRequest[]>([]);
   private readonly selectedRequestSignal = signal<CreativeGenerationRequest | null>(null);
@@ -68,6 +73,7 @@ export class CreativeGenerationStore {
   private readonly availableAssetsSignal = signal<readonly Asset[]>([]);
   private readonly selectedAssetsSignal = signal<readonly Asset[]>([]);
   private readonly brandProfileSignal = signal<BrandProfile | null>(null);
+  private readonly campaignReadinessSignal = signal<ProductImageCreativeReadiness | null>(null);
 
   private pollingTimer: ReturnType<typeof setInterval> | null = null;
   private pollingAttempts = 0;
@@ -88,6 +94,7 @@ export class CreativeGenerationStore {
   readonly availableAssets = this.availableAssetsSignal.asReadonly();
   readonly selectedAssets = this.selectedAssetsSignal.asReadonly();
   readonly brandProfile = this.brandProfileSignal.asReadonly();
+  readonly campaignReadiness = this.campaignReadinessSignal.asReadonly();
 
   readonly hasGenerationRequests = computed(() => this.generationRequestsSignal().length > 0);
   readonly hasOutputs = computed(() => this.creativeOutputsSignal().length > 0);
@@ -122,7 +129,7 @@ export class CreativeGenerationStore {
   readonly canViewGenerations = computed(() => this.canGenerate());
   readonly canDownloadOutputs = computed(() => this.hasPermission('CREATIVE_DOWNLOAD'));
 
-  async loadGeneratorContext(assetSearch = ''): Promise<void> {
+  async loadGeneratorContext(assetSearch = '', projectId: string | null = null): Promise<void> {
     const workspaceId = this.resolveWorkspaceId();
     if (!workspaceId) {
       return;
@@ -131,7 +138,7 @@ export class CreativeGenerationStore {
     await this.runLoader(async () => {
       await Promise.all([
         this.fetchPromptHistory(workspaceId),
-        this.fetchAvailableAssets(workspaceId, assetSearch),
+        this.fetchAvailableAssets(workspaceId, assetSearch, projectId),
         this.fetchBrandProfile(workspaceId),
         this.fetchGenerationRequests(workspaceId),
       ]);
@@ -202,7 +209,7 @@ export class CreativeGenerationStore {
     }
 
     await this.runLoader(async () => {
-      await this.fetchAvailableAssets(workspaceId, search);
+      await this.fetchAvailableAssets(workspaceId, search, null);
     });
   }
 
@@ -238,6 +245,11 @@ export class CreativeGenerationStore {
     this.selectedAssetsSignal.update((assets) => assets.filter((asset) => asset.id !== assetId));
   }
 
+  clearSelectedAssets(): void {
+    this.selectedAssetsSignal.set([]);
+    this.campaignReadinessSignal.set(null);
+  }
+
   setSelectedOutput(output: CreativeOutput | null): void {
     this.selectedOutputSignal.set(output);
   }
@@ -270,6 +282,88 @@ export class CreativeGenerationStore {
       return false;
     } finally {
       this.generationLoadingSignal.set(false);
+    }
+  }
+
+  async submitCampaignCreative(projectId: string, payload: CreateCampaignCreativeRequest): Promise<boolean> {
+    const workspaceId = this.resolveWorkspaceId();
+    if (!workspaceId) {
+      return false;
+    }
+
+    try {
+      this.generationLoadingSignal.set(true);
+      this.generationErrorSignal.set(null);
+      const result = await firstValueFrom(
+        this.generationService.submitCampaignCreative(workspaceId, projectId, payload, this.requestContext()),
+      );
+      const request = mapCampaignResultToGenerationRequest(result.generation, payload);
+      const outputs = await this.hydrateOutputAssetUrls(
+        mapCampaignGeneratedVersionsToOutputs(result.generatedVersions, request, payload),
+      );
+      this.generationRequestsSignal.update((items) => upsertRequest(items, request));
+      this.setSelectedRequest(request);
+      this.creativeOutputsSignal.set(outputs);
+      this.selectedOutputSignal.set(outputs[0] ?? null);
+      this.generationErrorSignal.set(null);
+      this.notifications.success(
+        outputs.length > 0 ? 'Generation completed' : 'Generation queued',
+        outputs.length > 0
+          ? `${outputs.length} creative version${outputs.length === 1 ? '' : 's'} created.`
+          : 'The campaign creative request is now being processed.',
+      );
+      await this.workspace.refreshActiveContext();
+      if (outputs.length === 0) {
+        this.startPolling(request.id);
+      }
+      return true;
+    } catch (error) {
+      this.handleFailure(error);
+      return false;
+    } finally {
+      this.generationLoadingSignal.set(false);
+    }
+  }
+
+  async checkCampaignCreativeReadiness(
+    projectId: string,
+    productAssetId: string | null,
+    qualityMode: ImageCreativeQualityMode,
+    requestedVersionCount: number,
+  ): Promise<ProductImageCreativeReadiness | null> {
+    const workspaceId = this.resolveWorkspaceId();
+    if (!workspaceId) {
+      return null;
+    }
+
+    try {
+      const readiness = await firstValueFrom(
+        this.generationService.getCampaignCreativeReadiness(
+          workspaceId,
+          projectId,
+          productAssetId,
+          qualityMode,
+          requestedVersionCount,
+          this.requestContext(),
+        ),
+      );
+      this.campaignReadinessSignal.set(readiness);
+
+      if (!readiness.ready) {
+        const message = readiness.messages.length > 0
+          ? readiness.messages.join(' ')
+          : 'Creative generation setup is not ready.';
+        this.generationErrorSignal.set(message);
+      } else {
+        this.generationErrorSignal.set(null);
+      }
+
+      return readiness;
+    } catch (error) {
+      const message = this.mapError(error);
+      this.generationErrorSignal.set(message);
+      this.notifications.error('Generation readiness failed', message);
+      return null;
     }
   }
 
@@ -345,10 +439,21 @@ export class CreativeGenerationStore {
       return null;
     }
 
+    if (output.previewUrl) {
+      this.generationErrorSignal.set(null);
+      return output.previewUrl;
+    }
+
     try {
-      const response = await firstValueFrom(
-        this.generationService.getPreviewUrl(workspaceId, output.id, this.requestContext()),
-      );
+      const response = output.generatedAssetId
+        ? await firstValueFrom(
+            this.assetService.getPreviewUrl(workspaceId, output.generatedAssetId, this.requestContext()),
+          )
+        : await firstValueFrom(
+            this.generationService.getPreviewUrl(workspaceId, output.id, this.requestContext()),
+          );
+      this.patchOutput(output.id, { previewUrl: response.url });
+      this.generationErrorSignal.set(null);
       return response.url;
     } catch (error) {
       this.handleFailure(error);
@@ -362,10 +467,21 @@ export class CreativeGenerationStore {
       return null;
     }
 
+    if (output.downloadUrl) {
+      this.generationErrorSignal.set(null);
+      return output.downloadUrl;
+    }
+
     try {
-      const response = await firstValueFrom(
-        this.generationService.getDownloadUrl(workspaceId, output.id, this.requestContext()),
-      );
+      const response = output.generatedAssetId
+        ? await firstValueFrom(
+            this.assetService.getDownloadUrl(workspaceId, output.generatedAssetId, this.requestContext()),
+          )
+        : await firstValueFrom(
+            this.generationService.getDownloadUrl(workspaceId, output.id, this.requestContext()),
+          );
+      this.patchOutput(output.id, { downloadUrl: response.url });
+      this.generationErrorSignal.set(null);
       return response.url;
     } catch (error) {
       this.handleFailure(error);
@@ -443,7 +559,49 @@ export class CreativeGenerationStore {
     const outputs = await firstValueFrom(
       this.generationService.listOutputs(workspaceId, requestId, this.requestContext()),
     );
-    this.creativeOutputsSignal.set(outputs);
+    this.creativeOutputsSignal.set(await this.hydrateOutputAssetUrls(outputs));
+    this.generationErrorSignal.set(null);
+  }
+
+  private async hydrateOutputAssetUrls(outputs: readonly CreativeOutput[]): Promise<readonly CreativeOutput[]> {
+    const workspaceId = this.resolveWorkspaceId();
+    if (!workspaceId || outputs.length === 0) {
+      return outputs;
+    }
+
+    return Promise.all(
+      outputs.map(async (output) => {
+        if (!output.generatedAssetId || output.previewUrl) {
+          return output;
+        }
+
+        const [preview, download] = await Promise.all([
+          firstValueFrom(
+            this.assetService.getPreviewUrl(workspaceId, output.generatedAssetId, this.requestContext()),
+          ).catch(() => null),
+          firstValueFrom(
+            this.assetService.getDownloadUrl(workspaceId, output.generatedAssetId, this.requestContext()),
+          ).catch(() => null),
+        ]);
+
+        return {
+          ...output,
+          previewUrl: preview?.url ?? output.previewUrl,
+          downloadUrl: download?.url ?? output.downloadUrl,
+        };
+      }),
+    );
+  }
+
+  private patchOutput(outputId: string, patch: Partial<CreativeOutput>): void {
+    this.creativeOutputsSignal.update((outputs) =>
+      outputs.map((output) => (output.id === outputId ? { ...output, ...patch } : output)),
+    );
+
+    const selected = this.selectedOutputSignal();
+    if (selected?.id === outputId) {
+      this.selectedOutputSignal.set({ ...selected, ...patch });
+    }
   }
 
   private async fetchPromptHistory(workspaceId: string): Promise<void> {
@@ -463,21 +621,44 @@ export class CreativeGenerationStore {
     }
   }
 
-  private async fetchAvailableAssets(workspaceId: string, search: string): Promise<void> {
+  private async fetchAvailableAssets(workspaceId: string, search: string, projectId: string | null): Promise<void> {
     try {
-      const result = await firstValueFrom(
-        this.assetService.listAssets(
-          workspaceId,
-          {
-            ...DEFAULT_ASSET_FILTERS,
-            search: search.trim(),
-          },
-          0,
-          12,
-          this.requestContext(),
+      const trimmedSearch = search.trim();
+      const [productImages, referenceImages] = await Promise.all([
+        firstValueFrom(
+          this.assetService.listAssets(
+            workspaceId,
+            {
+              ...DEFAULT_ASSET_FILTERS,
+              assetCategory: 'PRODUCT_IMAGE',
+              status: null,
+              search: trimmedSearch,
+            },
+            0,
+            20,
+            this.requestContext(),
+          ),
         ),
+        firstValueFrom(
+          this.assetService.listAssets(
+            workspaceId,
+            {
+              ...DEFAULT_ASSET_FILTERS,
+              assetCategory: 'REFERENCE_IMAGE',
+              status: null,
+              search: trimmedSearch,
+            },
+            0,
+            20,
+            this.requestContext(),
+          ),
+        ),
+      ]);
+      this.availableAssetsSignal.set(
+        [...productImages.items, ...referenceImages.items]
+          .filter((asset) => asset.status === 'READY' || asset.status === 'AVAILABLE')
+          .filter((asset) => !asset.projectId || !projectId || asset.projectId === projectId),
       );
-      this.availableAssetsSignal.set(result.items.filter((asset) => asset.status === 'READY'));
     } catch {
       this.availableAssetsSignal.set([]);
     }
@@ -533,11 +714,17 @@ export class CreativeGenerationStore {
   }
 
   private handleFailure(error: unknown): void {
-    this.generationErrorSignal.set(this.mapError(error));
+    const message = this.mapError(error);
+    this.generationErrorSignal.set(message);
+    this.notifications.error('Generation failed', message);
   }
 
   private mapError(error: unknown): string {
     const normalized = normalizeHttpError(error);
+    const detailedMessage = normalized.errors
+      .map((item) => [item.field, item.message].filter(Boolean).join(': '))
+      .filter((message) => message.trim().length > 0)
+      .join(' ');
 
     if (normalized.status === 403) {
       return 'You do not have access to creative generation in this workspace.';
@@ -545,6 +732,14 @@ export class CreativeGenerationStore {
 
     if (normalized.status === 404) {
       return 'Creative generation data could not be found.';
+    }
+
+    if (detailedMessage) {
+      return detailedMessage;
+    }
+
+    if (normalized.status >= 500 && normalized.message && normalized.message !== 'We could not load this data. Please try again.') {
+      return normalized.message;
     }
 
     if (normalized.status >= 500 || normalized.message === 'Unexpected server error') {
@@ -575,4 +770,103 @@ function upsertOutput(
 ): readonly CreativeOutput[] {
   const withoutCurrent = outputs.filter((item) => item.id !== output.id);
   return [output, ...withoutCurrent];
+}
+
+function mapCampaignResultToGenerationRequest(
+  generation: {
+    readonly creativeRequestId: string;
+    readonly workspaceId: string;
+    readonly productAssetId: string;
+    readonly platform: CreateCampaignCreativeRequest['platform'];
+    readonly language: CreateCampaignCreativeRequest['language'];
+    readonly request: Readonly<Record<string, unknown>> | null;
+    readonly status: string;
+    readonly createdAt: string;
+  },
+  payload: CreateCampaignCreativeRequest,
+): CreativeGenerationRequest {
+  const createdAt = generation.createdAt;
+  return {
+    id: generation.creativeRequestId,
+    workspaceId: generation.workspaceId,
+    userId: '',
+    promptHistoryId: payload.promptDraftId,
+    sourcePrompt: payload.sourcePrompt,
+    enhancedPrompt: null,
+    platform: generation.platform,
+    campaignObjective: null,
+    creativeType: 'STATIC_IMAGE',
+    outputFormat: 'PNG',
+    language: generation.language,
+    brandContextSnapshot: {},
+    assetContextSnapshot: [{ assetId: generation.productAssetId }],
+    generationConfig: {
+      ...(generation.request ?? {}),
+      imageCreativeStatus: generation.status,
+      productAssetId: generation.productAssetId,
+      creativeFormat: payload.creativeFormat,
+      qualityMode: payload.qualityMode,
+      requestedVersionCount: payload.requestedVersionCount,
+      stylePreset: payload.stylePreset,
+      backgroundStyle: payload.backgroundStyle,
+      cta: payload.cta,
+    },
+    status: generation.status === 'FAILED' ? 'FAILED' : generation.status === 'COMPLETED' ? 'COMPLETED' : 'QUEUED',
+    aiProvider: null,
+    aiModel: null,
+    requestedAt: createdAt,
+    startedAt: null,
+    completedAt: null,
+    failedAt: generation.status === 'FAILED' ? createdAt : null,
+    errorMessage: null,
+    createdAt,
+    updatedAt: createdAt,
+  };
+}
+
+function mapCampaignGeneratedVersionsToOutputs(
+  versions: readonly {
+    readonly id: string;
+    readonly workspaceId: string;
+    readonly creativeRequestId: string;
+    readonly assetId: string | null;
+    readonly previewUrl?: string | null;
+    readonly thumbnailUrl?: string | null;
+    readonly versionNumber: number;
+    readonly versionName: string;
+    readonly generationStatus: string;
+    readonly status: string;
+    readonly createdAt: string;
+    readonly updatedAt: string;
+  }[],
+  request: CreativeGenerationRequest,
+  payload: CreateCampaignCreativeRequest,
+): readonly CreativeOutput[] {
+  return versions.map((version) => ({
+    id: version.id,
+    workspaceId: version.workspaceId,
+    requestId: version.creativeRequestId,
+    generatedAssetId: version.assetId,
+    creativeType: request.creativeType,
+    platform: payload.platform,
+    outputFormat: 'PNG',
+    width: null,
+    height: null,
+    duration: null,
+    fileSize: null,
+    previewUrl: version.previewUrl ?? version.thumbnailUrl ?? null,
+    downloadUrl: null,
+    caption: null,
+    headline: version.versionName || `Generated creative ${version.versionNumber}`,
+    ctaText: payload.cta,
+    metadata: {
+      generationStatus: version.generationStatus,
+      imageCreativeFormat: payload.creativeFormat,
+      qualityMode: payload.qualityMode,
+      stylePreset: payload.stylePreset,
+    },
+    status: version.generationStatus === 'FAILED' ? 'FAILED' : 'COMPLETED',
+    createdAt: version.createdAt,
+    updatedAt: version.updatedAt,
+  }));
 }

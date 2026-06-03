@@ -16,7 +16,7 @@ export interface ProjectCampaign {
   readonly updatedAt: string;
 }
 
-export interface CreateProjectCampaignPayload {
+interface ProjectCampaignMutationPayload {
   readonly name: string;
   readonly description: string | null;
   readonly campaignObjective: string | null;
@@ -24,6 +24,10 @@ export interface CreateProjectCampaignPayload {
   readonly campaignType: string | null;
 }
 
-export interface UpdateProjectCampaignPayload extends CreateProjectCampaignPayload {
+export interface CreateProjectCampaignPayload extends ProjectCampaignMutationPayload {
+  readonly productServiceId: string;
+}
+
+export interface UpdateProjectCampaignPayload extends ProjectCampaignMutationPayload {
   readonly status: ProjectCampaignStatus;
 }

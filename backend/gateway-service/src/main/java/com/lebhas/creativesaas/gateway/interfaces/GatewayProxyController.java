@@ -69,6 +69,7 @@ public class GatewayProxyController {
             "/api/v1/credit-packages/**",
             "/api/v1/master/**",
             "/api/v1/payments/**",
+            "/api/v1/profile/**",
             "/api/v1/workspaces/**",
             "/internal/storage/local/assets/**"
     })
@@ -120,11 +121,17 @@ public class GatewayProxyController {
                 new GatewayRoute("creative-assets", properties.getServices().getCreative(), List.of(
                         "/api/v1/workspaces/*/assets/**",
                         "/api/v1/workspaces/*/asset-folders/**",
+                        "/api/v1/workspaces/*/projects",
                         "/api/v1/workspaces/*/projects/**",
+                        "/api/v1/workspaces/*/product-services/*/projects",
+                        "/api/v1/workspaces/*/product-services/*/projects/**",
                         "/api/v1/workspaces/*/storage-files/**",
                         "/api/v1/workspaces/*/creative-generations/**",
                         "/api/v1/workspaces/*/creative-outputs/**",
                         "/api/v1/workspaces/*/creative-approvals/**",
+                        "/api/v1/workspaces/*/projects/*/image-creatives/**",
+                        "/api/v1/master/providers/**",
+                        "/api/v1/master/providers",
                         "/internal/storage/local/assets/**")),
                 new GatewayRoute("billing", properties.getServices().getBilling(), List.of(
                         "/api/v1/credit-packages/**",
@@ -133,10 +140,15 @@ public class GatewayProxyController {
                         "/api/v1/master/credit-packages/**",
                         "/api/v1/master/pricing-plans/**",
                         "/api/v1/master/workspace-subscriptions/**",
+                        "/api/v1/master/workspaces/*/subscription",
+                        "/api/v1/master/workspaces/*/credits/adjust",
                         "/api/v1/payments/**",
                         "/api/v1/workspaces/*/payments/**",
                         "/api/v1/workspaces/*/invoices/**",
+                        "/api/v1/workspaces/*/credits",
                         "/api/v1/workspaces/*/credits/**",
+                        "/api/v1/workspaces/*/credit-ledger",
+                        "/api/v1/workspaces/*/subscription",
                         "/api/v1/workspaces/*/subscriptions/**",
                         "/api/v1/workspaces/*/usage-billing/**")),
                 new GatewayRoute("notification", properties.getServices().getNotification(), List.of(
@@ -147,6 +159,7 @@ public class GatewayProxyController {
                         "/api/v1/workspaces/*/audit-logs/**",
                         "/api/v1/workspaces/*/timeline/**")),
                 new GatewayRoute("auth", properties.getServices().getAuth(), List.of("/api/v1/auth/**")),
+                new GatewayRoute("user", properties.getServices().getUser(), List.of("/api/v1/profile/**")),
                 new GatewayRoute("workspace", properties.getServices().getWorkspace(), List.of("/api/v1/workspaces/**")));
 
         return routes.stream()

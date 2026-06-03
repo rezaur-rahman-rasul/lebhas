@@ -27,7 +27,7 @@
                     />
                   } @else {
                     <app-icon
-                      [name]="asset.assetType === 'VIDEO' ? 'video' : 'image'"
+                      [name]="isVideoAsset(asset) ? 'video' : 'image'"
                       [size]="20"
                       className="text-slate-500"
                     />
@@ -109,8 +109,8 @@
                 class="h-full w-full object-cover"
               />
             } @else {
-              <app-icon
-                [name]="asset.assetType === 'VIDEO' ? 'video' : 'image'"
+                <app-icon
+                [name]="isVideoAsset(asset) ? 'video' : 'image'"
                 [size]="22"
                 className="text-slate-500"
               />

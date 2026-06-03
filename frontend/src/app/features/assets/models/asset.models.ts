@@ -1,13 +1,29 @@
-export type AssetType = 'IMAGE' | 'VIDEO' | 'DOCUMENT' | 'OTHER';
+export type AssetType =
+  | 'RAW_IMAGE'
+  | 'GENERATED_CREATIVE'
+  | 'PROFILE_IMAGE'
+  | 'DOCUMENT'
+  | 'OTHER'
+  | 'BRAND_LOGO'
+  | 'PRODUCT_IMAGE'
+  | 'PACKAGING_IMAGE'
+  | 'EXPORT_IMAGE'
+  | 'EXPORT_VIDEO'
+  | 'REFERENCE_ASSET'
+  | 'RAW'
+  | 'PROCESSED'
+  | 'GENERATED'
+  | 'THUMBNAIL';
 export type AssetCategory =
   | 'PRODUCT_IMAGE'
   | 'PRODUCT_VIDEO'
   | 'BRAND_LOGO'
-  | 'RAW_IMAGE'
-  | 'RAW_VIDEO'
-  | 'GENERATED_IMAGE'
-  | 'GENERATED_VIDEO'
-  | 'THUMBNAIL'
+  | 'PACKAGING_IMAGE'
+  | 'REFERENCE_IMAGE'
+  | 'REFERENCE_VIDEO'
+  | 'REFERENCE_ASSET'
+  | 'EXPORT_IMAGE'
+  | 'EXPORT_VIDEO'
   | 'OTHER';
 export type AssetStatus = 'UPLOADING' | 'READY' | 'FAILED' | 'DELETED';
 export type PreviewStatus = 'PENDING' | 'READY' | 'FAILED';
@@ -161,16 +177,26 @@ export const DEFAULT_ASSET_PAGINATION: AssetPagination = {
 export const ASSET_CATEGORY_OPTIONS = [
   { value: 'PRODUCT_IMAGE' as const, label: 'Product image' },
   { value: 'PRODUCT_VIDEO' as const, label: 'Product video' },
+  { value: 'PACKAGING_IMAGE' as const, label: 'Packaging image' },
   { value: 'BRAND_LOGO' as const, label: 'Brand logo' },
-  { value: 'RAW_IMAGE' as const, label: 'Raw image' },
-  { value: 'RAW_VIDEO' as const, label: 'Raw video' },
+  { value: 'REFERENCE_IMAGE' as const, label: 'Reference image' },
+  { value: 'REFERENCE_VIDEO' as const, label: 'Reference video' },
+  { value: 'REFERENCE_ASSET' as const, label: 'Reference asset' },
+  { value: 'EXPORT_IMAGE' as const, label: 'Export image' },
+  { value: 'EXPORT_VIDEO' as const, label: 'Export video' },
   { value: 'OTHER' as const, label: 'Other' },
 ] as const;
 
 export const ASSET_TYPE_OPTIONS = [
-  { value: 'IMAGE' as const, label: 'Image' },
-  { value: 'VIDEO' as const, label: 'Video' },
+  { value: 'RAW_IMAGE' as const, label: 'Raw image' },
+  { value: 'PRODUCT_IMAGE' as const, label: 'Product image' },
+  { value: 'BRAND_LOGO' as const, label: 'Brand logo' },
+  { value: 'EXPORT_IMAGE' as const, label: 'Export image' },
+  { value: 'EXPORT_VIDEO' as const, label: 'Export video' },
+  { value: 'REFERENCE_ASSET' as const, label: 'Reference asset' },
   { value: 'DOCUMENT' as const, label: 'Document' },
+  { value: 'GENERATED' as const, label: 'Generated' },
+  { value: 'THUMBNAIL' as const, label: 'Thumbnail' },
   { value: 'OTHER' as const, label: 'Other' },
 ] as const;
 
@@ -227,11 +253,11 @@ export function resolveFileSize(asset: Asset): number {
 }
 
 export function isImageAsset(asset: Pick<Asset, 'assetType'>): boolean {
-  return asset.assetType === 'IMAGE';
+  return ['RAW_IMAGE', 'PRODUCT_IMAGE', 'PACKAGING_IMAGE', 'BRAND_LOGO', 'EXPORT_IMAGE', 'THUMBNAIL'].includes(asset.assetType);
 }
 
 export function isVideoAsset(asset: Pick<Asset, 'assetType'>): boolean {
-  return asset.assetType === 'VIDEO';
+  return asset.assetType === 'EXPORT_VIDEO';
 }
 
 export function isPreviewableAsset(asset: Pick<Asset, 'assetType'>): boolean {
@@ -259,13 +285,13 @@ export const ASSET_UPLOAD_CATEGORY_OPTIONS: readonly {
     description: 'Approved brand marks for template and creative placement.',
   },
   {
-    value: 'RAW_IMAGE',
-    label: 'Raw image',
+    value: 'REFERENCE_IMAGE',
+    label: 'Reference image',
     description: 'Unprocessed images from shoots, phones, or source collections.',
   },
   {
-    value: 'RAW_VIDEO',
-    label: 'Raw video',
+    value: 'REFERENCE_VIDEO',
+    label: 'Reference video',
     description: 'Source footage before editing or future creative processing.',
   },
   {

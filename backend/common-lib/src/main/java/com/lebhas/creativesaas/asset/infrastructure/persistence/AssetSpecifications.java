@@ -33,48 +33,52 @@ public final class AssetSpecifications {
         return (root, query, criteriaBuilder) -> criteriaBuilder.isFalse(root.get("deleted"));
     }
 
+    private static Specification<AssetEntity> alwaysTrue() {
+        return (root, query, criteriaBuilder) -> criteriaBuilder.conjunction();
+    }
+
     private static Specification<AssetEntity> hasWorkspace(java.util.UUID workspaceId) {
         return (root, query, criteriaBuilder) -> criteriaBuilder.equal(root.get("workspaceId"), workspaceId);
     }
 
     private static Specification<AssetEntity> hasProject(java.util.UUID projectId) {
-        return projectId == null ? null
+        return projectId == null ? alwaysTrue()
                 : (root, query, criteriaBuilder) -> criteriaBuilder.equal(root.get("projectId"), projectId);
     }
 
     private static Specification<AssetEntity> hasAssetType(AssetListCriteria criteria) {
-        return criteria.assetType() == null ? null
+        return criteria.assetType() == null ? alwaysTrue()
                 : (root, query, criteriaBuilder) -> criteriaBuilder.equal(root.get("assetType"), criteria.assetType());
     }
 
     private static Specification<AssetEntity> hasCategory(AssetListCriteria criteria) {
-        return criteria.assetCategory() == null ? null
+        return criteria.assetCategory() == null ? alwaysTrue()
                 : (root, query, criteriaBuilder) -> criteriaBuilder.equal(root.get("assetCategory"), criteria.assetCategory());
     }
 
     private static Specification<AssetEntity> hasUploadedBy(AssetListCriteria criteria) {
-        return criteria.uploadedBy() == null ? null
+        return criteria.uploadedBy() == null ? alwaysTrue()
                 : (root, query, criteriaBuilder) -> criteriaBuilder.equal(root.get("uploadedBy"), criteria.uploadedBy());
     }
 
     private static Specification<AssetEntity> hasPreviewStatus(AssetListCriteria criteria) {
-        return criteria.previewStatus() == null ? null
+        return criteria.previewStatus() == null ? alwaysTrue()
                 : (root, query, criteriaBuilder) -> criteriaBuilder.equal(root.get("previewStatus"), criteria.previewStatus());
     }
 
     private static Specification<AssetEntity> hasProcessingStatus(AssetListCriteria criteria) {
-        return criteria.processingStatus() == null ? null
+        return criteria.processingStatus() == null ? alwaysTrue()
                 : (root, query, criteriaBuilder) -> criteriaBuilder.equal(root.get("processingStatus"), criteria.processingStatus());
     }
 
     private static Specification<AssetEntity> hasStatus(AssetListCriteria criteria) {
-        return criteria.status() == null ? null
+        return criteria.status() == null ? alwaysTrue()
                 : (root, query, criteriaBuilder) -> criteriaBuilder.equal(root.get("status"), criteria.status());
     }
 
     private static Specification<AssetEntity> hasKeyword(AssetListCriteria criteria) {
         if (!StringUtils.hasText(criteria.keyword())) {
-            return null;
+            return alwaysTrue();
         }
         String keyword = "%" + criteria.keyword().trim().toLowerCase() + "%";
         return (root, query, criteriaBuilder) -> criteriaBuilder.or(
@@ -84,13 +88,13 @@ public final class AssetSpecifications {
 
     private static Specification<AssetEntity> createdFrom(AssetListCriteria criteria) {
         Instant createdFrom = criteria.createdFrom();
-        return createdFrom == null ? null
+        return createdFrom == null ? alwaysTrue()
                 : (root, query, criteriaBuilder) -> criteriaBuilder.greaterThanOrEqualTo(root.get("createdAt"), createdFrom);
     }
 
     private static Specification<AssetEntity> createdTo(AssetListCriteria criteria) {
         Instant createdTo = criteria.createdTo();
-        return createdTo == null ? null
+        return createdTo == null ? alwaysTrue()
                 : (root, query, criteriaBuilder) -> criteriaBuilder.lessThanOrEqualTo(root.get("createdAt"), createdTo);
     }
 }

@@ -125,11 +125,7 @@ public class AssetService {
             AssetEntity asset = assetValidationService.requireAsset(workspaceId, assetId);
             assetValidationService.validateOwnership(asset, access, Permission.ASSET_DELETE);
             long activeReferences = asset.getStorageFileId() == null ? 0L : assetRepository.countByStorageFileIdAndDeletedFalse(asset.getStorageFileId());
-            boolean storageReleased = false;
-            if (asset.getStorageFileId() != null && activeReferences <= 1L) {
-                storageService.delete(asset);
-                storageReleased = true;
-            }
+            boolean storageReleased = asset.getStorageFileId() != null && activeReferences <= 1L;
             signedUrlService.invalidate(asset);
             assetHotRedisCacheService.invalidate(workspaceId, assetId);
             previewStateService.invalidate(asset.getId());

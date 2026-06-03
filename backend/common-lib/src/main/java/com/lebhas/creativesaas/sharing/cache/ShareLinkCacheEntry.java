@@ -9,9 +9,11 @@ public record ShareLinkCacheEntry(
         UUID shareLinkId,
         UUID workspaceId,
         UUID generatedVersionId,
-        String token,
+        String tokenHash,
         Instant expiresAt,
         long accessCount,
+        boolean revoked,
+        Instant revokedAt,
         UUID createdBy,
         Instant createdAt
 ) {
@@ -21,9 +23,11 @@ public record ShareLinkCacheEntry(
                 shareLink.getId(),
                 shareLink.getWorkspaceId(),
                 shareLink.getGeneratedVersionId(),
-                shareLink.getToken(),
+                shareLink.getTokenHash(),
                 shareLink.getExpiresAt(),
                 shareLink.getAccessCount(),
+                shareLink.isRevoked(),
+                shareLink.getRevokedAt(),
                 shareLink.getCreatedBy(),
                 shareLink.getCreatedAt());
     }

@@ -1,14 +1,14 @@
 package com.lebhas.creativesaas.auditlog.infrastructure.persistence;
 
 import com.lebhas.creativesaas.auditlog.domain.AuditLog;
-import com.lebhas.creativesaas.common.jpa.TenantAwareRepository;
 import org.springframework.data.domain.Pageable;
+import org.springframework.data.jpa.repository.JpaRepository;
 
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 
-public interface AuditLogRepository extends TenantAwareRepository<AuditLog> {
+public interface AuditLogRepository extends JpaRepository<AuditLog, UUID> {
 
     Optional<AuditLog> findBySourceEventIdAndDeletedFalse(String sourceEventId);
 
@@ -17,6 +17,8 @@ public interface AuditLogRepository extends TenantAwareRepository<AuditLog> {
     List<AuditLog> findAllByWorkspaceIdAndDeletedFalseOrderByAuditAtDesc(UUID workspaceId);
 
     List<AuditLog> findAllByWorkspaceIdAndDeletedFalseOrderByAuditAtDesc(UUID workspaceId, Pageable pageable);
+
+    List<AuditLog> findAllByDeletedFalseOrderByAuditAtDesc(Pageable pageable);
 
     List<AuditLog> findAllByWorkspaceIdAndActorUserIdAndDeletedFalseOrderByAuditAtDesc(
             UUID workspaceId,

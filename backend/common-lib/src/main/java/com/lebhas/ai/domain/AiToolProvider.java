@@ -27,6 +27,12 @@ public class AiToolProvider extends BaseEntity {
     @Column(name = "provider_name", nullable = false, length = 160)
     private String providerName;
 
+    @Column(name = "description")
+    private String description;
+
+    @Column(name = "category", length = 80)
+    private String category;
+
     @Enumerated(EnumType.STRING)
     @Column(name = "provider_type", nullable = false, length = 40)
     private ProviderType providerType;
@@ -37,6 +43,16 @@ public class AiToolProvider extends BaseEntity {
 
     @Column(name = "enabled", nullable = false)
     private boolean enabled;
+
+    @Column(name = "supports_sandbox", nullable = false)
+    private boolean supportsSandbox = true;
+
+    @Column(name = "supports_live", nullable = false)
+    private boolean supportsLive = true;
+
+    @Enumerated(EnumType.STRING)
+    @Column(name = "default_environment", nullable = false, length = 20)
+    private ProviderEnvironment defaultEnvironment = ProviderEnvironment.SANDBOX;
 
     @JdbcTypeCode(SqlTypes.JSON)
     @Column(name = "supported_layers", nullable = false, columnDefinition = "jsonb")
@@ -118,6 +134,24 @@ public class AiToolProvider extends BaseEntity {
         this.status = ProviderStatus.DISABLED;
     }
 
+    public void updateSettings(
+            String providerName,
+            String description,
+            ProviderStatus status,
+            boolean supportsSandbox,
+            boolean supportsLive,
+            ProviderEnvironment defaultEnvironment
+    ) {
+        this.providerName = normalizeRequired(providerName, "displayName");
+        this.description = normalizeNullable(description);
+        this.category = "MASTER_CONFIGURED";
+        this.status = status == null ? ProviderStatus.ACTIVE : status;
+        this.enabled = this.status == ProviderStatus.ACTIVE;
+        this.supportsSandbox = supportsSandbox;
+        this.supportsLive = supportsLive;
+        this.defaultEnvironment = defaultEnvironment == null ? ProviderEnvironment.SANDBOX : defaultEnvironment;
+    }
+
     public String getProviderCode() {
         return providerCode;
     }
@@ -130,12 +164,32 @@ public class AiToolProvider extends BaseEntity {
         return providerType;
     }
 
+    public String getDescription() {
+        return description;
+    }
+
+    public String getCategory() {
+        return category;
+    }
+
     public ProviderStatus getStatus() {
         return status;
     }
 
     public boolean isEnabled() {
         return enabled;
+    }
+
+    public boolean isSupportsSandbox() {
+        return supportsSandbox;
+    }
+
+    public boolean isSupportsLive() {
+        return supportsLive;
+    }
+
+    public ProviderEnvironment getDefaultEnvironment() {
+        return defaultEnvironment;
     }
 
     public List<String> getSupportedLayers() {
@@ -211,14 +265,14 @@ public class AiToolProvider extends BaseEntity {
         return normalized;
     }
 
-    static String normalizeRequired(String value, String field) {
+    public static String normalizeRequired(String value, String field) {
         if (value == null || value.isBlank()) {
             throw new IllegalArgumentException(field + " must not be blank");
         }
         return value.trim();
     }
 
-    static String normalizeNullable(String value) {
+    public static String normalizeNullable(String value) {
         if (value == null) {
             return null;
         }

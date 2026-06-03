@@ -48,6 +48,13 @@ public abstract class BaseEntity {
         return id;
     }
 
+    protected void assignId(UUID id) {
+        if (this.id != null) {
+            throw new IllegalStateException("id is already assigned");
+        }
+        this.id = id;
+    }
+
     public Instant getCreatedAt() {
         return createdAt;
     }

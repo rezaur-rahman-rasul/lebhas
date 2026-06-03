@@ -12,7 +12,7 @@
       (click)="selectItem()"
     >
       <span class="sidebar-logo">
-        <app-brand-logo size="sm" [elevated]="false" />
+        <img src="/assets/lebhas-sidebar-logo.png" alt="Lebhas - Brand Attire logo" />
       </span>
       @if (!compact()) {
         <span class="sidebar-brand-copy">
@@ -44,6 +44,8 @@
         @for (item of group.items; track item.route) {
           <a
             [routerLink]="item.route"
+            routerLinkActive="sidebar-link--active"
+            [routerLinkActiveOptions]="routerLinkActiveOptions(item)"
             class="sidebar-link"
             [class.sidebar-link--active]="isActive(item)"
             [attr.aria-current]="isActive(item) ? 'page' : null"

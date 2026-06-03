@@ -103,6 +103,8 @@ services:
         SERVICE_NAME: creative-service
     image: creative-saas/creative-service:0.1.0
     container_name: creative-saas-creative
+    env_file:
+      - .env
     depends_on:
       postgres:
         condition: service_healthy

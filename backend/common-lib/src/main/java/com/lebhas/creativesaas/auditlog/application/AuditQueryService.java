@@ -51,6 +51,14 @@ public class AuditQueryService {
     }
 
     @Transactional(readOnly = true)
+    public List<AuditLogView> listMasterAuditLogs(int limit) {
+        return auditLogRepository.findAllByDeletedFalseOrderByAuditAtDesc(PageRequest.of(0, normalizeLimit(limit)))
+                .stream()
+                .map(auditEventMapper::toView)
+                .toList();
+    }
+
+    @Transactional(readOnly = true)
     public List<AuditLogView> listReferenceAuditLogs(UUID workspaceId, String entityType, UUID entityId, int limit) {
         workspaceAuthorizationService.requirePermission(workspaceId, Permission.WORKSPACE_VIEW);
         return auditLogRepository.findAllByWorkspaceIdAndEntityTypeAndEntityIdAndDeletedFalseOrderByAuditAtDesc(

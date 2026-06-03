@@ -254,8 +254,9 @@ export class TextToolPage {
     try {
       this.loading.set(true);
       this.error.set(null);
+      const projectId = this.selectedProjectId();
       const result = await firstValueFrom(
-        this.service.generate(workspaceId, this.config.kind, this.buildPayload(), this.requestContext()),
+        this.service.generate(workspaceId, projectId, this.config.kind, this.buildPayload(), this.requestContext()),
       );
       this.result.set(result);
       this.recentOutputs.update((items) => [
@@ -367,17 +368,20 @@ export class TextToolPage {
     if (brand && !this.selectedBrandId()) {
       this.selectBrand(brand.id);
     }
+
+    await this.loadHistory();
   }
 
   private async loadHistory(): Promise<void> {
     const workspaceId = this.auth.activeWorkspaceId();
-    if (!workspaceId) {
+    const projectId = this.selectedProjectId();
+    if (!workspaceId || !projectId) {
       return;
     }
 
     try {
       const items = await firstValueFrom(
-        this.service.history(workspaceId, this.config.kind, this.requestContext()),
+        this.service.history(workspaceId, projectId, this.config.kind, this.requestContext()),
       );
       this.recentOutputs.set(items);
     } catch {

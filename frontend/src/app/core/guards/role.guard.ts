@@ -3,6 +3,7 @@ import { inject } from '@angular/core';
 
 import { UserRole } from '@app/features/auth/models/user.models';
 import { CurrentUserStore } from '../auth/current-user.store';
+import { getDefaultRouteForRole } from '../auth/auth-redirects';
 import { AuthFacade } from '@app/features/auth/services/auth.facade';
 
 export function roleGuard(allowedRoles: readonly UserRole[]): CanActivateFn {
@@ -17,6 +18,6 @@ export function roleGuard(allowedRoles: readonly UserRole[]): CanActivateFn {
       return true;
     }
 
-    return router.createUrlTree(['/dashboard']);
+    return router.createUrlTree([getDefaultRouteForRole(authState.currentRole())]);
   };
 }

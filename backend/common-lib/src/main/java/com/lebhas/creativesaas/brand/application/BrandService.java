@@ -5,6 +5,9 @@ import com.lebhas.creativesaas.brand.domain.BrandEntity;
 import com.lebhas.creativesaas.brand.domain.BrandLanguagePreference;
 import com.lebhas.creativesaas.brand.domain.BrandStatus;
 import com.lebhas.creativesaas.brand.infrastructure.persistence.BrandRepository;
+import com.lebhas.creativesaas.auditlog.application.AuditLogService;
+import com.lebhas.creativesaas.auditlog.domain.AuditActionType;
+import com.lebhas.creativesaas.auditlog.domain.AuditOutcome;
 import com.lebhas.creativesaas.common.exception.BusinessException;
 import com.lebhas.creativesaas.common.exception.ErrorCode;
 import com.lebhas.creativesaas.common.security.Permission;
@@ -18,6 +21,7 @@ import com.lebhas.creativesaas.redis.RedisKeyBuilder;
 import com.lebhas.creativesaas.redis.RedisLockService;
 import com.lebhas.creativesaas.workspace.application.WorkspaceActivityLogger;
 import com.lebhas.creativesaas.workspace.domain.WorkspaceEntity;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -39,6 +43,7 @@ public class BrandService {
     private final DomainEventPublisher domainEventPublisher;
     private final WorkspaceActivityLogger workspaceActivityLogger;
     private final SessionProperties sessionProperties;
+    private AuditLogService auditLogService;
 
     public BrandService(
             WorkspaceAuthorizationService workspaceAuthorizationService,
@@ -60,6 +65,11 @@ public class BrandService {
         this.domainEventPublisher = domainEventPublisher;
         this.workspaceActivityLogger = workspaceActivityLogger;
         this.sessionProperties = sessionProperties;
+    }
+
+    @Autowired(required = false)
+    void setAuditLogService(AuditLogService auditLogService) {
+        this.auditLogService = auditLogService;
     }
 
     @Transactional(readOnly = true)
@@ -129,6 +139,7 @@ public class BrandService {
             BrandView brandView = brandViewMapper.toView(brand);
             invalidateBrandCaches(workspaceId, brand.getId(), access.currentUser().userId());
             workspaceActivityLogger.logBrandMutation("created", workspaceId, access.currentUser().userId(), brand.getId());
+            auditMutation("created", AuditActionType.CREATE, workspaceId, access.currentUser().userId(), brand.getId(), brand.getName());
             publishSafely(
                     KafkaTopicConstants.BRAND_CREATED,
                     new BaseDomainEvent(
@@ -189,6 +200,7 @@ public class BrandService {
             BrandView brandView = brandViewMapper.toView(brandRepository.save(brand));
             invalidateBrandCaches(workspaceId, brandId, access.currentUser().userId());
             workspaceActivityLogger.logBrandMutation("updated", workspaceId, access.currentUser().userId(), brandId);
+            auditMutation("updated", AuditActionType.UPDATE, workspaceId, access.currentUser().userId(), brandId, brand.getName());
             publishSafely(
                     KafkaTopicConstants.BRAND_UPDATED,
                     new BaseDomainEvent(
@@ -215,6 +227,7 @@ public class BrandService {
             brandRepository.save(brand);
             invalidateBrandCaches(workspaceId, brandId, access.currentUser().userId());
             workspaceActivityLogger.logBrandMutation("deleted", workspaceId, access.currentUser().userId(), brandId);
+            auditMutation("deleted", AuditActionType.DELETE, workspaceId, access.currentUser().userId(), brandId, brand.getName());
             publishSafely(
                     KafkaTopicConstants.BRAND_DELETED,
                     new BaseDomainEvent(
@@ -315,6 +328,24 @@ public class BrandService {
             domainEventPublisher.publish(topic, event);
         } catch (RuntimeException ignored) {
         }
+    }
+
+    private void auditMutation(String action, AuditActionType auditAction, UUID workspaceId, UUID actorUserId, UUID brandId, String brandName) {
+        if (auditLogService == null) {
+            return;
+        }
+        auditLogService.appendUserAction(
+                workspaceId,
+                "brand.%s.%s".formatted(action, brandId),
+                actorUserId,
+                auditAction,
+                AuditOutcome.SUCCESS,
+                "Brand",
+                brandId,
+                "Brand %s".formatted(action),
+                Map.of("brandId", brandId.toString(), "name", brandName == null ? "" : brandName),
+                null,
+                null);
     }
 
     private record BrandListCacheEntry(List<BrandView> brands, Instant cachedAt) {

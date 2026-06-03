@@ -2,8 +2,12 @@ package com.lebhas.creativesaas.creative.interfaces;
 
 import com.lebhas.ai.application.AiAnalyticsMonitoringQueryService;
 import com.lebhas.ai.application.dto.AiFailureLogView;
+import com.lebhas.ai.application.dto.AiCostUsageSummary;
+import com.lebhas.ai.application.dto.AiFailuresSummary;
 import com.lebhas.ai.application.dto.AiLayerAnalyticsView;
 import com.lebhas.ai.application.dto.DynamicRoutingOptimizationResult;
+import com.lebhas.ai.application.dto.LayerAnalyticsSummary;
+import com.lebhas.ai.application.dto.MasterMonitoringResponse;
 import com.lebhas.ai.application.dto.ProviderHealthSnapshot;
 import com.lebhas.ai.application.dto.ProviderMetricsSnapshot;
 import com.lebhas.ai.application.dto.QualityScoreResult;
@@ -54,7 +58,44 @@ public class MasterAiAnalyticsController {
     @PreAuthorize("hasRole('MASTER')")
     @Operation(summary = "Get AI layer analytics")
     public ApiResponse<List<AiLayerAnalyticsView>> getLayerAnalytics(@PathVariable UUID layerId) {
-        return ApiResponse.success(queryService.getLayerAnalyticsForMaster(layerId));
+        return ApiResponse.success("Layer analytics loaded", queryService.getLayerAnalyticsForMaster(layerId));
+    }
+
+    @GetMapping("/layer-analytics")
+    @PreAuthorize("hasRole('MASTER')")
+    @Operation(summary = "List AI layer analytics")
+    public ApiResponse<MasterMonitoringResponse<LayerAnalyticsSummary, AiLayerAnalyticsView>> listLayerAnalytics() {
+        List<AiLayerAnalyticsView> items = queryService.listLayerAnalyticsForMaster();
+        BigDecimal totalCost = items.stream()
+                .map(item -> item.avgExecutionCostUsd() == null ? BigDecimal.ZERO : item.avgExecutionCostUsd())
+                .reduce(BigDecimal.ZERO, BigDecimal::add);
+        BigDecimal totalDuration = items.stream()
+                .map(item -> item.avgExecutionTimeMs() == null ? BigDecimal.ZERO : item.avgExecutionTimeMs())
+                .reduce(BigDecimal.ZERO, BigDecimal::add);
+        LayerAnalyticsSummary summary = new LayerAnalyticsSummary(
+                items.stream().mapToLong(AiLayerAnalyticsView::totalExecutions).sum(),
+                average(totalCost, items.size()),
+                average(totalDuration, items.size()),
+                items.stream().mapToLong(AiLayerAnalyticsView::failedExecutions).sum());
+        return ApiResponse.success(items.isEmpty() ? "No records found" : "Layer analytics loaded",
+                MasterMonitoringResponse.of(summary, items));
+    }
+
+    @GetMapping("/cost-usage")
+    @PreAuthorize("hasRole('MASTER')")
+    @Operation(summary = "List AI cost usage")
+    public ApiResponse<MasterMonitoringResponse<AiCostUsageSummary, WorkspaceAiUsageView>> listCostUsage() {
+        List<WorkspaceAiUsageView> items = queryService.listWorkspaceUsageForMaster();
+        BigDecimal totalCost = items.stream()
+                .map(item -> item.totalEstimatedCostUsd() == null ? BigDecimal.ZERO : item.totalEstimatedCostUsd())
+                .reduce(BigDecimal.ZERO, BigDecimal::add);
+        long totalRuns = items.stream().mapToLong(WorkspaceAiUsageView::totalGenerationRequests).sum();
+        AiCostUsageSummary summary = new AiCostUsageSummary(
+                totalCost,
+                totalRuns,
+                totalRuns == 0 ? null : totalCost.divide(BigDecimal.valueOf(totalRuns), java.math.RoundingMode.HALF_UP));
+        return ApiResponse.success(items.isEmpty() ? "No records found" : "AI cost usage loaded",
+                MasterMonitoringResponse.of(summary, items));
     }
 
     @GetMapping("/workspaces/{workspaceId}/usage")
@@ -74,19 +115,25 @@ public class MasterAiAnalyticsController {
     @GetMapping("/failures")
     @PreAuthorize("hasRole('MASTER')")
     @Operation(summary = "List AI failure logs")
-    public ApiResponse<List<AiFailureLogView>> listFailures(
+    public ApiResponse<MasterMonitoringResponse<AiFailuresSummary, AiFailureLogView>> listFailures(
             @RequestParam(required = false) UUID providerId,
             @RequestParam(required = false) UUID layerId,
             @RequestParam(required = false) UUID creativeRequestId,
             @RequestParam(required = false) AiFailureType failureType,
             @RequestParam(required = false) Integer limit
     ) {
-        return ApiResponse.success(queryService.listFailuresForMaster(
+        List<AiFailureLogView> items = queryService.listFailuresForMaster(
                 providerId,
                 layerId,
                 creativeRequestId,
                 failureType,
-                limit));
+                limit);
+        AiFailuresSummary summary = new AiFailuresSummary(
+                items.size(),
+                items.stream().mapToLong(AiFailureLogView::retryAttempt).sum(),
+                items.stream().filter(AiFailureLogView::fallbackTriggered).count());
+        return ApiResponse.success(items.isEmpty() ? "No records found" : "AI failures loaded",
+                MasterMonitoringResponse.of(summary, items));
     }
 
     @GetMapping("/routing/recommendations")
@@ -103,5 +150,12 @@ public class MasterAiAnalyticsController {
                 layerId,
                 creativeRequestId,
                 requestedUnits));
+    }
+
+    private BigDecimal average(BigDecimal total, int itemCount) {
+        if (itemCount <= 0) {
+            return null;
+        }
+        return total.divide(BigDecimal.valueOf(itemCount), java.math.RoundingMode.HALF_UP);
     }
 }

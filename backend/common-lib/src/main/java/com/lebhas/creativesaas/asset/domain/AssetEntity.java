@@ -25,8 +25,11 @@ public class AssetEntity extends TenantAwareEntity {
     @Column(name = "product_service_id")
     private UUID productServiceId;
 
-    @Column(name = "project_id", nullable = false, updatable = false)
+    @Column(name = "project_id", updatable = false)
     private UUID projectId;
+
+    @Column(name = "source_type", length = 40)
+    private String sourceType;
 
     @Column(name = "uploaded_by", nullable = false, updatable = false)
     private UUID uploadedBy;
@@ -152,7 +155,7 @@ public class AssetEntity extends TenantAwareEntity {
         asset.assignWorkspace(workspaceId);
         asset.brandId = brandId;
         asset.productServiceId = productServiceId;
-        asset.projectId = requireProjectId(projectId);
+        asset.projectId = projectId;
         asset.uploadedBy = require(uploadedBy, "uploadedBy");
         asset.folderId = folderId;
         asset.assetType = assetType == null ? AssetType.RAW : assetType;
@@ -173,6 +176,66 @@ public class AssetEntity extends TenantAwareEntity {
         return asset;
     }
 
+    public static AssetEntity createSignedUploadPending(
+            UUID workspaceId,
+            UUID brandId,
+            UUID productServiceId,
+            UUID projectId,
+            UUID uploadedBy,
+            UUID folderId,
+            AssetType assetType,
+            AssetCategory assetCategory,
+            String originalFileName,
+            String safeFileName,
+            String displayName,
+            String description,
+            Set<String> tags,
+            UUID uploadSessionId,
+            String metadataJson,
+            StorageProvider storageProvider,
+            String bucket,
+            String objectKey,
+            String mimeType,
+            String fileExtension,
+            long fileSize,
+            String checksum,
+            String sourceType
+    ) {
+        AssetEntity asset = createUploading(
+                workspaceId,
+                brandId,
+                productServiceId,
+                projectId,
+                uploadedBy,
+                folderId,
+                assetType,
+                assetCategory,
+                originalFileName,
+                displayName,
+                description,
+                tags,
+                uploadSessionId,
+                metadataJson,
+                storageProvider);
+        asset.storedFileName = normalizeNullable(safeFileName);
+        asset.mimeType = normalizeNullable(mimeType);
+        asset.fileExtension = normalizeNullable(fileExtension);
+        asset.fileSize = Math.max(fileSize, 0);
+        asset.storageBucket = normalizeNullable(bucket);
+        asset.storageKey = normalizeNullable(objectKey);
+        asset.checksum = normalizeNullable(checksum);
+        asset.sourceType = normalizeNullable(sourceType);
+        asset.status = AssetStatus.UPLOAD_PENDING;
+        asset.processingStatus = ProcessingStatus.UPLOADING;
+        asset.previewStatus = PreviewStatus.PENDING;
+        return asset;
+    }
+
+    public void configureSignedUploadStorage(String bucket, String objectKey) {
+        this.storageBucket = normalizeNullable(bucket);
+        this.storageKey = normalizeRequired(objectKey, "objectKey");
+    }
+
     public UUID getBrandId() {
         return brandId;
     }
@@ -191,6 +254,10 @@ public class AssetEntity extends TenantAwareEntity {
 
     public UUID getUploadedBy() {
         return uploadedBy;
+    }
+
+    public String getSourceType() {
+        return sourceType;
     }
 
     public UUID getFolderId() {
@@ -306,7 +373,17 @@ public class AssetEntity extends TenantAwareEntity {
     }
 
     public boolean isReady() {
-        return status == AssetStatus.READY;
+        return status == AssetStatus.READY || status == AssetStatus.AVAILABLE;
+    }
+
+    public void confirmSignedUpload(UUID storageFileId, Integer width, Integer height, Long duration) {
+        this.storageFileId = storageFileId;
+        this.width = width;
+        this.height = height;
+        this.duration = duration;
+        this.processingStatus = ProcessingStatus.READY;
+        this.previewStatus = PreviewStatus.READY;
+        this.status = AssetStatus.AVAILABLE;
     }
 
     public void completeUpload(
@@ -434,13 +511,6 @@ public class AssetEntity extends TenantAwareEntity {
     public void markDeletedAsset() {
         this.status = AssetStatus.DELETED;
         markDeleted();
-    }
-
-    private static UUID requireProjectId(UUID projectId) {
-        if (projectId == null) {
-            throw new IllegalArgumentException("projectId must not be null");
-        }
-        return projectId;
     }
 
     private static UUID require(UUID value, String field) {

@@ -18,6 +18,8 @@ public record UpdateProfileRequest(
         String phoneNumber,
         @Size(max = 120)
         String jobTitle,
+        @Size(max = 1000)
+        String bio,
         @NotBlank(message = ValidationMessages.REQUIRED)
         @Size(max = 80)
         String timezone,
@@ -25,4 +27,15 @@ public record UpdateProfileRequest(
         @Size(max = 20)
         String locale
 ) {
+    public UpdateProfileRequest(
+            String firstName,
+            String lastName,
+            String displayName,
+            String phoneNumber,
+            String jobTitle,
+            String timezone,
+            String locale
+    ) {
+        this(firstName, lastName, displayName, phoneNumber, jobTitle, null, timezone, locale);
+    }
 }

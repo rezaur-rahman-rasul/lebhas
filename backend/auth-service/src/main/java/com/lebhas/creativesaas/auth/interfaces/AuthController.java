@@ -19,6 +19,8 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
+import java.util.Map;
+
 @RestController
 @RequestMapping("/api/v1/auth")
 @Tag(name = "Authentication")
@@ -41,8 +43,10 @@ public class AuthController {
                         request.firstName(),
                         request.lastName(),
                         request.email(),
-                        request.phone(),
+                        request.resolvedPhoneNumber(),
                         request.password(),
+                        request.confirmPassword(),
+                        request.workspaceName(),
                         request.workspaceId(),
                         request.invitationToken()),
                 resolveClientIp(httpServletRequest),
@@ -83,6 +87,46 @@ public class AuthController {
     public ApiResponse<Void> logout(@Valid @RequestBody LogoutRequest request) {
         authenticationService.logout(new LogoutCommand(request.refreshToken(), request.logoutAllDevices()));
         return ApiResponse.success("Logout completed", null);
+    }
+
+    @PostMapping("/logout-all")
+    @SecurityRequirement(name = "bearerAuth")
+    @Operation(summary = "Invalidate all sessions for the current user")
+    public ApiResponse<Void> logoutAll() {
+        authenticationService.logout(new LogoutCommand(null, true));
+        return ApiResponse.success("All sessions logged out", null);
+    }
+
+    @PostMapping("/forgot-password")
+    @Operation(summary = "Request a password reset")
+    public ApiResponse<Map<String, String>> forgotPassword(@RequestBody(required = false) Map<String, Object> request) {
+        return ApiResponse.success(
+                "Password reset request accepted",
+                Map.of("status", "accepted", "delivery", "foundation_pending"));
+    }
+
+    @PostMapping("/reset-password")
+    @Operation(summary = "Reset password with a reset token")
+    public ApiResponse<Map<String, String>> resetPassword(@RequestBody(required = false) Map<String, Object> request) {
+        return ApiResponse.success(
+                "Password reset foundation endpoint is available",
+                Map.of("status", "foundation_pending"));
+    }
+
+    @PostMapping("/verify-email")
+    @Operation(summary = "Verify an email address")
+    public ApiResponse<Map<String, String>> verifyEmail(@RequestBody(required = false) Map<String, Object> request) {
+        return ApiResponse.success(
+                "Email verification foundation endpoint is available",
+                Map.of("status", "foundation_pending"));
+    }
+
+    @PostMapping("/resend-verification")
+    @Operation(summary = "Resend email verification")
+    public ApiResponse<Map<String, String>> resendVerification(@RequestBody(required = false) Map<String, Object> request) {
+        return ApiResponse.success(
+                "Verification resend request accepted",
+                Map.of("status", "accepted", "delivery", "foundation_pending"));
     }
 
     @GetMapping("/me")

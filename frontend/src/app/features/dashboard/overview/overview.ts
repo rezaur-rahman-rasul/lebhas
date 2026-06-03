@@ -272,11 +272,11 @@ export class DashboardOverviewComponent {
     }
 
     if (!this.hasProductService()) {
-      return { label: 'Create Product', route: '/product-services', icon: 'package-open' };
+      return { label: 'Create Product', route: '/products-services', icon: 'package-open' };
     }
 
     if (!this.hasValidProject()) {
-      return { label: 'Create Project', route: '/projects', icon: 'folder-kanban' };
+      return { label: 'Create Project', route: '/projects-campaigns', icon: 'folder-kanban' };
     }
 
     if (!this.hasAsset()) {
@@ -297,7 +297,7 @@ export class DashboardOverviewComponent {
 
     if (this.role() === 'CREW') {
       return [
-        { key: 'OPEN_PROJECTS', title: 'Open projects', description: 'Move into assigned project and campaign context.', route: '/projects', icon: 'folder-kanban', enabled: true, disabledReason: null, badgeLabel: null },
+        { key: 'OPEN_PROJECTS', title: 'Open projects', description: 'Move into assigned project and campaign context.', route: '/projects-campaigns', icon: 'folder-kanban', enabled: true, disabledReason: null, badgeLabel: null },
         { key: 'REVIEW_WORKSPACE', title: 'Review workspace summary', description: 'Confirm the current workspace before taking action.', route: '/dashboard', icon: 'layout-dashboard', enabled: true, disabledReason: null, badgeLabel: null },
       ];
     }
@@ -307,8 +307,8 @@ export class DashboardOverviewComponent {
     const hasProducts = this.hasProductService();
     const hasValidProject = this.hasValidProject();
     const hasAsset = this.hasAsset();
-    const projectAssetsRoute = project ? `/projects/${project.id}/assets` : '/projects';
-    const projectPromptsRoute = project ? `/projects/${project.id}/prompts` : '/projects';
+    const projectAssetsRoute = project ? `/projects/${project.id}/assets` : '/projects-campaigns';
+    const projectPromptsRoute = project ? `/projects/${project.id}/prompts` : '/projects-campaigns';
     const canCreateBrand = this.permissions.canManageBrands();
     const canCreateProduct = this.permissions.canManageProducts();
     const canCreateProject = this.permissions.canCreateProjects();
@@ -331,7 +331,7 @@ export class DashboardOverviewComponent {
         key: 'CREATE_PRODUCT_SERVICE',
         title: 'Create Product / Service',
         description: hasBrands && canCreateProduct ? 'Attach a product or service to a brand.' : 'Create a brand first.',
-        route: '/product-services',
+        route: '/products-services',
         icon: this.getQuickActionIcon('CREATE_PRODUCT_SERVICE'),
         enabled: hasBrands && canCreateProduct,
         disabledReason: !canCreateProduct ? 'You do not have permission to perform this action.' : hasBrands ? null : 'Create a brand first.',
@@ -341,7 +341,7 @@ export class DashboardOverviewComponent {
         key: 'CREATE_PROJECT',
         title: 'Create Project',
         description: hasProducts && canCreateProject ? 'Prepare a campaign container for assets and prompts.' : 'Create a product or service first.',
-        route: '/projects',
+        route: '/projects-campaigns',
         icon: this.getQuickActionIcon('CREATE_PROJECT'),
         enabled: hasProducts && canCreateProject,
         disabledReason: !canCreateProject ? 'You do not have permission to perform this action.' : hasProducts ? null : 'Create a product or service first.',

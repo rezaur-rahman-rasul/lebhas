@@ -3,7 +3,7 @@
   [title]="project()?.name ?? 'Project assets'"
   description="Upload and manage campaign media. Previews and downloads are opened through backend signed URLs."
 >
-  <a routerLink="/projects" class="text-sm font-medium text-brand-600 hover:text-brand-700">All projects</a>
+      <a routerLink="/projects-campaigns" class="text-sm font-medium text-brand-600 hover:text-brand-700">All projects</a>
   <app-badge tone="neutral">{{ assetCountLabel() }}</app-badge>
 
   @if (store.canUploadAssets() && projectId()) {

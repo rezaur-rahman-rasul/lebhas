@@ -12,6 +12,17 @@ export type CreativeType =
   | 'STORY_CREATIVE'
   | 'MOTION_GRAPHIC';
 export type CreativeOutputFormat = 'PNG' | 'JPG' | 'WEBP' | 'MP4' | 'MOV';
+export type ImageCreativeFormat =
+  | 'FACEBOOK_SQUARE'
+  | 'FACEBOOK_BANNER'
+  | 'INSTAGRAM_POST'
+  | 'INSTAGRAM_STORY'
+  | 'TIKTOK_VERTICAL'
+  | 'TIKTOK_PRODUCT_AD'
+  | 'LINKEDIN_POST'
+  | 'LINKEDIN_BANNER'
+  | 'CUSTOM';
+export type ImageCreativeQualityMode = 'BASIC' | 'PREMIUM';
 export type CreativeGenerationStatus =
   | 'DRAFT'
   | 'QUEUED'
@@ -104,6 +115,31 @@ export interface CreateCreativeGenerationRequest {
   readonly duration: number | null;
   readonly generationConfig: Readonly<Record<string, unknown>>;
   readonly useBrandContext: boolean;
+}
+
+export interface CreateCampaignCreativeRequest {
+  readonly promptDraftId: string | null;
+  readonly sourcePrompt: string;
+  readonly productAssetId: string;
+  readonly creativeFormat: ImageCreativeFormat;
+  readonly platform: PromptPlatform;
+  readonly language: Exclude<PromptLanguage, 'MIXED'>;
+  readonly qualityMode: ImageCreativeQualityMode;
+  readonly requestedVersionCount: number;
+  readonly stylePreset: string | null;
+  readonly backgroundStyle: string | null;
+  readonly cta: string | null;
+}
+
+export interface ProductImageCreativeReadiness {
+  readonly ready: boolean;
+  readonly workspaceReady: boolean;
+  readonly packageReady: boolean;
+  readonly creditsReady: boolean;
+  readonly providerReady: boolean;
+  readonly routingReady: boolean;
+  readonly productAssetReady: boolean;
+  readonly messages: readonly string[];
 }
 
 export interface CreativeGenerationFilter {

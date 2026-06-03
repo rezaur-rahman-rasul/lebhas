@@ -98,6 +98,7 @@
             icon="user-plus"
             [fullWidth]="true"
             [loading]="auth.authLoading()"
+            [disabled]="form.invalid || auth.authLoading()"
           >
             Create workspace
           </app-button>

@@ -145,11 +145,11 @@ export class MasterDashboardPage {
   });
 
   protected readonly quickActions: readonly MasterAction[] = [
-    { label: 'Manage Workspaces', route: '/master/usage/workspaces', icon: 'building-2' },
-    { label: 'Manage Pricing', route: '/payments/subscription', icon: 'package-check' },
-    { label: 'Manage AI Tools', route: '/ai-monitoring', icon: 'wand-sparkles' },
+    { label: 'Manage Workspaces', route: '/master/workspaces', icon: 'building-2' },
+    { label: 'Manage Pricing', route: '/master/pricing-packages', icon: 'package-check' },
+    { label: 'Manage AI Tools', route: '/master/provider-settings', icon: 'wand-sparkles' },
     { label: 'View System Health', route: '/master/monitoring/system-health', icon: 'gauge' },
-    { label: 'View Audit Logs', route: '/audit-logs', icon: 'shield-check' },
+    { label: 'View Audit Logs', route: '/master/audit-logs', icon: 'shield-check' },
   ];
 
   protected readonly topWorkspaces = computed(() =>

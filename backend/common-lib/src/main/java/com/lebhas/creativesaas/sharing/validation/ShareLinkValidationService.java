@@ -42,7 +42,7 @@ public class ShareLinkValidationService {
     public void requireShareLinkCreationAllowed(
             WorkspaceAuthorizationService.WorkspaceAccess access,
             UUID generatedVersionId,
-            String token
+            String tokenHash
     ) {
         if (access == null || access.workspace() == null) {
             throw new BusinessException(ErrorCode.WORKSPACE_ACCESS_DENIED);
@@ -50,8 +50,11 @@ public class ShareLinkValidationService {
         UUID workspaceId = access.workspace().getId();
         requirePublicShareLinksEnabled(workspaceId);
         approvalPermissionValidationService.requireShareLinkCreation(access);
-        requireGeneratedVersionBelongsToWorkspace(workspaceId, generatedVersionId);
-        requireTokenAvailable(token);
+        GeneratedVersionEntity generatedVersion = requireGeneratedVersionBelongsToWorkspace(workspaceId, generatedVersionId);
+        if (generatedVersion.getApprovalStatus() != com.lebhas.creativesaas.generatedversion.domain.ApprovalStatus.APPROVED) {
+            throw new BusinessException(ErrorCode.FORBIDDEN, "Generated version must be approved before sharing");
+        }
+        requireTokenHashAvailable(tokenHash);
     }
 
     @Transactional(readOnly = true)
@@ -68,19 +71,26 @@ public class ShareLinkValidationService {
 
     @Transactional(readOnly = true)
     public ShareLink requireShareLinkToken(String token) {
-        return shareLinkRepository.findByToken(normalizeRequired(token, "token"))
+        return shareLinkRepository.findByTokenHash(normalizeRequired(token, "tokenHash"))
                 .orElseThrow(() -> new BusinessException(ErrorCode.RESOURCE_NOT_FOUND, "Share link not found"));
     }
 
     @Transactional(readOnly = true)
     public ShareLink requireShareLinkTokenBelongsToWorkspace(UUID workspaceId, String token) {
-        return shareLinkRepository.findByTokenAndWorkspaceId(normalizeRequired(token, "token"), workspaceId)
+        return shareLinkRepository.findByTokenHashAndWorkspaceId(normalizeRequired(token, "tokenHash"), workspaceId)
                 .orElseThrow(() -> new BusinessException(ErrorCode.RESOURCE_NOT_FOUND, "Share link not found"));
     }
 
     @Transactional(readOnly = true)
     public void requireTokenAvailable(String token) {
         if (shareLinkRepository.existsByToken(normalizeRequired(token, "token"))) {
+            throw new BusinessException(ErrorCode.BUSINESS_RULE_VIOLATION, "Share token is already in use");
+        }
+    }
+
+    @Transactional(readOnly = true)
+    public void requireTokenHashAvailable(String tokenHash) {
+        if (shareLinkRepository.existsByTokenHash(normalizeRequired(tokenHash, "tokenHash"))) {
             throw new BusinessException(ErrorCode.BUSINESS_RULE_VIOLATION, "Share token is already in use");
         }
     }

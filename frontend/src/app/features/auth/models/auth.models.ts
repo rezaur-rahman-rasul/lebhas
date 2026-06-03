@@ -10,8 +10,9 @@ export interface RegisterRequest {
   readonly firstName: string;
   readonly lastName: string;
   readonly email: string;
-  readonly phone: string | null;
+  readonly phone?: string | null;
   readonly password: string;
+  readonly confirmPassword: string;
   readonly workspaceId?: string | null;
   readonly invitationToken?: string | null;
 }

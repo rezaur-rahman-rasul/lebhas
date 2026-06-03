@@ -1,11 +1,18 @@
 package com.lebhas.creativesaas.creative.interfaces;
 
 import com.lebhas.creativesaas.common.api.ApiResponse;
+import com.lebhas.creativesaas.creativerequest.application.CreativeRequestBuilderService;
 import com.lebhas.creativesaas.creativerequest.application.CreativeRequestService;
 import com.lebhas.creativesaas.creativerequest.application.dto.CancelCreativeRequestCommand;
 import com.lebhas.creativesaas.creativerequest.application.dto.CreateCreativeRequestCommand;
+import com.lebhas.creativesaas.creativerequest.application.dto.CreativeRequestReadinessView;
 import com.lebhas.creativesaas.creativerequest.application.dto.CreativeRequestResponse;
+import com.lebhas.creativesaas.creativerequest.application.dto.GenerationPreviewView;
+import com.lebhas.creativesaas.creativerequest.application.dto.QueuedGenerationJobView;
 import com.lebhas.creativesaas.creativerequest.application.dto.RetryCreativeRequestCommand;
+import com.lebhas.creativesaas.generation.application.GenerationJobService;
+import com.lebhas.creativesaas.generation.application.dto.GenerationJobDetailView;
+import com.lebhas.creativesaas.generation.application.dto.GenerationJobView;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.media.ArraySchema;
 import io.swagger.v3.oas.annotations.media.Content;
@@ -31,13 +38,19 @@ import java.util.UUID;
 public class CreativeRequestController {
 
     private final CreativeRequestService creativeRequestService;
+    private final CreativeRequestBuilderService creativeRequestBuilderService;
+    private final GenerationJobService generationJobService;
     private final Day5ApiMapper day5ApiMapper;
 
     public CreativeRequestController(
             CreativeRequestService creativeRequestService,
+            CreativeRequestBuilderService creativeRequestBuilderService,
+            GenerationJobService generationJobService,
             Day5ApiMapper day5ApiMapper
     ) {
         this.creativeRequestService = creativeRequestService;
+        this.creativeRequestBuilderService = creativeRequestBuilderService;
+        this.generationJobService = generationJobService;
         this.day5ApiMapper = day5ApiMapper;
     }
 
@@ -55,7 +68,7 @@ public class CreativeRequestController {
             @PathVariable UUID projectId,
             @Valid @RequestBody CreateCreativeRequestRequest request
     ) {
-        CreativeRequestResponse response = creativeRequestService.createCreativeRequest(new CreateCreativeRequestCommand(
+        CreativeRequestResponse response = creativeRequestBuilderService.createManual(new CreateCreativeRequestCommand(
                 workspaceId,
                 null,
                 null,
@@ -69,7 +82,27 @@ public class CreativeRequestController {
                 request.requestedFormat(),
                 request.requestedVersions(),
                 request.selectedAssetIds()));
-        return ApiResponse.success("Creative request queued", day5ApiMapper.toCreativeRequestResponse(response));
+        return ApiResponse.success("Creative request created", day5ApiMapper.toCreativeRequestResponse(response));
+    }
+
+    @PostMapping("/projects/{projectId}/creative-requests/from-prompt")
+    @PreAuthorize("hasAuthority('CREATIVE_REQUEST_CREATE')")
+    @Operation(summary = "Create a creative request from a prompt draft")
+    public ApiResponse<CreativeRequestResourceResponse> createCreativeRequestFromPrompt(
+            @PathVariable UUID workspaceId,
+            @PathVariable UUID projectId,
+            @Valid @RequestBody CreateCreativeRequestFromPromptRequest request
+    ) {
+        CreativeRequestResponse response = creativeRequestBuilderService.createFromPrompt(
+                workspaceId,
+                projectId,
+                request.promptDraftId(),
+                request.requestName(),
+                request.enhancedPrompt(),
+                request.requestedFormat(),
+                request.requestedVersions(),
+                request.selectedAssetIds());
+        return ApiResponse.success("Creative request created from prompt", day5ApiMapper.toCreativeRequestResponse(response));
     }
 
     @GetMapping("/projects/{projectId}/creative-requests")
@@ -100,6 +133,56 @@ public class CreativeRequestController {
                 creativeRequestService.getRequest(workspaceId, creativeRequestId)));
     }
 
+    @PostMapping("/creative-requests/{creativeRequestId}/validate")
+    @PreAuthorize("hasAuthority('WORKSPACE_VIEW')")
+    @Operation(summary = "Validate creative request readiness")
+    public ApiResponse<CreativeRequestReadinessView> validateCreativeRequest(
+            @PathVariable UUID workspaceId,
+            @PathVariable UUID creativeRequestId
+    ) {
+        return ApiResponse.success(creativeRequestBuilderService.validate(workspaceId, creativeRequestId));
+    }
+
+    @PostMapping("/creative-requests/{creativeRequestId}/generation/preview")
+    @PreAuthorize("hasAuthority('CREATIVE_REQUEST_CREATE')")
+    @Operation(summary = "Preview generation cost without reserving credits")
+    public ApiResponse<GenerationPreviewView> previewGeneration(
+            @PathVariable UUID workspaceId,
+            @PathVariable UUID creativeRequestId
+    ) {
+        return ApiResponse.success("Generation preview created", creativeRequestBuilderService.preview(workspaceId, creativeRequestId));
+    }
+
+    @PostMapping("/creative-requests/{creativeRequestId}/generation/queue")
+    @PreAuthorize("hasAuthority('CREATIVE_REQUEST_CREATE')")
+    @Operation(summary = "Queue a creative request for generation")
+    public ApiResponse<QueuedGenerationJobView> queueGeneration(
+            @PathVariable UUID workspaceId,
+            @PathVariable UUID creativeRequestId
+    ) {
+        return ApiResponse.success("Generation job queued", creativeRequestBuilderService.queue(workspaceId, creativeRequestId));
+    }
+
+    @GetMapping("/generation-jobs/{generationJobId}")
+    @PreAuthorize("hasAuthority('WORKSPACE_VIEW')")
+    @Operation(summary = "Get a generation job by id")
+    public ApiResponse<GenerationJobView> getGenerationJob(
+            @PathVariable UUID workspaceId,
+            @PathVariable UUID generationJobId
+    ) {
+        return ApiResponse.success(generationJobService.getJob(workspaceId, generationJobId));
+    }
+
+    @GetMapping("/generation-jobs/{generationJobId}/detail")
+    @PreAuthorize("hasAuthority('WORKSPACE_VIEW')")
+    @Operation(summary = "Get generation job detail")
+    public ApiResponse<GenerationJobDetailView> getGenerationJobDetail(
+            @PathVariable UUID workspaceId,
+            @PathVariable UUID generationJobId
+    ) {
+        return ApiResponse.success(generationJobService.getJobDetail(workspaceId, generationJobId));
+    }
+
     @PostMapping("/creative-requests/{creativeRequestId}/cancel")
     @PreAuthorize("hasAuthority('CREATIVE_REQUEST_CREATE')")
     @Operation(summary = "Cancel a queued creative request")
@@ -122,6 +205,20 @@ public class CreativeRequestController {
     ) {
         return ApiResponse.success(
                 "Creative request retry queued",
+                day5ApiMapper.toCreativeRequestResponse(
+                        creativeRequestService.retryFailedRequest(new RetryCreativeRequestCommand(workspaceId, creativeRequestId))));
+    }
+
+    @PostMapping("/generation-jobs/{generationJobId}/retry")
+    @PreAuthorize("hasAuthority('CREATIVE_REQUEST_CREATE')")
+    @Operation(summary = "Retry a failed generation job")
+    public ApiResponse<CreativeRequestResourceResponse> retryGenerationJob(
+            @PathVariable UUID workspaceId,
+            @PathVariable UUID generationJobId
+    ) {
+        UUID creativeRequestId = generationJobService.getJob(workspaceId, generationJobId).requestId();
+        return ApiResponse.success(
+                "Generation job retry queued",
                 day5ApiMapper.toCreativeRequestResponse(
                         creativeRequestService.retryFailedRequest(new RetryCreativeRequestCommand(workspaceId, creativeRequestId))));
     }

@@ -123,6 +123,15 @@ public class LocalStorageService implements StorageService, LocalAssetContentAcc
     }
 
     @Override
+    public byte[] readBytes(AssetEntity asset) {
+        try {
+            return Files.readAllBytes(resolvePath(asset));
+        } catch (IOException exception) {
+            throw new BusinessException(ErrorCode.ASSET_STORAGE_FAILURE, "Local asset content could not be read");
+        }
+    }
+
+    @Override
     public Resource open(AssetEntity asset) {
         return new FileSystemResource(resolvePath(asset));
     }

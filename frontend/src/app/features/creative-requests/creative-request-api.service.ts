@@ -2,6 +2,7 @@ import { inject, Injectable } from '@angular/core';
 import { firstValueFrom } from 'rxjs';
 
 import { ApiService } from '@app/core/api/api.service';
+import { ApiEndpoints } from '@app/core/api/api-endpoints';
 import { unwrapApiResponse } from '@app/shared/utils/api-response';
 import {
   CreateCreativeRequestPayload,
@@ -16,7 +17,7 @@ export class CreativeRequestApiService {
   async listByProject(workspaceId: string, projectId: string): Promise<readonly CreativeRequest[]> {
     const response = await firstValueFrom(
       this.api.get<readonly CreativeRequest[]>(
-        `/api/v1/workspaces/${workspaceId}/projects/${projectId}/creative-requests`,
+        ApiEndpoints.creativeRequests.listByProject(workspaceId, projectId),
       ),
     );
     return unwrapApiResponse(response);
@@ -25,7 +26,7 @@ export class CreativeRequestApiService {
   async get(workspaceId: string, creativeRequestId: string): Promise<CreativeRequest> {
     const response = await firstValueFrom(
       this.api.get<CreativeRequest>(
-        `/api/v1/workspaces/${workspaceId}/creative-requests/${creativeRequestId}`,
+        ApiEndpoints.creativeRequests.detail(workspaceId, creativeRequestId),
       ),
     );
     return unwrapApiResponse(response);
@@ -38,7 +39,7 @@ export class CreativeRequestApiService {
   ): Promise<CreativeRequest> {
     const response = await firstValueFrom(
       this.api.post<CreativeRequest, CreateCreativeRequestPayload>(
-        `/api/v1/workspaces/${workspaceId}/projects/${projectId}/creative-requests`,
+        ApiEndpoints.creativeRequests.listByProject(workspaceId, projectId),
         payload,
       ),
     );
@@ -52,7 +53,7 @@ export class CreativeRequestApiService {
   ): Promise<CreativeRequest> {
     const response = await firstValueFrom(
       this.api.put<CreativeRequest, UpdateCreativeRequestPayload>(
-        `/api/v1/workspaces/${workspaceId}/creative-requests/${creativeRequestId}`,
+        ApiEndpoints.creativeRequests.detail(workspaceId, creativeRequestId),
         payload,
       ),
     );

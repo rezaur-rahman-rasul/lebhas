@@ -2,7 +2,10 @@ import { Injectable, computed, inject, signal } from '@angular/core';
 
 import { normalizeHttpError } from '@app/core/api/http-error';
 import { PermissionStore } from '@app/core/permissions/permission.store';
-import { NotificationStateService } from '@app/core/state/notification-state.service';
+import {
+  UiResourceState,
+  uiResourceErrorKind,
+} from '@app/shared/models/ui-resource-state.model';
 import {
   AiFailureLog,
   AiLayerAnalytics,
@@ -20,7 +23,6 @@ import { AiMonitoringApiService } from '../services/ai-monitoring-api.service';
 export class AiMonitoringStore {
   private readonly api = inject(AiMonitoringApiService);
   private readonly permissions = inject(PermissionStore);
-  private readonly notifications = inject(NotificationStateService);
 
   private readonly providerMetricsSignal = signal<readonly AiProviderMetric[]>([]);
   private readonly providerHealthSignal = signal<readonly AiProviderHealth[]>([]);
@@ -33,6 +35,8 @@ export class AiMonitoringStore {
   private readonly selectedLayerSignal = signal<string | null>(null);
   private readonly loadingSignal = signal(false);
   private readonly errorSignal = signal<string | null>(null);
+  private readonly endpointUnavailableSignal = signal(false);
+  private readonly stateSignal = signal<UiResourceState<unknown>>({ status: 'idle' });
 
   readonly providerMetrics = this.providerMetricsSignal.asReadonly();
   readonly providerHealth = this.providerHealthSignal.asReadonly();
@@ -45,6 +49,8 @@ export class AiMonitoringStore {
   readonly selectedLayer = this.selectedLayerSignal.asReadonly();
   readonly loading = this.loadingSignal.asReadonly();
   readonly error = this.errorSignal.asReadonly();
+  readonly endpointUnavailable = this.endpointUnavailableSignal.asReadonly();
+  readonly state = this.stateSignal.asReadonly();
 
   readonly healthyProviders = computed(() =>
     this.providerHealthSignal().filter((provider) => provider.status === ProviderHealthStatus.Healthy),
@@ -253,14 +259,24 @@ export class AiMonitoringStore {
   private async run(action: () => Promise<void>): Promise<AiMonitoringActionResult> {
     this.loadingSignal.set(true);
     this.errorSignal.set(null);
+    this.endpointUnavailableSignal.set(false);
+    this.stateSignal.set({ status: 'loading' });
 
     try {
       await action();
+      this.stateSignal.set({ status: 'success', data: null });
       return { ok: true };
     } catch (error) {
+      const normalized = normalizeHttpError(error);
       const message = this.friendlyError(error);
+      this.endpointUnavailableSignal.set(normalized.status === 404);
       this.errorSignal.set(message);
-      this.notifications.error('AI monitoring', message);
+      this.stateSignal.set({
+        status: 'error',
+        message,
+        code: uiResourceErrorKind(normalized.status),
+        retryable: normalized.status === 0 || normalized.status >= 500,
+      });
       return { ok: false, message };
     } finally {
       this.loadingSignal.set(false);
@@ -275,6 +291,22 @@ export class AiMonitoringStore {
 
   private friendlyError(error: unknown): string {
     const normalized = normalizeHttpError(error);
+    if (normalized.status === 404) {
+      return 'This monitoring API is not available yet. Empty monitoring panels will appear when the backend endpoint is connected.';
+    }
+
+    if (normalized.status === 204) {
+      return '';
+    }
+
+    if (normalized.status === 403) {
+      return 'You do not have permission to view this AI monitoring data.';
+    }
+
+    if (normalized.status >= 400 && normalized.status < 500) {
+      return normalized.message || 'The monitoring request could not be validated.';
+    }
+
     const text = `${normalized.message} ${normalized.errors
       .map((item) => `${item.code ?? ''} ${item.message}`)
       .join(' ')}`.toLowerCase();

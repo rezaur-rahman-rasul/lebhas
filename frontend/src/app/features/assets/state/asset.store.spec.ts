@@ -17,7 +17,7 @@ const sampleAsset: Asset = {
   projectCampaignId: 'project-1',
   storageFileId: 'file-1',
   uploadedBy: 'user-1',
-  assetType: 'IMAGE',
+  assetType: 'RAW_IMAGE',
   assetCategory: 'PRODUCT_IMAGE',
   originalFileName: 'product.jpg',
   displayName: 'Product flat lay',

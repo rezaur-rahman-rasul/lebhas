@@ -26,6 +26,14 @@ export function normalizeHttpError(error: unknown): NormalizedHttpError {
     };
   }
 
+  if (error instanceof Error && error.message.trim()) {
+    return {
+      status: 0,
+      message: error.message,
+      errors: [],
+    };
+  }
+
   return {
     status: 0,
     message: 'Unexpected application error',
@@ -47,9 +55,20 @@ function friendlyHttpMessage(
   }
 
   const rawMessage = body?.message || fallbackMessage || 'Request failed';
-  const errorText = [rawMessage, ...(body?.errors ?? []).map((error) => `${error.code ?? ''} ${error.message}`)]
+  const detailMessages = (body?.errors ?? [])
+    .map((error) => [error.field, error.message].filter(Boolean).join(': '))
+    .filter((message) => message.trim().length > 0);
+  const errorText = [rawMessage, ...detailMessages, ...(body?.errors ?? []).map((error) => `${error.code ?? ''} ${error.message}`)]
     .join(' ')
     .toLowerCase();
+
+  if (
+    status === 400 &&
+    detailMessages.length > 0 &&
+    (rawMessage.toLowerCase().includes('validation failed') || rawMessage.toLowerCase().includes('validation'))
+  ) {
+    return detailMessages.join(' ');
+  }
 
   if (errorText.includes('quota') || errorText.includes('storage full')) {
     return 'Your workspace storage is full. Please remove old files or upgrade your package.';

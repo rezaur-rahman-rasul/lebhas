@@ -24,7 +24,6 @@ public record AssetVariantGenerateEvent(
         occurredAt = occurredAt == null ? Instant.now() : occurredAt;
         workspaceId = Objects.requireNonNull(workspaceId, "workspaceId must not be null");
         assetId = Objects.requireNonNull(assetId, "assetId must not be null");
-        projectId = Objects.requireNonNull(projectId, "projectId must not be null");
         variantType = variantType == null ? AssetVariantType.THUMBNAIL : variantType;
         mimeType = normalizeNullable(mimeType);
         sourceStorageKey = normalizeNullable(sourceStorageKey);

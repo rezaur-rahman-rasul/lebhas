@@ -1,8 +1,11 @@
 package com.lebhas.creativesaas.asset.application;
 
 import com.lebhas.creativesaas.asset.application.dto.AssetListCriteria;
+import com.lebhas.creativesaas.asset.application.dto.AssetUploadUrlView;
 import com.lebhas.creativesaas.asset.application.dto.AssetUrlView;
 import com.lebhas.creativesaas.asset.application.dto.AssetView;
+import com.lebhas.creativesaas.asset.application.dto.ConfirmAssetUploadCommand;
+import com.lebhas.creativesaas.asset.application.dto.CreateAssetUploadUrlCommand;
 import com.lebhas.creativesaas.asset.application.dto.UpdateAssetCommand;
 import com.lebhas.creativesaas.asset.application.dto.UploadAssetCommand;
 import com.lebhas.creativesaas.asset.domain.AssetEntity;
@@ -16,14 +19,29 @@ import java.util.UUID;
 public class AssetManagementService {
 
     private final AssetService assetService;
+    private final SignedAssetUploadService signedAssetUploadService;
 
-    public AssetManagementService(AssetService assetService) {
+    public AssetManagementService(
+            AssetService assetService,
+            SignedAssetUploadService signedAssetUploadService
+    ) {
         this.assetService = assetService;
+        this.signedAssetUploadService = signedAssetUploadService;
     }
 
     @Transactional
     public AssetView uploadAsset(UploadAssetCommand command) {
         return assetService.uploadAsset(command);
+    }
+
+    @Transactional
+    public AssetUploadUrlView createUploadUrl(CreateAssetUploadUrlCommand command) {
+        return signedAssetUploadService.createUploadUrl(command);
+    }
+
+    @Transactional
+    public AssetView confirmUpload(ConfirmAssetUploadCommand command) {
+        return signedAssetUploadService.confirmUpload(command);
     }
 
     @Transactional(readOnly = true)

@@ -89,7 +89,7 @@
             icon="arrow-right"
             [fullWidth]="true"
             [loading]="auth.authLoading()"
-            [disabled]="!invitationToken()"
+            [disabled]="form.invalid || auth.authLoading() || !invitationToken()"
           >
             Accept invitation
           </app-button>

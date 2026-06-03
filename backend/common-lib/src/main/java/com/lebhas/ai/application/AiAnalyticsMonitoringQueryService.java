@@ -13,6 +13,7 @@ import com.lebhas.ai.domain.AiFailureType;
 import com.lebhas.ai.domain.AiLayerAnalytics;
 import com.lebhas.ai.infrastructure.persistence.AiFailureLogRepository;
 import com.lebhas.ai.infrastructure.persistence.AiLayerAnalyticsRepository;
+import com.lebhas.ai.infrastructure.persistence.WorkspaceAiUsageRepository;
 import com.lebhas.creativesaas.common.exception.BusinessException;
 import com.lebhas.creativesaas.common.exception.ErrorCode;
 import com.lebhas.creativesaas.common.security.Permission;
@@ -42,6 +43,8 @@ public class AiAnalyticsMonitoringQueryService {
 
     private final AiProviderHealthService providerHealthService;
     private final AiLayerAnalyticsRepository layerAnalyticsRepository;
+    private final WorkspaceAiUsageRepository workspaceAiUsageRepository;
+    private final AiUsageAnalyticsMapper workspaceUsageMapper;
     private final WorkspaceAiUsageQueryService workspaceAiUsageQueryService;
     private final GeneratedVersionQualityService generatedVersionQualityService;
     private final AiFailureLogRepository failureLogRepository;
@@ -54,6 +57,8 @@ public class AiAnalyticsMonitoringQueryService {
     public AiAnalyticsMonitoringQueryService(
             AiProviderHealthService providerHealthService,
             AiLayerAnalyticsRepository layerAnalyticsRepository,
+            WorkspaceAiUsageRepository workspaceAiUsageRepository,
+            AiUsageAnalyticsMapper workspaceUsageMapper,
             WorkspaceAiUsageQueryService workspaceAiUsageQueryService,
             GeneratedVersionQualityService generatedVersionQualityService,
             AiFailureLogRepository failureLogRepository,
@@ -63,6 +68,8 @@ public class AiAnalyticsMonitoringQueryService {
     ) {
         this.providerHealthService = providerHealthService;
         this.layerAnalyticsRepository = layerAnalyticsRepository;
+        this.workspaceAiUsageRepository = workspaceAiUsageRepository;
+        this.workspaceUsageMapper = workspaceUsageMapper;
         this.workspaceAiUsageQueryService = workspaceAiUsageQueryService;
         this.generatedVersionQualityService = generatedVersionQualityService;
         this.failureLogRepository = failureLogRepository;
@@ -100,6 +107,22 @@ public class AiAnalyticsMonitoringQueryService {
         requireMaster();
         return layerAnalyticsRepository.findAllByLayerIdAndDeletedFalse(layerId).stream()
                 .map(this::toLayerAnalyticsView)
+                .toList();
+    }
+
+    @Transactional(readOnly = true)
+    public List<AiLayerAnalyticsView> listLayerAnalyticsForMaster() {
+        requireMaster();
+        return layerAnalyticsRepository.findAllByDeletedFalse().stream()
+                .map(this::toLayerAnalyticsView)
+                .toList();
+    }
+
+    @Transactional(readOnly = true)
+    public List<WorkspaceAiUsageView> listWorkspaceUsageForMaster() {
+        requireMaster();
+        return workspaceAiUsageRepository.findAllByDeletedFalse().stream()
+                .map(workspaceUsageMapper::toView)
                 .toList();
     }
 

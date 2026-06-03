@@ -112,8 +112,29 @@ export class ProtectedLayoutComponent {
     return count > 0 ? `Open notifications. ${count} unread.` : 'Open notifications.';
   });
   protected readonly creditsSummaryLabel = computed(() => {
+    if (this.roleLabel() === 'MASTER' && !this.workspace.activeWorkspaceId()) {
+      return 'Global view';
+    }
     const remaining = this.workspace.remainingCreditsLabel();
-    return remaining === 'Usage details unavailable' ? 'Credits unavailable' : `${remaining} credits`;
+    return remaining === 'Credits not loaded' ? 'Credits not loaded' : `${remaining} credits`;
+  });
+  protected readonly planSummaryLabel = computed(() => {
+    if (this.roleLabel() === 'MASTER' && !this.workspace.activeWorkspaceId()) {
+      return 'No workspace selected';
+    }
+    return this.workspace.activePlanLabel();
+  });
+  protected readonly showWorkspaceBillingChips = computed(() => {
+    if (this.roleLabel() === 'MASTER') {
+      return Boolean(this.workspace.activeWorkspaceId());
+    }
+    return this.roleLabel() === 'ADMIN' || this.permissions.canViewUsageBilling();
+  });
+  protected readonly showBuyCredits = computed(() => {
+    if (this.roleLabel() === 'MASTER') {
+      return Boolean(this.workspace.activeWorkspaceId());
+    }
+    return this.permissions.canPurchaseCredits();
   });
 
   protected openBillingModal(): void {
@@ -177,6 +198,11 @@ export class ProtectedLayoutComponent {
     this.layout.closeSidebar();
   }
 
+  protected onRouteActivated(): void {
+    this.resetDashboardScroll();
+    this.queueDashboardScrollReset();
+  }
+
   private queueDashboardScrollReset(): void {
     if (typeof window === 'undefined') {
       return;
@@ -184,6 +210,8 @@ export class ProtectedLayoutComponent {
 
     window.requestAnimationFrame(() => this.resetDashboardScroll());
     window.setTimeout(() => this.resetDashboardScroll(), 0);
+    window.setTimeout(() => this.resetDashboardScroll(), 75);
+    window.setTimeout(() => this.resetDashboardScroll(), 150);
   }
 
   private resetDashboardScroll(): void {

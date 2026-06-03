@@ -1,7 +1,8 @@
 import { HttpContext } from '@angular/common/http';
 import { Injectable, inject } from '@angular/core';
-import { map } from 'rxjs';
+import { map, throwError } from 'rxjs';
 
+import { ApiEndpoints } from '@app/core/api/api-endpoints';
 import { ApiService } from '@app/core/api/api.service';
 import {
   TextToolHistoryItem,
@@ -50,23 +51,24 @@ export class TextToolService {
 
   generate(
     workspaceId: string,
+    projectId: string,
     tool: TextToolKind,
     payload: TextToolRequest,
     context?: HttpContext,
   ) {
     return this.api
       .post<TextToolResultDto, TextToolRequest>(
-        `/api/v1/workspaces/${workspaceId}/text-tools/${tool}`,
+        ApiEndpoints.textTools.run(workspaceId, projectId, tool),
         payload,
         { context },
       )
       .pipe(map(({ data }) => mapTextToolResult(data, tool)));
   }
 
-  history(workspaceId: string, tool: TextToolKind, context?: HttpContext) {
+  history(workspaceId: string, projectId: string, tool: TextToolKind, context?: HttpContext) {
     return this.api
       .get<readonly TextToolHistoryDto[]>(
-        `/api/v1/workspaces/${workspaceId}/text-tools/history`,
+        ApiEndpoints.textTools.history(workspaceId, projectId),
         {
           params: { tool, size: 6 },
           context,
@@ -77,11 +79,10 @@ export class TextToolService {
 
   // TODO: Wire this to the backend template endpoint when text-tool template persistence is available.
   saveTemplate(workspaceId: string, resultId: string, context?: HttpContext) {
-    return this.api.post<{ readonly id: string }, Record<string, never>>(
-      `/api/v1/workspaces/${workspaceId}/text-tools/templates/${resultId}`,
-      {},
-      { context },
-    );
+    void workspaceId;
+    void resultId;
+    void context;
+    return throwError(() => new Error('Saving text-tool output as a reusable template is not in the API catalogue yet.'));
   }
 }
 
@@ -173,4 +174,3 @@ function titleForTool(tool: TextToolKind): string {
       return 'Generated hashtags';
   }
 }
-

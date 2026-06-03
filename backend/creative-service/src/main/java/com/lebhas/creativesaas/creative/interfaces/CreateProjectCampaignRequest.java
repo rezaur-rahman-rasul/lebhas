@@ -4,7 +4,10 @@ import com.lebhas.creativesaas.common.validation.ValidationMessages;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.Size;
 
+import java.util.UUID;
+
 public record CreateProjectCampaignRequest(
+        UUID productServiceId,
         @NotBlank(message = ValidationMessages.REQUIRED)
         @Size(max = 140)
         String name,
@@ -17,4 +20,13 @@ public record CreateProjectCampaignRequest(
         @Size(max = 120)
         String campaignType
 ) {
+    public CreateProjectCampaignRequest(
+            String name,
+            String description,
+            String campaignObjective,
+            String targetPlatform,
+            String campaignType
+    ) {
+        this(null, name, description, campaignObjective, targetPlatform, campaignType);
+    }
 }

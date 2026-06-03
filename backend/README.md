@@ -36,10 +36,60 @@ com.lebhas.creativesaas.<module>
 Every service exposes:
 
 - `GET /health`
+- `GET /health/live`
+- `GET /health/ready`
 - `GET /liveness`
 - `GET /readiness`
 - `GET /swagger-ui.html`
 - `GET /v3/api-docs`
+
+Day 1 foundation endpoints include:
+
+- `POST /api/v1/auth/register`
+- `POST /api/v1/auth/login`
+- `POST /api/v1/auth/refresh`
+- `POST /api/v1/auth/logout`
+- `GET /api/v1/auth/me`
+- `GET /api/v1/profile/me`
+- `PUT /api/v1/profile/me`
+- `POST /api/v1/profile/me/change-password`
+- `GET /api/v1/workspaces/my`
+- `GET /api/v1/workspaces/{workspaceId}/context`
+- `POST /api/v1/workspaces`
+- `GET /api/v1/master/system/context`
+
+Register request example:
+
+```http
+POST http://localhost:8080/api/v1/auth/register
+Content-Type: application/json
+
+{
+  "firstName": "Hridoy",
+  "lastName": "Bhuiyan",
+  "email": "hridoy.bhuiyan12@example.com",
+  "phone": "+1234567890",
+  "password": "StrongP@ssw0rd!",
+  "confirmPassword": "StrongP@ssw0rd!"
+}
+```
+
+Day 4 R2 asset foundation endpoints include:
+
+- `POST /api/v1/workspaces/{workspaceId}/assets/upload-url`
+- `POST /api/v1/workspaces/{workspaceId}/assets/confirm`
+- `GET /api/v1/workspaces/{workspaceId}/assets`
+- `GET /api/v1/workspaces/{workspaceId}/assets/{assetId}`
+- `GET /api/v1/workspaces/{workspaceId}/assets/{assetId}/preview-url`
+- `GET /api/v1/workspaces/{workspaceId}/assets/{assetId}/download-url`
+- `DELETE /api/v1/workspaces/{workspaceId}/assets/{assetId}`
+- `GET /api/v1/workspaces/{workspaceId}/projects/{projectId}/assets`
+- `POST /api/v1/workspaces/{workspaceId}/projects/{projectId}/assets/upload-url`
+- `POST /api/v1/profile/me/profile-image/upload-url`
+- `POST /api/v1/profile/me/profile-image/confirm`
+- `DELETE /api/v1/profile/me/profile-image`
+
+Asset storage defaults to private Cloudflare R2/S3-compatible signed URLs. Upload and preview/download URL expiry is configurable; API responses do not expose R2 credentials or raw object keys.
 
 Actuator is available under `/actuator`.
 

@@ -4,7 +4,7 @@
       type="button"
       variant="secondary"
       icon="rotate-cw"
-      [loading]="aiStore.loading() || paymentStore.loading()"
+      [loading]="aiStore.loading() || providerSettingsLoading()"
       (click)="refresh()"
     >
       Refresh
@@ -30,15 +30,15 @@
 } @else {
   @switch (mode()) {
     @case ('provider-settings') {
-      @if (paymentStore.loading() && !providers().length) {
+      @if (providerSettingsLoading() && !providers().length) {
         <section class="ai-ops-skeleton-grid">
           @for (item of [1, 2, 3, 4]; track item) {
             <div class="ai-ops-skeleton"></div>
           }
         </section>
-      } @else if (paymentStore.error()) {
+      } @else if (providerSettingsError()) {
         <div class="ai-ops-block">
-          <app-error-state title="Provider settings could not load" [description]="paymentStore.error()!">
+          <app-error-state title="Provider settings could not load" [description]="providerSettingsError()!">
             <app-button type="button" variant="secondary" icon="rotate-cw" (click)="refresh()">Retry</app-button>
           </app-error-state>
         </div>
@@ -48,9 +48,9 @@
             <div class="ai-ops-panel-head">
               <div>
                 <p>Provider list</p>
-                <h2>{{ providers().length }} payment and AI-adjacent providers</h2>
+                <h2>AI and payment provider records configured by Master.</h2>
               </div>
-              <app-status-badge tone="neutral">Secrets hidden</app-status-badge>
+              <app-button type="button" icon="plus" (click)="openAddProvider()">Add Provider</app-button>
             </div>
 
             @if (providers().length) {
@@ -63,13 +63,20 @@
                     (click)="selectProvider(provider.id)"
                   >
                     <span>
-                      <strong>{{ provider.name }}</strong>
+                      <strong>{{ provider.displayName }}</strong>
                       <small>{{ provider.providerType }} · {{ providerMode(provider) }}</small>
                     </span>
-                    <app-status-badge [tone]="providerTone(provider)">
-                      {{ provider.isEnabled ? 'Enabled' : 'Disabled' }}
-                    </app-status-badge>
-                    <em>{{ providerCredentialStatus(provider) }}</em>
+                    <span class="ai-provider-status-stack">
+                      <app-status-badge [tone]="providerTone(provider)">
+                        Provider: {{ provider.active ? 'Active' : 'Inactive' }}
+                      </app-status-badge>
+                      <app-status-badge [tone]="credentialTone(provider)">
+                        Credential: {{ providerCredentialStatus(provider) }}
+                      </app-status-badge>
+                      <app-status-badge [tone]="testTone(providerHealthLabel(provider))">
+                        Health: {{ providerHealthLabel(provider) }}
+                      </app-status-badge>
+                    </span>
                   </button>
                 }
               </div>
@@ -77,7 +84,7 @@
               <app-empty-state
                 icon="settings"
                 title="No providers configured"
-                description="Provider records will appear here after Master creates payment or AI provider entries."
+                description="Add OpenAI or another provider to start using AI generation."
               />
             }
           </app-card>
@@ -85,29 +92,74 @@
           <app-card>
             <div class="ai-ops-panel-head">
               <div>
-                <p>Credential update</p>
-                <h2>{{ selectedProvider()?.name || 'Select provider' }}</h2>
+                <p>Provider Credential</p>
+                <h2>{{ selectedProvider()?.displayName || 'Select provider' }}</h2>
+                @if (selectedProvider(); as provider) {
+                  <span class="ai-provider-context">{{ providerSubtitle(provider) }}</span>
+                }
               </div>
-              @if (selectedConfiguration()) {
+              @if (selectedProvider() && isCredentialConfigured(selectedProvider()!)) {
                 <app-status-badge tone="brand">Configured</app-status-badge>
               } @else {
                 <app-status-badge tone="neutral">Not configured</app-status-badge>
               }
             </div>
 
+            @if (selectedProvider(); as provider) {
+              <div class="ai-provider-status-grid" aria-label="Provider status summary">
+                <div>
+                  <span>Provider status</span>
+                  <app-status-badge [tone]="providerTone(provider)">{{ provider.active ? 'Active' : 'Inactive' }}</app-status-badge>
+                </div>
+                <div>
+                  <span>Credential status</span>
+                  <app-status-badge [tone]="credentialTone(provider)">{{ providerCredentialStatus(provider) }}</app-status-badge>
+                </div>
+                <div>
+                  <span>Health status</span>
+                  <app-status-badge [tone]="testTone(providerHealthLabel(provider))">{{ providerHealthLabel(provider) }}</app-status-badge>
+                </div>
+                <div>
+                  <span>Environment</span>
+                  <strong>{{ provider.activeEnvironment }}</strong>
+                </div>
+                @if (isCredentialConfigured(provider) && credentialUpdatedAt(provider); as updatedAt) {
+                  <div>
+                    <span>Last updated</span>
+                    <strong>{{ updatedAt | date: 'medium' }}</strong>
+                  </div>
+                }
+                @if (provider.lastTestedAt) {
+                  <div>
+                    <span>Last tested</span>
+                    <strong>{{ provider.lastTestedAt | date: 'medium' }}</strong>
+                  </div>
+                }
+              </div>
+
+              @if (providerGuidance(provider); as guidance) {
+                <p class="ai-provider-guidance">{{ guidance }}</p>
+              }
+            }
+
             <form class="ai-secret-form" [formGroup]="credentialForm" (ngSubmit)="saveCredential()">
               <label>
                 <span>Environment</span>
-                <select formControlName="environmentType">
+                <select formControlName="environment">
                   <option value="SANDBOX">Sandbox</option>
                   <option value="LIVE">Live</option>
                 </select>
               </label>
 
               <label>
-                <span>API key / secret</span>
-                <input type="password" formControlName="apiKey" autocomplete="new-password" placeholder="Paste new secret" />
-                <small>Saved secrets are never shown again. Leave no visible credential on this page.</small>
+                <span>{{ selectedProvider() ? secretLabel(selectedProvider()!) : 'API Key / Secret' }}</span>
+                <input
+                  type="password"
+                  formControlName="secret"
+                  autocomplete="new-password"
+                  [placeholder]="secretPlaceholder(selectedProvider())"
+                />
+                <small>{{ selectedProvider() ? providerCredentialHelper(selectedProvider()!) : 'Saved credentials are never shown again. Paste a new key only when configuring or rotating credentials.' }}</small>
               </label>
 
               <label>
@@ -116,16 +168,16 @@
               </label>
 
               <label class="ai-toggle">
-                <input type="checkbox" formControlName="isActive" />
+                <input type="checkbox" formControlName="active" />
                 <span>Configuration active</span>
               </label>
 
               <div class="ai-secret-actions">
-                <button type="button" disabled title="No backend test-connection endpoint is available yet.">
+                <button type="button" [disabled]="!canTestCredential() || providerActionLoading() !== null" (click)="testConnection()">
                   <app-icon name="plug-zap" [size]="16" />
-                  Test connection
+                  {{ providerActionLoading() === 'test' ? 'Testing...' : 'Test connection' }}
                 </button>
-                <app-button type="submit" icon="save" [loading]="paymentStore.loading()" [disabled]="!selectedProvider()">
+                <app-button type="submit" icon="save" [loading]="providerActionLoading() === 'save'" [disabled]="!canSaveCredential() || providerActionLoading() !== null">
                   Save credential
                 </app-button>
               </div>
@@ -133,13 +185,76 @@
 
             @if (selectedProvider(); as provider) {
               <div class="ai-provider-controls">
-                <button type="button" (click)="toggleProvider(provider)" [disabled]="paymentStore.loading()">
-                  {{ provider.isEnabled ? 'Disable provider' : 'Enable provider' }}
+                <button type="button" (click)="toggleProvider(provider)" [disabled]="providerActionLoading() !== null || (!provider.active && !isCredentialConfigured(provider))">
+                  {{ provider.active ? 'Disable provider' : 'Enable provider' }}
                 </button>
               </div>
             }
           </app-card>
         </section>
+
+        @if (addProviderOpen()) {
+          <div class="ai-provider-modal-backdrop" role="presentation" (click)="closeAddProvider()">
+            <section class="ai-provider-modal" role="dialog" aria-modal="true" aria-labelledby="add-provider-title" (click)="$event.stopPropagation()">
+              <div class="ai-ops-panel-head">
+                <div>
+                  <p>Provider setup</p>
+                  <h2 id="add-provider-title">Add Provider</h2>
+                </div>
+                <button type="button" aria-label="Close add provider dialog" (click)="closeAddProvider()">x</button>
+              </div>
+
+              <form class="ai-secret-form" [formGroup]="providerForm" (ngSubmit)="createProvider()">
+                <label>
+                  <span>Provider type</span>
+                  <select formControlName="providerType">
+                    <option value="AI">AI</option>
+                    <option value="PAYMENT">Payment</option>
+                    <option value="STORAGE">Storage</option>
+                    <option value="NOTIFICATION">Notification</option>
+                  </select>
+                </label>
+                <label>
+                  <span>Provider code</span>
+                  <input formControlName="providerCode" placeholder="OPENAI" autocomplete="off" />
+                </label>
+                <label>
+                  <span>Display name</span>
+                  <input formControlName="displayName" placeholder="OpenAI" autocomplete="off" />
+                </label>
+                <label>
+                  <span>Description</span>
+                  <input formControlName="description" placeholder="Provider purpose or setup note" autocomplete="off" />
+                </label>
+                <div class="ai-form-row">
+                  <label class="ai-toggle">
+                    <input type="checkbox" formControlName="supportsSandbox" />
+                    <span>Supports Sandbox</span>
+                  </label>
+                  <label class="ai-toggle">
+                    <input type="checkbox" formControlName="supportsLive" />
+                    <span>Supports Live</span>
+                  </label>
+                </div>
+                <label>
+                  <span>Default environment</span>
+                  <select formControlName="defaultEnvironment">
+                    <option value="SANDBOX">Sandbox</option>
+                    <option value="LIVE">Live</option>
+                  </select>
+                </label>
+                <label class="ai-toggle">
+                  <input type="checkbox" formControlName="active" />
+                  <span>Active</span>
+                </label>
+                <div class="ai-secret-actions">
+                  <button type="button" (click)="closeAddProvider()" [disabled]="providerActionLoading() === 'create'">Cancel</button>
+                  <app-button type="submit" icon="plus" [loading]="providerActionLoading() === 'create'">Save provider</app-button>
+                </div>
+              </form>
+            </section>
+          </div>
+        }
       }
     }
 
@@ -150,6 +265,10 @@
             <div class="ai-ops-skeleton"></div>
           }
         </section>
+      } @else if (aiStore.error() && aiStore.endpointUnavailable()) {
+        <div class="ai-ops-block">
+          <app-empty-state icon="plug-zap" title="Provider health API is not available yet" [description]="aiStore.error()!" />
+        </div>
       } @else if (aiStore.error()) {
         <div class="ai-ops-block">
           <app-error-state title="Provider health could not load" [description]="aiStore.error()!">
@@ -207,7 +326,7 @@
           </section>
         } @else {
           <div class="ai-ops-block">
-            <app-empty-state icon="heart-pulse" title="No provider health data" description="Provider health events will appear after backend monitoring starts reporting AI provider checks." />
+            <app-empty-state icon="heart-pulse" title="No monitoring data yet" description="Data will appear after AI jobs run and provider health checks are reported." />
           </div>
         }
       }
@@ -223,6 +342,8 @@
 
       @if (aiStore.loading() && !layerAnalytics().length) {
         <section class="ai-ops-skeleton-grid"><div class="ai-ops-skeleton"></div><div class="ai-ops-skeleton"></div><div class="ai-ops-skeleton"></div></section>
+      } @else if (aiStore.error() && aiStore.endpointUnavailable()) {
+        <div class="ai-ops-block"><app-empty-state icon="plug-zap" title="Layer analytics API is not available yet" [description]="aiStore.error()!" /></div>
       } @else if (aiStore.error()) {
         <div class="ai-ops-block"><app-error-state title="Layer analytics could not load" [description]="aiStore.error()!"><app-button type="button" variant="secondary" icon="rotate-cw" (click)="refresh()">Retry</app-button></app-error-state></div>
       } @else {
@@ -246,7 +367,7 @@
             </div>
           </section>
         } @else {
-          <div class="ai-ops-block"><app-empty-state icon="layers-3" title="No layer analytics found" description="Layer analytics will appear when backend monitoring reports layer executions." /></div>
+          <div class="ai-ops-block"><app-empty-state icon="layers-3" title="No monitoring data yet" description="Data will appear after AI jobs run and layer executions are reported." /></div>
         }
       }
     }
@@ -254,8 +375,14 @@
     @case ('ai-cost-usage') {
       @if (aiStore.loading() && totalAiCost() === 0) {
         <section class="ai-ops-skeleton-grid"><div class="ai-ops-skeleton"></div><div class="ai-ops-skeleton"></div><div class="ai-ops-skeleton"></div></section>
+      } @else if (aiStore.error() && aiStore.endpointUnavailable()) {
+        <div class="ai-ops-block"><app-empty-state icon="plug-zap" title="AI cost usage API is not available yet" [description]="aiStore.error()!" /></div>
       } @else if (aiStore.error()) {
         <div class="ai-ops-block"><app-error-state title="AI cost usage could not load" [description]="aiStore.error()!"><app-button type="button" variant="secondary" icon="rotate-cw" (click)="refresh()">Retry</app-button></app-error-state></div>
+      } @else if (!hasAiCostData()) {
+        <div class="ai-ops-block">
+          <app-empty-state icon="coins" title="No monitoring data yet" description="Data will appear after AI jobs run and cost usage is reported." />
+        </div>
       } @else {
         <section class="ai-cost-hero">
           <app-card>
@@ -294,10 +421,12 @@
 
       @if (aiStore.loading() && !failures().length) {
         <section class="ai-ops-skeleton-grid"><div class="ai-ops-skeleton"></div><div class="ai-ops-skeleton"></div><div class="ai-ops-skeleton"></div></section>
+      } @else if (aiStore.error() && aiStore.endpointUnavailable()) {
+        <div class="ai-ops-block"><app-empty-state icon="plug-zap" title="AI failures API is not available yet" [description]="aiStore.error()!" /></div>
       } @else if (aiStore.error()) {
         <div class="ai-ops-block"><app-error-state title="AI failures could not load" [description]="aiStore.error()!"><app-button type="button" variant="secondary" icon="rotate-cw" (click)="refresh()">Retry</app-button></app-error-state></div>
       } @else if (!filteredFailures().length) {
-        <div class="ai-ops-block"><app-empty-state icon="shield-check" title="No failed jobs found" description="Failed jobs will appear here when backend monitoring reports an AI operation issue." /></div>
+        <div class="ai-ops-block"><app-empty-state icon="shield-check" title="No monitoring data yet" description="Data will appear here after AI jobs fail or provider issues are reported." /></div>
       } @else {
         <section class="ai-table-card">
           <div class="ai-ops-table-wrap">

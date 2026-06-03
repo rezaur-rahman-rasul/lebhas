@@ -2,15 +2,20 @@ import { Routes } from '@angular/router';
 
 import { promptBuilderGuard } from '@app/core/guards/prompt-access.guard';
 import { roleGuard } from '@app/core/guards/role.guard';
+import { AssetStore } from '../admin/assets/state/asset.store';
+import { CreativeGenerationStore } from '../admin/creative-generation/state/creative-generation.store';
 import { ACTIVITY_ROUTES } from '../activity/activity.routes';
 import { ASSET_ROUTES } from '../admin/assets/assets.routes';
 import { CREATIVE_GENERATION_ROUTES } from '../admin/creative-generation/creative-generation.routes';
 import { AI_MONITORING_ROUTES } from '../ai-monitoring/ai-monitoring.routes';
 import { AUDIT_ROUTES } from '../audit/audit.routes';
+import { BrandStore } from '../brands/brand.store';
 import { MONITORING_ROUTES } from '../monitoring/monitoring.routes';
 import { PAYMENT_ROUTES } from '../payments/payment.routes';
 import { NOTIFICATION_ROUTES } from '../notifications/notification.routes';
+import { ProductServiceStore } from '../product-services/product-service.store';
 import { PROFILE_ROUTES } from '../profile/profile.routes';
+import { ProjectStore } from '../projects/project.store';
 import { USAGE_BILLING_ROUTES } from '../usage-billing/usage-billing.routes';
 
 function sectionRoute(
@@ -48,11 +53,25 @@ export const DASHBOARD_ROUTES: Routes = [
       import('../master/dashboard/master-dashboard').then((m) => m.MasterDashboardPage),
   },
   {
+    path: 'master/go-live-readiness',
+    canActivate: [roleGuard(['MASTER'])],
+    loadComponent: () =>
+      import('../master/go-live-readiness/go-live-readiness').then((m) => m.GoLiveReadinessPage),
+  },
+  {
     path: 'assets',
+    providers: [AssetStore],
     children: ASSET_ROUTES,
   },
   {
     path: 'creative-generator',
+    providers: [
+      AssetStore,
+      BrandStore,
+      CreativeGenerationStore,
+      ProductServiceStore,
+      ProjectStore,
+    ],
     children: CREATIVE_GENERATION_ROUTES,
   },
   {
@@ -88,15 +107,28 @@ export const DASHBOARD_ROUTES: Routes = [
   },
   {
     path: 'brands',
+    providers: [BrandStore],
     loadComponent: () => import('../brands/brands').then((m) => m.BrandsComponent),
   },
   {
     path: 'product-services',
+    pathMatch: 'full',
+    redirectTo: 'products-services',
+  },
+  {
+    path: 'products-services',
+    providers: [BrandStore, ProductServiceStore],
     loadComponent: () =>
       import('../product-services/product-services').then((m) => m.ProductServicesComponent),
   },
   {
     path: 'projects',
+    pathMatch: 'full',
+    redirectTo: 'projects-campaigns',
+  },
+  {
+    path: 'projects-campaigns',
+    providers: [BrandStore, ProductServiceStore, ProjectStore],
     loadComponent: () => import('../projects/projects').then((m) => m.ProjectsComponent),
   },
   {

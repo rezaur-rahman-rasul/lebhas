@@ -4,20 +4,29 @@ import com.lebhas.creativesaas.common.exception.BusinessException;
 import com.lebhas.creativesaas.common.exception.ErrorCode;
 import com.lebhas.creativesaas.common.security.context.CurrentUser;
 import com.lebhas.creativesaas.common.security.context.CurrentUserContext;
+import com.lebhas.creativesaas.auditlog.application.AuditLogService;
+import com.lebhas.creativesaas.auditlog.domain.AuditActionType;
+import com.lebhas.creativesaas.auditlog.domain.AuditOutcome;
 import com.lebhas.creativesaas.pricing.application.dto.AssignWorkspaceSubscriptionCommand;
 import com.lebhas.creativesaas.pricing.application.dto.WorkspaceSubscriptionView;
 import com.lebhas.creativesaas.pricing.cache.PricingCacheInvalidationService;
 import com.lebhas.creativesaas.pricing.cache.WorkspaceSubscriptionCacheService;
 import com.lebhas.creativesaas.pricing.cache.dto.WorkspaceSubscriptionCacheEntry;
+import com.lebhas.creativesaas.credit.application.CreditWalletService;
+import com.lebhas.creativesaas.messaging.kafka.BaseDomainEvent;
+import com.lebhas.creativesaas.messaging.kafka.DomainEventPublisher;
+import com.lebhas.creativesaas.messaging.kafka.KafkaTopicConstants;
 import com.lebhas.creativesaas.workspace.infrastructure.persistence.WorkspaceRepository;
 import com.lebhas.pricing.PricingPlan;
 import com.lebhas.pricing.WorkspaceSubscription;
 import com.lebhas.pricing.WorkspaceSubscriptionRepository;
 import com.lebhas.pricing.WorkspaceSubscriptionStatus;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.Instant;
+import java.util.Map;
 import java.util.Optional;
 import java.util.UUID;
 
@@ -31,6 +40,9 @@ public class WorkspaceSubscriptionService {
     private final WorkspaceSubscriptionCacheService workspaceSubscriptionCacheService;
     private final PricingCacheInvalidationService pricingCacheInvalidationService;
     private final PricingMapper pricingMapper;
+    private DomainEventPublisher domainEventPublisher;
+    private CreditWalletService creditWalletService;
+    private AuditLogService auditLogService;
 
     public WorkspaceSubscriptionService(
             CurrentUserContext currentUserContext,
@@ -48,6 +60,21 @@ public class WorkspaceSubscriptionService {
         this.workspaceSubscriptionCacheService = workspaceSubscriptionCacheService;
         this.pricingCacheInvalidationService = pricingCacheInvalidationService;
         this.pricingMapper = pricingMapper;
+    }
+
+    @Autowired(required = false)
+    void setDomainEventPublisher(DomainEventPublisher domainEventPublisher) {
+        this.domainEventPublisher = domainEventPublisher;
+    }
+
+    @Autowired(required = false)
+    void setCreditWalletService(CreditWalletService creditWalletService) {
+        this.creditWalletService = creditWalletService;
+    }
+
+    @Autowired(required = false)
+    void setAuditLogService(AuditLogService auditLogService) {
+        this.auditLogService = auditLogService;
     }
 
     @Transactional
@@ -81,7 +108,12 @@ public class WorkspaceSubscriptionService {
                     command.autoRenew());
         }
         subscription = workspaceSubscriptionRepository.save(subscription);
+        if (creditWalletService != null) {
+            creditWalletService.initializeWallet(command.workspaceId());
+        }
         pricingCacheInvalidationService.invalidateWorkspaceSubscriptionChanged(command.workspaceId());
+        publishSubscriptionAssigned(command.workspaceId(), subscription.getId(), pricingPlan.getId());
+        auditSubscriptionAssigned(command.workspaceId(), subscription.getId(), pricingPlan.getId());
         return pricingMapper.toWorkspaceSubscriptionView(subscription);
     }
 
@@ -133,5 +165,37 @@ public class WorkspaceSubscriptionService {
             throw new BusinessException(ErrorCode.FORBIDDEN);
         }
         return currentUser;
+    }
+
+    private void publishSubscriptionAssigned(UUID workspaceId, UUID subscriptionId, UUID pricingPlanId) {
+        if (domainEventPublisher == null) {
+            return;
+        }
+        domainEventPublisher.publish(KafkaTopicConstants.WORKSPACE_SUBSCRIPTION_ASSIGNED, new BaseDomainEvent(
+                KafkaTopicConstants.WORKSPACE_SUBSCRIPTION_ASSIGNED,
+                workspaceId,
+                subscriptionId,
+                Instant.now(),
+                Map.of(
+                        "workspaceId", workspaceId.toString(),
+                        "subscriptionId", subscriptionId.toString(),
+                        "pricingPlanId", pricingPlanId.toString())));
+    }
+
+    private void auditSubscriptionAssigned(UUID workspaceId, UUID subscriptionId, UUID pricingPlanId) {
+        if (auditLogService == null) {
+            return;
+        }
+        auditLogService.appendCurrentUserAction(
+                workspaceId,
+                "workspace.subscription.assigned.%s".formatted(subscriptionId),
+                AuditActionType.UPDATE,
+                AuditOutcome.SUCCESS,
+                "WorkspaceSubscription",
+                subscriptionId,
+                "Workspace subscription assigned",
+                Map.of("workspaceId", workspaceId.toString(), "subscriptionId", subscriptionId.toString(), "pricingPlanId", pricingPlanId.toString()),
+                null,
+                null);
     }
 }

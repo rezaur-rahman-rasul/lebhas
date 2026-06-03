@@ -8,8 +8,11 @@ public record RevisedShareLinkView(
         UUID workspaceId,
         UUID generatedVersionId,
         String token,
+        String tokenHash,
         Instant expiresAt,
         long accessCount,
+        boolean revoked,
+        Instant revokedAt,
         UUID createdBy,
         Instant createdAt
 ) {

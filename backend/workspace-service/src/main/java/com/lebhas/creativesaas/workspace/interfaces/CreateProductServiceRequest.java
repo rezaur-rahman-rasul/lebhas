@@ -4,7 +4,10 @@ import com.lebhas.creativesaas.common.validation.ValidationMessages;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.Size;
 
+import java.util.UUID;
+
 public record CreateProductServiceRequest(
+        UUID brandId,
         @NotBlank(message = ValidationMessages.REQUIRED)
         @Size(max = 140)
         String name,
@@ -16,4 +19,13 @@ public record CreateProductServiceRequest(
         String targetAudience,
         String sellingPoints
 ) {
+    public CreateProductServiceRequest(
+            String name,
+            String description,
+            String category,
+            String targetAudience,
+            String sellingPoints
+    ) {
+        this(null, name, description, category, targetAudience, sellingPoints);
+    }
 }

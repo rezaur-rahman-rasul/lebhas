@@ -1,6 +1,10 @@
 package com.lebhas.ai.domain;
 
 public enum ProviderType {
+    AI,
+    PAYMENT,
+    STORAGE,
+    NOTIFICATION,
     TEXT_GENERATION,
     IMAGE_GENERATION,
     VIDEO_GENERATION,

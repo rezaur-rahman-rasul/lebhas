@@ -3,7 +3,7 @@
   title="Prompt history"
   description="Review project-scoped prompt intelligence events, enhancements, and metadata."
 >
-  <a routerLink="/projects" class="text-sm font-medium text-brand-600 hover:text-brand-700">Projects</a>
+      <a routerLink="/projects-campaigns" class="text-sm font-medium text-brand-600 hover:text-brand-700">Projects</a>
   @if (project()) {
     <a
       [routerLink]="['/projects', projectId(), 'prompts']"

@@ -13,9 +13,12 @@ public class ShareLinkMapper {
                 entity.getId(),
                 entity.getWorkspaceId(),
                 entity.getGeneratedVersionId(),
-                entity.getToken(),
+                null,
+                entity.getTokenHash(),
                 entity.getExpiresAt(),
                 entity.getAccessCount(),
+                entity.isRevoked(),
+                entity.getRevokedAt(),
                 entity.getCreatedBy(),
                 entity.getCreatedAt());
     }
@@ -25,10 +28,28 @@ public class ShareLinkMapper {
                 entry.shareLinkId(),
                 entry.workspaceId(),
                 entry.generatedVersionId(),
-                entry.token(),
+                null,
+                entry.tokenHash(),
                 entry.expiresAt(),
                 entry.accessCount(),
+                entry.revoked(),
+                entry.revokedAt(),
                 entry.createdBy(),
                 entry.createdAt());
+    }
+
+    public RevisedShareLinkView toCreationView(ShareLink entity, String rawToken) {
+        return new RevisedShareLinkView(
+                entity.getId(),
+                entity.getWorkspaceId(),
+                entity.getGeneratedVersionId(),
+                rawToken,
+                entity.getTokenHash(),
+                entity.getExpiresAt(),
+                entity.getAccessCount(),
+                entity.isRevoked(),
+                entity.getRevokedAt(),
+                entity.getCreatedBy(),
+                entity.getCreatedAt());
     }
 }

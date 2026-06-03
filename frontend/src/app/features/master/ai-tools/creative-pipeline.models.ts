@@ -102,3 +102,26 @@ export interface ConfigureLayerRoutingPolicyPayload {
   readonly conditions: Readonly<Record<string, unknown>>;
   readonly rules: Readonly<Record<string, unknown>>;
 }
+
+export interface CreativeToolView {
+  readonly id: string;
+  readonly toolCode: string;
+  readonly toolName: string;
+  readonly toolCategory: string;
+  readonly enabled: boolean;
+  readonly description?: string | null;
+}
+
+export interface ProviderRoutingPolicyView {
+  readonly id: string;
+  readonly policyCode: string;
+  readonly toolId: string;
+  readonly qualityMode: string;
+  readonly providerId: string;
+  readonly modelId?: string | null;
+  readonly fallbackProviderId?: string | null;
+  readonly fallbackModelId?: string | null;
+  readonly priorityOrder: number;
+  readonly enabled: boolean;
+  readonly circuitFailureThreshold: number;
+}

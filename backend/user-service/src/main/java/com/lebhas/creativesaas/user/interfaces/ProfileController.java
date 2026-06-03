@@ -82,9 +82,15 @@ public class ProfileController {
                 httpServletRequest.getHeader("User-Agent")));
     }
 
-    @PutMapping("/settings")
+    @GetMapping("/account-settings")
+    @Operation(summary = "View the current user's account settings")
+    public ApiResponse<UserProfileView.AccountSettingsView> viewOwnAccountSettings() {
+        return ApiResponse.success(userAccountSettingsService.viewOwnAccountSettings());
+    }
+
+    @PutMapping("/account-settings")
     @Operation(summary = "Update the current user's account settings")
-    public ApiResponse<UserProfileView.AccountSettingsView> updateOwnSettings(
+    public ApiResponse<UserProfileView.AccountSettingsView> updateOwnAccountSettings(
             @Valid @RequestBody UpdateAccountSettingsRequest request,
             HttpServletRequest httpServletRequest
     ) {
@@ -147,10 +153,16 @@ public class ProfileController {
         return ApiResponse.success(profileSessionService.listOwnSessions());
     }
 
-    @PostMapping("/sessions/{sessionId}/revoke")
+    @DeleteMapping("/sessions/{sessionId}")
     @Operation(summary = "Revoke one of the current user's sessions")
-    public ApiResponse<UserSessionView> revokeOwnSession(@PathVariable String sessionId) {
+    public ApiResponse<UserSessionView> deleteOwnSession(@PathVariable String sessionId) {
         return ApiResponse.success("Session revoked", profileSessionService.revokeOwnSession(sessionId));
+    }
+
+    @DeleteMapping("/sessions/others")
+    @Operation(summary = "Revoke all other sessions for the current user")
+    public ApiResponse<List<UserSessionView>> deleteOtherSessions() {
+        return ApiResponse.success("Other sessions revoked", profileSessionService.revokeOtherOwnSessions());
     }
 
     private String resolveClientIp(HttpServletRequest request) {

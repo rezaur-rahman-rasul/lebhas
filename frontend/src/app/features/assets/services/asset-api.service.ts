@@ -3,17 +3,23 @@ import {
   HttpContext,
   HttpEvent,
   HttpEventType,
+  HttpHeaders,
   HttpRequest,
   HttpResponse,
 } from '@angular/common/http';
 import { Injectable, inject } from '@angular/core';
-import { firstValueFrom, map, Observable } from 'rxjs';
+import { firstValueFrom, map, Observable, switchMap } from 'rxjs';
 
 import { ApiService } from '@app/core/api/api.service';
-import { ApiResponse } from '@app/shared/models/api-response.model';
+import { ApiEndpoints } from '@app/core/api/api-endpoints';
+import {
+  SKIP_APP_HEADERS,
+  SKIP_AUTH,
+  SKIP_ERROR_TOAST,
+  SKIP_GLOBAL_LOADING,
+  SKIP_REFRESH,
+} from '@app/core/auth/auth-request-context';
 import { unwrapApiResponse } from '@app/shared/utils/api-response';
-import { joinUrl } from '@app/shared/utils/join-url';
-import { environment } from '@env/environment';
 import {
   Asset,
   AssetCategory,
@@ -34,14 +40,25 @@ import {
 interface AssetViewDto {
   readonly id: string;
   readonly workspaceId: string;
-  readonly brandId: string;
-  readonly productServiceId: string;
-  readonly projectCampaignId: string;
-  readonly storageFileId: string;
+  readonly brandId: string | null;
+  readonly productServiceId: string | null;
+  readonly projectCampaignId: string | null;
+  readonly storageFileId: string | null;
   readonly uploadedBy: string;
   readonly assetType: AssetType;
   readonly assetCategory: AssetCategory;
   readonly originalFileName: string;
+  readonly storedFileName?: string | null;
+  readonly fileType?: string | null;
+  readonly mimeType?: string | null;
+  readonly fileExtension?: string | null;
+  readonly fileSize?: number | null;
+  readonly storageProvider?: string | null;
+  readonly storageBucket?: string | null;
+  readonly storageKey?: string | null;
+  readonly publicUrl?: string | null;
+  readonly previewUrl?: string | null;
+  readonly thumbnailUrl?: string | null;
   readonly displayName: string;
   readonly description: string | null;
   readonly uploadSessionId: string | null;
@@ -69,6 +86,35 @@ interface AssetUrlResponseDto {
   readonly expiresAt: string;
 }
 
+interface AssetUploadUrlResponseDto {
+  readonly assetId: string;
+  readonly uploadReferenceId: string | null;
+  readonly uploadUrl: string;
+  readonly method: string;
+  readonly headers: Readonly<Record<string, string>>;
+  readonly expiresAt: string;
+  readonly maxFileSizeBytes: number;
+}
+
+interface CreateAssetUploadUrlRequestDto {
+  readonly assetType: AssetType | null;
+  readonly assetCategory: AssetCategory;
+  readonly originalFileName: string;
+  readonly contentType: string;
+  readonly sizeBytes: number;
+  readonly checksum: string | null;
+  readonly displayName: string;
+  readonly description: string | null;
+  readonly tags: readonly string[];
+  readonly metadata: Readonly<Record<string, unknown>>;
+}
+
+interface ConfirmAssetUploadRequestDto {
+  readonly assetId: string;
+  readonly uploadReferenceId: string | null;
+  readonly checksum: string | null;
+}
+
 @Injectable({ providedIn: 'root' })
 export class AssetApiService {
   private readonly api = inject(ApiService);
@@ -84,7 +130,7 @@ export class AssetApiService {
   ): Promise<AssetPage> {
     const response = await firstValueFrom(
       this.api.get<PagedResultDto<AssetViewDto>>(
-        `/api/v1/workspaces/${workspaceId}/projects/${projectId}/assets`,
+        ApiEndpoints.assets.projectList(workspaceId, projectId),
         {
           params: {
             assetType: filters.assetType,
@@ -114,7 +160,7 @@ export class AssetApiService {
 
   async getAsset(workspaceId: string, assetId: string, context?: HttpContext): Promise<Asset> {
     const response = await firstValueFrom(
-      this.api.get<AssetViewDto>(`/api/v1/workspaces/${workspaceId}/assets/${assetId}`, { context }),
+      this.api.get<AssetViewDto>(ApiEndpoints.assets.detail(workspaceId, assetId), { context }),
     );
 
     return mapAsset(unwrapApiResponse(response));
@@ -127,7 +173,7 @@ export class AssetApiService {
   ): Promise<Asset> {
     const response = await firstValueFrom(
       this.api.put<AssetViewDto, UpdateAssetPayload>(
-        `/api/v1/workspaces/${workspaceId}/assets/${assetId}`,
+        ApiEndpoints.assets.detail(workspaceId, assetId),
         payload,
       ),
     );
@@ -137,14 +183,14 @@ export class AssetApiService {
 
   async deleteAsset(workspaceId: string, assetId: string): Promise<void> {
     await firstValueFrom(
-      this.api.delete<void>(`/api/v1/workspaces/${workspaceId}/assets/${assetId}`),
+      this.api.delete<void>(ApiEndpoints.assets.detail(workspaceId, assetId)),
     );
   }
 
   async getPreviewUrl(workspaceId: string, assetId: string): Promise<AssetUrl> {
     const response = await firstValueFrom(
       this.api.get<AssetUrlResponseDto>(
-        `/api/v1/workspaces/${workspaceId}/assets/${assetId}/preview-url`,
+        ApiEndpoints.assets.previewUrl(workspaceId, assetId),
       ),
     );
 
@@ -154,7 +200,7 @@ export class AssetApiService {
   async getDownloadUrl(workspaceId: string, assetId: string): Promise<AssetUrl> {
     const response = await firstValueFrom(
       this.api.get<AssetUrlResponseDto>(
-        `/api/v1/workspaces/${workspaceId}/assets/${assetId}/download-url`,
+        ApiEndpoints.assets.downloadUrl(workspaceId, assetId),
       ),
     );
     return unwrapApiResponse(response);
@@ -164,48 +210,89 @@ export class AssetApiService {
     workspaceId: string,
     payload: UploadAssetPayload,
   ): Observable<AssetUploadEvent | null> {
-    const formData = new FormData();
-    formData.append('file', payload.file);
-    formData.append('assetCategory', payload.assetCategory);
-    formData.append('displayName', payload.displayName.trim());
+    return this.api
+      .post<AssetUploadUrlResponseDto, CreateAssetUploadUrlRequestDto>(
+        ApiEndpoints.assets.projectUploadUrl(workspaceId, payload.projectId),
+        {
+          assetType: null,
+          assetCategory: payload.assetCategory,
+          originalFileName: payload.file.name,
+          contentType: payload.file.type || 'application/octet-stream',
+          sizeBytes: payload.file.size,
+          checksum: null,
+          displayName: payload.displayName.trim(),
+          description: payload.description.trim() || null,
+          tags: payload.tags,
+          metadata: {
+            fileSize: payload.file.size,
+            mimeType: payload.file.type || 'application/octet-stream',
+          },
+        },
+      )
+      .pipe(
+        switchMap(({ data }) => {
+          const request = new HttpRequest(data.method || 'PUT', data.uploadUrl, payload.file, {
+            reportProgress: true,
+            headers: signedUploadHeaders(data.headers, payload.file),
+            context: new HttpContext()
+              .set(SKIP_AUTH, true)
+              .set(SKIP_REFRESH, true)
+              .set(SKIP_ERROR_TOAST, true)
+              .set(SKIP_GLOBAL_LOADING, true)
+              .set(SKIP_APP_HEADERS, true),
+          });
 
-    if (payload.description.trim()) {
-      formData.append('description', payload.description.trim());
-    }
+          return this.http.request(request).pipe(
+            switchMap((event) => {
+              if (event.type === HttpEventType.UploadProgress) {
+                return [mapUploadProgress(event)];
+              }
 
-    if (payload.tags.length) {
-      formData.append('tags', payload.tags.join(','));
-    }
+              if (event instanceof HttpResponse) {
+                return this.api
+                  .post<AssetViewDto, ConfirmAssetUploadRequestDto>(
+                    ApiEndpoints.assets.confirm(workspaceId),
+                    {
+                      assetId: data.assetId,
+                      uploadReferenceId: data.uploadReferenceId,
+                      checksum: null,
+                    },
+                  )
+                  .pipe(map((response) => ({ kind: 'completed' as const, asset: mapAsset(response.data) })));
+              }
 
-    const request = new HttpRequest(
-      'POST',
-      joinUrl(
-        environment.apiBaseUrl,
-        `/api/v1/workspaces/${workspaceId}/projects/${payload.projectId}/assets/upload`,
-      ),
-      formData,
-      { reportProgress: true },
-    );
-
-    return this.http.request<ApiResponse<AssetViewDto>>(request).pipe(
-      map((event) => mapUploadEvent(event)),
-    );
+              return [null];
+            }),
+          );
+        }),
+      );
   }
+}
+
+function mapUploadProgress(event: HttpEvent<unknown>): AssetUploadEvent {
+  const total = event.type === HttpEventType.UploadProgress ? event.total ?? 0 : 0;
+  const loaded = event.type === HttpEventType.UploadProgress ? event.loaded : 0;
+  return {
+    kind: 'progress',
+    progress: total > 0 ? Math.round((loaded / total) * 100) : 0,
+  };
 }
 
 function mapAsset(source: AssetViewDto): Asset {
   const metadata = source.metadata ?? {};
-  const fileSize = typeof metadata['fileSize'] === 'number' ? metadata['fileSize'] : 0;
-  const mimeType = typeof metadata['mimeType'] === 'string' ? metadata['mimeType'] : '';
-  const provider = typeof metadata['provider'] === 'string' ? metadata['provider'] : 'Private storage';
+  const fileSize = source.fileSize ?? (typeof metadata['fileSize'] === 'number' ? metadata['fileSize'] : 0);
+  const mimeType = source.mimeType ?? (typeof metadata['mimeType'] === 'string' ? metadata['mimeType'] : '');
+  const provider = source.storageProvider ?? (typeof metadata['provider'] === 'string' ? metadata['provider'] : 'Private storage');
+  const storageKey = source.storageKey ?? '';
+  const fileExtension = source.fileExtension ?? extensionFromName(source.originalFileName);
 
   return {
     id: source.id,
     workspaceId: source.workspaceId,
-    brandId: source.brandId,
-    productServiceId: source.productServiceId,
-    projectCampaignId: source.projectCampaignId,
-    storageFileId: source.storageFileId,
+    brandId: source.brandId ?? '',
+    productServiceId: source.productServiceId ?? '',
+    projectCampaignId: source.projectCampaignId ?? '',
+    storageFileId: source.storageFileId ?? '',
     uploadedBy: source.uploadedBy,
     assetType: source.assetType,
     assetCategory: source.assetCategory,
@@ -221,14 +308,14 @@ function mapAsset(source: AssetViewDto): Asset {
     updatedAt: source.updatedAt,
     storageFile: fileSize
       ? {
-          id: source.storageFileId,
+          id: source.storageFileId ?? source.id,
           workspaceId: source.workspaceId,
           provider,
-          bucket: null,
-          objectKey: '',
+          bucket: source.storageBucket ?? null,
+          objectKey: storageKey,
           cdnUrl: null,
           mimeType,
-          fileExtension: extensionFromName(source.originalFileName),
+          fileExtension,
           fileSize,
           hash: null,
           width: null,
@@ -240,6 +327,8 @@ function mapAsset(source: AssetViewDto): Asset {
           updatedAt: source.updatedAt,
         }
       : null,
+    previewUrl: source.previewUrl ?? source.publicUrl ?? null,
+    thumbnailUrl: source.thumbnailUrl ?? null,
   };
 }
 
@@ -259,21 +348,14 @@ function mapPagination(source: PagedResultDto<AssetViewDto>): AssetPagination {
   };
 }
 
-function mapUploadEvent(event: HttpEvent<ApiResponse<AssetViewDto>>): AssetUploadEvent | null {
-  if (event.type === HttpEventType.UploadProgress) {
-    const total = event.total ?? 0;
-    return {
-      kind: 'progress',
-      progress: total > 0 ? Math.round((event.loaded / total) * 100) : 0,
-    };
+function signedUploadHeaders(
+  headers: Readonly<Record<string, string>> | null | undefined,
+  file: File,
+): HttpHeaders {
+  let result = new HttpHeaders(headers ?? {});
+  if (file.type && !result.has('Content-Type')) {
+    result = result.set('Content-Type', file.type);
   }
-
-  if (event instanceof HttpResponse && event.body?.data) {
-    return {
-      kind: 'completed',
-      asset: mapAsset(event.body.data),
-    };
-  }
-
-  return null;
+  return result;
 }
+

@@ -14,6 +14,7 @@ import {
   assetStatusLabel,
   assetStatusTone,
   formatFileSize,
+  isVideoAsset,
 } from '../../models/asset.models';
 
 @Component({
@@ -47,4 +48,5 @@ export class AssetPreviewDrawer {
   protected readonly assetStatusLabel = assetStatusLabel;
   protected readonly assetStatusTone = assetStatusTone;
   protected readonly formatFileSize = formatFileSize;
+  protected readonly isVideoAsset = isVideoAsset;
 }

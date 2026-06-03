@@ -65,11 +65,11 @@ export class WorkspaceStore {
       this.activeWorkspace()?.featureToggles ??
       {},
   );
-  readonly activePlanLabel = computed(() => this.subscription()?.planName ?? 'Package details unavailable');
+  readonly activePlanLabel = computed(() => this.subscription()?.planName ?? 'No package loaded');
   readonly subscriptionStatusLabel = computed(() => this.subscription()?.status ?? 'Unknown');
   readonly remainingCreditsLabel = computed(() => {
     const credits = this.usage()?.creditsRemaining;
-    return typeof credits === 'number' ? String(credits) : 'Usage details unavailable';
+    return typeof credits === 'number' ? String(credits) : 'Credits not loaded';
   });
 
   async initialize(): Promise<void> {
@@ -94,12 +94,11 @@ export class WorkspaceStore {
           return;
         }
 
-        if (this.auth.currentRole() === 'MASTER') {
-          return;
-        }
-
         const currentUserWorkspaceId = this.auth.currentUser()?.workspace.id ?? null;
-        const fallbackWorkspaceId = currentUserWorkspaceId ?? workspaces[0]?.id ?? null;
+        const fallbackWorkspaceId =
+          workspaces.find((workspace) => workspace.id === currentUserWorkspaceId)?.id ??
+          workspaces[0]?.id ??
+          null;
         this.auth.setActiveWorkspaceId(fallbackWorkspaceId);
       })
       .then(() => this.loadWorkspaceContext(this.activeWorkspaceId()))
@@ -119,6 +118,10 @@ export class WorkspaceStore {
     this.auth.setActiveWorkspaceId(workspaceId);
     this.workspaceContextSignal.set(null);
     void this.loadWorkspaceContext(workspaceId);
+  }
+
+  async refreshActiveContext(): Promise<void> {
+    await this.loadWorkspaceContext(this.activeWorkspaceId());
   }
 
   isFeatureEnabled(featureKey: string): boolean {

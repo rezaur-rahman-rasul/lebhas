@@ -119,6 +119,36 @@ public class StorageFileService {
     }
 
     @Transactional
+    public StorageFileEntity registerConfirmedUpload(
+            UUID workspaceId,
+            UUID projectId,
+            StorageProvider provider,
+            String bucket,
+            String objectKey,
+            String cdnUrl,
+            String mimeType,
+            String fileExtension,
+            long fileSize,
+            String hash
+    ) {
+        return register(
+                workspaceId,
+                projectId,
+                provider,
+                bucket,
+                objectKey,
+                cdnUrl,
+                mimeType,
+                fileExtension,
+                fileSize,
+                null,
+                null,
+                null,
+                StorageFilePurpose.RAW,
+                hash);
+    }
+
+    @Transactional
     public StorageFileEntity registerGeneratedOutput(
             UUID workspaceId,
             UUID projectId,

@@ -76,7 +76,7 @@ function isSupportedExtension(category: AssetCategory, extension: string): boole
     return LOGO_EXTENSIONS.has(extension);
   }
 
-  if (category === 'PRODUCT_VIDEO' || category === 'RAW_VIDEO') {
+  if (category === 'PRODUCT_VIDEO' || category === 'REFERENCE_VIDEO' || category === 'EXPORT_VIDEO') {
     return VIDEO_EXTENSIONS.has(extension);
   }
 
@@ -88,7 +88,7 @@ function maxBytesFor(category: AssetCategory, extension: string): number {
     return MAX_LOGO_BYTES;
   }
 
-  if (category === 'PRODUCT_VIDEO' || category === 'RAW_VIDEO' || VIDEO_EXTENSIONS.has(extension)) {
+  if (category === 'PRODUCT_VIDEO' || category === 'REFERENCE_VIDEO' || category === 'EXPORT_VIDEO' || VIDEO_EXTENSIONS.has(extension)) {
     return MAX_VIDEO_BYTES;
   }
 

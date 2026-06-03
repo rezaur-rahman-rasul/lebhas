@@ -4,19 +4,28 @@ import com.lebhas.creativesaas.common.exception.BusinessException;
 import com.lebhas.creativesaas.common.exception.ErrorCode;
 import com.lebhas.creativesaas.common.security.context.CurrentUser;
 import com.lebhas.creativesaas.common.security.context.CurrentUserContext;
+import com.lebhas.creativesaas.auditlog.application.AuditLogService;
+import com.lebhas.creativesaas.auditlog.domain.AuditActionType;
+import com.lebhas.creativesaas.auditlog.domain.AuditOutcome;
 import com.lebhas.creativesaas.pricing.application.dto.CreatePricingPlanCommand;
 import com.lebhas.creativesaas.pricing.application.dto.PricingPlanView;
 import com.lebhas.creativesaas.pricing.application.dto.UpdatePricingPlanCommand;
 import com.lebhas.creativesaas.pricing.cache.PricingCacheInvalidationService;
+import com.lebhas.creativesaas.messaging.kafka.BaseDomainEvent;
+import com.lebhas.creativesaas.messaging.kafka.DomainEventPublisher;
+import com.lebhas.creativesaas.messaging.kafka.KafkaTopicConstants;
 import com.lebhas.pricing.PricingPlan;
 import com.lebhas.pricing.PricingPlanRepository;
 import com.lebhas.pricing.WorkspaceSubscription;
 import com.lebhas.pricing.WorkspaceSubscriptionRepository;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.time.Instant;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 import java.util.UUID;
 
 @Service
@@ -27,6 +36,8 @@ public class PricingPlanService {
     private final WorkspaceSubscriptionRepository workspaceSubscriptionRepository;
     private final PricingMapper pricingMapper;
     private final PricingCacheInvalidationService pricingCacheInvalidationService;
+    private DomainEventPublisher domainEventPublisher;
+    private AuditLogService auditLogService;
 
     public PricingPlanService(
             CurrentUserContext currentUserContext,
@@ -40,6 +51,16 @@ public class PricingPlanService {
         this.workspaceSubscriptionRepository = workspaceSubscriptionRepository;
         this.pricingMapper = pricingMapper;
         this.pricingCacheInvalidationService = pricingCacheInvalidationService;
+    }
+
+    @Autowired(required = false)
+    void setDomainEventPublisher(DomainEventPublisher domainEventPublisher) {
+        this.domainEventPublisher = domainEventPublisher;
+    }
+
+    @Autowired(required = false)
+    void setAuditLogService(AuditLogService auditLogService) {
+        this.auditLogService = auditLogService;
     }
 
     @Transactional
@@ -64,6 +85,8 @@ public class PricingPlanService {
         }
         invalidatePlans(invalidatedPlanIds);
         invalidateWorkspaceSubscriptionsForPlan(pricingPlan.getId());
+        publish(KafkaTopicConstants.PRICING_PLAN_CREATED, pricingPlan.getId());
+        audit("pricing.plan.created.%s".formatted(pricingPlan.getId()), AuditActionType.CREATE, pricingPlan.getId(), "Pricing plan created");
         return pricingMapper.toPricingPlanView(pricingPlan);
     }
 
@@ -89,6 +112,22 @@ public class PricingPlanService {
             invalidatedPlanIds.addAll(clearOtherDefaults(pricingPlan.getId()));
         }
         invalidatePlans(invalidatedPlanIds);
+        invalidateWorkspaceSubscriptionsForPlan(pricingPlan.getId());
+        publish(KafkaTopicConstants.PRICING_PLAN_UPDATED, pricingPlan.getId());
+        audit("pricing.plan.updated.%s".formatted(pricingPlan.getId()), AuditActionType.UPDATE, pricingPlan.getId(), "Pricing plan updated");
+        return pricingMapper.toPricingPlanView(pricingPlan);
+    }
+
+    @Transactional
+    public PricingPlanView activatePricingPlan(UUID pricingPlanId) {
+        requireMaster();
+        PricingPlan pricingPlan = requirePricingPlan(pricingPlanId);
+        pricingPlan.activate();
+        pricingPlan = pricingPlanRepository.save(pricingPlan);
+        pricingCacheInvalidationService.invalidatePlanRelatedCaches(pricingPlanId);
+        invalidateWorkspaceSubscriptionsForPlan(pricingPlanId);
+        publish(KafkaTopicConstants.PRICING_PLAN_UPDATED, pricingPlanId);
+        audit("pricing.plan.activated.%s".formatted(pricingPlanId), AuditActionType.UPDATE, pricingPlanId, "Pricing plan activated");
         return pricingMapper.toPricingPlanView(pricingPlan);
     }
 
@@ -101,6 +140,8 @@ public class PricingPlanService {
         pricingPlan = pricingPlanRepository.save(pricingPlan);
         pricingCacheInvalidationService.invalidatePricingPlanDisabled(pricingPlanId);
         invalidateWorkspaceSubscriptionsForPlan(pricingPlanId);
+        publish(KafkaTopicConstants.PRICING_PLAN_UPDATED, pricingPlanId);
+        audit("pricing.plan.deactivated.%s".formatted(pricingPlanId), AuditActionType.UPDATE, pricingPlanId, "Pricing plan deactivated");
         return pricingMapper.toPricingPlanView(pricingPlan);
     }
 
@@ -153,5 +194,34 @@ public class PricingPlanService {
             throw new BusinessException(ErrorCode.FORBIDDEN);
         }
         return currentUser;
+    }
+
+    private void publish(String topic, UUID pricingPlanId) {
+        if (domainEventPublisher == null) {
+            return;
+        }
+        domainEventPublisher.publish(topic, new BaseDomainEvent(
+                topic,
+                null,
+                pricingPlanId,
+                Instant.now(),
+                Map.of("pricingPlanId", pricingPlanId.toString())));
+    }
+
+    private void audit(String sourceEventId, AuditActionType actionType, UUID pricingPlanId, String summary) {
+        if (auditLogService == null) {
+            return;
+        }
+        auditLogService.appendCurrentUserAction(
+                null,
+                sourceEventId,
+                actionType,
+                AuditOutcome.SUCCESS,
+                "PricingPlan",
+                pricingPlanId,
+                summary,
+                Map.of("pricingPlanId", pricingPlanId.toString()),
+                null,
+                null);
     }
 }

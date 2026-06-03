@@ -2,7 +2,7 @@
   <div class="overflow-hidden rounded-lg">
     <button
       type="button"
-      class="relative block w-full overflow-hidden border-b border-border bg-slate-100 text-left"
+      class="relative block w-full overflow-hidden border-b border-white/10 bg-slate-900 text-left"
       (click)="previewRequested.emit(asset())"
     >
       <div class="aspect-[4/3]">
@@ -26,7 +26,7 @@
             }
 
             <div class="absolute inset-0 grid place-items-center bg-slate-950/10">
-              <div class="grid h-12 w-12 place-items-center rounded-full bg-white/90 text-ink shadow-sm">
+              <div class="grid h-12 w-12 place-items-center rounded-full bg-white/90 text-slate-950 shadow-sm">
                 <app-icon name="play" [size]="20" />
               </div>
             </div>
@@ -39,7 +39,7 @@
                 class="h-full w-full object-cover"
               />
             } @else {
-              <div class="grid h-full place-items-center bg-slate-50 text-slate-500">
+              <div class="grid h-full place-items-center bg-slate-900 text-slate-400">
                 <div class="flex flex-col items-center gap-2">
                   <app-icon name="image" [size]="28" />
                   <span class="text-xs font-medium uppercase tracking-[0.16em]">
@@ -64,17 +64,17 @@
         <div class="min-w-0">
           <button
             type="button"
-            class="block max-w-full truncate text-left text-sm font-semibold text-ink hover:text-brand-700"
+            class="block max-w-full truncate text-left text-sm font-semibold text-white hover:text-brand-300"
             (click)="detailRequested.emit(asset())"
           >
             {{ asset().originalFileName }}
           </button>
-          <p class="mt-1 text-xs text-muted">
+          <p class="mt-1 text-xs text-slate-400">
             {{ assetCategoryLabel(asset().assetCategory) }}
           </p>
         </div>
 
-        <span class="rounded-full bg-slate-100 px-2.5 py-1 text-[11px] font-semibold uppercase tracking-[0.14em] text-slate-600">
+        <span class="rounded-full border border-white/10 bg-white/[0.06] px-2.5 py-1 text-[11px] font-semibold uppercase tracking-[0.14em] text-slate-300">
           {{ asset().fileExtension }}
         </span>
       </div>
@@ -82,19 +82,19 @@
       <dl class="mt-4 grid grid-cols-2 gap-3 text-sm">
         <div>
           <dt class="text-xs uppercase tracking-[0.14em] text-slate-500">Type</dt>
-          <dd class="mt-1 font-medium text-ink">{{ assetFileTypeLabel(asset().fileType) }}</dd>
+          <dd class="mt-1 font-medium text-slate-100">{{ assetFileTypeLabel(asset().fileType) }}</dd>
         </div>
         <div>
           <dt class="text-xs uppercase tracking-[0.14em] text-slate-500">Size</dt>
-          <dd class="mt-1 font-medium text-ink">{{ formatFileSize(asset().fileSize) }}</dd>
+          <dd class="mt-1 font-medium text-slate-100">{{ formatFileSize(asset().fileSize) }}</dd>
         </div>
         <div>
           <dt class="text-xs uppercase tracking-[0.14em] text-slate-500">Created</dt>
-          <dd class="mt-1 font-medium text-ink">{{ asset().createdAt | date: 'd MMM y' }}</dd>
+          <dd class="mt-1 font-medium text-slate-100">{{ asset().createdAt | date: 'd MMM y' }}</dd>
         </div>
         <div>
           <dt class="text-xs uppercase tracking-[0.14em] text-slate-500">Tags</dt>
-          <dd class="mt-1 font-medium text-ink">{{ asset().tags.length || 0 }}</dd>
+          <dd class="mt-1 font-medium text-slate-100">{{ asset().tags.length || 0 }}</dd>
         </div>
       </dl>
 

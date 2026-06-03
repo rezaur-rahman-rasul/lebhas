@@ -20,9 +20,10 @@ public class StoragePlanKafkaEventConfiguration {
     @Bean
     StoragePlanEventProducer storagePlanEventProducer(
             KafkaTemplate<String, Object> kafkaTemplate,
-            StoragePlanKafkaTopicNames storagePlanKafkaTopicNames
+            StoragePlanKafkaTopicNames storagePlanKafkaTopicNames,
+            KafkaMessagingProperties kafkaMessagingProperties
     ) {
-        return new StoragePlanEventProducer(kafkaTemplate, storagePlanKafkaTopicNames);
+        return new StoragePlanEventProducer(kafkaTemplate, storagePlanKafkaTopicNames, kafkaMessagingProperties);
     }
 
     @Bean

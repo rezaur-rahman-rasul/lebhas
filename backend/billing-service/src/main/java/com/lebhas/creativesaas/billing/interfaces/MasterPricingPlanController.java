@@ -14,6 +14,7 @@ import jakarta.validation.Valid;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PatchMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.PutMapping;
@@ -112,12 +113,55 @@ public class MasterPricingPlanController {
                 pricingPlanQueryService.getPricingPlanForMaster(pricingPlanId)));
     }
 
+    @PatchMapping("/{pricingPlanId}/activate")
+    @PreAuthorize("hasRole('MASTER')")
+    @Operation(summary = "Activate a pricing plan")
+    public ApiResponse<PricingPlanDetailResponse> activatePricingPlan(@PathVariable UUID pricingPlanId) {
+        pricingPlanService.activatePricingPlan(pricingPlanId);
+        return ApiResponse.success(pricingApiMapper.toPricingPlanDetailResponse(
+                pricingPlanQueryService.getPricingPlanForMaster(pricingPlanId)));
+    }
+
+    @PatchMapping("/{pricingPlanId}/deactivate")
+    @PreAuthorize("hasRole('MASTER')")
+    @Operation(summary = "Deactivate a pricing plan")
+    public ApiResponse<PricingPlanDetailResponse> deactivatePricingPlan(@PathVariable UUID pricingPlanId) {
+        pricingPlanService.disablePricingPlan(pricingPlanId);
+        return ApiResponse.success(pricingApiMapper.toPricingPlanDetailResponse(
+                pricingPlanQueryService.getPricingPlanForMaster(pricingPlanId)));
+    }
+
+    @PostMapping("/{pricingPlanId}/feature-policy")
+    @PreAuthorize("hasRole('MASTER')")
+    @Operation(summary = "Create pricing plan feature policy")
+    public ApiResponse<PlanFeaturePolicyResponse> createFeaturePolicy(
+            @PathVariable UUID pricingPlanId,
+            @Valid @RequestBody UpdatePlanFeaturePolicyRequest request
+    ) {
+        return upsertFeaturePolicy(pricingPlanId, request);
+    }
+
+    @GetMapping("/{pricingPlanId}/feature-policy")
+    @PreAuthorize("hasRole('MASTER')")
+    @Operation(summary = "Get pricing plan feature policy")
+    public ApiResponse<PlanFeaturePolicyResponse> getFeaturePolicy(@PathVariable UUID pricingPlanId) {
+        return ApiResponse.success(pricingApiMapper.toPlanFeaturePolicyResponse(
+                planFeaturePolicyService.getFeaturePolicyForMaster(pricingPlanId).orElse(null)));
+    }
+
     @PutMapping("/{pricingPlanId}/feature-policy")
     @PreAuthorize("hasRole('MASTER')")
     @Operation(summary = "Create or update pricing plan feature policy")
     public ApiResponse<PlanFeaturePolicyResponse> updateFeaturePolicy(
             @PathVariable UUID pricingPlanId,
             @Valid @RequestBody UpdatePlanFeaturePolicyRequest request
+    ) {
+        return upsertFeaturePolicy(pricingPlanId, request);
+    }
+
+    private ApiResponse<PlanFeaturePolicyResponse> upsertFeaturePolicy(
+            UUID pricingPlanId,
+            UpdatePlanFeaturePolicyRequest request
     ) {
         return ApiResponse.success(pricingApiMapper.toPlanFeaturePolicyResponse(
                 planFeaturePolicyService.updateFeaturePolicy(new UpdatePlanFeaturePolicyCommand(
@@ -126,14 +170,26 @@ public class MasterPricingPlanController {
                         request.maxBrands(),
                         request.maxProductServices(),
                         request.maxProjects(),
+                        request.maxAssets(),
+                        request.maxCreativeRequests(),
                         request.maxTeamMembers(),
+                        request.maxGeneratedVersionsPerCreativeRequest(),
                         request.maxStorageGb(),
+                        request.maxStorageBytes(),
                         request.monthlyCreditLimit(),
+                        request.promptEnhancementEnabled(),
+                        request.creativeGenerationEnabled(),
                         request.allowApprovalWorkflow(),
+                        request.downloadEnabled(),
+                        request.shareEnabled(),
                         request.allowPublicShareLinks(),
+                        request.assetUploadEnabled(),
+                        request.premiumQualityEnabled(),
                         request.allowVideoGeneration(),
+                        request.voiceoverGenerationEnabled(),
                         request.allowAdvancedPromptIntelligence(),
                         request.allowTeamCollaboration(),
-                        request.allowExportWithoutWatermark()))));
+                        request.allowExportWithoutWatermark(),
+                        request.enabledCreativeToolCodes()))));
     }
 }
