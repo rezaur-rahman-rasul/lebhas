@@ -48,6 +48,7 @@ public class AssetQueryService {
     private final StorageService storageService;
     private final AssetActivityLogger assetActivityLogger;
     private final AssetEventPublisher assetEventPublisher;
+    private final AssetHardDeleteService assetHardDeleteService;
 
     public AssetQueryService(
             AssetValidationService assetValidationService,
@@ -57,7 +58,8 @@ public class AssetQueryService {
             SignedUrlService signedUrlService,
             StorageService storageService,
             AssetActivityLogger assetActivityLogger,
-            AssetEventPublisher assetEventPublisher
+            AssetEventPublisher assetEventPublisher,
+            AssetHardDeleteService assetHardDeleteService
     ) {
         this.assetValidationService = assetValidationService;
         this.assetRepository = assetRepository;
@@ -67,6 +69,7 @@ public class AssetQueryService {
         this.storageService = storageService;
         this.assetActivityLogger = assetActivityLogger;
         this.assetEventPublisher = assetEventPublisher;
+        this.assetHardDeleteService = assetHardDeleteService;
     }
 
     @Transactional
@@ -238,17 +241,8 @@ public class AssetQueryService {
         if (asset.getStatus() == AssetStatus.DELETED) {
             return;
         }
-        asset.markDeletedAsset();
-        assetRepository.saveAndFlush(asset);
-        try {
-            assetCacheService.invalidate(asset.getWorkspaceId(), asset.getProjectId(), asset.getId(), actorUserId);
-        } catch (RuntimeException exception) {
-            log.warn("Asset missing in storage was soft-deleted but cache invalidation failed assetId={} workspaceId={}",
-                    asset.getId(),
-                    asset.getWorkspaceId(),
-                    exception);
-        }
-        log.warn("Asset soft-deleted because storage object is missing assetId={} workspaceId={} storageKey={}",
+        assetHardDeleteService.deleteAssetRecordOnly(asset, actorUserId);
+        log.warn("Asset hard-deleted because storage object is missing assetId={} workspaceId={} storageKey={}",
                 asset.getId(),
                 asset.getWorkspaceId(),
                 asset.getStorageKey());

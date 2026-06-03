@@ -5,10 +5,8 @@ import com.lebhas.creativesaas.asset.application.dto.AssetUrlView;
 import com.lebhas.creativesaas.asset.application.dto.AssetView;
 import com.lebhas.creativesaas.asset.application.dto.UpdateAssetCommand;
 import com.lebhas.creativesaas.asset.application.dto.UploadAssetCommand;
-import com.lebhas.creativesaas.asset.cache.AssetHotRedisCacheService;
 import com.lebhas.creativesaas.asset.domain.AssetEntity;
 import com.lebhas.creativesaas.asset.infrastructure.persistence.AssetRepository;
-import com.lebhas.creativesaas.asset.storage.StorageService;
 import com.lebhas.creativesaas.common.api.PagedResult;
 import com.lebhas.creativesaas.common.exception.BusinessException;
 import com.lebhas.creativesaas.common.exception.ErrorCode;
@@ -16,8 +14,6 @@ import com.lebhas.creativesaas.common.security.Permission;
 import com.lebhas.creativesaas.identity.application.WorkspaceAuthorizationService;
 import com.lebhas.creativesaas.redis.RedisKeyBuilder;
 import com.lebhas.creativesaas.redis.RedisLockService;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -27,8 +23,6 @@ import java.util.UUID;
 @Service
 public class AssetService {
 
-    private static final Logger log = LoggerFactory.getLogger(AssetService.class);
-
     private final AssetUploadService assetUploadService;
     private final AssetQueryService assetQueryService;
     private final AssetValidationService assetValidationService;
@@ -36,15 +30,10 @@ public class AssetService {
     private final AssetMetadataSerializer assetMetadataSerializer;
     private final AssetMapper assetMapper;
     private final AssetCacheService assetCacheService;
-    private final AssetHotRedisCacheService assetHotRedisCacheService;
-    private final SignedUrlService signedUrlService;
-    private final PreviewStateService previewStateService;
     private final AssetActivityLogger assetActivityLogger;
-    private final AssetEventPublisher assetEventPublisher;
-    private final StorageService storageService;
+    private final AssetHardDeleteService assetHardDeleteService;
     private final RedisLockService redisLockService;
     private final RedisKeyBuilder redisKeyBuilder;
-    private final AssetStorageUsageService assetStorageUsageService;
 
     public AssetService(
             AssetUploadService assetUploadService,
@@ -54,15 +43,10 @@ public class AssetService {
             AssetMetadataSerializer assetMetadataSerializer,
             AssetMapper assetMapper,
             AssetCacheService assetCacheService,
-            AssetHotRedisCacheService assetHotRedisCacheService,
-            SignedUrlService signedUrlService,
-            PreviewStateService previewStateService,
             AssetActivityLogger assetActivityLogger,
-            AssetEventPublisher assetEventPublisher,
-            StorageService storageService,
+            AssetHardDeleteService assetHardDeleteService,
             RedisLockService redisLockService,
-            RedisKeyBuilder redisKeyBuilder,
-            AssetStorageUsageService assetStorageUsageService
+            RedisKeyBuilder redisKeyBuilder
     ) {
         this.assetUploadService = assetUploadService;
         this.assetQueryService = assetQueryService;
@@ -71,15 +55,10 @@ public class AssetService {
         this.assetMetadataSerializer = assetMetadataSerializer;
         this.assetMapper = assetMapper;
         this.assetCacheService = assetCacheService;
-        this.assetHotRedisCacheService = assetHotRedisCacheService;
-        this.signedUrlService = signedUrlService;
-        this.previewStateService = previewStateService;
         this.assetActivityLogger = assetActivityLogger;
-        this.assetEventPublisher = assetEventPublisher;
-        this.storageService = storageService;
+        this.assetHardDeleteService = assetHardDeleteService;
         this.redisLockService = redisLockService;
         this.redisKeyBuilder = redisKeyBuilder;
-        this.assetStorageUsageService = assetStorageUsageService;
     }
 
     @Transactional
@@ -126,21 +105,7 @@ public class AssetService {
         WorkspaceAuthorizationService.WorkspaceAccess access = assetValidationService.requireDeleteAccess(workspaceId);
         AssetEntity asset = assetValidationService.requireAsset(workspaceId, assetId);
         assetValidationService.validateOwnership(asset, access, Permission.ASSET_DELETE);
-        asset.markDeletedAsset();
-        AssetEntity deletedAsset = assetRepository.saveAndFlush(asset);
-
-        safeDeleteSideEffect("signed-url-cache", workspaceId, assetId, () -> signedUrlService.invalidate(deletedAsset));
-        safeDeleteSideEffect("hot-cache", workspaceId, assetId, () -> assetHotRedisCacheService.invalidate(workspaceId, assetId));
-        safeDeleteSideEffect("preview-state", workspaceId, assetId, () -> previewStateService.invalidate(deletedAsset.getId()));
-        safeDeleteSideEffect("storage-usage", workspaceId, assetId, () -> assetStorageUsageService.recordSoftDelete(deletedAsset, false));
-        safeDeleteSideEffect("asset-cache", workspaceId, assetId,
-                () -> assetCacheService.invalidate(workspaceId, deletedAsset.getProjectId(), deletedAsset.getId(), access.currentUser().userId()));
-        safeDeleteSideEffect("activity-log", workspaceId, assetId,
-                () -> assetActivityLogger.logAssetDeleted(workspaceId, assetId, access.currentUser().userId()));
-        safeDeleteSideEffect("deleted-event", workspaceId, assetId, () -> assetEventPublisher.publishDeleted(deletedAsset, false));
-        if (deletedAsset.getStorageFileId() != null) {
-            safeDeleteSideEffect("cleanup-event", workspaceId, assetId, () -> assetEventPublisher.publishCleanup(deletedAsset, false));
-        }
+        assetHardDeleteService.deleteAssetAndStorage(asset, access.currentUser().userId());
     }
 
     @Transactional(readOnly = true)
@@ -168,15 +133,4 @@ public class AssetService {
                 .orElseThrow(() -> new BusinessException(ErrorCode.BUSINESS_RULE_VIOLATION, "Asset mutation is already in progress"));
     }
 
-    private void safeDeleteSideEffect(String operation, UUID workspaceId, UUID assetId, Runnable action) {
-        try {
-            action.run();
-        } catch (RuntimeException exception) {
-            log.warn("Asset soft-deleted but {} failed assetId={} workspaceId={}",
-                    operation,
-                    assetId,
-                    workspaceId,
-                    exception);
-        }
-    }
 }
