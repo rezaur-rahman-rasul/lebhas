@@ -1,0 +1,10 @@
+<form class="policy-form" [formGroup]="form" (ngSubmit)="submit()">
+  <label><span>Internal credit per provider unit</span><input type="number" step="0.01" formControlName="internalCreditPerProviderUnit" /></label>
+  <label><span>Free signup credit percentage</span><input type="number" step="0.01" formControlName="freeSignupCreditPercentage" /><small>Applied once when a valid Admin workspace registers.</small></label>
+  <label><span>Maximum free signup credits</span><input type="number" formControlName="maxFreeSignupCredits" /></label>
+  <label><span>Minimum provider balance required</span><input type="number" formControlName="minProviderBalanceRequired" /></label>
+  <label><span>Fallback free credits</span><input type="number" formControlName="fallbackFreeCredits" /></label>
+  <label class="check"><input type="checkbox" formControlName="freeSignupCreditEnabled" /><span>Free signup credit enabled</span></label>
+  <label class="check"><input type="checkbox" formControlName="active" /><span>Active</span></label>
+  <app-button type="submit" [loading]="saving()">Save policy</app-button>
+</form>

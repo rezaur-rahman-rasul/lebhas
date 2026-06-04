@@ -30,6 +30,7 @@ import {
   DEFAULT_CREATIVE_GENERATION_PAGINATION,
   DEFAULT_GENERATION_DRAFT,
   GenerationJob,
+  ImageCreativeCostPreview,
   ImageCreativeQualityMode,
   ProductImageCreativeReadiness,
   isTerminalGenerationStatus,
@@ -74,6 +75,7 @@ export class CreativeGenerationStore {
   private readonly selectedAssetsSignal = signal<readonly Asset[]>([]);
   private readonly brandProfileSignal = signal<BrandProfile | null>(null);
   private readonly campaignReadinessSignal = signal<ProductImageCreativeReadiness | null>(null);
+  private readonly campaignCostPreviewSignal = signal<ImageCreativeCostPreview | null>(null);
 
   private pollingTimer: ReturnType<typeof setInterval> | null = null;
   private pollingAttempts = 0;
@@ -95,6 +97,7 @@ export class CreativeGenerationStore {
   readonly selectedAssets = this.selectedAssetsSignal.asReadonly();
   readonly brandProfile = this.brandProfileSignal.asReadonly();
   readonly campaignReadiness = this.campaignReadinessSignal.asReadonly();
+  readonly campaignCostPreview = this.campaignCostPreviewSignal.asReadonly();
 
   readonly hasGenerationRequests = computed(() => this.generationRequestsSignal().length > 0);
   readonly hasOutputs = computed(() => this.creativeOutputsSignal().length > 0);
@@ -248,6 +251,7 @@ export class CreativeGenerationStore {
   clearSelectedAssets(): void {
     this.selectedAssetsSignal.set([]);
     this.campaignReadinessSignal.set(null);
+    this.campaignCostPreviewSignal.set(null);
   }
 
   setSelectedOutput(output: CreativeOutput | null): void {
@@ -365,6 +369,38 @@ export class CreativeGenerationStore {
       this.notifications.error('Generation readiness failed', message);
       return null;
     }
+  }
+
+  async previewCampaignCreativeCost(
+    projectId: string,
+    payload: CreateCampaignCreativeRequest,
+  ): Promise<ImageCreativeCostPreview | null> {
+    const workspaceId = this.resolveWorkspaceId();
+    if (!workspaceId) {
+      return null;
+    }
+
+    try {
+      const preview = await firstValueFrom(
+        this.generationService.previewCampaignCreativeCost(
+          workspaceId,
+          projectId,
+          payload,
+          this.requestContext(),
+        ),
+      );
+      this.campaignCostPreviewSignal.set(preview);
+      return preview;
+    } catch (error) {
+      const message = this.mapError(error);
+      this.campaignCostPreviewSignal.set(null);
+      this.generationErrorSignal.set(message);
+      return null;
+    }
+  }
+
+  clearCampaignCostPreview(): void {
+    this.campaignCostPreviewSignal.set(null);
   }
 
   async retrySelectedGeneration(): Promise<void> {

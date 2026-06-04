@@ -18,6 +18,7 @@ import {
   GenerationJob,
   GenerationJobType,
   CreateCreativeGenerationRequest,
+  ImageCreativeCostPreview,
   ImageCreativeFormat,
   ImageCreativeQualityMode,
 } from '../models/creative-generation.models';
@@ -165,6 +166,14 @@ interface ImageCreativeGenerationDto {
   readonly createdAt: string;
 }
 
+interface ImageCreativeCostPreviewDto {
+  readonly toolCode: string;
+  readonly qualityMode: ImageCreativeQualityMode;
+  readonly requestedVersionCount: number;
+  readonly unitCreditCost: number | string | null;
+  readonly totalCreditCost: number | string | null;
+}
+
 interface GeneratedVersionDto {
   readonly id: string;
   readonly workspaceId: string;
@@ -259,6 +268,21 @@ export class CreativeGenerationService {
         },
       )
       .pipe(map(({ data }) => mapProductImageCreativeReadiness(data)));
+  }
+
+  previewCampaignCreativeCost(
+    workspaceId: string,
+    projectId: string,
+    payload: CreateCampaignCreativeRequest,
+    context?: HttpContext,
+  ) {
+    return this.api
+      .post<ImageCreativeCostPreviewDto, CreateCampaignCreativeRequestDto>(
+        `/api/v1/workspaces/${workspaceId}/projects/${projectId}/image-creatives/preview-cost`,
+        mapCampaignCreativeRequest(payload),
+        { context },
+      )
+      .pipe(map(({ data }) => mapImageCreativeCostPreview(data)));
   }
 
   listGenerations(
@@ -516,6 +540,16 @@ function mapProductImageCreativeReadiness(
     productAssetReady: source.productAssetReady,
     messages: stringMessages.length > 0 ? stringMessages : structuredMessages.map((item) => item.message),
     readinessMessages: structuredMessages,
+  };
+}
+
+function mapImageCreativeCostPreview(source: ImageCreativeCostPreviewDto): ImageCreativeCostPreview {
+  return {
+    toolCode: source.toolCode,
+    qualityMode: source.qualityMode,
+    requestedVersionCount: Number(source.requestedVersionCount ?? 1),
+    unitCreditCost: Number(source.unitCreditCost ?? 0),
+    totalCreditCost: Number(source.totalCreditCost ?? 0),
   };
 }
 

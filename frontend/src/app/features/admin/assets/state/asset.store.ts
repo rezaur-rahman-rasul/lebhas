@@ -1,4 +1,4 @@
-import { HttpContext } from '@angular/common/http';
+import { HttpContext, HttpErrorResponse } from '@angular/common/http';
 import { Injectable, computed, inject, signal } from '@angular/core';
 import { firstValueFrom, Subscription } from 'rxjs';
 
@@ -58,10 +58,11 @@ export class AssetStore {
   readonly deletingAssetId = this.deletingAssetIdSignal.asReadonly();
   readonly assetError = this.assetErrorSignal.asReadonly();
 
+  readonly realAssets = computed(() => sanitizeAssets(this.assetsSignal()));
   readonly hasAssets = computed(() => this.filteredAssets().length > 0);
   readonly filteredAssets = computed(() => {
     const selectedFolder = this.selectedFolderSignal();
-    const assets = this.assetsSignal();
+    const assets = this.realAssets();
 
     if (selectedFolder === 'all') {
       return assets;
@@ -118,9 +119,10 @@ export class AssetStore {
         ),
       ]);
 
+      const items = sanitizeAssets(page.items);
       this.foldersSignal.set(folders);
-      this.assetsSignal.set(page.items);
-      this.paginationSignal.set(page.pagination);
+      this.assetsSignal.set(items);
+      this.paginationSignal.set(normalizePagination(page.pagination, items.length));
       this.syncSelectedAsset();
     });
   }
@@ -166,8 +168,9 @@ export class AssetStore {
         return;
       }
 
-      this.assetsSignal.set(page.items);
-      this.paginationSignal.set(page.pagination);
+      const items = sanitizeAssets(page.items);
+      this.assetsSignal.set(items);
+      this.paginationSignal.set(normalizePagination(page.pagination, items.length));
       this.syncSelectedAsset();
     });
   }
@@ -239,7 +242,7 @@ export class AssetStore {
           this.activeUploadSubscription = null;
           this.uploadProgressSignal.set(null);
           this.assetLoadingSignal.set(false);
-          resolve(this.failureResult(error));
+          resolve(this.failureResult(error, undefined, true));
         },
       });
     });
@@ -259,6 +262,11 @@ export class AssetStore {
     return new Promise<AssetActionResult>((resolve) => {
       this.activeUploadSubscription = this.assetService.uploadProjectAsset(workspaceId, projectId, payload).subscribe({
         next: (event) => {
+          if (event.kind === 'progress') {
+            this.uploadProgressSignal.set(event.progress);
+            return;
+          }
+
           void this.completeUpload(
             event.asset,
             `${event.asset.originalFileName} is ready in the library.`,
@@ -269,7 +277,7 @@ export class AssetStore {
           this.activeUploadSubscription = null;
           this.uploadProgressSignal.set(null);
           this.assetLoadingSignal.set(false);
-          resolve(this.failureResult(error));
+          resolve(this.failureResult(error, undefined, true));
         },
       });
     });
@@ -308,7 +316,7 @@ export class AssetStore {
           this.activeUploadSubscription = null;
           this.uploadProgressSignal.set(null);
           this.assetLoadingSignal.set(false);
-          resolve(this.failureResult(error));
+          resolve(this.failureResult(error, undefined, true));
         },
       });
     });
@@ -359,7 +367,7 @@ export class AssetStore {
     try {
       this.deletingAssetIdSignal.set(assetId);
       this.assetErrorSignal.set(null);
-      this.assetsSignal.update((assets) => assets.filter((asset) => asset.id !== assetId));
+      this.assetsSignal.update((assets) => sanitizeAssets(assets).filter((asset) => asset.id !== assetId));
       if (this.selectedAssetSignal()?.id === assetId) {
         this.selectedAssetSignal.set(null);
       }
@@ -512,7 +520,7 @@ export class AssetStore {
       return;
     }
 
-    const refreshedAsset = this.assetsSignal().find((asset) => asset.id === selectedAssetId);
+    const refreshedAsset = this.realAssets().find((asset) => asset.id === selectedAssetId);
     if (refreshedAsset) {
       this.selectedAssetSignal.set(refreshedAsset);
     }
@@ -529,7 +537,7 @@ export class AssetStore {
     successMessage: string,
     resolve: (result: AssetActionResult) => void,
   ): Promise<void> {
-    const wasAlreadyListed = this.assetsSignal().some((item) => item.id === asset.id);
+    const wasAlreadyListed = this.realAssets().some((item) => item.id === asset.id);
     this.assetsSignal.update((assets) => upsertAsset(assets, asset));
     this.selectedAssetSignal.set(asset);
     this.paginationSignal.update((pagination) => ({
@@ -542,12 +550,9 @@ export class AssetStore {
     this.activeUploadSubscription?.unsubscribe();
     this.activeUploadSubscription = null;
 
-    try {
-      await this.reloadAssets();
-    } finally {
-      window.setTimeout(() => this.uploadProgressSignal.set(null), 400);
-      resolve(this.successResult());
-    }
+    void this.reloadAssets();
+    window.setTimeout(() => this.uploadProgressSignal.set(null), 400);
+    resolve(this.successResult());
   }
 
   private successResult(): AssetActionResult {
@@ -560,11 +565,16 @@ export class AssetStore {
     return { ok: false, message, fieldErrors: {} };
   }
 
-  private failureResult(error: unknown, forbiddenMessage = 'You do not have permission to perform this asset action.'): AssetActionResult {
+  private failureResult(
+    error: unknown,
+    forbiddenMessage = 'You do not have permission to perform this asset action.',
+    preserveBackendMessage = false,
+  ): AssetActionResult {
     const normalized = normalizeHttpError(error);
+    const backendMessage = preserveBackendMessage ? uploadBackendMessage(error, normalized.status) : null;
     const message = normalized.status === 403
       ? forbiddenMessage
-      : normalized.message;
+      : backendMessage ?? normalized.message;
     this.assetErrorSignal.set(message);
     return {
       ok: false,
@@ -610,7 +620,7 @@ export class AssetStore {
     if (!missingStorage) {
       return;
     }
-    this.assetsSignal.update((assets) => assets.filter((asset) => asset.id !== assetId));
+    this.assetsSignal.update((assets) => sanitizeAssets(assets).filter((asset) => asset.id !== assetId));
     if (this.selectedAssetSignal()?.id === assetId) {
       this.selectedAssetSignal.set(null);
     }
@@ -622,6 +632,77 @@ export class AssetStore {
 }
 
 function upsertAsset(assets: readonly Asset[], asset: Asset): readonly Asset[] {
-  const withoutCurrent = assets.filter((item) => item.id !== asset.id);
+  if (!isRealAsset(asset)) {
+    return sanitizeAssets(assets);
+  }
+  const withoutCurrent = sanitizeAssets(assets).filter((item) => item.id !== asset.id);
   return [asset, ...withoutCurrent];
+}
+
+function sanitizeAssets(assets: readonly Asset[] | null | undefined): readonly Asset[] {
+  return (assets ?? []).filter(isRealAsset);
+}
+
+function isRealAsset(asset: Asset | null | undefined): asset is Asset {
+  return Boolean(asset?.id?.trim()) && asset?.status !== 'DELETED';
+}
+
+function normalizePagination(pagination: AssetPagination, itemCount: number): AssetPagination {
+  return {
+    ...pagination,
+    totalItems: itemCount,
+    totalPages: itemCount === 0 ? 0 : pagination.totalPages,
+    first: itemCount === 0 ? true : pagination.first,
+    last: itemCount === 0 ? true : pagination.last,
+  };
+}
+
+function uploadBackendMessage(error: unknown, status: number): string | null {
+  if (!(error instanceof HttpErrorResponse)) {
+    return null;
+  }
+
+  const body = error.error;
+  if (typeof body === 'string' && body.trim()) {
+    return body.trim();
+  }
+
+  if (!body || typeof body !== 'object') {
+    return status >= 500
+      ? `Upload failed with HTTP ${status}. Check backend logs for the storage or R2 error.`
+      : null;
+  }
+
+  const response = body as {
+    readonly message?: unknown;
+    readonly errors?: readonly {
+      readonly field?: unknown;
+      readonly code?: unknown;
+      readonly message?: unknown;
+    }[];
+  };
+  const messages = [
+    typeof response.message === 'string' ? response.message : null,
+    ...(response.errors ?? []).map((item) => {
+      const field = typeof item.field === 'string' ? item.field : null;
+      const code = typeof item.code === 'string' ? item.code : null;
+      const message = typeof item.message === 'string' ? item.message : null;
+      return [field, code, message].filter(Boolean).join(': ');
+    }),
+  ]
+    .filter((item): item is string => Boolean(item?.trim()))
+    .filter((item) => !isGenericServerMessage(item));
+
+  if (messages.length > 0) {
+    return messages.join(' ');
+  }
+
+  return status >= 500
+    ? `Upload failed with HTTP ${status}. Check backend logs for the storage or R2 error.`
+    : null;
+}
+
+function isGenericServerMessage(message: string): boolean {
+  const normalized = message.trim().toLowerCase();
+  return normalized === 'internal server error' || normalized === 'unexpected server error';
 }

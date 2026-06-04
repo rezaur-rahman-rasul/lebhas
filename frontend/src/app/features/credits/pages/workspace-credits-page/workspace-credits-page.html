@@ -1,0 +1,14 @@
+<app-page-header eyebrow="BILLING" title="Workspace Credits" description="Review internal Lebhas credits available to this workspace.">
+  <app-button type="button" variant="secondary" icon="rotate-cw" [loading]="credits.loading()" (click)="refresh()">Refresh</app-button>
+</app-page-header>
+
+@if (credits.error()) {
+  <app-error-state title="Credit balance could not be loaded" [description]="credits.error()!"><app-button type="button" variant="secondary" (click)="refresh()">Retry</app-button></app-error-state>
+} @else {
+  <section class="credits-grid">
+    <app-credit-balance-card [account]="credits.creditAccount()" />
+    <app-free-credit-status-card [account]="credits.creditAccount()" />
+    <app-buy-credits-card [paymentAvailable]="true" (buyCredits)="buyCredits()" />
+  </section>
+  <section class="ledger-panel"><h2>Recent credit usage</h2><app-credit-ledger-table [ledger]="credits.creditLedger()" /></section>
+}

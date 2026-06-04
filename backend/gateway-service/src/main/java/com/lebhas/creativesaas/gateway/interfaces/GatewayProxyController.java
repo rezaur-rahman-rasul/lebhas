@@ -14,8 +14,11 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.multipart.MultipartFile;
+import org.springframework.web.multipart.MultipartHttpServletRequest;
 import org.springframework.web.servlet.HandlerMapping;
 
+import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.net.ConnectException;
@@ -23,6 +26,7 @@ import java.net.URI;
 import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
+import java.nio.charset.StandardCharsets;
 import java.net.http.HttpTimeoutException;
 import java.time.Duration;
 import java.time.Instant;
@@ -42,6 +46,7 @@ public class GatewayProxyController {
             HttpHeaders.HOST.toLowerCase(),
             HttpHeaders.CONTENT_LENGTH.toLowerCase(),
             HttpHeaders.CONNECTION.toLowerCase(),
+            HttpHeaders.CONTENT_TYPE.toLowerCase(),
             HttpHeaders.EXPECT.toLowerCase(),
             HttpHeaders.UPGRADE.toLowerCase());
     private static final Set<String> EXCLUDED_RESPONSE_HEADERS = Set.of(
@@ -168,21 +173,34 @@ public class GatewayProxyController {
     }
 
     private HttpRequest buildOutboundRequest(HttpServletRequest request, GatewayRoute route, String correlationId) throws IOException {
+        BodyPayload bodyPayload = createBodyPublisher(request);
         HttpRequest.Builder builder = HttpRequest.newBuilder()
                 .uri(resolveTargetUri(request, route.baseUrl()))
                 .timeout(properties.getReadTimeout())
-                .method(request.getMethod(), createBodyPublisher(request));
+                .method(request.getMethod(), bodyPayload.publisher());
 
         copyRequestHeaders(request, builder);
+        if (bodyPayload.contentType() != null) {
+            builder.header(HttpHeaders.CONTENT_TYPE, bodyPayload.contentType());
+        } else if (request.getContentType() != null && !request.getContentType().isBlank()) {
+            builder.header(HttpHeaders.CONTENT_TYPE, request.getContentType());
+        }
         appendForwardingHeaders(request, builder, correlationId);
         return builder.build();
     }
 
-    private HttpRequest.BodyPublisher createBodyPublisher(HttpServletRequest request) {
+    private BodyPayload createBodyPublisher(HttpServletRequest request) throws IOException {
+        if (request instanceof MultipartHttpServletRequest multipartRequest) {
+            MultipartPayload multipartPayload = rebuildMultipartPayload(multipartRequest);
+            return new BodyPayload(
+                    HttpRequest.BodyPublishers.ofByteArray(multipartPayload.body()),
+                    multipartPayload.contentType());
+        }
+
         boolean hasBody = request.getContentLengthLong() > 0
                 || request.getHeader(HttpHeaders.TRANSFER_ENCODING) != null
                 || Set.of("POST", "PUT", "PATCH").contains(request.getMethod());
-        return hasBody
+        HttpRequest.BodyPublisher publisher = hasBody
                 ? HttpRequest.BodyPublishers.ofInputStream(() -> {
                     try {
                         return request.getInputStream();
@@ -191,6 +209,53 @@ public class GatewayProxyController {
                     }
                 })
                 : HttpRequest.BodyPublishers.noBody();
+        return new BodyPayload(publisher, null);
+    }
+
+    private MultipartPayload rebuildMultipartPayload(MultipartHttpServletRequest request) throws IOException {
+        String boundary = "----LebhasGatewayBoundary" + UUID.randomUUID();
+        ByteArrayOutputStream output = new ByteArrayOutputStream();
+
+        for (Map.Entry<String, String[]> entry : request.getParameterMap().entrySet()) {
+            for (String value : entry.getValue()) {
+                writeMultipartField(output, boundary, entry.getKey(), value);
+            }
+        }
+
+        for (Map.Entry<String, List<MultipartFile>> entry : request.getMultiFileMap().entrySet()) {
+            for (MultipartFile file : entry.getValue()) {
+                writeMultipartFile(output, boundary, entry.getKey(), file);
+            }
+        }
+
+        output.write(("--" + boundary + "--\r\n").getBytes(StandardCharsets.UTF_8));
+        return new MultipartPayload(
+                output.toByteArray(),
+                MediaType.MULTIPART_FORM_DATA_VALUE + "; boundary=" + boundary);
+    }
+
+    private void writeMultipartField(ByteArrayOutputStream output, String boundary, String name, String value) throws IOException {
+        output.write(("--" + boundary + "\r\n").getBytes(StandardCharsets.UTF_8));
+        output.write(("Content-Disposition: form-data; name=\"" + escapeMultipartValue(name) + "\"\r\n\r\n").getBytes(StandardCharsets.UTF_8));
+        output.write((value == null ? "" : value).getBytes(StandardCharsets.UTF_8));
+        output.write("\r\n".getBytes(StandardCharsets.UTF_8));
+    }
+
+    private void writeMultipartFile(ByteArrayOutputStream output, String boundary, String name, MultipartFile file) throws IOException {
+        output.write(("--" + boundary + "\r\n").getBytes(StandardCharsets.UTF_8));
+        output.write(("Content-Disposition: form-data; name=\"" + escapeMultipartValue(name) + "\"; filename=\""
+                + escapeMultipartValue(file.getOriginalFilename() == null ? "upload" : file.getOriginalFilename())
+                + "\"\r\n").getBytes(StandardCharsets.UTF_8));
+        output.write(("Content-Type: " + (file.getContentType() == null ? MediaType.APPLICATION_OCTET_STREAM_VALUE : file.getContentType()) + "\r\n\r\n")
+                .getBytes(StandardCharsets.UTF_8));
+        try (InputStream inputStream = file.getInputStream()) {
+            inputStream.transferTo(output);
+        }
+        output.write("\r\n".getBytes(StandardCharsets.UTF_8));
+    }
+
+    private String escapeMultipartValue(String value) {
+        return value.replace("\\", "\\\\").replace("\"", "\\\"");
     }
 
     private URI resolveTargetUri(HttpServletRequest request, URI baseUrl) {
@@ -263,5 +328,11 @@ public class GatewayProxyController {
     }
 
     private record GatewayRoute(String id, URI baseUrl, List<String> pathPatterns) {
+    }
+
+    private record BodyPayload(HttpRequest.BodyPublisher publisher, String contentType) {
+    }
+
+    private record MultipartPayload(byte[] body, String contentType) {
     }
 }

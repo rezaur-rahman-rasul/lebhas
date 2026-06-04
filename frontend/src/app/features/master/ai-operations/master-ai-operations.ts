@@ -36,6 +36,7 @@ type BadgeTone = 'neutral' | 'brand' | 'blue' | 'red';
 interface CredentialFormBaseline {
   readonly environment: MasterProviderEnvironment;
   readonly webhookUrl: string;
+  readonly availableCreditBalance: number | null;
   readonly active: boolean;
 }
 
@@ -104,6 +105,7 @@ export class MasterAiOperationsPage {
     environment: ['SANDBOX' as MasterProviderEnvironment, Validators.required],
     secret: [''],
     webhookUrl: [''],
+    availableCreditBalance: [null as number | null, [Validators.min(0)]],
     active: [true],
   });
   private readonly credentialFormValue = toSignal(
@@ -410,6 +412,7 @@ export class MasterAiOperationsPage {
           environment: provider.activeEnvironment,
           secret: '',
           webhookUrl: provider.webhookUrl ?? '',
+          availableCreditBalance: this.providerAvailableCreditBalance(provider),
           active: provider.active,
         },
         { emitEvent: false },
@@ -417,6 +420,7 @@ export class MasterAiOperationsPage {
       this.credentialBaseline.set({
         environment: provider.activeEnvironment,
         webhookUrl: provider.webhookUrl ?? '',
+        availableCreditBalance: this.providerAvailableCreditBalance(provider),
         active: provider.active,
       });
       this.credentialForm.markAsPristine();
@@ -510,6 +514,7 @@ export class MasterAiOperationsPage {
         environment: value.environment,
         secret: value.secret.trim() || null,
         webhookUrl: value.webhookUrl.trim() || null,
+        availableCreditBalance: normalizeOptionalNumber(value.availableCreditBalance),
         active: value.active,
       });
       this.notifications.success('Credential saved', 'Saved secrets are encrypted and hidden.', 'provider-credential-saved');
@@ -683,6 +688,22 @@ export class MasterAiOperationsPage {
     return provider.credentialUpdatedAt ?? provider.updatedAt ?? null;
   }
 
+  protected providerAvailableCreditBalance(provider: MasterProviderView | null): number | null {
+    return normalizeOptionalNumber(provider?.availableCreditBalance);
+  }
+
+  protected providerAvailableCreditLabel(provider: MasterProviderView): string {
+    const balance = this.providerAvailableCreditBalance(provider);
+    return balance === null
+      ? 'Not set'
+      : balance.toLocaleString(undefined, {
+          currency: 'USD',
+          maximumFractionDigits: 2,
+          minimumFractionDigits: 2,
+          style: 'currency',
+        });
+  }
+
   protected normalizeHealthStatus(status: ProviderHealthStatus | string | null | undefined): string {
     switch (status) {
       case ProviderHealthStatus.Healthy:
@@ -785,9 +806,18 @@ export class MasterAiOperationsPage {
     return (
       value.environment !== baseline.environment ||
       value.webhookUrl.trim() !== baseline.webhookUrl.trim() ||
+      normalizeOptionalNumber(value.availableCreditBalance) !== baseline.availableCreditBalance ||
       value.active !== baseline.active
     );
   }
+}
+
+function normalizeOptionalNumber(value: unknown): number | null {
+  if (value === null || value === undefined || value === '') {
+    return null;
+  }
+  const normalized = typeof value === 'number' ? value : Number(value);
+  return Number.isFinite(normalized) ? normalized : null;
 }
 
 function average(values: readonly number[]): number | null {

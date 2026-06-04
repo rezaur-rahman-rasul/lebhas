@@ -3,6 +3,9 @@ package com.lebhas.ai.application.dto;
 import com.lebhas.ai.domain.ProviderEnvironment;
 import com.lebhas.ai.domain.ProviderType;
 
+import java.math.BigDecimal;
+import java.util.List;
+
 public record CreateMasterProviderRequest(
         String providerCode,
         String displayName,
@@ -11,6 +14,13 @@ public record CreateMasterProviderRequest(
         boolean supportsSandbox,
         boolean supportsLive,
         ProviderEnvironment defaultEnvironment,
-        boolean active
+        boolean active,
+        String baseUrl,
+        String defaultModel,
+        List<String> supportedCapabilities,
+        Integer priority,
+        Integer rateLimitPerMinute,
+        BigDecimal costMultiplier,
+        String metadataJson
 ) {
 }

@@ -38,6 +38,10 @@ public interface StorageService {
 
     StoredObjectMetadata getMetadata(AssetEntity asset);
 
+    default StoredObjectMetadata getMetadata(String bucket, String objectKey) {
+        throw new UnsupportedOperationException("Object metadata reads are not supported by this storage provider");
+    }
+
     record StorageUploadRequest(
             UUID workspaceId,
             UUID projectId,

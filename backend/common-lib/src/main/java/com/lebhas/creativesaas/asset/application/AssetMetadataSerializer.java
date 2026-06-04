@@ -22,7 +22,7 @@ public class AssetMetadataSerializer {
     }
 
     public String serialize(Map<String, Object> metadata) {
-        Map<String, Object> normalized = metadata == null ? Map.of() : new LinkedHashMap<>(metadata);
+        Map<String, Object> normalized = compact(metadata);
         try {
             return normalized.isEmpty() ? null : objectMapper.writeValueAsString(normalized);
         } catch (Exception exception) {
@@ -35,9 +35,22 @@ public class AssetMetadataSerializer {
             return Map.of();
         }
         try {
-            return Map.copyOf(objectMapper.readValue(metadataJson, METADATA_TYPE));
+            return Map.copyOf(compact(objectMapper.readValue(metadataJson, METADATA_TYPE)));
         } catch (Exception exception) {
             throw new BusinessException(ErrorCode.ASSET_METADATA_INVALID, "Asset metadata could not be parsed");
         }
+    }
+
+    private Map<String, Object> compact(Map<String, Object> metadata) {
+        if (metadata == null || metadata.isEmpty()) {
+            return Map.of();
+        }
+        Map<String, Object> normalized = new LinkedHashMap<>();
+        metadata.forEach((key, value) -> {
+            if (key != null && value != null) {
+                normalized.put(key, value);
+            }
+        });
+        return normalized;
     }
 }

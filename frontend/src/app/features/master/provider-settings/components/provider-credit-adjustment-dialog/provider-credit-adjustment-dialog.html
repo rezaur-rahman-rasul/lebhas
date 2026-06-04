@@ -1,0 +1,9 @@
+<app-dialog [open]="open()" title="Adjust provider credits" [description]="providerName()" (closed)="close()">
+  <form class="panel-form" [formGroup]="form" (ngSubmit)="submit()">
+    <label><span>Adjustment type</span><select formControlName="adjustmentType"><option value="ADD">Add provider balance</option><option value="REDUCE">Reduce provider balance</option><option value="RECONCILE">Reconcile balance</option></select></label>
+    <label><span>Amount</span><input type="number" min="0.0001" step="0.01" formControlName="amount" /></label>
+    <label><span>Reason</span><textarea rows="3" formControlName="reason"></textarea>@if (form.controls.reason.touched && form.controls.reason.invalid) {<small role="alert">Reason is required.</small>}</label>
+    <label><span>Reference note optional</span><input type="text" formControlName="note" /></label>
+    <div class="actions"><app-button type="button" variant="secondary" (click)="close()">Cancel</app-button><app-button type="submit" [loading]="adjusting()">Submit adjustment</app-button></div>
+  </form>
+</app-dialog>

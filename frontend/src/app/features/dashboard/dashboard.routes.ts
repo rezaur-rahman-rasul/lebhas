@@ -11,6 +11,8 @@ import { AI_MONITORING_ROUTES } from '../ai-monitoring/ai-monitoring.routes';
 import { AUDIT_ROUTES } from '../audit/audit.routes';
 import { BrandStore } from '../brands/brand.store';
 import { MONITORING_ROUTES } from '../monitoring/monitoring.routes';
+import { MASTER_PROVIDER_SETTINGS_ROUTES } from '../master/provider-settings/provider-settings.routes';
+import { CREDIT_ROUTES } from '../credits/credits.routes';
 import { PAYMENT_ROUTES } from '../payments/payment.routes';
 import { NOTIFICATION_ROUTES } from '../notifications/notification.routes';
 import { ProductServiceStore } from '../product-services/product-service.store';
@@ -176,8 +178,10 @@ export const DASHBOARD_ROUTES: Routes = [
     loadComponent: () =>
       import('../approvals/pages/approval-queue/approval-queue').then((m) => m.ApprovalQueuePage),
   },
+  ...MASTER_PROVIDER_SETTINGS_ROUTES,
   ...AI_MONITORING_ROUTES,
   ...USAGE_BILLING_ROUTES,
+  ...CREDIT_ROUTES,
   ...PAYMENT_ROUTES,
   ...NOTIFICATION_ROUTES,
   ...PROFILE_ROUTES,
@@ -190,3 +194,4 @@ export const DASHBOARD_ROUTES: Routes = [
     redirectTo: 'dashboard',
   },
 ];
+

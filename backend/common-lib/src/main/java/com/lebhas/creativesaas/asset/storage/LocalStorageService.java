@@ -109,7 +109,12 @@ public class LocalStorageService implements StorageService, LocalAssetContentAcc
 
     @Override
     public StoredObjectMetadata getMetadata(AssetEntity asset) {
-        Path targetFile = resolvePath(asset);
+        return getMetadata(asset.getStorageBucket(), asset.getStorageKey());
+    }
+
+    @Override
+    public StoredObjectMetadata getMetadata(String bucket, String objectKey) {
+        Path targetFile = resolvePath(objectKey);
         try {
             if (!Files.exists(targetFile)) {
                 throw new BusinessException(ErrorCode.ASSET_NOT_FOUND);
@@ -137,8 +142,12 @@ public class LocalStorageService implements StorageService, LocalAssetContentAcc
     }
 
     private Path resolvePath(AssetEntity asset) {
+        return resolvePath(asset.getStorageKey());
+    }
+
+    private Path resolvePath(String storageKey) {
         Path root = storageProperties.getLocal().getRootPath().toAbsolutePath().normalize();
-        Path targetFile = root.resolve(asset.getStorageKey()).normalize();
+        Path targetFile = root.resolve(storageKey).normalize();
         if (!targetFile.startsWith(root)) {
             throw new BusinessException(ErrorCode.ASSET_STORAGE_FAILURE, "Resolved storage path is outside the configured root");
         }

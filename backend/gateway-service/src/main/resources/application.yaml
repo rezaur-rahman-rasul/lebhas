@@ -5,6 +5,9 @@ spring:
     active: ${SPRING_PROFILES_ACTIVE:local}
   config:
     import: optional:classpath:application-common.yaml
+  servlet:
+    multipart:
+      enabled: false
 
 server:
   port: ${SERVER_PORT:8080}
@@ -12,7 +15,7 @@ server:
 platform:
   gateway:
     connect-timeout: ${GATEWAY_CONNECT_TIMEOUT:5s}
-    read-timeout: ${GATEWAY_READ_TIMEOUT:30s}
+    read-timeout: ${GATEWAY_READ_TIMEOUT:90s}
     services:
       auth: ${AUTH_SERVICE_BASE_URL:http://localhost:8081}
       workspace: ${WORKSPACE_SERVICE_BASE_URL:http://localhost:8083}

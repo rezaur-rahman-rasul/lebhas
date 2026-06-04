@@ -65,6 +65,7 @@
                     <span>
                       <strong>{{ provider.displayName }}</strong>
                       <small>{{ provider.providerType }} · {{ providerMode(provider) }}</small>
+                      <small>OpenAI account balance: {{ providerAvailableCreditLabel(provider) }}</small>
                     </span>
                     <span class="ai-provider-status-stack">
                       <app-status-badge [tone]="providerTone(provider)">
@@ -123,6 +124,10 @@
                   <span>Environment</span>
                   <strong>{{ provider.activeEnvironment }}</strong>
                 </div>
+                <div>
+                  <span>OpenAI account balance</span>
+                  <strong>{{ providerAvailableCreditLabel(provider) }}</strong>
+                </div>
                 @if (isCredentialConfigured(provider) && credentialUpdatedAt(provider); as updatedAt) {
                   <div>
                     <span>Last updated</span>
@@ -165,6 +170,12 @@
               <label>
                 <span>Webhook URL</span>
                 <input type="url" formControlName="webhookUrl" placeholder="Optional webhook or callback URL" />
+              </label>
+
+              <label>
+                <span>OpenAI account balance</span>
+                <input type="number" formControlName="availableCreditBalance" min="0" step="0.0001" placeholder="Example: 5.00" />
+                <small>Enter the USD credit balance from the OpenAI Platform dashboard.</small>
               </label>
 
               <label class="ai-toggle">

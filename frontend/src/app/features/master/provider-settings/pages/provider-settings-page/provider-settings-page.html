@@ -1,0 +1,92 @@
+<app-page-header eyebrow="AI OPERATIONS" title="Provider Settings" description="Configure AI providers and secure server-side credentials used by Lebhas creative tools.">
+  <app-button type="button" icon="plus" (click)="openProvider()">Create provider</app-button>
+</app-page-header>
+
+@if (store.error()) {
+  <app-error-state title="Provider settings could not load" [description]="store.error()!">
+    <app-button type="button" variant="secondary" (click)="store.loadProviders()">Retry</app-button>
+  </app-error-state>
+} @else {
+  <section class="settings-grid">
+    <div class="provider-list">
+      @if (store.loading() && !store.providers().length) {
+        @for (item of [1,2,3]; track item) {<div class="skeleton"></div>}
+      } @else {
+        @for (provider of store.providers(); track provider.id) {
+          <app-provider-card [provider]="provider" [selected]="selectedProvider()?.id === provider.id" (selectProvider)="selectProvider($event)" (configureCredentials)="configure($event)" (editProvider)="openProvider($event)" (toggleProvider)="toggle($event)" (deleteProvider)="deleteProvider($event)" (testProvider)="test($event)" (viewCreditPool)="viewPool($event)" (exchangePolicy)="viewPolicy($event)" />
+        } @empty {
+          <div class="empty"><h2>No providers configured yet.</h2><p>Create the first AI provider and store its API key securely on the backend.</p><app-button type="button" (click)="openProvider()">Create provider</app-button></div>
+        }
+      }
+    </div>
+
+    <aside class="credential-panel">
+      <div class="credential-panel__head">
+        <div>
+          <span class="panel-kicker">Secure credentials</span>
+          <h2>Credential management</h2>
+          <p>Saved provider keys are encrypted server-side and displayed only as masked metadata.</p>
+        </div>
+        @if (selectedProvider(); as provider) {
+          <app-button type="button" size="sm" (click)="configure(provider)">{{ provider.maskedApiKey ? 'Rotate key' : 'Add key' }}</app-button>
+        }
+      </div>
+
+      @if (selectedProvider(); as provider) {
+        <div class="selected-provider-card">
+          <span>Selected provider</span>
+          <strong>{{ provider.displayName || provider.providerName || provider.providerCode }}</strong>
+          <small>{{ provider.providerCode }} - {{ provider.active ? 'Enabled' : 'Disabled' }}</small>
+        </div>
+      }
+
+      <div class="credential-list">
+        @for (credential of selectedProviderCredentials(); track credential.id) {
+          <app-masked-secret-field [credential]="credential" (rotate)="rotate($event)" (deactivate)="deactivate($event)" />
+        } @empty {
+          @if (selectedProvider(); as provider) {
+            <div class="credential-empty">
+              <strong>No API key saved</strong>
+              <p>Add a provider key to enable routing and connection tests for {{ provider.displayName || provider.providerName || provider.providerCode }}.</p>
+              <app-button type="button" size="sm" (click)="configure(provider)">Add provider key</app-button>
+            </div>
+          } @else {
+            <div class="credential-empty"><strong>No provider selected</strong><p>Select or create a provider before adding credentials.</p></div>
+          }
+        }
+      </div>
+    </aside>
+  </section>
+}
+
+<app-dialog [open]="providerDialogOpen()" title="Provider" (closed)="providerDialogOpen.set(false)">
+  <form class="provider-form" [formGroup]="providerForm" (ngSubmit)="saveProvider()">
+    <label>
+      <span>Provider code</span>
+      <input formControlName="providerCode" [readonly]="editingProvider() !== null" />
+      @if (editingProvider()) {<small>Provider code is fixed after creation.</small>}
+    </label>
+    <label><span>Provider name</span><input formControlName="providerName" /></label>
+    <label>
+      <span>{{ editingProvider() ? 'New API key (optional)' : 'API key' }}</span>
+      <input type="password" formControlName="apiKey" autocomplete="new-password" placeholder="Paste key only to create or rotate" />
+      @if (providerForm.controls.apiKey.touched && providerForm.controls.apiKey.invalid) {<small>API key is required when creating a provider.</small>}
+    </label>
+    @if (editingProvider()?.maskedApiKey) {<div class="masked-note">Saved key: {{ editingProvider()?.maskedApiKey }}</div>}
+    <label><span>Default model</span><input formControlName="defaultModel" /></label>
+    <label><span>Priority</span><input type="number" formControlName="priority" /></label>
+    <label><span>Rate limit per minute</span><input type="number" formControlName="rateLimitPerMinute" /></label>
+    <label><span>Cost multiplier</span><input type="number" step="0.0001" formControlName="costMultiplier" /></label>
+    <label><span>Metadata JSON</span><textarea formControlName="metadataJson" placeholder="{ }"></textarea>@if (providerForm.controls.metadataJson.touched && providerForm.controls.metadataJson.invalid) {<small>Metadata must be valid JSON.</small>}</label>
+    <label class="check"><input type="checkbox" formControlName="supportsImage" />Image</label>
+    <label class="check"><input type="checkbox" formControlName="supportsText" />Text</label>
+    <label class="check"><input type="checkbox" formControlName="supportsVideo" />Video</label>
+    <label class="check"><input type="checkbox" formControlName="supportsVoice" />Audio</label>
+    <label class="check"><input type="checkbox" formControlName="active" />Active</label>
+    <div class="dialog-actions"><app-button type="button" variant="secondary" (click)="providerDialogOpen.set(false)">Cancel</app-button><app-button type="submit" [loading]="store.saving()">Save</app-button></div>
+  </form>
+</app-dialog>
+
+<app-dialog [open]="credentialDialogOpen()" title="Secure provider credential" (closed)="credentialDialogOpen.set(false)">
+  <app-provider-credential-form [credential]="editingCredential()" [saving]="store.saving()" (saved)="saveCredential($event)" (closed)="credentialDialogOpen.set(false)" />
+</app-dialog>

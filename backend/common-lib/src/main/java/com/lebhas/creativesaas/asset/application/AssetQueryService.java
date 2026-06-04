@@ -223,10 +223,7 @@ public class AssetQueryService {
         if (asset.getStatus() == AssetStatus.GENERATED_METADATA_ONLY || asset.getStatus() == AssetStatus.DELETED) {
             return false;
         }
-        return asset.getStatus() == AssetStatus.AVAILABLE
-                || asset.getStatus() == AssetStatus.READY
-                || asset.getStatus() == AssetStatus.FAILED
-                || isStaleUpload(asset);
+        return isStaleUpload(asset);
     }
 
     private boolean isStaleUpload(AssetEntity asset) {

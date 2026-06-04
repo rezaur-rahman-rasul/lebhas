@@ -149,3 +149,17 @@ Service-specific `application.yaml` files import `classpath:application-common.y
 - `production`
 
 Production secrets are resolved from environment variables or Kubernetes Secrets; no production credential defaults are embedded.
+
+## Provider Credit Exchange
+
+Lebhas uses internal workspace credits rather than exposing provider billing balances to Admin users.
+
+- Master configures provider credentials from `/api/v1/master/ai-providers` or `/api/v1/master/providers`; credential responses return masked keys only.
+- Master sets provider capacity manually through `/api/v1/master/providers/{providerId}/credit-pool`.
+- Master configures provider-to-Lebhas exchange and free signup policy through `/api/v1/master/providers/{providerId}/exchange-policy`.
+- The default migration stores a `2%` free signup policy for AI providers as database configuration; application code does not hardcode the percentage.
+- New owner Admin workspace registration creates a zero-balance wallet, calculates free credits from the active policy and provider pool, grants once, and writes workspace/provider ledger records.
+- Generation credit flow reserves workspace credits first and reserves provider pool credits when a provider pool is configured; success finalizes usage and failure releases reservations.
+- Admin users can view only their internal workspace credits. Provider pool, exchange policy, provider ledger, and provider raw capacity remain Master-only.
+
+OpenAI dashboard credit balance is not fetched directly. The provider credit pool is Master-managed accounting that can be reconciled manually with OpenAI or any future provider adapter that safely exposes billing data server-side.

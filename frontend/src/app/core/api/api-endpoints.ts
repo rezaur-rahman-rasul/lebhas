@@ -62,6 +62,8 @@ export const ApiEndpoints = {
       `${API_PREFIX}/workspaces/${path(workspaceId)}/projects/${path(projectId)}`,
   },
   assets: {
+    upload: (workspaceId: string) =>
+      `${API_PREFIX}/workspaces/${path(workspaceId)}/assets/upload`,
     uploadUrl: (workspaceId: string) =>
       `${API_PREFIX}/workspaces/${path(workspaceId)}/assets/upload-url`,
     confirm: (workspaceId: string) => `${API_PREFIX}/workspaces/${path(workspaceId)}/assets/confirm-upload`,

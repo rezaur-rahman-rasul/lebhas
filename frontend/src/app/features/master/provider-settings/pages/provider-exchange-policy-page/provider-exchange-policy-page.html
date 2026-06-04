@@ -1,0 +1,14 @@
+<app-page-header eyebrow="MONETIZATION" title="Exchange Policies" description="Define how provider capacity becomes Lebhas internal credits and free signup credit.">
+  <select class="provider-select" [value]="providers.selectedProvider()?.id ?? ''" (change)="selectProvider($any($event.target).value)">
+    @for (provider of providers.providerOptions(); track provider.id) {<option [value]="provider.id">{{ provider.label }}</option>}
+  </select>
+</app-page-header>
+
+@if (policies.error()) {
+  <app-error-state title="Exchange policy could not load" [description]="policies.error()!"><app-button type="button" variant="secondary" (click)="providers.selectedProvider()?.id && policies.loadPolicy(providers.selectedProvider()!.id)">Retry</app-button></app-error-state>
+} @else if (providers.selectedProvider(); as provider) {
+  <section class="policy-grid">
+    <app-exchange-policy-form [providerId]="provider.id" [policy]="policies.selectedPolicy()" [saving]="policies.saving()" (saved)="policies.savePolicy(provider.id, $event)" />
+    <app-free-credit-preview-card [preview]="policies.freeCreditPreview()" />
+  </section>
+} @else {<div class="empty">No exchange policy configured yet.</div>}

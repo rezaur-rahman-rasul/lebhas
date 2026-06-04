@@ -29,11 +29,10 @@
           <p>Select context</p>
           <h2>Generation form</h2>
         </div>
-        <app-badge tone="brand">Cost: {{ creditCost() }} credits</app-badge>
       </div>
 
-      <form [formGroup]="generationForm" (ngSubmit)="onSubmit()">
-        <section class="generator-section">
+      <form class="generator-form" [formGroup]="generationForm" (ngSubmit)="onSubmit()">
+        <section class="generator-section generator-section--context">
           <label>
             <span>Brand</span>
             <select class="generator-select" [value]="selectedBrandId()" (change)="selectBrand($any($event.target).value)">
@@ -73,33 +72,35 @@
           }
         </section>
 
-        <section class="generator-section">
-          <div class="generator-field">
-            <span>Platform</span>
-            <div class="segmented-grid">
-              @for (platform of platformOptions; track platform.value) {
-                <button
-                  type="button"
-                  class="choice-pill"
-                  [class.is-active]="generationForm.controls.platform.value === platform.value"
-                  (click)="selectPlatform(platform.value)"
-                >
-                  {{ platform.label }}
-                </button>
-              }
+        <section class="generator-section generator-section--settings">
+          <div class="generator-two-column">
+            <div class="generator-field">
+              <span>Platform</span>
+              <div class="segmented-grid">
+                @for (platform of platformOptions; track platform.value) {
+                  <button
+                    type="button"
+                    class="choice-pill"
+                    [class.is-active]="generationForm.controls.platform.value === platform.value"
+                    (click)="selectPlatform(platform.value)"
+                  >
+                    {{ platform.label }}
+                  </button>
+                }
+              </div>
             </div>
+
+            <label>
+              <span>Language</span>
+              <select class="generator-select" formControlName="language">
+                @for (language of allowedLanguageOptions(); track language.value) {
+                  <option [value]="language.value">{{ language.label === 'Mixed' ? 'Bangla + English' : language.label }}</option>
+                }
+              </select>
+            </label>
           </div>
 
-          <label>
-            <span>Language</span>
-            <select class="generator-select" formControlName="language">
-              @for (language of allowedLanguageOptions(); track language.value) {
-                <option [value]="language.value">{{ language.label === 'Mixed' ? 'Bangla + English' : language.label }}</option>
-              }
-            </select>
-          </label>
-
-          <div class="generator-field">
+          <div class="generator-field generator-field--full">
             <span>Creative Type</span>
             <div class="preset-list">
               @for (preset of creativePresets; track preset.label) {
@@ -119,26 +120,27 @@
             }
           </div>
 
-          <div class="generator-field">
-            <span>Tone</span>
-            <div class="segmented-grid">
-              @for (tone of tones; track tone) {
-                <button type="button" class="choice-pill" [class.is-active]="selectedTone() === tone" (click)="selectedTone.set(tone)">
-                  {{ tone }}
-                </button>
-              }
+          <div class="generator-two-column">
+            <div class="generator-field">
+              <span>Tone</span>
+              <div class="segmented-grid">
+                @for (tone of tones; track tone) {
+                  <button type="button" class="choice-pill" [class.is-active]="selectedTone() === tone" (click)="selectedTone.set(tone)">
+                    {{ tone }}
+                  </button>
+                }
+              </div>
             </div>
-          </div>
 
-          <div class="generator-field">
-            <span>Model Quality</span>
-            <div class="quality-grid">
-              @for (quality of qualities; track quality) {
-                <button type="button" class="quality-card" [class.is-active]="selectedQuality() === quality" (click)="selectedQuality.set(quality)">
-                  <strong>{{ quality }}</strong>
-                  <small>{{ quality === 'Premium' ? '18+ credits' : '8+ credits' }}</small>
-                </button>
-              }
+            <div class="generator-field">
+              <span>Model Quality</span>
+              <div class="quality-grid">
+                @for (quality of qualities; track quality) {
+                  <button type="button" class="quality-card" [class.is-active]="selectedQuality() === quality" (click)="selectQuality(quality)">
+                    <strong>{{ quality }}</strong>
+                  </button>
+                }
+              </div>
             </div>
           </div>
         </section>
@@ -147,19 +149,15 @@
           <div class="generator-field">
             <div class="product-image-heading">
               <span>Product Image</span>
-              <div class="product-image-actions">
-                <label for="generatorAssetUpload" class="image-action-button">
-                  <app-icon name="upload-cloud" [size]="15" />
-                  Upload New Image
-                </label>
+            </div>
+
+            <div class="asset-dropzone" [class.has-selection]="!!selectedAsset()">
+              <div class="product-image-actions asset-dropzone-actions">
                 <button type="button" class="image-action-button secondary" (click)="openAssetPicker()">
                   <app-icon name="images" [size]="15" />
                   Select Existing
                 </button>
               </div>
-            </div>
-
-            <div class="asset-dropzone" [class.has-selection]="!!selectedAsset()">
               @if (selectedAsset(); as asset) {
                 <div class="selected-asset">
                   @if (selectedProductImagePreviewUrl(); as previewUrl) {
@@ -180,11 +178,11 @@
                   <button type="button" class="asset-text-action" (click)="removeSelectedProductImage()">Remove Image</button>
                 </div>
               } @else {
-                <div class="dropzone-empty">
+                <label for="generatorAssetUpload" class="dropzone-empty dropzone-upload-trigger">
                   <app-icon name="upload-cloud" [size]="24" />
                   <strong>Upload Product Image</strong>
                   <span>Upload a product image or select one from your asset library.</span>
-                </div>
+                </label>
               }
               <input id="generatorAssetUpload" type="file" accept="image/jpeg,image/png,image/webp" (change)="onAssetFileSelected($event)" />
               @if (uploadInProgress()) {
@@ -208,12 +206,12 @@
           </div>
         </section>
 
-        <section class="generator-section">
+        <section class="generator-section generator-section--prompt">
           <label>
             <span>Campaign Idea / Prompt</span>
             <textarea
               formControlName="sourcePrompt"
-              rows="6"
+              rows="4"
               placeholder="Describe the campaign idea in Bangla, English, or both. Example: Create a premium Eid collection ad with a clear shop-now offer."
             ></textarea>
           </label>
@@ -235,43 +233,49 @@
           </label>
         </section>
 
-        <section class="generator-section readiness-checklist">
-          <div class="readiness-header">
-            <span>Generation Readiness</span>
-            <app-badge [tone]="store.campaignReadiness()?.ready ? 'brand' : 'neutral'">
-              {{ store.campaignReadiness()?.ready ? 'Ready' : 'Needs setup' }}
-            </app-badge>
-          </div>
-          <div class="readiness-grid">
-            @for (item of readinessChecklist(); track item.label) {
-              <div class="readiness-item" [class.is-ready]="item.ready">
-                <app-icon [name]="item.ready ? 'check-circle-2' : 'circle-alert'" [size]="15" />
-                <span>{{ item.label }}</span>
+        <section class="generator-submit-panel">
+          <div class="readiness-checklist">
+            <div class="readiness-header">
+              <span>Generation Readiness</span>
+              <app-badge [tone]="store.campaignReadiness()?.ready ? 'brand' : 'neutral'">
+                {{ store.campaignReadiness()?.ready ? 'Ready' : 'Needs setup' }}
+              </app-badge>
+            </div>
+            <div class="readiness-grid">
+              @for (item of readinessChecklist(); track item.label) {
+                <div class="readiness-item" [class.is-ready]="item.ready">
+                  <app-icon [name]="item.ready ? 'check-circle-2' : 'circle-alert'" [size]="15" />
+                  <span>{{ item.label }}</span>
+                </div>
+              }
+            </div>
+            @if (store.campaignReadiness()?.messages?.length) {
+              <div class="readiness-messages">
+                @for (message of store.campaignReadiness()?.messages ?? []; track message) {
+                  <p>{{ message }}</p>
+                }
               </div>
             }
           </div>
-          @if (store.campaignReadiness()?.messages?.length) {
-            <div class="readiness-messages">
-              @for (message of store.campaignReadiness()?.messages ?? []; track message) {
-                <p>{{ message }}</p>
-              }
-            </div>
+          <app-credit-usage-preview-card [preview]="generationCreditPreview()" />
+
+          @if (!hasSufficientCredits()) {
+            <app-insufficient-credit-card (buyCredits)="buyCredits()" (reduceVersions)="reduceGeneratedVersions()" />
           }
+          @if (submitDisabledReason(); as reason) {
+            <p class="dependency-note">{{ reason }}</p>
+          }
+
+          <button type="submit" class="generate-button" [disabled]="!canSubmitCampaignCreative()">
+            @if (store.generationLoading()) {
+              <app-icon name="loader-circle" [size]="18" />
+              <span>Generating...</span>
+            } @else {
+              <app-icon name="sparkles" [size]="18" />
+              <span>Generate Creative</span>
+            }
+          </button>
         </section>
-
-        @if (submitDisabledReason(); as reason) {
-          <p class="dependency-note">{{ reason }}</p>
-        }
-
-        <button type="submit" class="generate-button" [disabled]="!canSubmitCampaignCreative()">
-          @if (store.generationLoading()) {
-            <app-icon name="loader-circle" [size]="18" />
-            <span>Generating...</span>
-          } @else {
-            <app-icon name="sparkles" [size]="18" />
-            <span>Generate Creative</span>
-          }
-        </button>
       </form>
     </aside>
 
@@ -362,6 +366,37 @@
           <p class="panel-muted">Generated variations will appear here after the job completes.</p>
         }
       </div>
+
+      <section class="preview-guidance-panel">
+        <div class="hierarchy-section-head">
+          <div>
+            <p>Generation flow</p>
+            <h2>Use the setup space</h2>
+          </div>
+        </div>
+        <div class="preview-guidance-grid">
+          <article>
+            <span>1</span>
+            <strong>Context</strong>
+            <small>{{ selectedBrand()?.name || 'Select brand' }} · {{ selectedProduct()?.name || 'product' }}</small>
+          </article>
+          <article>
+            <span>2</span>
+            <strong>Image</strong>
+            <small>{{ selectedAsset() ? selectedAsset()!.originalFileName : 'Upload or select product image' }}</small>
+          </article>
+          <article>
+            <span>3</span>
+            <strong>Prompt</strong>
+            <small>{{ promptLength() > 0 ? promptLength() + ' characters added' : 'Add campaign idea' }}</small>
+          </article>
+          <article>
+            <span>4</span>
+            <strong>Generate</strong>
+            <small>{{ store.campaignReadiness()?.ready ? 'Ready to generate' : 'Complete setup checklist' }}</small>
+          </article>
+        </div>
+      </section>
     </main>
 
     <aside class="right-stack">
@@ -508,3 +543,6 @@
   (previewRequested)="previewOutput($event)"
   (downloadRequested)="downloadOutput($event)"
 />
+
+
+

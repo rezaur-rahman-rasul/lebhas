@@ -7,6 +7,7 @@ import org.springframework.context.annotation.Configuration;
 import software.amazon.awssdk.auth.credentials.AwsBasicCredentials;
 import software.amazon.awssdk.auth.credentials.DefaultCredentialsProvider;
 import software.amazon.awssdk.auth.credentials.StaticCredentialsProvider;
+import software.amazon.awssdk.core.client.config.ClientOverrideConfiguration;
 import software.amazon.awssdk.regions.Region;
 import software.amazon.awssdk.services.s3.S3Client;
 import software.amazon.awssdk.services.s3.S3Configuration;
@@ -23,6 +24,10 @@ public class R2StorageConfig {
     S3Client r2S3Client(R2StorageProperties properties) {
         var builder = S3Client.builder()
                 .region(Region.of(properties.getRegion()))
+                .overrideConfiguration(ClientOverrideConfiguration.builder()
+                        .apiCallTimeout(properties.getApiCallTimeout())
+                        .apiCallAttemptTimeout(properties.getApiCallAttemptTimeout())
+                        .build())
                 .serviceConfiguration(S3Configuration.builder()
                         .pathStyleAccessEnabled(properties.isPathStyleAccessEnabled())
                         .build());

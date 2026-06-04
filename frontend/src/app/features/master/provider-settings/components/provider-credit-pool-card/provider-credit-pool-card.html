@@ -1,0 +1,7 @@
+<article class="pool-card">
+  <div><span>Provider balance</span><strong>{{ pool().providerBalanceAmount | number: '1.0-2' }} {{ pool().currency }}</strong></div>
+  <div><span>Internal equivalent</span><strong>{{ pool().internalCreditEquivalent | number }}</strong></div>
+  <div><span>Reserved</span><strong>{{ pool().reservedInternalCredits | number }}</strong></div>
+  <div><span>Used</span><strong>{{ pool().usedInternalCredits | number }}</strong></div>
+  <div><span>Available</span><strong>{{ pool().availableInternalCredits | number }}</strong></div>
+</article>

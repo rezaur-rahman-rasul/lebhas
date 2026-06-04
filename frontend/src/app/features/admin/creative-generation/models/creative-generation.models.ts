@@ -143,6 +143,14 @@ export interface ProductImageCreativeReadiness {
   readonly readinessMessages: readonly ProductImageCreativeReadinessMessage[];
 }
 
+export interface ImageCreativeCostPreview {
+  readonly toolCode: string;
+  readonly qualityMode: ImageCreativeQualityMode;
+  readonly requestedVersionCount: number;
+  readonly unitCreditCost: number;
+  readonly totalCreditCost: number;
+}
+
 export interface ProductImageCreativeReadinessMessage {
   readonly code: string;
   readonly message: string;

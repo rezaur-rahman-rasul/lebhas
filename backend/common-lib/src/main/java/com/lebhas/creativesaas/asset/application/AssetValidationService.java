@@ -77,7 +77,9 @@ public class AssetValidationService {
     public UploadValidationContext validateUpload(UploadAssetCommand command) {
         WorkspaceAuthorizationService.WorkspaceAccess access = workspaceAuthorizationService
                 .requirePermission(command.workspaceId(), Permission.ASSET_UPLOAD);
-        CampaignContext campaignContext = validateProjectContext(command.workspaceId(), command.projectId());
+        CampaignContext campaignContext = command.projectId() == null
+                ? new CampaignContext(null, null, null)
+                : validateProjectContext(command.workspaceId(), command.projectId());
         validateUploadCount(command.workspaceId());
         StorageMetadataExtractor.ExtractedMetadata metadata = extractMetadata(command, access.currentUser().userId());
         AssetType assetType = resolveUploadAssetType(command.assetType(), command.assetCategory(), metadata.fileType());

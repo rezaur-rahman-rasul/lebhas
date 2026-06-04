@@ -97,16 +97,6 @@ public class AssetUploadService {
         AssetEntity asset = null;
         PlanAwareAssetQuotaValidationService.UploadQuotaGuard uploadQuotaGuard = null;
         try {
-            AssetView existingDuplicate = findExistingDuplicate(command.workspaceId(), command.projectId(), metadata.sha256());
-            if (existingDuplicate != null) {
-                assetActivityLogger.logDuplicateUploadAttempt(
-                        command.workspaceId(),
-                        validation.access().currentUser().userId(),
-                        metadata.sha256(),
-                        existingDuplicate.id());
-                return existingDuplicate;
-            }
-
             uploadSession = uploadSessionService.createSession(
                     command.workspaceId(),
                     validation.campaignContext().brandId(),
@@ -122,15 +112,13 @@ public class AssetUploadService {
             asset = createUploadingAsset(command, validation, uploadSession.getId());
             uploadSession = uploadSessionService.attachAsset(uploadSession, asset.getId());
             previewStateService.markPending(asset.getId());
-            logUploadStarted(command, validation, uploadSession.getId(), asset.getId());
-
-            StorageFileEntity duplicateStorage = storageFileService.findDuplicateByHash(command.workspaceId(), metadata.sha256())
-                    .orElse(null);
-            if (duplicateStorage != null) {
-                AssetView duplicateStorageView = completeWithDuplicateStorage(asset, validation, uploadSession, duplicateStorage);
-                uploadDeduplicationService.rememberDuplicate(metadata.sha256(), asset.getId(), command.workspaceId(), command.projectId());
-                return duplicateStorageView;
-            }
+            assetActivityLogger.logUploadStarted(
+                    command.workspaceId(),
+                    asset.getId(),
+                    validation.access().currentUser().userId(),
+                    uploadSession.getId(),
+                    validation.assetCategory(),
+                    validation.assetType());
 
             uploadQuotaGuard = planAwareAssetQuotaValidationService.acquireUploadQuotaGuard(
                     command.workspaceId(),
@@ -138,11 +126,13 @@ public class AssetUploadService {
                     command.projectId(),
                     validation.assetType(),
                     metadata.fileSize());
-            String objectKey = storagePathBuilder.buildAssetPath(
-                    command.workspaceId(),
-                    command.projectId(),
-                    asset.getId(),
-                    metadata.sanitizedFileName());
+            String objectKey = command.projectId() == null
+                    ? storagePathBuilder.buildWorkspaceAssetPath(command.workspaceId(), asset.getId(), metadata.sanitizedFileName())
+                    : storagePathBuilder.buildAssetPath(
+                            command.workspaceId(),
+                            command.projectId(),
+                            asset.getId(),
+                            metadata.sanitizedFileName());
             RedisLockService.RedisLockToken storageLock = acquireStorageLock(objectKey);
             StorageService.StoredObject storedObject;
             try {
@@ -187,19 +177,14 @@ public class AssetUploadService {
             asset = assetRepository.save(asset);
             uploadSession = uploadSessionService.markSingleChunkUploaded(uploadSession);
             uploadSession = uploadSessionService.markCompleted(uploadSession);
-            previewStateService.markProcessing(asset.getId());
-            publishPreviewStarted(asset);
             previewStateService.markReady(asset.getId(), true);
             assetActivityLogger.logPreviewState(command.workspaceId(), asset.getId(), "READY");
-            publishPreviewCompleted(asset);
             StorageUsageEntity usage = assetStorageUsageService.recordUpload(
                     asset,
                     metadata.fileSize(),
                     uploadQuotaGuard == null ? null : uploadQuotaGuard.policy().maxStorageBytes(),
                     "ASSET_UPLOAD_COMPLETED");
             AssetView uploadedView = persistAndCache(asset, validation.access().currentUser().userId());
-            publishUploadCompleted(asset, command.projectId(), uploadSession.getId(), validation.assetType(), usage, uploadQuotaGuard == null ? null : uploadQuotaGuard.policy());
-            publishProcessRequested(asset);
             uploadDeduplicationService.rememberDuplicate(metadata.sha256(), asset.getId(), command.workspaceId(), command.projectId());
             return uploadedView;
         } catch (RuntimeException exception) {
@@ -307,11 +292,14 @@ public class AssetUploadService {
         if (rememberedAssetId != null) {
             AssetEntity remembered = assetRepository.findByIdAndWorkspaceIdAndDeletedFalse(rememberedAssetId, workspaceId).orElse(null);
             if (remembered != null && Objects.equals(remembered.getProjectId(), projectId) && remembered.isReady()) {
-                return assetMapper.toAssetView(remembered);
+                return assetStorageObjectExists(remembered) ? assetMapper.toAssetView(remembered) : null;
             }
         }
         StorageFileEntity duplicateStorage = storageFileService.findDuplicateByHash(workspaceId, sha256).orElse(null);
         if (duplicateStorage == null) {
+            return null;
+        }
+        if (!storageObjectExists(duplicateStorage)) {
             return null;
         }
         AssetEntity duplicateAsset = assetRepository.findFirstByWorkspaceIdAndProjectIdAndStorageFileIdAndDeletedFalse(
@@ -323,6 +311,34 @@ public class AssetUploadService {
             return null;
         }
         return assetMapper.toAssetView(duplicateAsset);
+    }
+
+    private boolean storageObjectExists(StorageFileEntity storageFile) {
+        if (storageFile == null
+                || storageFile.getObjectKey() == null
+                || storageFile.getObjectKey().isBlank()) {
+            return false;
+        }
+        try {
+            storageService.getMetadata(storageFile.getBucket(), storageFile.getObjectKey());
+            return true;
+        } catch (RuntimeException exception) {
+            return false;
+        }
+    }
+
+    private boolean assetStorageObjectExists(AssetEntity asset) {
+        if (asset == null
+                || asset.getStorageKey() == null
+                || asset.getStorageKey().isBlank()) {
+            return false;
+        }
+        try {
+            storageService.getMetadata(asset);
+            return true;
+        } catch (RuntimeException exception) {
+            return false;
+        }
     }
 
     private AssetView persistAndCache(AssetEntity asset, UUID actorUserId) {

@@ -168,6 +168,17 @@ public final class KafkaTopicConstants {
     public static final String WORKSPACE_SUBSCRIPTION_ASSIGNED = "workspace.subscription.assigned";
     public static final String CREDITS_ADJUSTED = "credits.adjusted";
     public static final String CREDIT_LEDGER_CREATED = "credit.ledger.created";
+    public static final String PROVIDER_CREDENTIAL_CONFIGURED = "provider.credential.configured";
+    public static final String PROVIDER_CREDIT_POOL_UPDATED = "provider.credit_pool.updated";
+    public static final String PROVIDER_EXCHANGE_POLICY_UPDATED = "provider.exchange_policy.updated";
+    public static final String WORKSPACE_FREE_CREDIT_GRANTED = "workspace.free_credit.granted";
+    public static final String WORKSPACE_CREDIT_RESERVED = "workspace.credit.reserved";
+    public static final String WORKSPACE_CREDIT_FINALIZED = "workspace.credit.finalized";
+    public static final String WORKSPACE_CREDIT_REFUNDED = "workspace.credit.refunded";
+    public static final String PROVIDER_CREDIT_RESERVED = "provider.credit.reserved";
+    public static final String PROVIDER_CREDIT_USED = "provider.credit.used";
+    public static final String PROVIDER_CREDIT_RELEASED = "provider.credit.released";
+    public static final String WORKSPACE_CREDIT_LOW = "workspace.credit.low";
 
     private KafkaTopicConstants() {
     }

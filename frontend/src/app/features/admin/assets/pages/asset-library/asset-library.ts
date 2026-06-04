@@ -80,8 +80,22 @@ export class AssetLibraryPage {
         : 'brand',
   );
   protected readonly assetCountLabel = computed(
-    () => `${this.store.pagination().totalItems} asset${this.store.pagination().totalItems === 1 ? '' : 's'}`,
+    () => `${this.store.realAssets().length} asset${this.store.realAssets().length === 1 ? '' : 's'}`,
   );
+  protected readonly hasActiveFilters = computed(() => {
+    const filters = this.store.filters();
+    return Boolean(
+      filters.search.trim() ||
+        filters.assetCategory ||
+        filters.fileType ||
+        filters.status ||
+        filters.uploadedBy ||
+        filters.tag.trim() ||
+        filters.createdFrom ||
+        filters.createdTo ||
+        this.store.selectedFolder() !== 'all',
+    );
+  });
   protected readonly description = computed(
     () => 'Organize source files, logos, and campaign-ready media inside the current workspace.',
   );
@@ -140,7 +154,7 @@ export class AssetLibraryPage {
   protected async openPreview(asset: Asset): Promise<void> {
     this.store.selectAsset(asset);
     this.previewOpenSignal.set(true);
-    this.previewUrlSignal.set(asset.thumbnailUrl || asset.previewUrl || asset.publicUrl);
+    this.previewUrlSignal.set(getAssetPreviewUrl(asset));
 
     if (isPreviewableAsset(asset)) {
       await this.refreshPreview(asset);
@@ -159,6 +173,7 @@ export class AssetLibraryPage {
       const preview = await this.store.getPreviewUrl(asset.id);
       if (preview?.url) {
         this.previewUrlSignal.set(preview.url);
+        this.store.selectAsset({ ...asset, previewUrl: preview.url });
       }
     } finally {
       this.previewLoadingSignal.set(false);
@@ -231,4 +246,22 @@ export class AssetLibraryPage {
   protected reloadLibrary(): void {
     void this.store.loadLibraryContext();
   }
+}
+
+function getAssetPreviewUrl(asset: Asset): string | null {
+  return (
+    readUrl(asset, 'signedPreviewUrl') ||
+    asset.previewUrl ||
+    readUrl(asset, 'publicPreviewUrl') ||
+    asset.thumbnailUrl ||
+    asset.publicUrl ||
+    readUrl(asset, 'url') ||
+    readUrl(asset, 'downloadUrl') ||
+    null
+  );
+}
+
+function readUrl(asset: Asset, key: string): string | null {
+  const value = (asset as unknown as Record<string, unknown>)[key];
+  return typeof value === 'string' && value.trim() ? value.trim() : null;
 }

@@ -1,0 +1,20 @@
+<app-page-header eyebrow="MONETIZATION" title="Provider Credit Pools" description="Track provider capacity that Lebhas converts into internal workspace credits.">
+  <select class="provider-select" [value]="providers.selectedProvider()?.id ?? ''" (change)="selectProvider($any($event.target).value)">
+    @for (provider of providers.providerOptions(); track provider.id) {<option [value]="provider.id">{{ provider.label }}</option>}
+  </select>
+  <app-button type="button" icon="plus" (click)="adjustmentOpen.set(true)">Adjust Credits</app-button>
+</app-page-header>
+
+@if (credits.error()) {
+  <app-error-state title="Credit pool could not be loaded" [description]="credits.error()!"><app-button type="button" variant="secondary" (click)="providers.selectedProvider()?.id && credits.loadPool(providers.selectedProvider()!.id)">Retry</app-button></app-error-state>
+} @else if (credits.selectedProviderPool(); as pool) {
+  <section class="pool-space">
+    <app-provider-credit-pool-card [pool]="pool" />
+    @if (pool.availableInternalCredits < pool.lowBalanceThreshold) {<article class="warning">Low balance warning: available internal equivalent is below threshold.</article>}
+    <app-provider-credit-ledger-table [ledger]="credits.providerLedger()" />
+  </section>
+} @else {
+  <div class="empty">No credit pool configured for this provider.</div>
+}
+
+<app-provider-credit-adjustment-dialog [open]="adjustmentOpen()" [providerName]="providers.selectedProvider()?.providerName ?? 'Provider'" [adjusting]="credits.adjusting()" (submitted)="adjust($event)" (closed)="adjustmentOpen.set(false)" />

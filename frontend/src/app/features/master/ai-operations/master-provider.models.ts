@@ -26,6 +26,7 @@ export interface MasterProviderView {
   readonly credentialStatus: MasterCredentialStatus;
   readonly credentialConfigured?: boolean;
   readonly activeEnvironment: MasterProviderEnvironment;
+  readonly availableCreditBalance?: number | string | null;
   readonly webhookConfigured?: boolean;
   readonly webhookUrl?: string | null;
   readonly lastTestStatus?: ProviderConnectionTestStatus | null;
@@ -53,6 +54,7 @@ export interface SaveProviderCredentialRequest {
   readonly environment: MasterProviderEnvironment;
   readonly secret?: string | null;
   readonly webhookUrl?: string | null;
+  readonly availableCreditBalance?: number | null;
   readonly active: boolean;
 }
 

@@ -31,9 +31,11 @@ import java.net.URI;
 import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
+import java.math.BigDecimal;
 import java.time.Clock;
-import java.time.Instant;
 import java.time.Duration;
+import java.time.Instant;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -49,6 +51,13 @@ public class MasterProviderSettingsService {
     private final AuditLogService auditLogService;
     private final Clock clock;
     private final HttpClient httpClient;
+    private static final String AVAILABLE_CREDIT_BALANCE_METADATA_KEY = "availableCreditBalance";
+    private static final String BASE_URL_METADATA_KEY = "baseUrl";
+    private static final String DEFAULT_MODEL_METADATA_KEY = "defaultModel";
+    private static final String METADATA_JSON_KEY = "metadataJson";
+    private static final String COST_MULTIPLIER_METADATA_KEY = "costMultiplier";
+    private static final String PRIORITY_METADATA_KEY = "priority";
+    private static final String RATE_LIMIT_PER_MINUTE_METADATA_KEY = "rateLimitPerMinute";
 
     public MasterProviderSettingsService(
             AiToolProviderRepository providerRepository,
@@ -103,14 +112,14 @@ public class MasterProviderSettingsService {
                 request.providerType() == null ? ProviderType.AI : request.providerType(),
                 status,
                 request.active(),
-                List.of(),
+                supportedCapabilities(request.supportedCapabilities()),
                 providerCode + "_API_KEY",
                 true,
                 true,
                 true,
+                costMetadata(request.baseUrl(), request.defaultModel(), request.metadataJson(), request.costMultiplier()),
                 Map.of(),
-                Map.of(),
-                Map.of());
+                rateLimitMetadata(request.priority(), request.rateLimitPerMinute()));
         provider.updateSettings(
                 request.displayName(),
                 request.description(),
@@ -126,13 +135,27 @@ public class MasterProviderSettingsService {
 
     public MasterProviderView updateProvider(UUID providerId, UpdateMasterProviderRequest request) {
         AiToolProvider provider = requireProvider(providerId);
+        ProviderStatus status = request.status() == null ? provider.getStatus() : request.status();
         provider.updateSettings(
                 request.displayName(),
                 request.description(),
-                request.status(),
+                status,
                 request.supportsSandbox(),
                 request.supportsLive(),
                 request.defaultEnvironment());
+        provider.update(
+                request.displayName(),
+                provider.getProviderType(),
+                status,
+                status == ProviderStatus.ACTIVE,
+                supportedCapabilities(request.supportedCapabilities()),
+                provider.getCredentialConfigKey(),
+                provider.isFallbackEligible(),
+                provider.isWorkspaceRoutingEligible(),
+                provider.isPlanRoutingEligible(),
+                costMetadata(request.baseUrl(), request.defaultModel(), request.metadataJson(), request.costMultiplier()),
+                provider.getQualityMetadata(),
+                rateLimitMetadata(request.priority(), request.rateLimitPerMinute()));
         AiToolProvider saved = providerRepository.save(provider);
         publish(KafkaTopicConstants.AI_PROVIDER_UPDATED, saved, "provider.updated");
         audit(saved, "provider.updated", AuditActionType.UPDATE, "Provider updated");
@@ -167,11 +190,14 @@ public class MasterProviderSettingsService {
         }
         String encrypted = encryptionService.encryptNullable(request.secret(), existing == null ? null : existing.getEncryptedSecret());
         String masked = encryptionService.maskNullable(request.secret(), existing == null ? null : existing.getMaskedSecret());
+        Map<String, Object> metadata = credentialMetadata(
+                existing == null ? Map.of() : existing.getMetadata(),
+                request.availableCreditBalance());
         AiProviderCredential credential = existing == null
-                ? AiProviderCredential.createProviderCredential(providerId, environment, encrypted, masked, request.webhookUrl(), request.active(), Map.of())
+                ? AiProviderCredential.createProviderCredential(providerId, environment, encrypted, masked, request.webhookUrl(), request.active(), metadata)
                 : existing;
         if (existing != null) {
-            credential.updateProviderCredential(environment, encrypted, masked, request.webhookUrl(), request.active(), existing.getMetadata());
+            credential.updateProviderCredential(environment, encrypted, masked, request.webhookUrl(), request.active(), metadata);
         }
         AiProviderCredential saved = credentialRepository.save(credential);
         publish(KafkaTopicConstants.AI_PROVIDER_UPDATED, provider, "provider.credential.updated");
@@ -250,6 +276,25 @@ public class MasterProviderSettingsService {
         return credentialSavedView(provider, environment, saved.getCredentialStatus(), saved.isActive());
     }
 
+    public void deleteProvider(UUID providerId) {
+        AiToolProvider provider = requireProvider(providerId);
+        provider.disable();
+        provider.markDeleted();
+        credentialRepository.findAllByProviderIdAndDeletedFalseOrderByCredentialNameAsc(providerId)
+                .forEach(credential -> {
+                    credential.revoke();
+                    credential.markDeleted();
+                    credentialRepository.save(credential);
+                });
+        providerRepository.save(provider);
+        publish(KafkaTopicConstants.AI_PROVIDER_UPDATED, provider, "provider.deleted");
+        audit(provider, "provider.deleted", AuditActionType.DELETE, "Provider deleted");
+    }
+
+    public void deleteProvider(String providerKey) {
+        deleteProvider(requireProvider(providerKey).getId());
+    }
+
     private MasterProviderView toView(AiToolProvider provider, AiProviderCredential credential) {
         CredentialStatus credentialStatus = credential == null ? CredentialStatus.NOT_CONFIGURED : credential.getCredentialStatus();
         return new MasterProviderView(
@@ -262,6 +307,8 @@ public class MasterProviderSettingsService {
                 provider.getStatus(),
                 provider.getDescription(),
                 provider.getSupportedLayers(),
+                metadataString(provider.getCostMetadata(), BASE_URL_METADATA_KEY),
+                metadataString(provider.getCostMetadata(), DEFAULT_MODEL_METADATA_KEY),
                 supportedEnvironments(provider),
                 provider.isSupportsSandbox(),
                 provider.isSupportsLive(),
@@ -269,6 +316,7 @@ public class MasterProviderSettingsService {
                 credentialStatus,
                 credential != null && credential.getEncryptedSecret() != null && !credential.getEncryptedSecret().isBlank(),
                 credential == null ? provider.getDefaultEnvironment() : credential.getEnvironment(),
+                credential == null ? null : availableCreditBalance(credential.getMetadata()),
                 credential != null && credential.getWebhookUrl() != null,
                 credential == null ? null : credential.getWebhookUrl(),
                 credential == null || credential.getLastTestStatus() == null ? ProviderConnectionTestStatus.NOT_TESTED : credential.getLastTestStatus(),
@@ -276,6 +324,11 @@ public class MasterProviderSettingsService {
                 credential == null ? null : credential.getLastTestMessage(),
                 provider.isEnabled(),
                 "SEEDED".equalsIgnoreCase(provider.getCategory()),
+                credential == null ? null : credential.getMaskedSecret(),
+                metadataInteger(provider.getRateLimitMetadata(), PRIORITY_METADATA_KEY, 100),
+                metadataInteger(provider.getRateLimitMetadata(), RATE_LIMIT_PER_MINUTE_METADATA_KEY, 60),
+                metadataDecimal(provider.getCostMetadata(), COST_MULTIPLIER_METADATA_KEY, BigDecimal.ONE),
+                metadataString(provider.getCostMetadata(), METADATA_JSON_KEY),
                 true,
                 credential == null ? null : credential.getUpdatedAt(),
                 provider.getCreatedAt(),
@@ -307,6 +360,134 @@ public class MasterProviderSettingsService {
         return credentialRepository.findFirstByProviderIdAndActiveTrueAndDeletedFalseOrderByUpdatedAtDesc(providerId)
                 .or(() -> credentialRepository.findFirstByProviderIdAndEnvironmentAndDeletedFalseOrderByUpdatedAtDesc(providerId, ProviderEnvironment.SANDBOX))
                 .orElse(null);
+    }
+
+    private Map<String, Object> credentialMetadata(Map<String, Object> existingMetadata, BigDecimal availableCreditBalance) {
+        Map<String, Object> metadata = new LinkedHashMap<>(existingMetadata == null ? Map.of() : existingMetadata);
+        if (availableCreditBalance == null) {
+            metadata.remove(AVAILABLE_CREDIT_BALANCE_METADATA_KEY);
+            return Map.copyOf(metadata);
+        }
+        if (availableCreditBalance.signum() < 0) {
+            throw new BusinessException(ErrorCode.VALIDATION_FAILED, "Available credit balance cannot be negative");
+        }
+        metadata.put(AVAILABLE_CREDIT_BALANCE_METADATA_KEY, availableCreditBalance);
+        return Map.copyOf(metadata);
+    }
+
+    private List<String> supportedCapabilities(List<String> requestedCapabilities) {
+        if (requestedCapabilities == null || requestedCapabilities.isEmpty()) {
+            return List.of();
+        }
+        return requestedCapabilities.stream()
+                .map(AiToolProvider::normalizeNullable)
+                .filter(value -> value != null && !value.isBlank())
+                .map(value -> value.toUpperCase(java.util.Locale.ROOT))
+                .distinct()
+                .toList();
+    }
+
+    private Map<String, Object> costMetadata(
+            String baseUrl,
+            String defaultModel,
+            String metadataJson,
+            BigDecimal costMultiplier
+    ) {
+        Map<String, Object> metadata = new LinkedHashMap<>();
+        putIfPresent(metadata, BASE_URL_METADATA_KEY, baseUrl);
+        putIfPresent(metadata, DEFAULT_MODEL_METADATA_KEY, defaultModel);
+        putIfPresent(metadata, METADATA_JSON_KEY, metadataJson);
+        metadata.put(COST_MULTIPLIER_METADATA_KEY, normalizePositive(costMultiplier, BigDecimal.ONE, "Cost multiplier"));
+        return Map.copyOf(metadata);
+    }
+
+    private Map<String, Object> rateLimitMetadata(Integer priority, Integer rateLimitPerMinute) {
+        Map<String, Object> metadata = new LinkedHashMap<>();
+        metadata.put(PRIORITY_METADATA_KEY, normalizeMin(priority, 100, 0, "Priority"));
+        metadata.put(RATE_LIMIT_PER_MINUTE_METADATA_KEY, normalizeMin(rateLimitPerMinute, 60, 1, "Rate limit per minute"));
+        return Map.copyOf(metadata);
+    }
+
+    private void putIfPresent(Map<String, Object> metadata, String key, String value) {
+        String normalized = AiToolProvider.normalizeNullable(value);
+        if (normalized != null) {
+            metadata.put(key, normalized);
+        }
+    }
+
+    private BigDecimal normalizePositive(BigDecimal value, BigDecimal defaultValue, String field) {
+        BigDecimal normalized = value == null ? defaultValue : value;
+        if (normalized.signum() <= 0) {
+            throw new BusinessException(ErrorCode.VALIDATION_FAILED, field + " must be positive");
+        }
+        return normalized;
+    }
+
+    private Integer normalizeMin(Integer value, int defaultValue, int min, String field) {
+        int normalized = value == null ? defaultValue : value;
+        if (normalized < min) {
+            throw new BusinessException(ErrorCode.VALIDATION_FAILED, field + " must be at least " + min);
+        }
+        return normalized;
+    }
+
+    private String metadataString(Map<String, Object> metadata, String key) {
+        Object value = metadata == null ? null : metadata.get(key);
+        return value == null ? null : String.valueOf(value);
+    }
+
+    private Integer metadataInteger(Map<String, Object> metadata, String key, int defaultValue) {
+        Object value = metadata == null ? null : metadata.get(key);
+        if (value instanceof Number number) {
+            return number.intValue();
+        }
+        if (value instanceof String stringValue && !stringValue.isBlank()) {
+            try {
+                return Integer.parseInt(stringValue.trim());
+            } catch (NumberFormatException ignored) {
+                return defaultValue;
+            }
+        }
+        return defaultValue;
+    }
+
+    private BigDecimal metadataDecimal(Map<String, Object> metadata, String key, BigDecimal defaultValue) {
+        Object value = metadata == null ? null : metadata.get(key);
+        if (value instanceof BigDecimal decimal) {
+            return decimal;
+        }
+        if (value instanceof Number number) {
+            return BigDecimal.valueOf(number.doubleValue());
+        }
+        if (value instanceof String stringValue && !stringValue.isBlank()) {
+            try {
+                return new BigDecimal(stringValue.trim());
+            } catch (NumberFormatException ignored) {
+                return defaultValue;
+            }
+        }
+        return defaultValue;
+    }
+
+    private BigDecimal availableCreditBalance(Map<String, Object> metadata) {
+        if (metadata == null || !metadata.containsKey(AVAILABLE_CREDIT_BALANCE_METADATA_KEY)) {
+            return null;
+        }
+        Object value = metadata.get(AVAILABLE_CREDIT_BALANCE_METADATA_KEY);
+        if (value instanceof BigDecimal decimal) {
+            return decimal;
+        }
+        if (value instanceof Number number) {
+            return BigDecimal.valueOf(number.doubleValue());
+        }
+        if (value instanceof String stringValue && !stringValue.isBlank()) {
+            try {
+                return new BigDecimal(stringValue.trim());
+            } catch (NumberFormatException ignored) {
+                return null;
+            }
+        }
+        return null;
     }
 
     private ProviderType providerTypeForSettings(AiToolProvider provider) {

@@ -67,6 +67,9 @@ interface AssetViewDto {
   readonly status: AssetStatus;
   readonly tags: readonly string[] | null;
   readonly metadata: Readonly<Record<string, unknown>> | null;
+  readonly width?: number | null;
+  readonly height?: number | null;
+  readonly duration?: number | null;
   readonly createdAt: string;
   readonly updatedAt: string;
 }
@@ -82,8 +85,12 @@ interface PagedResultDto<T> {
 }
 
 interface AssetUrlResponseDto {
-  readonly url: string;
-  readonly expiresAt: string;
+  readonly url?: string | null;
+  readonly previewUrl?: string | null;
+  readonly downloadUrl?: string | null;
+  readonly signedPreviewUrl?: string | null;
+  readonly expiresAt?: string | null;
+  readonly data?: AssetUrlResponseDto | null;
 }
 
 interface AssetUploadUrlResponseDto {
@@ -194,7 +201,7 @@ export class AssetApiService {
       ),
     );
 
-    return unwrapApiResponse(response);
+    return normalizeAssetUrl(unwrapApiResponse(response), 'preview');
   }
 
   async getDownloadUrl(workspaceId: string, assetId: string): Promise<AssetUrl> {
@@ -203,7 +210,7 @@ export class AssetApiService {
         ApiEndpoints.assets.downloadUrl(workspaceId, assetId),
       ),
     );
-    return unwrapApiResponse(response);
+    return normalizeAssetUrl(unwrapApiResponse(response), 'download');
   }
 
   uploadProjectAsset(
@@ -285,6 +292,9 @@ function mapAsset(source: AssetViewDto): Asset {
   const provider = source.storageProvider ?? (typeof metadata['provider'] === 'string' ? metadata['provider'] : 'Private storage');
   const storageKey = source.storageKey ?? '';
   const fileExtension = source.fileExtension ?? extensionFromName(source.originalFileName);
+  const width = source.width ?? (typeof metadata['width'] === 'number' ? metadata['width'] : null);
+  const height = source.height ?? (typeof metadata['height'] === 'number' ? metadata['height'] : null);
+  const duration = source.duration ?? (typeof metadata['duration'] === 'number' ? metadata['duration'] : null);
 
   return {
     id: source.id,
@@ -318,9 +328,9 @@ function mapAsset(source: AssetViewDto): Asset {
           fileExtension,
           fileSize,
           hash: null,
-          width: null,
-          height: null,
-          duration: null,
+          width,
+          height,
+          duration,
           storageClass: null,
           filePurpose: null,
           createdAt: source.createdAt,
@@ -335,6 +345,26 @@ function mapAsset(source: AssetViewDto): Asset {
 function extensionFromName(fileName: string): string {
   const parts = fileName.split('.');
   return parts.length > 1 ? parts[parts.length - 1]!.toLowerCase() : '';
+}
+
+function normalizeAssetUrl(
+  source: AssetUrlResponseDto | null | undefined,
+  preferred: 'preview' | 'download',
+): AssetUrl {
+  const nested = source?.data ?? null;
+  const url =
+    (preferred === 'download' ? source?.downloadUrl : source?.previewUrl) ||
+    source?.url ||
+    source?.signedPreviewUrl ||
+    (preferred === 'download' ? nested?.downloadUrl : nested?.previewUrl) ||
+    nested?.url ||
+    nested?.signedPreviewUrl ||
+    '';
+
+  return {
+    url,
+    expiresAt: source?.expiresAt || nested?.expiresAt || '',
+  };
 }
 
 function mapPagination(source: PagedResultDto<AssetViewDto>): AssetPagination {

@@ -1,0 +1,1 @@
+<article class="status-card"><p>Free signup credit status</p>@if (account()?.freeCreditsGranted) {<h2>Free credits granted</h2><span>Granted once on registration · {{ account()?.freeCreditsGrantedAt | date: 'medium' }}</span>} @else {<h2>Free signup credits unavailable</h2><span>Granted once on registration when backend policy allows it.</span>}</article>

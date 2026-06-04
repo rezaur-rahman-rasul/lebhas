@@ -858,9 +858,21 @@ public class ProductImageCreativeService {
 
     private boolean isOpenAiProviderReady(AiToolProvider provider) {
         return provider != null
-                && "OPENAI".equals(provider.getProviderCode())
+                && "OPENAI".equalsIgnoreCase(provider.getProviderCode())
+                && supportsImageGeneration(provider)
                 && provider.isEnabled()
                 && provider.getStatus() == ProviderStatus.ACTIVE;
+    }
+
+    private boolean supportsImageGeneration(AiToolProvider provider) {
+        List<String> layers = provider.getSupportedLayers();
+        if (layers == null || layers.isEmpty()) {
+            return true;
+        }
+        return layers.stream().anyMatch(layer ->
+                "IMAGE".equalsIgnoreCase(layer)
+                        || "STATIC_IMAGE".equalsIgnoreCase(layer)
+                        || "GENERATED_CREATIVE".equalsIgnoreCase(layer));
     }
 
     private boolean hasActiveConfiguredCredential(UUID providerId) {

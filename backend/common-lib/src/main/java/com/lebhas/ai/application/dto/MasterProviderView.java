@@ -6,6 +6,7 @@ import com.lebhas.ai.domain.ProviderEnvironment;
 import com.lebhas.ai.domain.ProviderStatus;
 import com.lebhas.ai.domain.ProviderType;
 
+import java.math.BigDecimal;
 import java.time.Instant;
 import java.util.List;
 import java.util.UUID;
@@ -20,6 +21,8 @@ public record MasterProviderView(
         ProviderStatus status,
         String description,
         List<String> supportedCapabilities,
+        String baseUrl,
+        String defaultModel,
         List<ProviderEnvironment> supportedEnvironments,
         boolean supportsSandbox,
         boolean supportsLive,
@@ -27,6 +30,7 @@ public record MasterProviderView(
         CredentialStatus credentialStatus,
         boolean credentialConfigured,
         ProviderEnvironment activeEnvironment,
+        BigDecimal availableCreditBalance,
         boolean webhookConfigured,
         String webhookUrl,
         ProviderConnectionTestStatus lastTestStatus,
@@ -34,6 +38,11 @@ public record MasterProviderView(
         String lastTestMessage,
         boolean active,
         boolean systemDefault,
+        String maskedApiKey,
+        Integer priority,
+        Integer rateLimitPerMinute,
+        BigDecimal costMultiplier,
+        String metadataJson,
         boolean secretsHidden,
         Instant credentialUpdatedAt,
         Instant createdAt,

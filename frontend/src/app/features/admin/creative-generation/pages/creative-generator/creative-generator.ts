@@ -14,6 +14,10 @@ import { RouterLink } from '@angular/router';
 import { CurrentUserStore } from '@app/core/auth/current-user.store';
 import { NotificationStateService } from '@app/core/state/notification-state.service';
 import { WorkspaceStore } from '@app/core/workspace/workspace.store';
+import { BillingModalService } from '@app/features/payments/services/billing-modal.service';
+import { CreditUsagePreviewCardComponent } from '@app/features/credits/components/credit-usage-preview-card/credit-usage-preview-card';
+import { InsufficientCreditCardComponent } from '@app/features/credits/components/insufficient-credit-card/insufficient-credit-card';
+import { WorkspaceCreditsStore } from '@app/features/credits/state/workspaceCredits.store';
 import {
   Asset,
   assetStatusLabel,
@@ -92,6 +96,8 @@ interface CreativePreset {
     IconComponent,
     PageHeaderComponent,
     CreativeOutputDrawer,
+    CreditUsagePreviewCardComponent,
+    InsufficientCreditCardComponent,
   ],
   templateUrl: './creative-generator.html',
   styleUrl: './creative-generator.scss',
@@ -100,7 +106,9 @@ interface CreativePreset {
 export class CreativeGeneratorPage implements OnDestroy {
   protected readonly store = inject(CreativeGenerationStore);
   private readonly auth = inject(CurrentUserStore);
-  private readonly workspace = inject(WorkspaceStore);
+  protected readonly workspace = inject(WorkspaceStore);
+  protected readonly workspaceCredits = inject(WorkspaceCreditsStore);
+  private readonly billingModal = inject(BillingModalService);
   private readonly notifications = inject(NotificationStateService);
   private readonly destroyRef = inject(DestroyRef);
   protected readonly brandStore = inject(BrandStore);
@@ -282,6 +290,7 @@ export class CreativeGeneratorPage implements OnDestroy {
         this.productAssetId() &&
         this.selectedProductImageReady() &&
         this.store.campaignReadiness()?.ready === true &&
+        this.store.campaignCostPreview() !== null &&
         value.sourcePrompt.trim().length > 0 &&
         this.packageReadyForSubmit() &&
         this.hasSufficientCredits() &&
@@ -296,8 +305,6 @@ export class CreativeGeneratorPage implements OnDestroy {
     if (!this.auth.activeWorkspaceId()) return 'Workspace is not loaded.';
     if (this.workspace.loading()) return 'Workspace package and credits are loading.';
     if (this.workspace.error()) return 'Credits or package could not be loaded. Please refresh or contact support.';
-    if (!this.packageReadyForSubmit()) return 'No active package is assigned to this workspace.';
-    if (!this.hasSufficientCredits()) return `Insufficient credits. This request needs ${this.creditCost()} credits.`;
     if (!this.selectedBrandId()) return 'Select a brand.';
     if (!this.selectedProductId()) return 'Select a product or service.';
     if (!this.selectedProjectId()) return 'Select a project or campaign.';
@@ -309,6 +316,9 @@ export class CreativeGeneratorPage implements OnDestroy {
     if (!this.selectedProductImageReady()) return 'Selected product image is not ready yet.';
     if (this.store.campaignReadiness()?.ready !== true) return 'Generation setup is not ready. Check the readiness checklist.';
     if (!value.sourcePrompt.trim()) return 'Add a campaign idea or prompt.';
+    if (!this.packageReadyForSubmit()) return 'No active package is assigned to this workspace.';
+    if (!this.store.campaignCostPreview()) return 'Credit preview is loading from the server.';
+    if (!this.hasSufficientCredits()) return `Insufficient credits. This request needs ${this.generationCreditPreview().estimatedCreditCost} credits.`;
     if (this.uploadInProgress()) return 'Wait for image upload to finish.';
     if (this.store.generationLoading()) return 'Generation request is in progress.';
     if (this.generationForm.invalid) return 'Fix the highlighted form fields.';
@@ -320,6 +330,28 @@ export class CreativeGeneratorPage implements OnDestroy {
       ? base + 20
       : base;
   });
+  protected readonly generationCreditPreview = computed(() => {
+    this.formRevision();
+    const costPreview = this.store.campaignCostPreview();
+    const requestedVersionCount = costPreview?.requestedVersionCount ?? this.generationForm.controls.requestedVersionCount.value;
+    const estimatedCreditCost = costPreview?.totalCreditCost ?? 0;
+    const availableCredits = this.workspaceCredits.creditAccount()?.availableCredits ?? this.workspace.usage()?.creditsRemaining ?? 0;
+    const remainingCreditsAfterGeneration = availableCredits - estimatedCreditCost;
+    const blockingReasons = [
+      ...(costPreview ? [] : ['Credit preview is not loaded yet.']),
+      ...(remainingCreditsAfterGeneration < 0 ? ['Not enough credits available.'] : []),
+    ];
+    return {
+      requestedVersionCount,
+      estimatedCreditCost,
+      availableCredits,
+      remainingCreditsAfterGeneration,
+      packageLimit: this.creditsTotal(),
+      canReserveCredits: blockingReasons.length === 0,
+      canQueueGeneration: blockingReasons.length === 0 && this.store.campaignReadiness()?.ready === true,
+      blockingReasons,
+    };
+  });
   protected readonly packageReady = computed(() => Boolean(this.workspace.subscription()));
   protected readonly creditsLoaded = computed(() => typeof this.workspace.usage()?.creditsRemaining === 'number');
   protected readonly packageReadyForSubmit = computed(() =>
@@ -328,8 +360,11 @@ export class CreativeGeneratorPage implements OnDestroy {
       Boolean(this.workspace.featurePolicy()),
   );
   protected readonly hasSufficientCredits = computed(() => {
+    if (!this.store.campaignCostPreview()) {
+      return false;
+    }
     const credits = this.workspace.usage()?.creditsRemaining;
-    return typeof credits !== 'number' || credits >= this.creditCost();
+    return typeof credits !== 'number' || credits >= this.generationCreditPreview().estimatedCreditCost;
   });
   protected readonly currentOutput = computed(() => {
     const selectedId = this.selectedVariationId();
@@ -374,6 +409,9 @@ export class CreativeGeneratorPage implements OnDestroy {
     void this.store.loadGeneratorContext();
     this.loadHierarchyContext();
     this.store.updateDraft(this.buildDraft());
+    if (this.auth.activeWorkspaceId()) {
+      void this.workspaceCredits.loadAccount(this.auth.activeWorkspaceId()!);
+    }
 
     this.generationForm.valueChanges
       .pipe(takeUntilDestroyed(this.destroyRef))
@@ -432,6 +470,11 @@ export class CreativeGeneratorPage implements OnDestroy {
       height: preset.height,
       duration: null,
     });
+    void this.refreshCampaignReadiness();
+  }
+
+  protected selectQuality(quality: ModelQuality): void {
+    this.selectedQuality.set(quality);
     void this.refreshCampaignReadiness();
   }
 
@@ -499,7 +542,13 @@ export class CreativeGeneratorPage implements OnDestroy {
       assetCategory: 'PRODUCT_IMAGE',
       folderId: null,
       tags: ['creative-generator', 'product-image'],
-      metadata: { source: 'creative-generator', purpose: 'creative-generation' },
+      metadata: {
+        source: 'creative-generator',
+        purpose: 'creative-generation',
+        brandId: this.selectedBrandId(),
+        productId: this.selectedProductId(),
+        projectId,
+      },
     });
 
     if (!result.ok) {
@@ -570,6 +619,9 @@ export class CreativeGeneratorPage implements OnDestroy {
     const submitted = await this.store.submitCampaignCreative(this.selectedProjectId(), payload);
     if (submitted) {
       this.selectedVariationId.set(null);
+      if (this.auth.activeWorkspaceId()) {
+        void this.workspaceCredits.refreshAfterGeneration(this.auth.activeWorkspaceId()!);
+      }
     }
   }
 
@@ -602,6 +654,15 @@ export class CreativeGeneratorPage implements OnDestroy {
     }
     await navigator.clipboard?.writeText(id);
     this.notifications.success('Job ID copied', 'The generation job ID is ready to paste.');
+  }
+
+  protected buyCredits(): void {
+    this.billingModal.show();
+  }
+
+  protected reduceGeneratedVersions(): void {
+    const current = this.generationForm.controls.requestedVersionCount.value;
+    this.generationForm.controls.requestedVersionCount.setValue(Math.max(1, current - 1));
   }
 
   protected sendForApproval(): void {
@@ -791,7 +852,22 @@ export class CreativeGeneratorPage implements OnDestroy {
     if (!this.store.selectedAssets().some((selected) => selected.id === asset.id)) {
       this.store.toggleAsset(asset);
     }
+    void this.ensureSelectedProductImagePreviewUrl(asset);
     void this.refreshCampaignReadiness();
+  }
+
+  private async ensureSelectedProductImagePreviewUrl(asset: Asset): Promise<void> {
+    if (asset.previewUrl || asset.thumbnailUrl || asset.publicUrl) {
+      return;
+    }
+
+    const preview = await this.assetStore.getPreviewUrl(asset.id);
+    const url = preview?.url ?? null;
+
+    if (url) {
+      this.store.removeSelectedAsset(asset.id);
+      this.store.toggleAsset({ ...asset, previewUrl: url });
+    }
   }
 
   private async refreshCampaignReadiness(): Promise<void> {
@@ -810,10 +886,12 @@ export class CreativeGeneratorPage implements OnDestroy {
 
     if (!projectId || !productAssetId || !this.selectedProductImageReady()) {
       this.readinessRequestKey.set(null);
+      this.store.clearCampaignCostPreview();
       return;
     }
 
     if (this.readinessRequestKey() === key) {
+      await this.refreshCampaignCostPreview();
       return;
     }
 
@@ -824,6 +902,27 @@ export class CreativeGeneratorPage implements OnDestroy {
       this.qualityMode(),
       value.requestedVersionCount,
     );
+    await this.refreshCampaignCostPreview();
+  }
+
+  private async refreshCampaignCostPreview(): Promise<void> {
+    const projectId = this.selectedProjectId();
+    const value = this.generationForm.getRawValue();
+    if (
+      !projectId ||
+      !this.productAssetId() ||
+      !this.selectedProductImageReady() ||
+      !this.resolvedCreativeFormat() ||
+      !value.platform ||
+      !value.language ||
+      value.language === 'MIXED' ||
+      value.sourcePrompt.trim().length < 5
+    ) {
+      this.store.clearCampaignCostPreview();
+      return;
+    }
+
+    await this.store.previewCampaignCreativeCost(projectId, this.buildCampaignCreativeRequest());
   }
 
   private setLocalProductImagePreview(file: File): void {
@@ -909,3 +1008,5 @@ function isLanguageAllowed(
 function isGenerationReadyAsset(asset: Asset | null): boolean {
   return asset?.status === 'READY' || asset?.status === 'AVAILABLE';
 }
+
+

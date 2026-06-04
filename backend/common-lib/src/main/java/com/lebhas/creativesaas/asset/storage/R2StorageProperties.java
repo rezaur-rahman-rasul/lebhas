@@ -3,6 +3,7 @@ package com.lebhas.creativesaas.asset.storage;
 import org.springframework.boot.context.properties.ConfigurationProperties;
 
 import java.net.URI;
+import java.time.Duration;
 
 @ConfigurationProperties(prefix = "platform.storage.r2")
 public class R2StorageProperties {
@@ -14,6 +15,8 @@ public class R2StorageProperties {
     private String bucket;
     private URI publicBaseUrl;
     private boolean pathStyleAccessEnabled = true;
+    private Duration apiCallTimeout = Duration.ofSeconds(8);
+    private Duration apiCallAttemptTimeout = Duration.ofSeconds(4);
 
     public String getRegion() {
         return region;
@@ -69,5 +72,21 @@ public class R2StorageProperties {
 
     public void setPathStyleAccessEnabled(boolean pathStyleAccessEnabled) {
         this.pathStyleAccessEnabled = pathStyleAccessEnabled;
+    }
+
+    public Duration getApiCallTimeout() {
+        return apiCallTimeout;
+    }
+
+    public void setApiCallTimeout(Duration apiCallTimeout) {
+        this.apiCallTimeout = apiCallTimeout;
+    }
+
+    public Duration getApiCallAttemptTimeout() {
+        return apiCallAttemptTimeout;
+    }
+
+    public void setApiCallAttemptTimeout(Duration apiCallAttemptTimeout) {
+        this.apiCallAttemptTimeout = apiCallAttemptTimeout;
     }
 }

@@ -1,6 +1,7 @@
 package com.lebhas.creativesaas.creative.interfaces;
 
 import com.lebhas.creativesaas.asset.application.AssetManagementService;
+import com.lebhas.creativesaas.asset.application.AssetMetadataSerializer;
 import com.lebhas.creativesaas.asset.application.dto.AssetListCriteria;
 import com.lebhas.creativesaas.asset.application.dto.AssetUploadUrlView;
 import com.lebhas.creativesaas.asset.application.dto.AssetUrlView;
@@ -8,6 +9,7 @@ import com.lebhas.creativesaas.asset.application.dto.AssetView;
 import com.lebhas.creativesaas.asset.application.dto.ConfirmAssetUploadCommand;
 import com.lebhas.creativesaas.asset.application.dto.CreateAssetUploadUrlCommand;
 import com.lebhas.creativesaas.asset.application.dto.UpdateAssetCommand;
+import com.lebhas.creativesaas.asset.application.dto.UploadAssetCommand;
 import com.lebhas.creativesaas.common.api.ApiResponse;
 import com.lebhas.creativesaas.common.api.PagedResult;
 import io.swagger.v3.oas.annotations.Operation;
@@ -25,7 +27,11 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
+import java.util.Arrays;
+import java.util.Map;
+import java.util.Set;
 import java.util.UUID;
+import java.util.stream.Collectors;
 
 @RestController
 @RequestMapping("/api/v1/workspaces/{workspaceId}/assets")
@@ -34,9 +40,14 @@ import java.util.UUID;
 public class AssetController {
 
     private final AssetManagementService assetManagementService;
+    private final AssetMetadataSerializer assetMetadataSerializer;
 
-    public AssetController(AssetManagementService assetManagementService) {
+    public AssetController(
+            AssetManagementService assetManagementService,
+            AssetMetadataSerializer assetMetadataSerializer
+    ) {
         this.assetManagementService = assetManagementService;
+        this.assetMetadataSerializer = assetMetadataSerializer;
     }
 
     @PostMapping("/upload-url")
@@ -74,6 +85,25 @@ public class AssetController {
                 request.assetId(),
                 request.uploadReferenceId(),
                 request.checksum())));
+    }
+
+    @PostMapping(path = "/upload", consumes = "multipart/form-data")
+    @PreAuthorize("hasAuthority('ASSET_UPLOAD')")
+    @Operation(summary = "Upload a workspace asset")
+    public ApiResponse<AssetView> uploadAsset(
+            @PathVariable UUID workspaceId,
+            @Valid @ModelAttribute UploadAssetRequest request
+    ) {
+        return ApiResponse.success("Asset uploaded", assetManagementService.uploadAsset(new UploadAssetCommand(
+                workspaceId,
+                null,
+                request.getAssetType(),
+                request.getAssetCategory(),
+                request.getDisplayName(),
+                request.getDescription(),
+                parseTags(request.getTags()),
+                parseMetadata(request.getMetadata()),
+                request.getFile())));
     }
 
     @GetMapping
@@ -146,5 +176,19 @@ public class AssetController {
     @Operation(summary = "Generate a signed download URL")
     public ApiResponse<AssetUrlView> downloadUrl(@PathVariable UUID workspaceId, @PathVariable UUID assetId) {
         return ApiResponse.success(assetManagementService.generateDownloadUrl(workspaceId, assetId));
+    }
+
+    private Set<String> parseTags(String rawTags) {
+        if (rawTags == null || rawTags.isBlank()) {
+            return Set.of();
+        }
+        return Arrays.stream(rawTags.split(","))
+                .map(String::trim)
+                .filter(value -> !value.isBlank())
+                .collect(Collectors.toCollection(java.util.LinkedHashSet::new));
+    }
+
+    private Map<String, Object> parseMetadata(String metadata) {
+        return assetMetadataSerializer.deserialize(metadata);
     }
 }

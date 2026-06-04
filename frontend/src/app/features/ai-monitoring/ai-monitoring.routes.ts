@@ -25,13 +25,6 @@ export const AI_MONITORING_ROUTES: Routes = [
     data: { mode: 'routing' },
   },
   {
-    path: 'master/provider-settings',
-    canActivate: [roleGuard(['MASTER'])],
-    loadComponent: () =>
-      import('../master/ai-operations/master-ai-operations').then((m) => m.MasterAiOperationsPage),
-    data: { mode: 'provider-settings' },
-  },
-  {
     path: 'master/provider-health',
     canActivate: [roleGuard(['MASTER'])],
     loadComponent: () =>
@@ -95,3 +88,4 @@ export const AI_MONITORING_ROUTES: Routes = [
       import('./failures/ai-failures').then((m) => m.AiFailuresPage),
   },
 ];
+

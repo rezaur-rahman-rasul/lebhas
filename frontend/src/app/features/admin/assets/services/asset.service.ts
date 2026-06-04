@@ -12,6 +12,7 @@ import { catchError, filter, map, switchMap, throwError, timeout } from 'rxjs';
 
 import { ApiEndpoints } from '@app/core/api/api-endpoints';
 import { ApiService } from '@app/core/api/api.service';
+import { environment } from '@env/environment';
 import {
   SKIP_APP_HEADERS,
   SKIP_AUTH,
@@ -76,6 +77,7 @@ interface AssetResponseDto {
   readonly metadata: Readonly<Record<string, unknown>> | null;
   readonly createdAt: string;
   readonly updatedAt: string;
+  readonly deleted?: boolean | null;
 }
 
 interface AssetFolderResponseDto {
@@ -100,8 +102,12 @@ interface PagedResultDto<T> {
 }
 
 interface AssetUrlResponseDto {
-  readonly url: string;
-  readonly expiresAt: string;
+  readonly url?: string | null;
+  readonly previewUrl?: string | null;
+  readonly downloadUrl?: string | null;
+  readonly signedPreviewUrl?: string | null;
+  readonly expiresAt?: string | null;
+  readonly data?: AssetUrlResponseDto | null;
 }
 
 interface AssetUploadUrlResponseDto {
@@ -154,10 +160,13 @@ export class AssetService {
         context,
       })
       .pipe(
-        map(({ data }) => ({
-          items: data.items.map(mapAsset),
-          pagination: mapPagination(data),
-        })),
+        map(({ data }) => {
+          const items = normalizeAssetItems(extractAssetResponseItems(data));
+          return {
+            items,
+            pagination: mapPagination(data, items.length),
+          };
+        }),
       );
   }
 
@@ -217,7 +226,7 @@ export class AssetService {
       .get<AssetUrlResponseDto>(ApiEndpoints.assets.previewUrl(workspaceId, assetId), { context })
       .pipe(
         timeout({ first: 15000 }),
-        map(({ data }) => data),
+        map(({ data }) => normalizeAssetUrl(data, 'preview')),
       );
   }
 
@@ -229,77 +238,23 @@ export class AssetService {
       )
       .pipe(
         timeout({ first: 15000 }),
-        map(({ data }) => data),
+        map(({ data }) => normalizeAssetUrl(data, 'download')),
       );
   }
 
   uploadAsset(workspaceId: string, payload: UploadAssetPayload) {
+    const formData = buildUploadFormData(payload);
+    logUploadDiagnostics(ApiEndpoints.assets.upload(workspaceId), payload.file);
+
     return this.api
-      .post<AssetUploadUrlResponseDto, CreateAssetUploadUrlRequestDto>(
-        ApiEndpoints.assets.uploadUrl(workspaceId),
+      .post<AssetResponseDto, FormData>(
+        ApiEndpoints.assets.upload(workspaceId),
+        formData,
         {
-          assetType: payload.assetCategory === 'PRODUCT_IMAGE' || payload.assetCategory === 'REFERENCE_IMAGE'
-            ? 'RAW_IMAGE'
-            : null,
-          assetCategory: payload.assetCategory,
-          folderId: payload.folderId,
-          originalFileName: payload.file.name,
-          contentType: payload.file.type || 'application/octet-stream',
-          sizeBytes: payload.file.size,
-          checksum: null,
-          displayName: payload.file.name,
-          description: null,
-          tags: payload.tags,
-          metadata: payload.metadata,
+          context: new HttpContext().set(SKIP_ERROR_TOAST, true),
         },
       )
-      .pipe(
-        switchMap(({ data }) => {
-          const request = new HttpRequest(data.method || 'PUT', data.uploadUrl, payload.file, {
-            reportProgress: true,
-            headers: signedUploadHeaders(data.headers, payload.file),
-            context: new HttpContext()
-              .set(SKIP_AUTH, true)
-              .set(SKIP_REFRESH, true)
-              .set(SKIP_ERROR_TOAST, true)
-              .set(SKIP_GLOBAL_LOADING, true)
-              .set(SKIP_APP_HEADERS, true),
-          });
-
-          return this.http.request(request).pipe(
-            catchError((error) => {
-              if (isLikelyBrowserNetworkBlock(error)) {
-                return throwError(
-                  () =>
-                    new Error(
-                      'Cloudflare R2 blocked the browser upload. Configure R2 bucket CORS to allow PUT from http://localhost:4200, then retry.',
-                    ),
-                );
-              }
-
-              return throwError(() => error);
-            }),
-            map((event) => mapSignedUploadProgress(event)),
-            filter((event): event is AssetUploadEvent => event !== null),
-            switchMap((event) => {
-              if (event.kind === 'progress') {
-                return [event];
-              }
-
-              return this.api
-                .post<AssetResponseDto, ConfirmAssetUploadRequestDto>(
-                  ApiEndpoints.assets.confirm(workspaceId),
-                  {
-                    assetId: data.assetId,
-                    uploadReferenceId: data.uploadReferenceId,
-                    checksum: null,
-                  },
-                )
-                .pipe(map((response) => ({ kind: 'completed', asset: mapAsset(response.data) }) as const));
-            }),
-          );
-        }),
-      );
+      .pipe(map(({ data }) => ({ kind: 'completed', asset: mapAsset(data) }) as AssetUploadEvent));
   }
 
   listProjectAssets(
@@ -318,37 +273,31 @@ export class AssetService {
         context,
       })
       .pipe(
-        map(({ data }) => ({
-          items: data.items.map(mapAsset),
-          pagination: mapPagination(data),
-        })),
+        map(({ data }) => {
+          const items = normalizeAssetItems(extractAssetResponseItems(data));
+          return {
+            items,
+            pagination: mapPagination(data, items.length),
+          };
+        }),
       );
   }
 
   uploadProjectAsset(workspaceId: string, projectId: string, payload: UploadAssetPayload) {
-    const formData = new FormData();
-    formData.append('file', payload.file);
-    formData.append('assetCategory', payload.assetCategory);
-    formData.append('displayName', payload.file.name);
+    const formData = buildUploadFormData(payload);
+    formData.append('projectId', projectId);
 
-    if (payload.tags.length > 0) {
-      formData.append('tags', payload.tags.join(','));
-    }
-
-    formData.append(
-      'metadata',
-      JSON.stringify({
-        ...payload.metadata,
-        folderId: payload.folderId,
-      }),
-    );
+    logUploadDiagnostics(ApiEndpoints.assets.projectUpload(workspaceId, projectId), payload.file);
 
     return this.api
       .post<AssetResponseDto, FormData>(
         ApiEndpoints.assets.projectUpload(workspaceId, projectId),
         formData,
+        {
+          context: new HttpContext().set(SKIP_ERROR_TOAST, true),
+        },
       )
-      .pipe(map(({ data }) => ({ kind: 'completed', asset: mapAsset(data) }) as const));
+      .pipe(map(({ data }) => ({ kind: 'completed', asset: mapAsset(data) }) as AssetUploadEvent));
   }
 
   uploadProjectAssetSigned(workspaceId: string, projectId: string, payload: UploadAssetPayload) {
@@ -421,6 +370,49 @@ export class AssetService {
   }
 }
 
+function normalizeAssetItems(items: readonly AssetResponseDto[] | null | undefined): readonly Asset[] {
+  return (items ?? [])
+    .filter(isValidAssetResponse)
+    .map(mapAsset)
+    .filter(isRealAsset);
+}
+
+function extractAssetResponseItems(source: unknown): readonly AssetResponseDto[] {
+  if (Array.isArray(source)) {
+    return source as readonly AssetResponseDto[];
+  }
+  if (!source || typeof source !== 'object') {
+    return [];
+  }
+
+  const record = source as Record<string, unknown>;
+  if (Array.isArray(record['items'])) {
+    return record['items'] as readonly AssetResponseDto[];
+  }
+  if (Array.isArray(record['content'])) {
+    return record['content'] as readonly AssetResponseDto[];
+  }
+  const nestedData = record['data'];
+  if (Array.isArray(nestedData)) {
+    return nestedData as readonly AssetResponseDto[];
+  }
+  if (nestedData && typeof nestedData === 'object') {
+    return extractAssetResponseItems(nestedData);
+  }
+
+  return [];
+}
+
+function isValidAssetResponse(source: AssetResponseDto | null | undefined): source is AssetResponseDto {
+  return Boolean(
+    source &&
+      typeof source.id === 'string' &&
+      source.id.trim() &&
+      source.deleted !== true &&
+      source.status !== 'DELETED',
+  );
+}
+
 function mapAsset(source: AssetResponseDto): Asset {
   return {
     id: source.id,
@@ -465,11 +457,14 @@ function mapFolder(source: AssetFolderResponseDto): AssetFolder {
   };
 }
 
-function mapPagination(source: PagedResultDto<AssetResponseDto>): AssetPagination {
+function mapPagination(source: PagedResultDto<AssetResponseDto>, itemCount?: number): AssetPagination {
+  const record = source as unknown as Record<string, unknown>;
+  const totalElements = typeof record['totalElements'] === 'number' ? record['totalElements'] : null;
+  const totalItems = source.totalItems ?? totalElements ?? itemCount ?? DEFAULT_ASSET_PAGINATION.totalItems;
   return {
     page: source.page ?? DEFAULT_ASSET_PAGINATION.page,
     size: source.size ?? DEFAULT_ASSET_PAGINATION.size,
-    totalItems: source.totalItems ?? DEFAULT_ASSET_PAGINATION.totalItems,
+    totalItems,
     totalPages: source.totalPages ?? DEFAULT_ASSET_PAGINATION.totalPages,
     first: source.first ?? DEFAULT_ASSET_PAGINATION.first,
     last: source.last ?? DEFAULT_ASSET_PAGINATION.last,
@@ -531,6 +526,10 @@ function buildAssetListParams(filters: AssetFilter, page: number, size: number) 
   };
 }
 
+function isRealAsset(asset: Asset): boolean {
+  return Boolean(asset.id?.trim()) && asset.status !== 'DELETED';
+}
+
 function mapSortField(sortBy: AssetFilter['sortBy']): string {
   switch (sortBy) {
     case 'updatedAt':
@@ -576,4 +575,104 @@ function signedUploadHeaders(
 
 function isLikelyBrowserNetworkBlock(error: unknown): boolean {
   return typeof error === 'object' && error !== null && 'status' in error && error.status === 0;
+}
+
+function normalizeAssetUrl(
+  source: AssetUrlResponseDto | null | undefined,
+  preferred: 'preview' | 'download',
+): AssetUrl {
+  const nested = source?.data ?? null;
+  const url =
+    (preferred === 'download' ? source?.downloadUrl : source?.previewUrl) ||
+    source?.url ||
+    source?.signedPreviewUrl ||
+    (preferred === 'download' ? nested?.downloadUrl : nested?.previewUrl) ||
+    nested?.url ||
+    nested?.signedPreviewUrl ||
+    '';
+
+  return {
+    url,
+    expiresAt: source?.expiresAt || nested?.expiresAt || '',
+  };
+}
+
+function stringMetadata(
+  metadata: Readonly<Record<string, unknown>>,
+  key: string,
+): string | null {
+  const value = metadata[key];
+  return typeof value === 'string' && value.trim() ? value.trim() : null;
+}
+
+function buildUploadFormData(payload: UploadAssetPayload): FormData {
+  const formData = new FormData();
+  formData.append('file', payload.file);
+  formData.append('assetCategory', payload.assetCategory);
+  formData.append('assetType', uploadAssetType(payload.assetCategory));
+  formData.append('displayName', payload.file.name);
+
+  const brandId = stringMetadata(payload.metadata, 'brandId');
+  const productId = stringMetadata(payload.metadata, 'productId');
+  if (brandId) {
+    formData.append('brandId', brandId);
+  }
+  if (productId) {
+    formData.append('productId', productId);
+  }
+
+  if (payload.tags.length > 0) {
+    formData.append('tags', payload.tags.join(','));
+  }
+
+  formData.append(
+    'metadata',
+    JSON.stringify(compactMetadata({
+      ...payload.metadata,
+      folderId: payload.folderId,
+    })),
+  );
+
+  return formData;
+}
+
+function compactMetadata(metadata: Readonly<Record<string, unknown>>): Readonly<Record<string, unknown>> {
+  return Object.fromEntries(
+    Object.entries(metadata).filter(([, value]) => value !== null && value !== undefined && value !== ''),
+  );
+}
+
+function uploadAssetType(category: AssetCategory): string {
+  switch (category) {
+    case 'PRODUCT_IMAGE':
+      return 'PRODUCT_IMAGE';
+    case 'BRAND_LOGO':
+      return 'BRAND_LOGO';
+    case 'PACKAGING_IMAGE':
+      return 'PACKAGING_IMAGE';
+    case 'EXPORT_IMAGE':
+      return 'EXPORT_IMAGE';
+    case 'EXPORT_VIDEO':
+    case 'PRODUCT_VIDEO':
+      return 'EXPORT_VIDEO';
+    case 'REFERENCE_IMAGE':
+    case 'REFERENCE_VIDEO':
+    case 'REFERENCE_ASSET':
+      return 'REFERENCE_ASSET';
+    default:
+      return 'RAW_IMAGE';
+  }
+}
+
+function logUploadDiagnostics(endpoint: string, file: File): void {
+  if (environment.production) {
+    return;
+  }
+
+  console.info('[asset-upload]', {
+    endpoint,
+    fileName: file.name,
+    fileSize: file.size,
+    contentType: file.type || 'application/octet-stream',
+  });
 }

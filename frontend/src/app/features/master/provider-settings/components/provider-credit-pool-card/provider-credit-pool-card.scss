@@ -1,0 +1,6 @@
+.pool-card { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: .75rem; }
+.pool-card div { border: 1px solid rgb(var(--color-border)); border-radius: 1rem; background: rgb(var(--color-surface-elevated)); padding: 1rem; }
+.pool-card span { display: block; color: rgb(var(--color-muted)); font-size: .78rem; text-transform: uppercase; letter-spacing: .08em; }
+.pool-card strong { display: block; margin-top: .35rem; color: rgb(var(--color-ink)); font-size: 1.2rem; }
+@media (max-width: 900px) { .pool-card { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+@media (max-width: 560px) { .pool-card { grid-template-columns: 1fr; } }

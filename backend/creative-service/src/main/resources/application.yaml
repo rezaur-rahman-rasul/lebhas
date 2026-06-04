@@ -26,6 +26,8 @@ platform:
       bucket: ${R2_BUCKET:${STORAGE_BUCKET:creative-saas-assets}}
       public-base-url: ${R2_PUBLIC_BASE_URL:}
       path-style-access-enabled: ${R2_PATH_STYLE_ACCESS_ENABLED:true}
+      api-call-timeout: ${R2_API_CALL_TIMEOUT:8s}
+      api-call-attempt-timeout: ${R2_API_CALL_ATTEMPT_TIMEOUT:4s}
   asset:
     kafka:
       consumer-enabled: ${ASSET_KAFKA_CONSUMER_ENABLED:true}

@@ -15,8 +15,6 @@ import java.util.UUID;
 @Table(name = "credit_wallets", schema = "platform")
 public class CreditWalletEntity extends TenantAwareEntity {
 
-    private static final BigDecimal DEFAULT_STARTER_CREDITS = new BigDecimal("25.0000");
-
     @Column(name = "balance", nullable = false, precision = 19, scale = 4)
     private BigDecimal balance;
 
@@ -29,7 +27,7 @@ public class CreditWalletEntity extends TenantAwareEntity {
     public static CreditWalletEntity initialize(UUID workspaceId) {
         CreditWalletEntity entity = new CreditWalletEntity();
         entity.assignWorkspace(workspaceId);
-        entity.balance = DEFAULT_STARTER_CREDITS.setScale(4, RoundingMode.HALF_UP);
+        entity.balance = BigDecimal.ZERO.setScale(4, RoundingMode.HALF_UP);
         entity.reservedBalance = BigDecimal.ZERO.setScale(4, RoundingMode.HALF_UP);
         return entity;
     }

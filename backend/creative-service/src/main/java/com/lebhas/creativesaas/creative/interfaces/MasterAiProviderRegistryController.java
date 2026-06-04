@@ -22,14 +22,27 @@ import com.lebhas.ai.application.dto.SaveProviderCredentialRequest;
 import com.lebhas.ai.application.dto.TestProviderConnectionRequest;
 import com.lebhas.ai.application.dto.UpdateMasterProviderRequest;
 import com.lebhas.ai.application.dto.UpdateProviderStatusRequest;
+import com.lebhas.ai.credit.application.MasterCreditMonitoringService;
+import com.lebhas.ai.credit.application.ProviderCreditExchangePolicyService;
+import com.lebhas.ai.credit.application.ProviderCreditPoolService;
+import com.lebhas.ai.credit.application.dto.MasterCreditOverviewView;
+import com.lebhas.ai.credit.application.dto.MasterWorkspaceCreditView;
+import com.lebhas.ai.credit.application.dto.ProviderCreditExchangePolicyCommand;
+import com.lebhas.ai.credit.application.dto.ProviderCreditExchangePolicyView;
+import com.lebhas.ai.credit.application.dto.ProviderCreditLedgerView;
+import com.lebhas.ai.credit.application.dto.ProviderCreditPoolAdjustmentCommand;
+import com.lebhas.ai.credit.application.dto.ProviderCreditPoolCommand;
+import com.lebhas.ai.credit.application.dto.ProviderCreditPoolView;
 import com.lebhas.ai.domain.ProviderEnvironment;
 import com.lebhas.ai.domain.ProviderStatus;
 import com.lebhas.ai.domain.ProviderType;
 import com.lebhas.creativesaas.common.api.ApiResponse;
+import com.lebhas.creativesaas.common.api.PagedResult;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
+import org.springframework.data.domain.PageRequest;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -55,15 +68,24 @@ public class MasterAiProviderRegistryController {
     private final MasterAiProviderManagementService providerService;
     private final MasterAiProviderToolRegistryService registryService;
     private final MasterProviderSettingsService providerSettingsService;
+    private final ProviderCreditPoolService providerCreditPoolService;
+    private final ProviderCreditExchangePolicyService providerCreditExchangePolicyService;
+    private final MasterCreditMonitoringService masterCreditMonitoringService;
 
     public MasterAiProviderRegistryController(
             MasterAiProviderManagementService providerService,
             MasterAiProviderToolRegistryService registryService,
-            MasterProviderSettingsService providerSettingsService
+            MasterProviderSettingsService providerSettingsService,
+            ProviderCreditPoolService providerCreditPoolService,
+            ProviderCreditExchangePolicyService providerCreditExchangePolicyService,
+            MasterCreditMonitoringService masterCreditMonitoringService
     ) {
         this.providerService = providerService;
         this.registryService = registryService;
         this.providerSettingsService = providerSettingsService;
+        this.providerCreditPoolService = providerCreditPoolService;
+        this.providerCreditExchangePolicyService = providerCreditExchangePolicyService;
+        this.masterCreditMonitoringService = masterCreditMonitoringService;
     }
 
     @GetMapping("/providers")
@@ -151,6 +173,14 @@ public class MasterAiProviderRegistryController {
         return ApiResponse.success("Provider status updated", providerSettingsService.updateProviderStatus(providerId, request));
     }
 
+    @DeleteMapping("/providers/{providerId}")
+    @PreAuthorize("hasRole('MASTER')")
+    @Operation(summary = "Delete configurable provider")
+    public ApiResponse<Void> deleteConfigurableProvider(@PathVariable String providerId) {
+        providerSettingsService.deleteProvider(providerId);
+        return ApiResponse.success("Provider deleted", null);
+    }
+
     @PostMapping("/ai-providers")
     @PreAuthorize("hasRole('MASTER')")
     @Operation(summary = "Create AI provider")
@@ -194,6 +224,23 @@ public class MasterAiProviderRegistryController {
             @Valid @RequestBody AiProviderCredentialCommand request
     ) {
         return ApiResponse.success(registryService.updateCredential(providerId, credentialId, request));
+    }
+
+    @DeleteMapping("/ai-providers/{providerId}/credentials/{credentialId}")
+    @PreAuthorize("hasRole('MASTER')")
+    @Operation(summary = "Deactivate AI provider credential")
+    public ApiResponse<AiProviderCredentialView> deleteCredential(
+            @PathVariable UUID providerId,
+            @PathVariable UUID credentialId
+    ) {
+        return ApiResponse.success("AI provider credential deactivated", registryService.revokeCredential(providerId, credentialId));
+    }
+
+    @GetMapping("/ai-providers/{providerId}/credentials")
+    @PreAuthorize("hasRole('MASTER')")
+    @Operation(summary = "List AI provider credentials")
+    public ApiResponse<List<AiProviderCredentialView>> listCredentials(@PathVariable UUID providerId) {
+        return ApiResponse.success("AI provider credentials loaded", registryService.listCredentials(providerId));
     }
 
     @PostMapping("/creative-tools")
@@ -293,5 +340,97 @@ public class MasterAiProviderRegistryController {
                 items.stream().filter(item -> "DOWN".equalsIgnoreCase(item.status()) || "FAILED".equalsIgnoreCase(item.status())).count());
         return ApiResponse.success(items.isEmpty() ? "No records found" : "Provider health loaded",
                 MasterMonitoringResponse.of(summary, items));
+    }
+
+    @PostMapping("/providers/{providerId}/credit-pool")
+    @PreAuthorize("hasRole('MASTER')")
+    @Operation(summary = "Create or replace provider credit pool")
+    public ApiResponse<ProviderCreditPoolView> createProviderCreditPool(
+            @PathVariable UUID providerId,
+            @Valid @RequestBody ProviderCreditPoolCommand request
+    ) {
+        return ApiResponse.success("Provider credit pool saved", providerCreditPoolService.createOrReplacePool(providerId, request));
+    }
+
+    @GetMapping("/providers/{providerId}/credit-pool")
+    @PreAuthorize("hasRole('MASTER')")
+    @Operation(summary = "Get provider credit pool")
+    public ApiResponse<ProviderCreditPoolView> getProviderCreditPool(@PathVariable UUID providerId) {
+        return ApiResponse.success("Provider credit pool loaded", providerCreditPoolService.getPool(providerId));
+    }
+
+    @PutMapping("/providers/{providerId}/credit-pool")
+    @PreAuthorize("hasRole('MASTER')")
+    @Operation(summary = "Update provider credit pool")
+    public ApiResponse<ProviderCreditPoolView> updateProviderCreditPool(
+            @PathVariable UUID providerId,
+            @Valid @RequestBody ProviderCreditPoolCommand request
+    ) {
+        return ApiResponse.success("Provider credit pool updated", providerCreditPoolService.createOrReplacePool(providerId, request));
+    }
+
+    @PostMapping("/providers/{providerId}/credit-pool/adjust")
+    @PreAuthorize("hasRole('MASTER')")
+    @Operation(summary = "Adjust provider credit pool")
+    public ApiResponse<ProviderCreditPoolView> adjustProviderCreditPool(
+            @PathVariable UUID providerId,
+            @Valid @RequestBody ProviderCreditPoolAdjustmentCommand request
+    ) {
+        return ApiResponse.success("Provider credit pool adjusted", providerCreditPoolService.adjustPool(providerId, request));
+    }
+
+    @GetMapping("/providers/{providerId}/credit-ledger")
+    @PreAuthorize("hasRole('MASTER')")
+    @Operation(summary = "List provider credit ledger")
+    public ApiResponse<PagedResult<ProviderCreditLedgerView>> listProviderCreditLedger(
+            @PathVariable UUID providerId,
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "50") int size
+    ) {
+        return ApiResponse.success("Provider credit ledger loaded",
+                providerCreditPoolService.listLedger(providerId, PageRequest.of(page, Math.min(size, 100))));
+    }
+
+    @PostMapping("/providers/{providerId}/exchange-policy")
+    @PreAuthorize("hasRole('MASTER')")
+    @Operation(summary = "Create or replace provider exchange policy")
+    public ApiResponse<ProviderCreditExchangePolicyView> createProviderExchangePolicy(
+            @PathVariable UUID providerId,
+            @Valid @RequestBody ProviderCreditExchangePolicyCommand request
+    ) {
+        return ApiResponse.success("Provider exchange policy saved",
+                providerCreditExchangePolicyService.createOrReplacePolicy(providerId, request));
+    }
+
+    @GetMapping("/providers/{providerId}/exchange-policy")
+    @PreAuthorize("hasRole('MASTER')")
+    @Operation(summary = "Get provider exchange policy")
+    public ApiResponse<ProviderCreditExchangePolicyView> getProviderExchangePolicy(@PathVariable UUID providerId) {
+        return ApiResponse.success("Provider exchange policy loaded", providerCreditExchangePolicyService.getPolicy(providerId));
+    }
+
+    @PutMapping("/providers/{providerId}/exchange-policy")
+    @PreAuthorize("hasRole('MASTER')")
+    @Operation(summary = "Update provider exchange policy")
+    public ApiResponse<ProviderCreditExchangePolicyView> updateProviderExchangePolicy(
+            @PathVariable UUID providerId,
+            @Valid @RequestBody ProviderCreditExchangePolicyCommand request
+    ) {
+        return ApiResponse.success("Provider exchange policy updated",
+                providerCreditExchangePolicyService.createOrReplacePolicy(providerId, request));
+    }
+
+    @GetMapping("/credits/overview")
+    @PreAuthorize("hasRole('MASTER')")
+    @Operation(summary = "Get Master credit overview")
+    public ApiResponse<MasterCreditOverviewView> getMasterCreditOverview() {
+        return ApiResponse.success("Master credit overview loaded", masterCreditMonitoringService.overview());
+    }
+
+    @GetMapping("/workspaces/{workspaceId}/credits")
+    @PreAuthorize("hasRole('MASTER')")
+    @Operation(summary = "Get workspace credit account and ledger")
+    public ApiResponse<MasterWorkspaceCreditView> getWorkspaceCredits(@PathVariable UUID workspaceId) {
+        return ApiResponse.success("Workspace credits loaded", masterCreditMonitoringService.workspaceCredits(workspaceId));
     }
 }

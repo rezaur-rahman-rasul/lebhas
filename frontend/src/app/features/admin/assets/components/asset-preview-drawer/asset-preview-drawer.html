@@ -1,71 +1,98 @@
 @if (open() && asset()) {
-  <div class="fixed inset-0 z-40 bg-slate-950/35" (click)="closed.emit()"></div>
+  <button
+    type="button"
+    class="fixed inset-0 z-[80] bg-slate-950/70 backdrop-blur-[2px]"
+    (click)="closed.emit()"
+    aria-label="Close asset detail overlay"
+  ></button>
 
   <aside
-    class="fixed inset-y-0 right-0 z-50 flex w-full max-w-xl flex-col overflow-hidden border-l border-border bg-white shadow-2xl"
+    class="fixed inset-y-0 right-0 z-[90] flex h-screen w-full flex-col overflow-hidden border-l border-slate-500/20 bg-[#0f172a] text-slate-100 shadow-2xl sm:max-w-[42rem] xl:max-w-[45rem]"
     role="dialog"
     aria-modal="true"
+    aria-labelledby="asset-preview-title"
+    tabindex="-1"
+    (keydown.escape)="closed.emit()"
   >
-    <header class="flex items-start justify-between gap-4 border-b border-border px-6 py-5">
-      <div class="min-w-0">
-        <div class="flex flex-wrap items-center gap-2">
-          <app-badge [tone]="assetStatusTone(asset()!.status)">
-            {{ assetStatusLabel(asset()!.status) }}
-          </app-badge>
+    <header class="sticky top-0 z-10 border-b border-slate-500/20 bg-[#111827]/95 px-5 py-5 backdrop-blur sm:px-6">
+      <div class="flex items-start justify-between gap-4">
+        <div class="min-w-0">
+          <div class="flex flex-wrap items-center gap-2">
+            <app-badge [tone]="assetStatusTone(asset()!.status)">
+              {{ assetStatusLabel(asset()!.status) }}
+            </app-badge>
+            <span class="rounded-full border border-slate-500/25 bg-slate-900/80 px-2.5 py-1 text-xs font-medium text-slate-300">
+              {{ assetCategoryLabel(asset()!.assetCategory) }}
+            </span>
+          </div>
+
+          <h2 id="asset-preview-title" class="mt-3 truncate text-xl font-semibold text-slate-50">
+            {{ asset()!.originalFileName }}
+          </h2>
+          <p class="mt-1 text-sm text-slate-400">
+            {{ assetFileTypeLabel(asset()!.fileType) }} · {{ asset()!.mimeType || 'Unknown content type' }}
+          </p>
         </div>
 
-        <h2 class="mt-3 truncate text-lg font-semibold text-ink">{{ asset()!.originalFileName }}</h2>
-        <p class="mt-1 text-sm text-muted">
-          {{ assetCategoryLabel(asset()!.assetCategory) }} ·
-          {{ assetFileTypeLabel(asset()!.fileType) }}
-        </p>
+        <button
+          type="button"
+          class="grid h-10 w-10 shrink-0 place-items-center rounded-xl border border-slate-500/20 bg-slate-900/80 text-slate-300 transition hover:border-slate-400/40 hover:bg-slate-800 hover:text-slate-50"
+          (click)="closed.emit()"
+          aria-label="Close asset detail"
+        >
+          <app-icon name="x" [size]="18" />
+        </button>
       </div>
-
-      <button
-        type="button"
-        class="rounded-md p-1 text-slate-400 hover:bg-slate-100 hover:text-ink"
-        (click)="closed.emit()"
-        aria-label="Close drawer"
-      >
-        <app-icon name="x" [size]="18" />
-      </button>
     </header>
 
-    <div class="flex-1 space-y-6 overflow-y-auto px-6 py-6">
-      <section class="overflow-hidden rounded-2xl border border-border bg-slate-50">
-        <div class="aspect-[16/10]">
+    <div class="asset-preview-drawer__body flex-1 space-y-5 overflow-y-auto px-5 py-5 sm:px-6">
+      <section class="overflow-hidden rounded-3xl border border-slate-500/20 bg-[#111827] shadow-xl shadow-black/20">
+        <div class="asset-preview-drawer__preview aspect-[16/10]">
           @switch (asset()!.fileType) {
             @case ('VIDEO') {
-              @if (previewUrl()) {
-                <video [src]="previewUrl()!" controls class="h-full w-full bg-slate-950 object-contain"></video>
+              @if (canRenderPreview()) {
+                <video
+                  [src]="resolvedPreviewUrl()!"
+                  controls
+                  class="h-full w-full bg-slate-950 object-contain"
+                  (loadeddata)="markPreviewLoaded()"
+                  (error)="markPreviewFailed()"
+                ></video>
               } @else {
-                <div class="grid h-full place-items-center bg-slate-950 text-white">
-                  <div class="flex flex-col items-center gap-3 text-center">
-                    <div class="grid h-14 w-14 place-items-center rounded-full bg-white/10">
-                      <app-icon name="video" [size]="24" />
+                <div class="grid h-full place-items-center text-slate-300">
+                  <div class="flex max-w-xs flex-col items-center gap-3 text-center">
+                    <div class="grid h-16 w-16 place-items-center rounded-2xl border border-slate-500/20 bg-slate-950/70">
+                      <app-icon name="video" [size]="26" />
                     </div>
                     <div>
-                      <p class="text-sm font-medium">Signed video preview</p>
-                      <p class="mt-1 text-xs text-slate-300">Generate a preview URL to inspect this asset.</p>
+                      <p class="text-sm font-semibold text-slate-100">Video preview unavailable</p>
+                      <p class="mt-1 text-xs text-slate-400">Refresh the signed preview URL to inspect this asset.</p>
                     </div>
                   </div>
                 </div>
               }
             }
             @default {
-              @if (previewUrl() || asset()!.thumbnailUrl || asset()!.previewUrl || asset()!.publicUrl) {
+              @if (canRenderPreview()) {
                 <img
-                  [src]="previewUrl() || asset()!.thumbnailUrl || asset()!.previewUrl || asset()!.publicUrl || ''"
+                  [src]="resolvedPreviewUrl()!"
                   [alt]="asset()!.originalFileName"
                   class="h-full w-full object-contain"
+                  (load)="markPreviewLoaded()"
+                  (error)="markPreviewFailed()"
                 />
               } @else {
-                <div class="grid h-full place-items-center bg-slate-100 text-slate-500">
-                  <div class="flex flex-col items-center gap-2">
-                    <app-icon name="image" [size]="28" />
-                    <span class="text-xs font-medium uppercase tracking-[0.14em]">
-                      {{ asset()!.fileExtension }}
-                    </span>
+                <div class="grid h-full place-items-center text-slate-300">
+                  <div class="flex max-w-xs flex-col items-center gap-3 text-center">
+                    <div class="grid h-16 w-16 place-items-center rounded-2xl border border-slate-500/20 bg-slate-950/70">
+                      <app-icon name="image" [size]="28" />
+                    </div>
+                    <div>
+                      <p class="text-sm font-semibold text-slate-100">Preview unavailable</p>
+                      <p class="mt-1 text-xs text-slate-400">
+                        {{ asset()!.fileExtension || asset()!.fileType }} asset · refresh the signed URL to retry.
+                      </p>
+                    </div>
                   </div>
                 </div>
               }
@@ -74,13 +101,13 @@
         </div>
       </section>
 
-      <div class="flex flex-wrap gap-2">
+      <div class="flex flex-wrap items-center gap-2">
         <app-button
           size="sm"
           variant="secondary"
-          icon="external-link"
+          icon="refresh-cw"
           [loading]="previewLoading()"
-          (click)="previewRequested.emit(asset()!)"
+          (click)="refreshPreview(asset()!)"
         >
           Refresh preview URL
         </app-button>
@@ -97,15 +124,6 @@
           </app-button>
         }
 
-        <app-button
-          size="sm"
-          variant="ghost"
-          icon="arrow-right"
-          (click)="detailRequested.emit(asset()!)"
-        >
-          Open detail
-        </app-button>
-
         @if (canDelete()) {
           <app-button
             size="sm"
@@ -119,75 +137,77 @@
         }
       </div>
 
-      <section class="grid gap-4 rounded-2xl border border-border p-4 sm:grid-cols-2">
+      <section class="grid gap-4 rounded-2xl border border-slate-500/20 bg-[#111827] p-4 sm:grid-cols-2">
         <div>
           <p class="text-xs uppercase tracking-[0.14em] text-slate-500">File size</p>
-          <p class="mt-1 text-sm font-medium text-ink">{{ formatFileSize(asset()!.fileSize) }}</p>
+          <p class="mt-1 text-sm font-medium text-slate-100">{{ formatFileSize(asset()!.fileSize) }}</p>
         </div>
         <div>
           <p class="text-xs uppercase tracking-[0.14em] text-slate-500">Uploaded</p>
-          <p class="mt-1 text-sm font-medium text-ink">{{ asset()!.createdAt | date: 'd MMM y, h:mm a' }}</p>
+          <p class="mt-1 text-sm font-medium text-slate-100">{{ asset()!.createdAt | date: 'd MMM y, h:mm a' }}</p>
         </div>
         <div>
           <p class="text-xs uppercase tracking-[0.14em] text-slate-500">Dimensions</p>
-          <p class="mt-1 text-sm font-medium text-ink">
-            {{ asset()!.width || '-' }} x {{ asset()!.height || '-' }}
-          </p>
+          <p class="mt-1 text-sm font-medium text-slate-100">{{ dimensionsLabel(asset()!) }}</p>
         </div>
         <div>
           <p class="text-xs uppercase tracking-[0.14em] text-slate-500">Duration</p>
-          <p class="mt-1 text-sm font-medium text-ink">{{ asset()!.duration || '-' }}</p>
+          <p class="mt-1 text-sm font-medium text-slate-100">{{ durationLabel(asset()!) }}</p>
         </div>
       </section>
 
-      <section class="rounded-2xl border border-border p-4">
-        <h3 class="text-sm font-semibold text-ink">Tags</h3>
+      <section class="rounded-2xl border border-slate-500/20 bg-[#111827] p-4">
+        <h3 class="text-sm font-semibold text-slate-50">Tags</h3>
         <div class="mt-3 flex flex-wrap gap-2">
           @if (asset()!.tags.length) {
             @for (tag of asset()!.tags; track tag) {
-              <span class="inline-flex items-center rounded-full bg-brand-50 px-3 py-1 text-sm font-medium text-brand-700">
+              <span class="inline-flex items-center rounded-full border border-cyan-400/20 bg-cyan-400/10 px-3 py-1 text-sm font-medium text-cyan-100">
                 {{ tag }}
               </span>
             }
           } @else {
-            <p class="text-sm text-muted">No tags applied yet.</p>
+            <p class="text-sm text-slate-400">No tags applied yet.</p>
           }
         </div>
       </section>
 
-      <section class="rounded-2xl border border-border p-4">
-        <h3 class="text-sm font-semibold text-ink">Storage summary</h3>
+      <section class="rounded-2xl border border-slate-500/20 bg-[#111827] p-4">
+        <h3 class="text-sm font-semibold text-slate-50">Storage summary</h3>
         <dl class="mt-3 grid gap-3 text-sm">
           <div class="flex items-start justify-between gap-4">
-            <dt class="text-muted">Provider</dt>
-            <dd class="text-right font-medium text-ink">{{ asset()!.storageProvider }}</dd>
+            <dt class="text-slate-400">Storage</dt>
+            <dd class="text-right font-medium text-slate-100">{{ storageProviderLabel(asset()!) }}</dd>
           </div>
           <div class="flex items-start justify-between gap-4">
-            <dt class="text-muted">Bucket</dt>
-            <dd class="text-right font-medium text-ink">{{ asset()!.storageBucket || 'Private storage' }}</dd>
+            <dt class="text-slate-400">Visibility</dt>
+            <dd class="text-right font-medium text-slate-100">{{ visibilityLabel(asset()!) }}</dd>
           </div>
           <div class="flex items-start justify-between gap-4">
-            <dt class="text-muted">Storage key</dt>
-            <dd class="max-w-[18rem] break-all text-right font-medium text-ink">{{ asset()!.storageKey }}</dd>
+            <dt class="text-slate-400">Asset ID</dt>
+            <dd class="max-w-[18rem] break-all text-right font-medium text-slate-100">{{ asset()!.id }}</dd>
+          </div>
+          <div class="flex items-start justify-between gap-4">
+            <dt class="text-slate-400">Content type</dt>
+            <dd class="text-right font-medium text-slate-100">{{ asset()!.mimeType || 'Unknown' }}</dd>
           </div>
         </dl>
       </section>
 
-      <section class="rounded-2xl border border-border p-4">
-        <h3 class="text-sm font-semibold text-ink">Metadata</h3>
+      <section class="rounded-2xl border border-slate-500/20 bg-[#111827] p-4">
+        <h3 class="text-sm font-semibold text-slate-50">Metadata</h3>
         @if ((asset()!.metadata | keyvalue).length) {
           <dl class="mt-3 space-y-3 text-sm">
             @for (entry of asset()!.metadata | keyvalue; track entry.key) {
               <div class="flex items-start justify-between gap-4">
-                <dt class="text-muted">{{ entry.key }}</dt>
-                <dd class="max-w-[16rem] break-all text-right font-medium text-ink">
+                <dt class="text-slate-400">{{ entry.key }}</dt>
+                <dd class="max-w-[16rem] break-all text-right font-medium text-slate-100">
                   {{ entry.value }}
                 </dd>
               </div>
             }
           </dl>
         } @else {
-          <p class="mt-3 text-sm text-muted">No additional metadata is stored for this asset yet.</p>
+          <p class="mt-3 text-sm text-slate-400">No additional metadata is stored for this asset yet.</p>
         }
       </section>
     </div>

@@ -15,83 +15,85 @@
       </thead>
       <tbody class="divide-y divide-white/10">
         @for (asset of assets(); track asset.id) {
-          <tr class="align-top hover:bg-white/[0.03]">
-            <td class="px-4 py-4">
-              <div class="flex items-start gap-3">
-                <div class="grid h-11 w-11 shrink-0 place-items-center overflow-hidden rounded-lg bg-slate-900">
-                  @if (asset.thumbnailUrl || asset.previewUrl || asset.publicUrl) {
-                    <img
-                      [src]="asset.thumbnailUrl || asset.previewUrl || asset.publicUrl || ''"
-                      [alt]="asset.originalFileName"
-                      class="h-full w-full object-cover"
-                    />
-                  } @else {
-                    <app-icon
-                      [name]="asset.fileType === 'VIDEO' ? 'video' : 'image'"
-                      [size]="20"
-                      className="text-slate-500"
-                    />
-                  }
-                </div>
+          @if (asset.id && asset.status !== 'DELETED') {
+            <tr class="align-top hover:bg-white/[0.03]">
+              <td class="px-4 py-4">
+                <div class="flex items-start gap-3">
+                  <div class="grid h-11 w-11 shrink-0 place-items-center overflow-hidden rounded-lg bg-slate-900">
+                    @if (asset.thumbnailUrl || asset.previewUrl || asset.publicUrl) {
+                      <img
+                        [src]="asset.thumbnailUrl || asset.previewUrl || asset.publicUrl || ''"
+                        [alt]="asset.originalFileName"
+                        class="h-full w-full object-cover"
+                      />
+                    } @else {
+                      <app-icon
+                        [name]="asset.fileType === 'VIDEO' ? 'video' : 'image'"
+                        [size]="20"
+                        className="text-slate-500"
+                      />
+                    }
+                  </div>
 
-                <div class="min-w-0">
-                  <button
-                    type="button"
-                    class="block max-w-full truncate text-left font-semibold text-white hover:text-brand-300"
-                    (click)="detailRequested.emit(asset)"
-                  >
-                    {{ asset.originalFileName }}
-                  </button>
-                  <p class="mt-1 text-xs text-slate-400">{{ asset.storageProvider }}</p>
+                  <div class="min-w-0">
+                    <button
+                      type="button"
+                      class="block max-w-full truncate text-left font-semibold text-white hover:text-brand-300"
+                      (click)="detailRequested.emit(asset)"
+                    >
+                      {{ asset.originalFileName }}
+                    </button>
+                    <p class="mt-1 text-xs text-slate-400">{{ asset.storageProvider }}</p>
+                  </div>
                 </div>
-              </div>
-            </td>
-            <td class="px-4 py-4 text-slate-200">{{ assetCategoryLabel(asset.assetCategory) }}</td>
-            <td class="px-4 py-4 text-slate-200">{{ assetFileTypeLabel(asset.fileType) }}</td>
-            <td class="px-4 py-4 text-slate-200">{{ formatFileSize(asset.fileSize) }}</td>
-            <td class="px-4 py-4 text-slate-200">{{ asset.uploadedBy }}</td>
-            <td class="px-4 py-4 text-slate-200">{{ asset.createdAt | date: 'd MMM y, h:mm a' }}</td>
-            <td class="px-4 py-4">
-              <app-badge [tone]="assetStatusTone(asset.status)">
-                {{ assetStatusLabel(asset.status) }}
-              </app-badge>
-            </td>
-            <td class="px-4 py-4">
-              <div class="flex justify-end gap-2">
-                <app-button
-                  size="sm"
-                  variant="secondary"
-                  icon="eye"
-                  (click)="previewRequested.emit(asset)"
-                >
-                  Preview
-                </app-button>
-
-                @if (canDownload()) {
+              </td>
+              <td class="px-4 py-4 text-slate-200">{{ assetCategoryLabel(asset.assetCategory) }}</td>
+              <td class="px-4 py-4 text-slate-200">{{ assetFileTypeLabel(asset.fileType) }}</td>
+              <td class="px-4 py-4 text-slate-200">{{ formatFileSize(asset.fileSize) }}</td>
+              <td class="px-4 py-4 text-slate-200">{{ asset.uploadedBy }}</td>
+              <td class="px-4 py-4 text-slate-200">{{ asset.createdAt | date: 'd MMM y, h:mm a' }}</td>
+              <td class="px-4 py-4">
+                <app-badge [tone]="assetStatusTone(asset.status)">
+                  {{ assetStatusLabel(asset.status) }}
+                </app-badge>
+              </td>
+              <td class="px-4 py-4">
+                <div class="flex justify-end gap-2">
                   <app-button
                     size="sm"
                     variant="secondary"
-                    icon="download"
-                    (click)="downloadRequested.emit(asset)"
+                    icon="eye"
+                    (click)="previewRequested.emit(asset)"
                   >
-                    Download
+                    Preview
                   </app-button>
-                }
 
-                @if (canDelete()) {
-                  <app-button
-                    size="sm"
-                    variant="danger"
-                    icon="trash-2"
-                    [loading]="deletingAssetId() === asset.id"
-                    (click)="deleteRequested.emit(asset)"
-                  >
-                    Delete
-                  </app-button>
-                }
-              </div>
-            </td>
-          </tr>
+                  @if (canDownload()) {
+                    <app-button
+                      size="sm"
+                      variant="secondary"
+                      icon="download"
+                      (click)="downloadRequested.emit(asset)"
+                    >
+                      Download
+                    </app-button>
+                  }
+
+                  @if (canDelete()) {
+                    <app-button
+                      size="sm"
+                      variant="danger"
+                      icon="trash-2"
+                      [loading]="deletingAssetId() === asset.id"
+                      (click)="deleteRequested.emit(asset)"
+                    >
+                      Delete
+                    </app-button>
+                  }
+                </div>
+              </td>
+            </tr>
+          }
         }
       </tbody>
     </table>
@@ -99,7 +101,8 @@
 
   <div class="grid gap-3 lg:hidden">
     @for (asset of assets(); track asset.id) {
-      <app-card>
+      @if (asset.id && asset.status !== 'DELETED') {
+        <app-card>
         <div class="flex items-start gap-3">
           <div class="grid h-14 w-14 shrink-0 place-items-center overflow-hidden rounded-lg bg-slate-900">
             @if (asset.thumbnailUrl || asset.previewUrl || asset.publicUrl) {
@@ -185,7 +188,8 @@
             </div>
           </div>
         </div>
-      </app-card>
+        </app-card>
+      }
     }
   </div>
 </div>

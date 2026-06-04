@@ -107,6 +107,24 @@ public class MasterAiProviderToolRegistryService {
         return toView(credentialRepository.save(credential));
     }
 
+    @Transactional(readOnly = true)
+    public List<AiProviderCredentialView> listCredentials(UUID providerId) {
+        requireProvider(providerId);
+        return credentialRepository.findAllByProviderIdAndDeletedFalseOrderByCredentialNameAsc(providerId)
+                .stream()
+                .map(this::toView)
+                .toList();
+    }
+
+    public AiProviderCredentialView revokeCredential(UUID providerId, UUID credentialId) {
+        requireProvider(providerId);
+        AiProviderCredential credential = credentialRepository.findByIdAndProviderIdAndDeletedFalse(credentialId, providerId)
+                .orElseThrow(() -> new BusinessException(ErrorCode.RESOURCE_NOT_FOUND, "AI provider credential not found"));
+        credential.revoke();
+        credential.markDeleted();
+        return toView(credentialRepository.save(credential));
+    }
+
     public CreativeToolView createTool(CreativeToolCommand command) {
         if (toolRepository.existsByToolCodeAndDeletedFalse(AiToolProvider.normalizeCode(command.toolCode(), "toolCode"))) {
             throw new BusinessException(ErrorCode.BUSINESS_RULE_VIOLATION, "Creative tool code already exists");

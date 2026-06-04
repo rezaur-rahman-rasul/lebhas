@@ -1,5 +1,7 @@
 package com.lebhas.creativesaas.usage.application;
 
+import com.lebhas.ai.credit.application.ProviderCreditPoolService;
+import com.lebhas.ai.credit.application.dto.ProviderCreditPoolView;
 import com.lebhas.creativesaas.common.exception.BusinessException;
 import com.lebhas.creativesaas.common.exception.ErrorCode;
 import com.lebhas.creativesaas.common.security.context.CurrentUser;
@@ -37,6 +39,7 @@ import java.time.Instant;
 import java.time.LocalDate;
 import java.time.ZoneOffset;
 import java.util.Map;
+import java.util.Optional;
 import java.util.UUID;
 
 @Service
@@ -55,6 +58,7 @@ public class CreditUsageService {
     private CurrentUserContext currentUserContext;
     private DomainEventPublisher domainEventPublisher;
     private AuditLogService auditLogService;
+    private ProviderCreditPoolService providerCreditPoolService;
 
     public CreditUsageService(
             CreditBalanceService creditBalanceService,
@@ -89,6 +93,11 @@ public class CreditUsageService {
     @Autowired(required = false)
     void setAuditLogService(AuditLogService auditLogService) {
         this.auditLogService = auditLogService;
+    }
+
+    @Autowired(required = false)
+    void setProviderCreditPoolService(ProviderCreditPoolService providerCreditPoolService) {
+        this.providerCreditPoolService = providerCreditPoolService;
     }
 
     @Transactional
@@ -215,6 +224,7 @@ public class CreditUsageService {
             WorkspaceUsageSummary summary = summary(workspaceId);
             summary.recordReservation(serverCalculatedCredits);
             workspaceUsageSummaryService.recordSummaryMutation(summary, referenceType, referenceId, "CREDITS_RESERVED");
+            reserveProviderCreditsIfConfigured(serverCalculatedCredits, referenceType, referenceId, command.createdBy());
             publishReserved(workspaceId, creativeRequestId, command.generatedVersionId(), transaction.getId(), serverCalculatedCredits);
             return creditUsageMapper.toUsageResult(
                     ledger,
@@ -258,6 +268,7 @@ public class CreditUsageService {
             WorkspaceUsageSummary summary = summary(workspaceId);
             summary.recordFinalization(amount);
             workspaceUsageSummaryService.recordSummaryMutation(summary, referenceType, referenceId, "CREDITS_FINALIZED");
+            useProviderCreditsIfReserved(amount, referenceType, referenceId, command.createdBy());
             publishFinalized(workspaceId, command.creativeRequestId(), command.generatedVersionId(), reservationId(command, transaction), amount, command.reason());
             return creditUsageMapper.toUsageResult(
                     ledger,
@@ -301,6 +312,7 @@ public class CreditUsageService {
             WorkspaceUsageSummary summary = summary(workspaceId);
             summary.recordRefund(amount);
             workspaceUsageSummaryService.recordSummaryMutation(summary, referenceType, referenceId, "CREDITS_REFUNDED");
+            releaseProviderCreditsIfReserved(amount, referenceType, referenceId, command.createdBy());
             publishRefunded(workspaceId, command.creativeRequestId(), command.generatedVersionId(), reservationId(command, transaction), amount, command.reason());
             return creditUsageMapper.toUsageResult(
                     ledger,
@@ -324,6 +336,35 @@ public class CreditUsageService {
             throw new BusinessException(ErrorCode.CREDIT_RESERVE_INVALID, "No outstanding reserved credits exist for the supplied reference");
         }
         return outstanding;
+    }
+
+    private void reserveProviderCreditsIfConfigured(BigDecimal amount, String referenceType, UUID referenceId, UUID createdBy) {
+        if (providerCreditPoolService == null) {
+            return;
+        }
+        providerCreditPoolService.listPools()
+                .stream()
+                .filter(pool -> pool.availableInternalCredits().compareTo(amount) >= 0)
+                .findFirst()
+                .map(ProviderCreditPoolView::providerId)
+                .ifPresent(providerId -> providerCreditPoolService.reserveProviderCredits(providerId, amount, referenceType, referenceId, createdBy));
+    }
+
+    private void useProviderCreditsIfReserved(BigDecimal amount, String referenceType, UUID referenceId, UUID createdBy) {
+        providerForReservation(referenceType, referenceId)
+                .ifPresent(providerId -> providerCreditPoolService.useReservedProviderCredits(providerId, amount, referenceType, referenceId, createdBy));
+    }
+
+    private void releaseProviderCreditsIfReserved(BigDecimal amount, String referenceType, UUID referenceId, UUID createdBy) {
+        providerForReservation(referenceType, referenceId)
+                .ifPresent(providerId -> providerCreditPoolService.releaseReservedProviderCredits(providerId, amount, referenceType, referenceId, createdBy));
+    }
+
+    private Optional<UUID> providerForReservation(String referenceType, UUID referenceId) {
+        if (providerCreditPoolService == null) {
+            return Optional.empty();
+        }
+        return providerCreditPoolService.findReservedProviderId(referenceType, referenceId);
     }
 
     private WorkspaceUsageSummary summary(UUID workspaceId) {

@@ -126,11 +126,11 @@ export const DASHBOARD_NAVIGATION: readonly NavigationItem[] = [
   {
     label: 'Credit Usage',
     icon: 'wallet-cards',
-    route: '/credit-usage',
+    route: '/credits',
     group: 'Billing',
     roles: ['ADMIN', 'CREW'],
     permissionKey: 'canViewUsageBilling',
-    activePaths: ['/usage-billing'],
+    activePaths: ['/usage-billing', '/credits'],
     activeMatch: 'prefix',
   },
   {
@@ -217,7 +217,7 @@ export const DASHBOARD_NAVIGATION: readonly NavigationItem[] = [
     route: '/master/provider-settings',
     group: 'AI Operations',
     roles: ['MASTER'],
-    permissionKey: 'canManagePaymentProviders',
+    permissionKey: 'canViewAiMonitoring',
     activeMatch: 'exact',
   },
   {
@@ -249,6 +249,32 @@ export const DASHBOARD_NAVIGATION: readonly NavigationItem[] = [
     activeMatch: 'exact',
   },
   {
+    label: 'Provider Credit Pools',
+    icon: 'wallet-cards',
+    route: '/master/provider-credit-pools',
+    group: 'Monetization',
+    roles: ['MASTER'],
+    permissionKey: 'canViewMasterUsage',
+    activeMatch: 'exact',
+  },
+  {
+    label: 'Exchange Policies',
+    icon: 'repeat-2',
+    route: '/master/exchange-policies',
+    group: 'Monetization',
+    roles: ['MASTER'],
+    permissionKey: 'canViewMasterUsage',
+    activeMatch: 'exact',
+  },
+  {
+    label: 'Credit Overview',
+    icon: 'chart-no-axes-combined',
+    route: '/master/credit-overview',
+    group: 'Monetization',
+    roles: ['MASTER'],
+    permissionKey: 'canViewMasterUsage',
+    activeMatch: 'exact',
+  },  {
     label: 'Pricing Packages',
     icon: 'package-check',
     route: '/master/pricing-packages',
@@ -330,3 +356,4 @@ export const DASHBOARD_NAVIGATION: readonly NavigationItem[] = [
     activeMatch: 'prefix',
   },
 ];
+

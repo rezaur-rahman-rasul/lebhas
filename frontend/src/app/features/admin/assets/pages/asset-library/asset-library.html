@@ -58,6 +58,40 @@
             <div class="h-72 animate-pulse rounded-2xl border border-white/10 bg-white/[0.04]"></div>
           }
         </div>
+      } @else if (store.assetError()) {
+        <app-empty-state
+          icon="circle-alert"
+          title="Asset library could not be loaded"
+          [description]="store.assetError()!"
+        >
+          <app-button variant="secondary" icon="arrow-right" (click)="reloadLibrary()">
+            Try again
+          </app-button>
+        </app-empty-state>
+      } @else if (!store.hasAssets()) {
+        @if (hasActiveFilters()) {
+          <app-empty-state
+            icon="search"
+            title="No assets match your filters"
+            description="Try changing search, category, file type, status, or folder."
+          >
+            <app-button variant="secondary" icon="rotate-ccw" (click)="resetFilters()">
+              Reset filters
+            </app-button>
+          </app-empty-state>
+        } @else {
+          <app-empty-state
+            icon="image"
+            title="No assets yet"
+            description="Upload product images, logos, and campaign media to use them in creative generation."
+          >
+            @if (store.canUploadAssets()) {
+              <app-button icon="cloud-upload" data-testid="open-asset-uploader" (click)="openUploader()">
+                Upload Asset
+              </app-button>
+            }
+          </app-empty-state>
+        }
       } @else if (store.hasAssets()) {
         @if (store.isGridView()) {
           <app-asset-grid
@@ -109,28 +143,6 @@
             </div>
           </div>
         }
-      } @else if (store.assetError()) {
-        <app-empty-state
-          icon="circle-alert"
-          title="Asset library could not be loaded"
-          [description]="store.assetError()!"
-        >
-          <app-button variant="secondary" icon="arrow-right" (click)="reloadLibrary()">
-            Try again
-          </app-button>
-        </app-empty-state>
-      } @else {
-        <app-empty-state
-          icon="image"
-          title="No assets yet"
-          description="Upload product photos, logos, and campaign media to start generating creatives."
-        >
-          @if (store.canUploadAssets()) {
-            <app-button icon="cloud-upload" data-testid="open-asset-uploader" (click)="openUploader()">
-              Upload Asset
-            </app-button>
-          }
-        </app-empty-state>
       }
     </div>
   </section>

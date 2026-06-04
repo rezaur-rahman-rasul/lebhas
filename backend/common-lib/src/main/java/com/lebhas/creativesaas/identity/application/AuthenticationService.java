@@ -33,9 +33,11 @@ import com.lebhas.creativesaas.profile.application.UserProfileProvisioningServic
 import com.lebhas.creativesaas.redis.RedisLockService;
 import com.lebhas.creativesaas.redis.RedisRealtimeStateService;
 import com.lebhas.creativesaas.redis.RedisSessionService;
+import com.lebhas.creativesaas.usage.application.AdminFreeCreditAllocationService;
 import com.lebhas.creativesaas.workspace.application.WorkspacePermissionPolicy;
 import com.lebhas.creativesaas.workspace.application.WorkspaceProvisioningService;
 import com.lebhas.creativesaas.workspace.domain.WorkspaceLanguage;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.authentication.BadCredentialsException;
 import org.springframework.security.authentication.DisabledException;
@@ -82,6 +84,7 @@ public class AuthenticationService {
     private final SessionProperties sessionProperties;
     private final UserProfileProvisioningService userProfileProvisioningService;
     private final UserAccountSettingsProvisioningService userAccountSettingsProvisioningService;
+    private AdminFreeCreditAllocationService adminFreeCreditAllocationService;
 
     public AuthenticationService(
             AuthenticationManager authenticationManager,
@@ -135,6 +138,11 @@ public class AuthenticationService {
         this.userAccountSettingsProvisioningService = userAccountSettingsProvisioningService;
     }
 
+    @Autowired(required = false)
+    public void setAdminFreeCreditAllocationService(AdminFreeCreditAllocationService adminFreeCreditAllocationService) {
+        this.adminFreeCreditAllocationService = adminFreeCreditAllocationService;
+    }
+
     @Transactional
     public AuthSessionView register(RegisterUserCommand command, String clientIp, String userAgent) {
         validatePasswordConfirmation(command);
@@ -179,9 +187,10 @@ public class AuthenticationService {
                         null,
                         "Asia/Dhaka",
                         WorkspaceLanguage.ENGLISH,
-                        "BDT",
-                        "BD"));
+                "BDT",
+                "BD"));
         workspaceId = provisionedWorkspace.workspace().getId();
+        grantFreeSignupCredits(workspaceId, user.getId());
         user.markLastLogin(clock.instant());
         userRepository.save(user);
         return issueSession(user, workspaceId, role, defaultDeviceId(), clientIp, userAgent);
@@ -385,6 +394,12 @@ public class AuthenticationService {
     private void provisionProfileDefaults(UserEntity user) {
         userProfileProvisioningService.provisionIfMissing(user);
         userAccountSettingsProvisioningService.provisionIfMissing(user);
+    }
+
+    private void grantFreeSignupCredits(UUID workspaceId, UUID userId) {
+        if (adminFreeCreditAllocationService != null) {
+            adminFreeCreditAllocationService.grantForNewWorkspace(workspaceId, userId);
+        }
     }
 
     private WorkspaceMembershipEntity resolveLoginMembership(UUID userId, UUID requestedWorkspaceId) {

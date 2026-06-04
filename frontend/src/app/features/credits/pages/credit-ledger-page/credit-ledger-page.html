@@ -1,0 +1,17 @@
+<app-page-header eyebrow="BILLING" title="Credit Usage" description="Review credit grants, purchases, reservations, usage, and refunds for this workspace.">
+  <app-button type="button" variant="secondary" icon="rotate-cw" [loading]="credits.loading()" (click)="apply()">Refresh</app-button>
+</app-page-header>
+
+<form class="filters" [formGroup]="form" (ngSubmit)="apply()">
+  <label><span>Transaction type</span><select formControlName="transactionType"><option value="">All</option><option value="FREE_SIGNUP_CREDIT_GRANTED">Free signup credits</option><option value="CREDIT_PURCHASED">Purchased credits</option><option value="CREDIT_RESERVED">Reserved</option><option value="CREDIT_FINALIZED">Used</option><option value="CREDIT_REFUNDED">Refunded</option><option value="MANUAL_ADJUSTMENT">Manual adjustment</option></select></label>
+  <label><span>From</span><input type="date" formControlName="from" /></label>
+  <label><span>To</span><input type="date" formControlName="to" /></label>
+  <label><span>Search reference</span><input type="search" formControlName="search" /></label>
+  <app-button type="submit" size="sm">Apply</app-button><app-button type="button" variant="secondary" size="sm" (click)="clear()">Clear</app-button>
+</form>
+
+@if (credits.error()) {
+  <app-error-state title="Credit usage could not load" [description]="credits.error()!"><app-button type="button" variant="secondary" (click)="apply()">Retry</app-button></app-error-state>
+} @else {
+  <app-credit-ledger-table [ledger]="credits.creditLedger()" />
+}

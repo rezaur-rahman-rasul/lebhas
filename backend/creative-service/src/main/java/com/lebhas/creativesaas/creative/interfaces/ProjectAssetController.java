@@ -85,6 +85,7 @@ public class ProjectAssetController {
         return ApiResponse.success(assetManagementService.uploadAsset(new UploadAssetCommand(
                 workspaceId,
                 projectId,
+                request.getAssetType(),
                 request.getAssetCategory(),
                 request.getDisplayName(),
                 request.getDescription(),

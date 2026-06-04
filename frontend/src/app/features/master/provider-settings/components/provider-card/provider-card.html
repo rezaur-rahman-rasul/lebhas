@@ -1,0 +1,41 @@
+<article
+  class="provider-card"
+  [class.is-selected]="selected()"
+  tabindex="0"
+  role="button"
+  [attr.aria-pressed]="selected()"
+  (click)="selectProvider.emit(provider())"
+  (keydown.enter)="selectProvider.emit(provider())"
+  (keydown.space)="selectProvider.emit(provider())"
+>
+  <div class="provider-head">
+    <div>
+      <p>{{ provider().providerCode }}</p>
+      <h2>{{ provider().displayName || provider().providerName }}</h2>
+    </div>
+    <app-provider-status-badge [active]="provider().active" />
+  </div>
+  <div class="capabilities" aria-label="Provider capabilities">
+    @if (provider().supportsImage) {<span><app-icon name="image" [size]="14" />Image</span>}
+    @if (provider().supportsText) {<span><app-icon name="text" [size]="14" />Text</span>}
+    @if (provider().supportsVideo) {<span><app-icon name="video" [size]="14" />Video</span>}
+    @if (provider().supportsVoice) {<span><app-icon name="mic" [size]="14" />Audio</span>}
+  </div>
+  <dl class="provider-meta">
+    <div><dt>Health</dt><dd>{{ provider().healthStatus || 'UNKNOWN' }}</dd></div>
+    <div><dt>Model</dt><dd>{{ provider().defaultModel || 'Not set' }}</dd></div>
+    <div><dt>Rate limit</dt><dd>{{ provider().rateLimitPerMinute || 60 }}/min</dd></div>
+    <div><dt>Priority</dt><dd>{{ provider().priority || 100 }}</dd></div>
+    <div><dt>Cost</dt><dd>{{ provider().costMultiplier || 1 }}x</dd></div>
+    <div><dt>API key</dt><dd>{{ provider().maskedApiKey || 'Not saved' }}</dd></div>
+  </dl>
+  <div class="actions">
+    <app-button type="button" size="sm" (click)="testProvider.emit(provider()); $event.stopPropagation()">Test Connection</app-button>
+    <app-button type="button" variant="secondary" size="sm" (click)="configureCredentials.emit(provider()); $event.stopPropagation()">Rotate Key</app-button>
+    <app-button type="button" variant="secondary" size="sm" (click)="editProvider.emit(provider()); $event.stopPropagation()">Edit Provider</app-button>
+    <app-button type="button" variant="secondary" size="sm" (click)="toggleProvider.emit(provider()); $event.stopPropagation()">{{ provider().active ? 'Disable' : 'Enable' }}</app-button>
+    <app-button type="button" variant="danger" size="sm" (click)="deleteProvider.emit(provider()); $event.stopPropagation()">Delete</app-button>
+    <app-button type="button" variant="secondary" size="sm" (click)="viewCreditPool.emit(provider()); $event.stopPropagation()">View Credit Pool</app-button>
+    <app-button type="button" variant="secondary" size="sm" (click)="exchangePolicy.emit(provider()); $event.stopPropagation()">Exchange Policy</app-button>
+  </div>
+</article>

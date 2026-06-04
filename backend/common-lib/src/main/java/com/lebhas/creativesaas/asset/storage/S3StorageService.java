@@ -143,10 +143,15 @@ public class S3StorageService implements StorageService {
 
     @Override
     public StoredObjectMetadata getMetadata(AssetEntity asset) {
+        return getMetadata(asset.getStorageBucket(), asset.getStorageKey());
+    }
+
+    @Override
+    public StoredObjectMetadata getMetadata(String bucket, String objectKey) {
         try {
             HeadObjectResponse response = s3Client.headObject(HeadObjectRequest.builder()
-                    .bucket(asset.getStorageBucket())
-                    .key(asset.getStorageKey())
+                    .bucket(bucket == null || bucket.isBlank() ? storageProperties.getBucket() : bucket)
+                    .key(objectKey)
                     .build());
             return new StoredObjectMetadata(response.contentLength(), response.lastModified());
         } catch (Exception exception) {

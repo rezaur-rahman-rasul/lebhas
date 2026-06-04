@@ -14,6 +14,8 @@ public interface CreditLedgerRepository extends JpaRepository<CreditLedger, UUID
 
     Page<CreditLedger> findAllByWorkspaceIdOrderByCreatedAtDesc(UUID workspaceId, Pageable pageable);
 
+    Page<CreditLedger> findAllByOrderByCreatedAtDesc(Pageable pageable);
+
     List<CreditLedger> findAllByReferenceTypeAndReferenceId(String referenceType, UUID referenceId);
 
     List<CreditLedger> findAllByWorkspaceIdAndReferenceTypeAndReferenceId(UUID workspaceId, String referenceType, UUID referenceId);

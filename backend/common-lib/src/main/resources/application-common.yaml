@@ -46,11 +46,15 @@ spring:
       time-to-live: ${CACHE_TTL:15m}
   kafka:
     bootstrap-servers: ${KAFKA_BOOTSTRAP_SERVERS:localhost:9092}
-    producer:
-      key-serializer: org.apache.kafka.common.serialization.StringSerializer
-      value-serializer: org.springframework.kafka.support.serializer.JsonSerializer
-      properties:
-        spring.json.add.type.headers: false
+      producer:
+        key-serializer: org.apache.kafka.common.serialization.StringSerializer
+        value-serializer: org.springframework.kafka.support.serializer.JsonSerializer
+        properties:
+          max.block.ms: ${KAFKA_PRODUCER_MAX_BLOCK_MS:1000}
+          request.timeout.ms: ${KAFKA_PRODUCER_REQUEST_TIMEOUT_MS:1000}
+          delivery.timeout.ms: ${KAFKA_PRODUCER_DELIVERY_TIMEOUT_MS:3000}
+          retries: ${KAFKA_PRODUCER_RETRIES:0}
+          spring.json.add.type.headers: false
     consumer:
       group-id: ${KAFKA_CONSUMER_GROUP_ID:${spring.application.name}}
       key-deserializer: org.apache.kafka.common.serialization.StringDeserializer
@@ -62,9 +66,17 @@ spring:
   sql:
     init:
       mode: never
+  servlet:
+    multipart:
+      enabled: true
+      max-file-size: ${ASSET_UPLOAD_MAX_FILE_SIZE:25MB}
+      max-request-size: ${ASSET_UPLOAD_MAX_REQUEST_SIZE:30MB}
 
 server:
   shutdown: graceful
+  tomcat:
+    max-http-form-post-size: ${ASSET_UPLOAD_MAX_REQUEST_SIZE:30MB}
+    max-swallow-size: ${ASSET_UPLOAD_MAX_REQUEST_SIZE:30MB}
   servlet:
     encoding:
       charset: UTF-8
@@ -143,6 +155,8 @@ platform:
       bucket: ${R2_BUCKET:${STORAGE_BUCKET:creative-saas-assets}}
       public-base-url: ${R2_PUBLIC_BASE_URL:}
       path-style-access-enabled: ${R2_PATH_STYLE_ACCESS_ENABLED:true}
+      api-call-timeout: ${R2_API_CALL_TIMEOUT:8s}
+      api-call-attempt-timeout: ${R2_API_CALL_ATTEMPT_TIMEOUT:4s}
     s3:
       region: ${S3_REGION:ap-southeast-1}
       endpoint: ${S3_ENDPOINT:}

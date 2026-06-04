@@ -1,6 +1,7 @@
 package com.lebhas.creativesaas.creative.interfaces;
 
 import com.lebhas.creativesaas.asset.domain.AssetCategory;
+import com.lebhas.creativesaas.asset.domain.AssetType;
 import jakarta.validation.constraints.NotNull;
 import org.springframework.web.multipart.MultipartFile;
 
@@ -13,6 +14,8 @@ public class UploadAssetRequest {
 
     @NotNull
     private AssetCategory assetCategory;
+
+    private AssetType assetType;
 
     private String displayName;
 
@@ -36,6 +39,14 @@ public class UploadAssetRequest {
 
     public void setAssetCategory(AssetCategory assetCategory) {
         this.assetCategory = assetCategory;
+    }
+
+    public AssetType getAssetType() {
+        return assetType;
+    }
+
+    public void setAssetType(AssetType assetType) {
+        this.assetType = assetType;
     }
 
     public String getDisplayName() {

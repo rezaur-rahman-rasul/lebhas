@@ -1,0 +1,10 @@
+<div class="ledger-table">
+  <table>
+    <thead><tr><th>Date</th><th>Type</th><th>Credits</th><th>Description</th><th>Reference</th><th>Balance after</th></tr></thead>
+    <tbody>
+      @for (entry of ledger(); track entry.id) {
+        <tr><td>{{ entry.createdAt | date: 'medium' }}</td><td>{{ label(entry.transactionType) }}</td><td>{{ entry.creditAmount | number }}</td><td>{{ entry.description || label(entry.transactionType) }}</td><td>{{ entry.referenceId || '--' }}</td><td>{{ entry.balanceAfter | number }}</td></tr>
+      } @empty {<tr><td colspan="6">No credit activity yet.</td></tr>}
+    </tbody>
+  </table>
+</div>

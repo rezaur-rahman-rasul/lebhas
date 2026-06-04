@@ -15,6 +15,8 @@ public class AiCredentialEncryptionService {
 
     private static final String KEY_PROPERTY = "ai.credentials.encryption-key";
     private static final String KEY_ENV = "AI_CREDENTIAL_ENCRYPTION_KEY";
+    private static final String PROVIDER_KEY_PROPERTY = "lebhas.provider.secret-key";
+    private static final String PROVIDER_KEY_ENV = "LEBHAS_PROVIDER_SECRET_KEY";
     private static final String PREFIX = "enc:v1:";
     private static final int IV_BYTES = 12;
     private static final int TAG_BITS = 128;
@@ -92,7 +94,16 @@ public class AiCredentialEncryptionService {
             configured = environment.getProperty(KEY_ENV);
         }
         if (configured == null || configured.isBlank()) {
+            configured = environment.getProperty(PROVIDER_KEY_PROPERTY);
+        }
+        if (configured == null || configured.isBlank()) {
+            configured = environment.getProperty(PROVIDER_KEY_ENV);
+        }
+        if (configured == null || configured.isBlank()) {
             configured = System.getenv(KEY_ENV);
+        }
+        if (configured == null || configured.isBlank()) {
+            configured = System.getenv(PROVIDER_KEY_ENV);
         }
         if (configured == null || configured.isBlank()) {
             throw new BusinessException(ErrorCode.BUSINESS_RULE_VIOLATION, "AI credential encryption key is not configured");

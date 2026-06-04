@@ -61,6 +61,7 @@ public class R2StorageProvider implements StorageService, StorageProvider {
 
     @Override
     public StorageObjectResponse upload(StorageObjectRequest request) {
+        requireConfigured();
         String bucket = resolveBucket(request.bucket());
         String objectKey = resolveObjectKey(request);
         PutObjectRequest putObjectRequest = PutObjectRequest.builder()
@@ -256,7 +257,10 @@ public class R2StorageProvider implements StorageService, StorageProvider {
                     request.fileName());
         }
         if (request.projectId() == null) {
-            throw new IllegalArgumentException("projectId must not be null for asset uploads");
+            return storagePathBuilder.buildWorkspaceAssetPath(
+                    request.workspaceId(),
+                    request.assetId(),
+                    request.fileName());
         }
         return storagePathBuilder.buildAssetPath(
                 request.workspaceId(),

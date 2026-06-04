@@ -1,0 +1,1 @@
+<article class="buy-card"><p>Need more credits?</p><h2>Need more credits?</h2><span>@if (paymentAvailable()) { Buy credits to continue generating creatives. } @else { Contact Master / Payment setup pending. }</span><app-button type="button" [disabled]="!paymentAvailable()" (click)="buyCredits.emit()">Buy Credits</app-button></article>

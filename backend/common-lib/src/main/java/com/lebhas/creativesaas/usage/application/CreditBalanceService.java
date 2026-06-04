@@ -60,7 +60,7 @@ public class CreditBalanceService {
         }
     }
 
-    CreditWalletEntity initializeWallet(UUID workspaceId) {
+    public CreditWalletEntity initializeWallet(UUID workspaceId) {
         return creditWalletRepository.findByWorkspaceIdAndDeletedFalse(requireWorkspaceId(workspaceId))
                 .orElseGet(() -> {
                     CreditWalletEntity wallet = creditWalletRepository.save(CreditWalletEntity.initialize(workspaceId));
@@ -69,7 +69,7 @@ public class CreditBalanceService {
                 });
     }
 
-    BalanceMovement reserve(UUID workspaceId, BigDecimal amount) {
+    public BalanceMovement reserve(UUID workspaceId, BigDecimal amount) {
         CreditWalletEntity wallet = initializeWallet(workspaceId);
         BigDecimal before = wallet.getBalance();
         wallet.reserve(amount);
@@ -78,7 +78,7 @@ public class CreditBalanceService {
         return new BalanceMovement(wallet, before, wallet.getBalance());
     }
 
-    BalanceMovement purchase(UUID workspaceId, BigDecimal amount) {
+    public BalanceMovement purchase(UUID workspaceId, BigDecimal amount) {
         CreditWalletEntity wallet = initializeWallet(workspaceId);
         BigDecimal before = wallet.getBalance();
         wallet.addBalance(amount);
@@ -87,7 +87,7 @@ public class CreditBalanceService {
         return new BalanceMovement(wallet, before, wallet.getBalance());
     }
 
-    BalanceMovement adjust(UUID workspaceId, BigDecimal amount) {
+    public BalanceMovement adjust(UUID workspaceId, BigDecimal amount) {
         CreditWalletEntity wallet = initializeWallet(workspaceId);
         BigDecimal before = wallet.getBalance();
         wallet.adjustBalance(amount);
@@ -96,7 +96,7 @@ public class CreditBalanceService {
         return new BalanceMovement(wallet, before, wallet.getBalance());
     }
 
-    BalanceMovement finalizeReservation(UUID workspaceId, BigDecimal amount) {
+    public BalanceMovement finalizeReservation(UUID workspaceId, BigDecimal amount) {
         CreditWalletEntity wallet = creditWalletRepository.findByWorkspaceIdAndDeletedFalse(requireWorkspaceId(workspaceId))
                 .orElseThrow(() -> new BusinessException(ErrorCode.CREDIT_WALLET_NOT_FOUND));
         BigDecimal before = wallet.getBalance();
@@ -106,7 +106,7 @@ public class CreditBalanceService {
         return new BalanceMovement(wallet, before, wallet.getBalance());
     }
 
-    BalanceMovement refundReservation(UUID workspaceId, BigDecimal amount) {
+    public BalanceMovement refundReservation(UUID workspaceId, BigDecimal amount) {
         CreditWalletEntity wallet = creditWalletRepository.findByWorkspaceIdAndDeletedFalse(requireWorkspaceId(workspaceId))
                 .orElseThrow(() -> new BusinessException(ErrorCode.CREDIT_WALLET_NOT_FOUND));
         BigDecimal before = wallet.getBalance();
@@ -129,7 +129,7 @@ public class CreditBalanceService {
         return workspaceId;
     }
 
-    record BalanceMovement(
+    public record BalanceMovement(
             CreditWalletEntity wallet,
             BigDecimal balanceBefore,
             BigDecimal balanceAfter

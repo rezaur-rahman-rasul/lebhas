@@ -1,0 +1,10 @@
+<article class="preview-card">
+  <p>Free Signup Credit Preview</p>
+  <h2>{{ preview().result | number }} credits</h2>
+  <div><span>Available internal equivalent</span><strong>{{ preview().available | number }}</strong></div>
+  <div><span>Configured percentage</span><strong>{{ preview().percentage | number: '1.0-2' }}%</strong></div>
+  <div><span>Estimated free credits</span><strong>{{ preview().estimated | number }}</strong></div>
+  <div><span>Max cap</span><strong>{{ preview().maxCap | number }}</strong></div>
+  <div><span>Fallback</span><strong>{{ preview().fallback | number }}</strong></div>
+  <small>If provider available internal equivalent is 100,000 and the backend policy percentage is 2%, a new Admin workspace receives up to 2,000 free Lebhas credits depending on the maximum cap.</small>
+</article>

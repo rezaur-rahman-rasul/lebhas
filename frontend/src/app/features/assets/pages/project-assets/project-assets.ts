@@ -185,7 +185,7 @@ export class ProjectAssetsPage {
   protected async openPreview(asset: Asset): Promise<void> {
     this.store.selectAsset(asset);
     this.previewOpenSignal.set(true);
-    this.previewUrlSignal.set(null);
+    this.previewUrlSignal.set(getAssetPreviewUrl(asset));
 
     if (isPreviewableAsset(asset)) {
       await this.refreshPreview(asset);
@@ -203,6 +203,7 @@ export class ProjectAssetsPage {
     const preview = await this.store.getPreviewUrl(asset.id);
     if (preview?.url) {
       this.previewUrlSignal.set(preview.url);
+      this.store.selectAsset({ ...asset, previewUrl: preview.url });
     }
     this.previewLoadingSignal.set(false);
   }
@@ -273,4 +274,22 @@ export class ProjectAssetsPage {
 
     return unit === 'bytes' || !unit ? formatFileSize(value) : `${value} ${unit}`;
   }
+}
+
+function getAssetPreviewUrl(asset: Asset): string | null {
+  return (
+    readUrl(asset, 'signedPreviewUrl') ||
+    asset.previewUrl ||
+    readUrl(asset, 'publicPreviewUrl') ||
+    asset.thumbnailUrl ||
+    readUrl(asset, 'publicUrl') ||
+    readUrl(asset, 'url') ||
+    readUrl(asset, 'downloadUrl') ||
+    null
+  );
+}
+
+function readUrl(asset: Asset, key: string): string | null {
+  const value = (asset as unknown as Record<string, unknown>)[key];
+  return typeof value === 'string' && value.trim() ? value.trim() : null;
 }
