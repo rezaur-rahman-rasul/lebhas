@@ -8,6 +8,7 @@ import {
   AiProviderView,
   CreateProviderCredentialRequest,
   CreateProviderRequest,
+  ProviderModelsJsonView,
   maskProviderSecret,
 } from '../models/provider-credit-exchange.models';
 
@@ -70,6 +71,16 @@ export class ProviderSettingsApiService {
     );
   }
 
+  async getModelsJson(providerId: string): Promise<ProviderModelsJsonView> {
+    const response = await firstValueFrom(
+      this.api.post<ProviderModelsJsonView, { readonly environment: string; readonly secret: null }>(
+        `${this.providersPath}/${encodeURIComponent(providerId)}/models-json`,
+        { environment: 'SANDBOX', secret: null },
+      ),
+    );
+    return unwrapApiResponse(response) as ProviderModelsJsonView;
+  }
+
   async getCredentials(providerId: string): Promise<readonly AiProviderCredentialView[]> {
     const provider = await this.getProvider(providerId);
     if (!provider.credentialConfigured && !provider.maskedApiKey) {
@@ -121,8 +132,13 @@ function mapProvider(source: Record<string, unknown>): AiProviderView {
     providerCode: String(source['providerCode'] ?? source['providerKey'] ?? ''),
     providerName: String(source['providerName'] ?? source['displayName'] ?? ''),
     displayName: String(source['displayName'] ?? source['providerName'] ?? ''),
+    providerType: String(source['providerType'] ?? ''),
+    category: String(source['category'] ?? ''),
     baseUrl: String(source['baseUrl'] ?? ''),
     defaultModel: String(source['defaultModel'] ?? ''),
+    modelsEndpoint: String(source['modelsEndpoint'] ?? ''),
+    modelsEndpointAuth: String(source['modelsEndpointAuth'] ?? 'BEARER'),
+    apiKeyQueryParam: String(source['apiKeyQueryParam'] ?? ''),
     metadataJson: String(source['metadataJson'] ?? ''),
     status,
     healthStatus: String(source['lastTestStatus'] ?? source['healthStatus'] ?? 'UNKNOWN'),
@@ -168,6 +184,9 @@ function toProviderPayload(payload: Partial<CreateProviderRequest>): Record<stri
     active,
     baseUrl: payload.baseUrl || null,
     defaultModel: payload.defaultModel || null,
+    modelsEndpoint: payload.modelsEndpoint || null,
+    modelsEndpointAuth: payload.modelsEndpointAuth || null,
+    apiKeyQueryParam: payload.apiKeyQueryParam || null,
     supportedCapabilities: capabilities(payload),
     priority: payload.priority ?? 100,
     rateLimitPerMinute: payload.rateLimitPerMinute ?? 60,

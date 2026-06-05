@@ -8,6 +8,9 @@ import {
   CreativeGenerationPagination,
   CreativeGenerationRequest,
   CreativeGenerationStatus,
+  CreativePipelineRun,
+  CreativePipelineStatus,
+  CreativePipelineLayerType,
   CreativeOutput,
   CreativeOutputFormat,
   CreativeOutputUrl,
@@ -21,6 +24,11 @@ import {
   ImageCreativeCostPreview,
   ImageCreativeFormat,
   ImageCreativeQualityMode,
+  AiCreativeGenerateRequest,
+  AiCreativeResponse,
+  CreativeCreditPreviewRequest,
+  CreativeCreditPreviewResponse,
+  CreativeProgressResponse,
 } from '../models/creative-generation.models';
 import {
   CampaignObjective,
@@ -195,6 +203,41 @@ interface GeneratedVersionDto {
 interface CampaignCreativeResultDto {
   readonly generation: ImageCreativeGenerationDto;
   readonly generatedVersions: readonly GeneratedVersionDto[];
+  readonly pipeline: CreativePipelineRunDto | null;
+}
+
+interface CreativePipelineLayerRunDto {
+  readonly id: string;
+  readonly sequence: number;
+  readonly layerType: CreativePipelineLayerType;
+  readonly providerCode: string;
+  readonly modelCode: string | null;
+  readonly status: CreativePipelineStatus;
+  readonly inputJson: Readonly<Record<string, unknown>> | null;
+  readonly outputJson: Readonly<Record<string, unknown>> | null;
+  readonly inputAssetIds: readonly string[] | null;
+  readonly outputAssetIds: readonly string[] | null;
+  readonly estimatedCost: number | string | null;
+  readonly actualCost: number | string | null;
+  readonly startedAt: string | null;
+  readonly completedAt: string | null;
+  readonly failureReason: string | null;
+}
+
+interface CreativePipelineRunDto {
+  readonly creativeRequestId: string;
+  readonly pipelineRunId: string;
+  readonly status: CreativePipelineStatus;
+  readonly strategy: string;
+  readonly primaryProviderCode: string;
+  readonly planJson: Readonly<Record<string, unknown>> | null;
+  readonly estimatedCreditCost: number | string | null;
+  readonly actualCreditCost: number | string | null;
+  readonly failureReason: string | null;
+  readonly createdAt: string | null;
+  readonly updatedAt: string | null;
+  readonly completedAt: string | null;
+  readonly layers: readonly CreativePipelineLayerRunDto[] | null;
 }
 
 interface ProductImageCreativeReadinessDto {
@@ -214,9 +257,86 @@ interface ProductImageCreativeReadinessMessageDto {
   readonly message: string;
 }
 
+type AiCreativeResponseDto = AiCreativeResponse;
+type CreativeProgressResponseDto = CreativeProgressResponse;
+type CreativeCreditPreviewResponseDto = CreativeCreditPreviewResponse;
+
 @Injectable({ providedIn: 'root' })
 export class CreativeGenerationService {
   private readonly api = inject(ApiService);
+
+  generateCreative(
+    payload: AiCreativeGenerateRequest,
+    context?: HttpContext,
+  ) {
+    if (!hasAiCreativeFiles(payload)) {
+      return this.api
+        .post<AiCreativeResponseDto, AiCreativeGenerateRequest>(
+          '/api/v1/ai/creatives/generate',
+          withoutUndefinedAiCreativeFields(payload),
+          { context },
+        )
+        .pipe(map(({ data }) => data));
+    }
+
+    return this.api
+      .post<AiCreativeResponseDto, FormData>(
+        '/api/v1/ai/creatives/generate',
+        mapAiCreativeGenerateFormData(payload),
+        { context },
+      )
+      .pipe(map(({ data }) => data));
+  }
+
+  getCreativeProgress(creativeId: string, context?: HttpContext) {
+    return this.api
+      .get<CreativeProgressResponseDto>(
+        `/api/v1/ai/creatives/${creativeId}/progress`,
+        { context },
+      )
+      .pipe(map(({ data }) => data));
+  }
+
+  getRecentGenerations(workspaceId: string, context?: HttpContext) {
+    return this.api
+      .get<readonly AiCreativeResponseDto[]>(
+        '/api/v1/ai/creatives/recent',
+        {
+          params: { workspaceId },
+          context,
+        },
+      )
+      .pipe(map(({ data }) => data));
+  }
+
+  getGeneratedVariations(creativeId: string, context?: HttpContext) {
+    return this.api
+      .get<readonly AiCreativeResponseDto[]>(
+        `/api/v1/ai/creatives/${creativeId}/variations`,
+        { context },
+      )
+      .pipe(map(({ data }) => data));
+  }
+
+  getCreditPreview(payload: CreativeCreditPreviewRequest, context?: HttpContext) {
+    return this.api
+      .post<CreativeCreditPreviewResponseDto, CreativeCreditPreviewRequest>(
+        '/api/v1/ai/creatives/credit-preview',
+        payload,
+        { context },
+      )
+      .pipe(map(({ data }) => data));
+  }
+
+  sendForApproval(creativeId: string, context?: HttpContext) {
+    return this.api
+      .post<void, Record<string, never>>(
+        `/api/v1/approvals/creatives/${creativeId}`,
+        {},
+        { context },
+      )
+      .pipe(map(() => undefined));
+  }
 
   submitGeneration(
     workspaceId: string,
@@ -244,7 +364,11 @@ export class CreativeGenerationService {
         mapCampaignCreativeRequest(payload),
         { context },
       )
-      .pipe(map(({ data }) => data));
+      .pipe(map(({ data }) => ({
+        generation: data.generation,
+        generatedVersions: data.generatedVersions,
+        pipeline: data.pipeline ? mapCreativePipelineRun(data.pipeline) : null,
+      })));
   }
 
   getCampaignCreativeReadiness(
@@ -268,6 +392,15 @@ export class CreativeGenerationService {
         },
       )
       .pipe(map(({ data }) => mapProductImageCreativeReadiness(data)));
+  }
+
+  getCampaignCreativePipeline(workspaceId: string, requestId: string, context?: HttpContext) {
+    return this.api
+      .get<CreativePipelineRunDto>(
+        `/api/v1/workspaces/${workspaceId}/creative-generator/requests/${requestId}/pipeline`,
+        { context },
+      )
+      .pipe(map(({ data }) => mapCreativePipelineRun(data)));
   }
 
   previewCampaignCreativeCost(
@@ -516,6 +649,81 @@ function mapCampaignCreativeRequest(
   };
 }
 
+function mapAiCreativeGenerateFormData(payload: AiCreativeGenerateRequest): FormData {
+  const formData = new FormData();
+  appendFormData(formData, 'workspaceId', payload.workspaceId);
+  appendFormData(formData, 'brandId', payload.brandId);
+  appendFormData(formData, 'productServiceId', payload.productServiceId);
+  appendFormData(formData, 'campaignId', payload.campaignId);
+  appendFormData(formData, 'promptTitlePreview', payload.promptTitlePreview);
+  appendFormData(formData, 'platform', payload.platform);
+  appendFormData(formData, 'language', payload.language);
+  appendFormData(formData, 'creativeType', payload.creativeType);
+  appendFormData(formData, 'tone', payload.tone);
+  appendFormData(formData, 'modelQuality', payload.modelQuality);
+  appendFormData(formData, 'generationModeHint', payload.generationModeHint);
+  appendFormData(formData, 'campaignIdea', payload.campaignIdea);
+  appendFormData(formData, 'headline', payload.headline ?? payload.campaignIdea);
+  appendFormData(formData, 'subheadline', payload.subheadline);
+  appendFormData(formData, 'offerText', payload.offerText);
+  appendFormData(formData, 'targetAudience', payload.targetAudience);
+  appendFormData(formData, 'productDescription', payload.productDescription ?? payload.campaignIdea);
+  appendFormData(formData, 'campaignObjective', payload.campaignObjective);
+  appendFormData(formData, 'cta', payload.cta);
+  appendFormData(formData, 'versions', payload.versions);
+  appendFormData(formData, 'size', payload.size);
+  appendFormData(formData, 'quality', payload.quality);
+  appendFormData(formData, 'outputFormat', payload.outputFormat);
+  appendFormData(formData, 'background', payload.background);
+  appendFormData(formData, 'noHumanModel', payload.noHumanModel);
+  appendFormData(formData, 'existingAssetId', payload.existingAssetId);
+  appendFormData(formData, 'backgroundPrompt', payload.backgroundPrompt);
+
+  if (payload.productImage) {
+    formData.append('productImage', payload.productImage);
+  }
+  if (payload.logoImage) {
+    formData.append('logoImage', payload.logoImage);
+  }
+  if (payload.referenceImage) {
+    formData.append('referenceImage', payload.referenceImage);
+  }
+  if (payload.maskImage) {
+    formData.append('maskImage', payload.maskImage);
+  }
+
+  return formData;
+}
+
+function hasAiCreativeFiles(payload: AiCreativeGenerateRequest): boolean {
+  return Boolean(payload.productImage || payload.logoImage || payload.referenceImage || payload.maskImage);
+}
+
+function withoutUndefinedAiCreativeFields(payload: AiCreativeGenerateRequest): AiCreativeGenerateRequest {
+  return Object.fromEntries(
+    Object.entries(payload).filter(([, value]) =>
+      value !== undefined &&
+      value !== null &&
+      !(typeof value === 'string' && value.trim().length === 0) &&
+      !(value instanceof File)
+    ),
+  ) as AiCreativeGenerateRequest;
+}
+
+function appendFormData(
+  formData: FormData,
+  key: string,
+  value: string | number | boolean | null | undefined,
+): void {
+  if (value === null || value === undefined) {
+    return;
+  }
+  if (typeof value === 'string' && value.trim().length === 0) {
+    return;
+  }
+  formData.append(key, String(value));
+}
+
 function mapProductImageCreativeReadiness(
   source: ProductImageCreativeReadinessDto,
 ): ProductImageCreativeReadiness {
@@ -540,6 +748,42 @@ function mapProductImageCreativeReadiness(
     productAssetReady: source.productAssetReady,
     messages: stringMessages.length > 0 ? stringMessages : structuredMessages.map((item) => item.message),
     readinessMessages: structuredMessages,
+  };
+}
+
+function mapCreativePipelineRun(source: CreativePipelineRunDto): CreativePipelineRun {
+  return {
+    creativeRequestId: source.creativeRequestId,
+    pipelineRunId: source.pipelineRunId,
+    status: source.status,
+    strategy: source.strategy,
+    primaryProviderCode: source.primaryProviderCode,
+    planJson: source.planJson ?? {},
+    estimatedCreditCost: Number(source.estimatedCreditCost ?? 0),
+    actualCreditCost: source.actualCreditCost === null || source.actualCreditCost === undefined
+      ? null
+      : Number(source.actualCreditCost),
+    failureReason: source.failureReason,
+    createdAt: source.createdAt,
+    updatedAt: source.updatedAt,
+    completedAt: source.completedAt,
+    layers: (source.layers ?? []).map((layer) => ({
+      id: layer.id,
+      sequence: Number(layer.sequence ?? 0),
+      layerType: layer.layerType,
+      providerCode: layer.providerCode,
+      modelCode: layer.modelCode,
+      status: layer.status,
+      inputJson: layer.inputJson ?? {},
+      outputJson: layer.outputJson ?? {},
+      inputAssetIds: layer.inputAssetIds ?? [],
+      outputAssetIds: layer.outputAssetIds ?? [],
+      estimatedCost: Number(layer.estimatedCost ?? 0),
+      actualCost: layer.actualCost === null || layer.actualCost === undefined ? null : Number(layer.actualCost),
+      startedAt: layer.startedAt,
+      completedAt: layer.completedAt,
+      failureReason: layer.failureReason,
+    })),
   };
 }
 

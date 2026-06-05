@@ -20,12 +20,20 @@ import { PromptService } from '@app/features/admin/prompts/services/prompt.servi
 import {
   CreateCreativeGenerationRequest,
   CreateCampaignCreativeRequest,
+  AiCreativeGenerateRequest,
+  AiCreativeResponse,
+  CreativeCreditPreviewRequest,
+  CreativeProgressResponse,
   CreativeGenerationDraft,
   CreativeGenerationFilter,
   CreativeGenerationPagination,
   CreativeGenerationRequest,
   CreativeGenerationStatus,
+  CreativeOutputFormat,
+  CreativePipelineLayerRun,
+  CreativePipelineRun,
   CreativeOutput,
+  CreativeType,
   DEFAULT_CREATIVE_GENERATION_FILTERS,
   DEFAULT_CREATIVE_GENERATION_PAGINATION,
   DEFAULT_GENERATION_DRAFT,
@@ -76,10 +84,12 @@ export class CreativeGenerationStore {
   private readonly brandProfileSignal = signal<BrandProfile | null>(null);
   private readonly campaignReadinessSignal = signal<ProductImageCreativeReadiness | null>(null);
   private readonly campaignCostPreviewSignal = signal<ImageCreativeCostPreview | null>(null);
+  private readonly campaignPipelineSignal = signal<CreativePipelineRun | null>(null);
 
   private pollingTimer: ReturnType<typeof setInterval> | null = null;
   private pollingAttempts = 0;
   private pollingRequestId: string | null = null;
+  private pollingMode: 'legacy' | 'ai-progress' = 'legacy';
 
   readonly generationRequests = this.generationRequestsSignal.asReadonly();
   readonly selectedRequest = this.selectedRequestSignal.asReadonly();
@@ -98,6 +108,7 @@ export class CreativeGenerationStore {
   readonly brandProfile = this.brandProfileSignal.asReadonly();
   readonly campaignReadiness = this.campaignReadinessSignal.asReadonly();
   readonly campaignCostPreview = this.campaignCostPreviewSignal.asReadonly();
+  readonly campaignPipeline = this.campaignPipelineSignal.asReadonly();
 
   readonly hasGenerationRequests = computed(() => this.generationRequestsSignal().length > 0);
   readonly hasOutputs = computed(() => this.creativeOutputsSignal().length > 0);
@@ -132,20 +143,27 @@ export class CreativeGenerationStore {
   readonly canViewGenerations = computed(() => this.canGenerate());
   readonly canDownloadOutputs = computed(() => this.hasPermission('CREATIVE_DOWNLOAD'));
 
-  async loadGeneratorContext(assetSearch = '', projectId: string | null = null): Promise<void> {
+  async loadGeneratorContext(assetSearch = '', projectId: string | null = null, showLoader = true): Promise<void> {
     const workspaceId = this.resolveWorkspaceId();
     if (!workspaceId) {
       return;
     }
 
-    await this.runLoader(async () => {
+    const loadContext = async () => {
       await Promise.all([
         this.fetchPromptHistory(workspaceId),
         this.fetchAvailableAssets(workspaceId, assetSearch, projectId),
         this.fetchBrandProfile(workspaceId),
         this.fetchGenerationRequests(workspaceId),
       ]);
-    });
+    };
+
+    if (showLoader) {
+      await this.runLoader(loadContext);
+      return;
+    }
+
+    await loadContext();
   }
 
   async loadGenerationRequests(filters?: CreativeGenerationFilter, page?: number): Promise<void> {
@@ -302,6 +320,7 @@ export class CreativeGenerationStore {
         this.generationService.submitCampaignCreative(workspaceId, projectId, payload, this.requestContext()),
       );
       const request = mapCampaignResultToGenerationRequest(result.generation, payload);
+      this.campaignPipelineSignal.set(result.pipeline);
       const outputs = await this.hydrateOutputAssetUrls(
         mapCampaignGeneratedVersionsToOutputs(result.generatedVersions, request, payload),
       );
@@ -321,6 +340,52 @@ export class CreativeGenerationStore {
         this.startPolling(request.id);
       }
       return true;
+    } catch (error) {
+      this.handleFailure(error);
+      return false;
+    } finally {
+      this.generationLoadingSignal.set(false);
+    }
+  }
+
+  async submitAiCreative(payload: AiCreativeGenerateRequest): Promise<boolean> {
+    try {
+      this.generationLoadingSignal.set(true);
+      this.generationErrorSignal.set(null);
+      this.campaignPipelineSignal.set(mapAiProgressToPipeline({
+        creativeId: 'planning',
+        status: 'PLANNING',
+        currentLayerKey: 'UNDERSTANDING_BRAND',
+        currentLayerLabel: 'Understanding brand',
+        layers: defaultAiProgressLayers(),
+      }));
+
+      const result = await firstValueFrom(
+        this.generationService.generateCreative(payload, this.requestContext()),
+      );
+      const request = mapAiCreativeResponseToGenerationRequest(result, payload);
+      const output = mapAiCreativeResponseToOutput(result, request, payload);
+
+      this.generationRequestsSignal.update((items) => upsertRequest(items, request));
+      this.setSelectedRequest(request);
+      this.creativeOutputsSignal.set(output ? [output] : []);
+      this.selectedOutputSignal.set(output);
+      this.generationErrorSignal.set(result.errorMessage ?? null);
+
+      await this.refreshAiProgress(result.creativeId);
+      await this.workspace.refreshActiveContext();
+
+      if (result.status === 'COMPLETED') {
+        this.notifications.success('Generation completed', 'The creative preview is ready.');
+      } else if (result.status === 'FAILED') {
+        this.generationErrorSignal.set(result.errorMessage ?? 'Creative generation failed. Please try again.');
+        this.notifications.error('Generation failed', this.generationErrorSignal() ?? 'Creative generation failed.');
+      } else {
+        this.notifications.success('Generation started', 'The creative request is now being processed.');
+        this.startAiProgressPolling(result.creativeId);
+      }
+
+      return result.status !== 'FAILED';
     } catch (error) {
       this.handleFailure(error);
       return false;
@@ -403,6 +468,27 @@ export class CreativeGenerationStore {
     this.campaignCostPreviewSignal.set(null);
   }
 
+  async previewAiCreativeCost(payload: CreativeCreditPreviewRequest): Promise<ImageCreativeCostPreview | null> {
+    try {
+      const preview = await firstValueFrom(
+        this.generationService.getCreditPreview(payload, this.requestContext()),
+      );
+      const mapped: ImageCreativeCostPreview = {
+        toolCode: `AI_CREATIVE:${preview.creditStatus}:${preview.blockGeneration ? 'BLOCKED' : 'READY'}:${preview.message ?? ''}`,
+        qualityMode: payload.modelQuality,
+        requestedVersionCount: Math.max(1, Number(preview.requestedVersions ?? payload.versions)),
+        unitCreditCost: null,
+        totalCreditCost: null,
+      };
+      this.campaignCostPreviewSignal.set(mapped);
+      this.generationErrorSignal.set(null);
+      return mapped;
+    } catch {
+      this.campaignCostPreviewSignal.set(null);
+      return null;
+    }
+  }
+
   async retrySelectedGeneration(): Promise<void> {
     const request = this.selectedRequestSignal();
     const workspaceId = this.resolveWorkspaceId();
@@ -467,6 +553,28 @@ export class CreativeGenerationStore {
     if (latest.status === 'COMPLETED') {
       await this.fetchOutputs(workspaceId, latest.id);
     }
+    await this.fetchCampaignPipeline(workspaceId, latest.id);
+  }
+
+  async sendSelectedForApproval(): Promise<boolean> {
+    const request = this.selectedRequestSignal();
+    if (!request || request.status !== 'COMPLETED') {
+      this.notifications.info('Creative is not ready', 'Only completed creatives can be sent for approval.');
+      return false;
+    }
+
+    try {
+      await firstValueFrom(
+        this.generationService.sendForApproval(request.id, this.requestContext()),
+      );
+      this.notifications.success('Sent for approval', 'The creative was submitted to the approval queue.');
+      return true;
+    } catch (error) {
+      const message = this.mapError(error);
+      this.generationErrorSignal.set(message);
+      this.notifications.error('Approval submission failed', message);
+      return false;
+    }
   }
 
   async openPreviewUrl(output: CreativeOutput): Promise<string | null> {
@@ -527,11 +635,22 @@ export class CreativeGenerationStore {
 
   startPolling(requestId: string): void {
     this.stopPolling();
+    this.pollingMode = 'legacy';
     this.pollingRequestId = requestId;
     this.pollingAttempts = 0;
     this.pollingTimer = setInterval(() => {
       void this.pollOnce();
     }, POLL_INTERVAL_MS);
+  }
+
+  startAiProgressPolling(creativeId: string): void {
+    this.stopPolling();
+    this.pollingMode = 'ai-progress';
+    this.pollingRequestId = creativeId;
+    this.pollingAttempts = 0;
+    this.pollingTimer = setInterval(() => {
+      void this.pollOnce();
+    }, 2000);
   }
 
   stopPolling(): void {
@@ -558,6 +677,14 @@ export class CreativeGenerationStore {
     }
 
     try {
+      if (this.pollingMode === 'ai-progress') {
+        const progress = await this.refreshAiProgress(requestId);
+        if (!progress || progress.status === 'COMPLETED' || progress.status === 'FAILED') {
+          this.stopPolling();
+        }
+        return;
+      }
+
       const latest = await firstValueFrom(
         this.generationService.getGeneration(workspaceId, requestId, this.requestContext()),
       );
@@ -567,6 +694,7 @@ export class CreativeGenerationStore {
       if (latest.status === 'COMPLETED') {
         await this.fetchOutputs(workspaceId, latest.id);
       }
+      await this.fetchCampaignPipeline(workspaceId, latest.id);
 
       if (isTerminalGenerationStatus(latest.status)) {
         this.stopPolling();
@@ -597,6 +725,37 @@ export class CreativeGenerationStore {
     );
     this.creativeOutputsSignal.set(await this.hydrateOutputAssetUrls(outputs));
     this.generationErrorSignal.set(null);
+  }
+
+  private async fetchCampaignPipeline(workspaceId: string, requestId: string): Promise<void> {
+    try {
+      const pipeline = await firstValueFrom(
+        this.generationService.getCampaignCreativePipeline(workspaceId, requestId, this.requestContext()),
+      );
+      this.campaignPipelineSignal.set(pipeline);
+    } catch {
+      this.campaignPipelineSignal.set(null);
+    }
+  }
+
+  private async refreshAiProgress(creativeId: string): Promise<CreativeProgressResponse | null> {
+    try {
+      const progress = await firstValueFrom(
+        this.generationService.getCreativeProgress(creativeId, this.requestContext()),
+      );
+      this.campaignPipelineSignal.set(mapAiProgressToPipeline(progress));
+
+      const selected = this.selectedRequestSignal();
+      if (selected?.id === creativeId) {
+        const status = mapAiStatusToGenerationStatus(progress.status);
+        this.generationRequestsSignal.update((items) => upsertRequest(items, { ...selected, status, updatedAt: new Date().toISOString() }));
+        this.setSelectedRequest({ ...selected, status, updatedAt: new Date().toISOString() });
+      }
+
+      return progress;
+    } catch {
+      return null;
+    }
   }
 
   private async hydrateOutputAssetUrls(outputs: readonly CreativeOutput[]): Promise<readonly CreativeOutput[]> {
@@ -894,7 +1053,7 @@ function mapCampaignGeneratedVersionsToOutputs(
     downloadUrl: null,
     caption: null,
     headline: version.versionName || `Generated creative ${version.versionNumber}`,
-    ctaText: payload.cta,
+    ctaText: payload.cta ?? null,
     metadata: {
       generationStatus: version.generationStatus,
       imageCreativeFormat: payload.creativeFormat,
@@ -905,4 +1064,238 @@ function mapCampaignGeneratedVersionsToOutputs(
     createdAt: version.createdAt,
     updatedAt: version.updatedAt,
   }));
+}
+
+function mapAiCreativeResponseToGenerationRequest(
+  response: AiCreativeResponse,
+  payload: AiCreativeGenerateRequest,
+): CreativeGenerationRequest {
+  const createdAt = response.createdAt || new Date().toISOString();
+  const updatedAt = response.completedAt ?? createdAt;
+  return {
+    id: response.creativeId,
+    workspaceId: response.workspaceId,
+    userId: '',
+    promptHistoryId: null,
+    sourcePrompt: payload.campaignIdea ?? payload.headline ?? null,
+    enhancedPrompt: null,
+    platform: response.platform === 'OTHER' ? null : response.platform,
+    campaignObjective: null,
+    creativeType: mapAiCreativeType(response.creativeType),
+    outputFormat: mapAiOutputFormat(response.outputFormat),
+    language: mapAiLanguage(response.language ?? payload.language),
+    brandContextSnapshot: {},
+    assetContextSnapshot: payload.existingAssetId ? [{ assetId: payload.existingAssetId }] : [],
+    generationConfig: {
+      aiCreative: true,
+      generationMode: response.generationMode,
+      requestedVersions: response.requestedVersions,
+      generatedVersionNo: response.generatedVersionNo ?? null,
+      provider: response.provider,
+      model: response.model,
+      size: response.size,
+      quality: response.quality,
+      background: response.background,
+      r2ObjectKey: response.r2ObjectKey ?? null,
+      creditUsed: response.creditUsed ?? null,
+      costEstimate: response.costEstimate ?? null,
+    },
+    status: mapAiStatusToGenerationStatus(response.status),
+    aiProvider: response.provider,
+    aiModel: response.model,
+    requestedAt: createdAt,
+    startedAt: createdAt,
+    completedAt: response.completedAt ?? (response.status === 'COMPLETED' ? updatedAt : null),
+    failedAt: response.status === 'FAILED' ? updatedAt : null,
+    errorMessage: response.errorMessage ?? null,
+    createdAt,
+    updatedAt,
+  };
+}
+
+function mapAiCreativeResponseToOutput(
+  response: AiCreativeResponse,
+  request: CreativeGenerationRequest,
+  payload: AiCreativeGenerateRequest,
+): CreativeOutput | null {
+  if (!response.fileUrl && response.status !== 'COMPLETED') {
+    return null;
+  }
+
+  const createdAt = response.createdAt || new Date().toISOString();
+  const updatedAt = response.completedAt ?? createdAt;
+  const [width, height] = response.size.split('x').map((item) => Number(item));
+  return {
+    id: response.creativeId,
+    workspaceId: response.workspaceId,
+    requestId: response.creativeId,
+    generatedAssetId: null,
+    creativeType: request.creativeType,
+    platform: request.platform,
+    outputFormat: request.outputFormat,
+    width: Number.isFinite(width) ? width : null,
+    height: Number.isFinite(height) ? height : null,
+    duration: null,
+    fileSize: null,
+    previewUrl: response.fileUrl ?? response.thumbnailUrl ?? null,
+    downloadUrl: response.fileUrl ?? null,
+    caption: payload.campaignIdea ?? null,
+    headline: payload.headline ?? payload.campaignIdea ?? 'Generated creative',
+    ctaText: payload.cta ?? null,
+    metadata: {
+      aiCreative: true,
+      provider: response.provider,
+      model: response.model,
+      quality: response.quality,
+      background: response.background,
+      generationMode: response.generationMode,
+      creditUsed: response.creditUsed ?? null,
+    },
+    status: mapAiStatusToGenerationStatus(response.status),
+    createdAt,
+    updatedAt,
+  };
+}
+
+function mapAiProgressToPipeline(progress: CreativeProgressResponse): CreativePipelineRun {
+  const timestamp = new Date().toISOString();
+  return {
+    creativeRequestId: progress.creativeId,
+    pipelineRunId: `${progress.creativeId}:ai-progress`,
+    status: mapAiStatusToPipelineStatus(progress.status),
+    strategy: 'OPENAI_IMAGE_API',
+    primaryProviderCode: 'OPENAI',
+    planJson: {},
+    estimatedCreditCost: 0,
+    actualCreditCost: null,
+    failureReason: progress.layers.find((layer) => layer.status === 'FAILED')?.errorMessage ?? null,
+    createdAt: timestamp,
+    updatedAt: timestamp,
+    completedAt: progress.status === 'COMPLETED' || progress.status === 'FAILED' ? timestamp : null,
+    layers: progress.layers.map((layer) => ({
+      id: `${progress.creativeId}:${layer.sequenceNo}:${layer.layerKey}`,
+      sequence: layer.sequenceNo,
+      layerType: mapAiLayerKey(layer.layerKey),
+      providerCode: providerForAiLayer(layer.layerKey),
+      modelCode: null,
+      status: mapAiLayerStatusToPipelineStatus(layer.status),
+      inputJson: {},
+      outputJson: {},
+      inputAssetIds: [],
+      outputAssetIds: [],
+      estimatedCost: 0,
+      actualCost: null,
+      startedAt: layer.startedAt ?? null,
+      completedAt: layer.completedAt ?? null,
+      failureReason: layer.errorMessage ?? null,
+    })),
+  };
+}
+
+function defaultAiProgressLayers(): CreativeProgressResponse['layers'] {
+  return [
+    { layerKey: 'UNDERSTANDING_BRAND', label: 'Understanding brand', sequenceNo: 1, status: 'PROCESSING' },
+    { layerKey: 'BUILDING_PROMPT', label: 'Creating ad layout', sequenceNo: 2, status: 'PLANNED' },
+    { layerKey: 'CALLING_OPENAI_GENERATION', label: 'Generating creative', sequenceNo: 3, status: 'PLANNED' },
+    { layerKey: 'UPLOADING_TO_R2', label: 'Preparing output', sequenceNo: 4, status: 'PLANNED' },
+  ];
+}
+
+function mapAiStatusToGenerationStatus(status: AiCreativeResponse['status']): CreativeGenerationStatus {
+  switch (status) {
+    case 'COMPLETED':
+      return 'COMPLETED';
+    case 'FAILED':
+      return 'FAILED';
+    case 'REQUESTED':
+    case 'PLANNING':
+      return 'QUEUED';
+    case 'STARTED':
+    case 'PROCESSING':
+      return 'PROCESSING';
+  }
+}
+
+function mapAiStatusToPipelineStatus(status: AiCreativeResponse['status']): CreativePipelineRun['status'] {
+  switch (status) {
+    case 'COMPLETED':
+      return 'COMPLETED';
+    case 'FAILED':
+      return 'FAILED';
+    case 'REQUESTED':
+    case 'PLANNING':
+      return 'PLANNED';
+    case 'STARTED':
+    case 'PROCESSING':
+      return 'PROCESSING';
+  }
+}
+
+function mapAiLayerStatusToPipelineStatus(status: CreativeProgressResponse['layers'][number]['status']): CreativePipelineRun['status'] {
+  switch (status) {
+    case 'COMPLETED':
+      return 'COMPLETED';
+    case 'FAILED':
+      return 'FAILED';
+    case 'PROCESSING':
+      return 'PROCESSING';
+    case 'PLANNED':
+      return 'PLANNED';
+  }
+}
+
+function mapAiLayerKey(layerKey: string): CreativePipelineLayerRun['layerType'] {
+  const mapping: Readonly<Record<string, CreativePipelineLayerRun['layerType']>> = {
+    UNDERSTANDING_BRAND: 'IMAGE_ANALYSIS',
+    ANALYZING_PRODUCT_IMAGE: 'IMAGE_ANALYSIS',
+    ANALYZING_PRODUCT: 'IMAGE_ANALYSIS',
+    BUILDING_PROMPT: 'PROMPT_GENERATION',
+    CALLING_OPENAI_GENERATION: 'IMAGE_GENERATION',
+    CALLING_OPENAI_EDIT: 'IMAGE_GENERATION',
+    DECODING_IMAGE: 'IMAGE_EXPORT',
+    UPLOADING_TO_R2: 'IMAGE_EXPORT',
+    COMPLETED: 'INTERNAL_SAVE',
+  };
+  return mapping[layerKey] ?? layerKey;
+}
+
+function providerForAiLayer(layerKey: string): string {
+  return layerKey === 'UPLOADING_TO_R2' || layerKey === 'COMPLETED' ? 'INTERNAL' : 'OPENAI';
+}
+
+function mapAiCreativeType(type: AiCreativeResponse['creativeType']): CreativeType {
+  switch (type) {
+    case 'STORY':
+      return 'STORY_CREATIVE';
+    case 'PRODUCT_AD':
+      return 'CAROUSEL_IMAGE';
+    case 'SQUARE_POST':
+    case 'BANNER':
+      return 'STATIC_IMAGE';
+  }
+}
+
+function mapAiOutputFormat(format: AiCreativeResponse['outputFormat']): CreativeOutputFormat {
+  switch (format) {
+    case 'jpeg':
+      return 'JPG';
+    case 'webp':
+      return 'WEBP';
+    case 'png':
+      return 'PNG';
+  }
+}
+
+function mapAiLanguage(language: string | null | undefined): CreativeGenerationRequest['language'] {
+  if (!language) {
+    return 'ENGLISH';
+  }
+  const normalized = language.toLowerCase();
+  if (normalized === 'bn' || normalized === 'bangla' || normalized === 'bengali') {
+    return 'BANGLA';
+  }
+  if (normalized === 'en' || normalized === 'english') {
+    return 'ENGLISH';
+  }
+  return null;
 }

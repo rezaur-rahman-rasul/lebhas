@@ -1,7 +1,7 @@
 import { Injectable, computed, inject, signal } from '@angular/core';
 import { normalizeHttpError } from '@app/core/api/http-error';
 import { NotificationStateService } from '@app/core/state/notification-state.service';
-import { AiProviderCredentialView, AiProviderView, CreateProviderCredentialRequest, CreateProviderRequest } from '../models/provider-credit-exchange.models';
+import { AiProviderCredentialView, AiProviderView, CreateProviderCredentialRequest, CreateProviderRequest, ProviderModelsJsonView } from '../models/provider-credit-exchange.models';
 import { ProviderSettingsApiService } from '../services/provider-settings-api.service';
 
 @Injectable({ providedIn: 'root' })
@@ -15,6 +15,8 @@ export class ProviderSettingsStore {
   private readonly loadingSignal = signal(false);
   private readonly savingSignal = signal(false);
   private readonly errorSignal = signal<string | null>(null);
+  private readonly modelsJsonSignal = signal<ProviderModelsJsonView | null>(null);
+  private readonly modelsJsonLoadingSignal = signal(false);
 
   readonly providers = this.providersSignal.asReadonly();
   readonly selectedProviderId = this.selectedProviderIdSignal.asReadonly();
@@ -22,6 +24,8 @@ export class ProviderSettingsStore {
   readonly loading = this.loadingSignal.asReadonly();
   readonly saving = this.savingSignal.asReadonly();
   readonly error = this.errorSignal.asReadonly();
+  readonly modelsJson = this.modelsJsonSignal.asReadonly();
+  readonly modelsJsonLoading = this.modelsJsonLoadingSignal.asReadonly();
 
   readonly activeProviders = computed(() => this.providersSignal().filter((provider) => provider.active));
   readonly selectedProvider = computed(() => this.providersSignal().find((provider) => provider.id === this.selectedProviderIdSignal()) ?? this.providersSignal()[0] ?? null);
@@ -113,6 +117,27 @@ export class ProviderSettingsStore {
       this.notifications.info('Connection test completed.', 'Provider health was refreshed.');
       await this.loadProviders();
     }, 'Provider connection could not be tested.');
+  }
+
+  async loadModelsJson(provider: AiProviderView): Promise<boolean> {
+    this.modelsJsonLoadingSignal.set(true);
+    this.errorSignal.set(null);
+    try {
+      this.modelsJsonSignal.set(await this.api.getModelsJson(provider.id));
+      this.notifications.info('Models JSON loaded.', 'OpenAI /v1/models response was loaded.');
+      return true;
+    } catch (error) {
+      const message = normalizeHttpError(error).message || 'OpenAI models JSON could not be loaded.';
+      this.errorSignal.set(message);
+      this.notifications.error('Models JSON could not be loaded.', message);
+      return false;
+    } finally {
+      this.modelsJsonLoadingSignal.set(false);
+    }
+  }
+
+  clearModelsJson(): void {
+    this.modelsJsonSignal.set(null);
   }
 
   private async run(action: () => Promise<void>): Promise<void> {

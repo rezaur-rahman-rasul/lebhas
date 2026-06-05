@@ -13,7 +13,7 @@
         @for (item of [1,2,3]; track item) {<div class="skeleton"></div>}
       } @else {
         @for (provider of store.providers(); track provider.id) {
-          <app-provider-card [provider]="provider" [selected]="selectedProvider()?.id === provider.id" (selectProvider)="selectProvider($event)" (configureCredentials)="configure($event)" (editProvider)="openProvider($event)" (toggleProvider)="toggle($event)" (deleteProvider)="deleteProvider($event)" (testProvider)="test($event)" (viewCreditPool)="viewPool($event)" (exchangePolicy)="viewPolicy($event)" />
+          <app-provider-card [provider]="provider" [selected]="selectedProvider()?.id === provider.id" (selectProvider)="selectProvider($event)" (configureCredentials)="configure($event)" (editProvider)="openProvider($event)" (toggleProvider)="toggle($event)" (deleteProvider)="deleteProvider($event)" (testProvider)="test($event)" (viewModelsJson)="viewModelsJson($event)" (viewCreditPool)="viewPool($event)" (exchangePolicy)="viewPolicy($event)" />
         } @empty {
           <div class="empty"><h2>No providers configured yet.</h2><p>Create the first AI provider and store its API key securely on the backend.</p><app-button type="button" (click)="openProvider()">Create provider</app-button></div>
         }
@@ -74,6 +74,24 @@
     </label>
     @if (editingProvider()?.maskedApiKey) {<div class="masked-note">Saved key: {{ editingProvider()?.maskedApiKey }}</div>}
     <label><span>Default model</span><input formControlName="defaultModel" /></label>
+    <label>
+      <span>Models endpoint</span>
+      <input formControlName="modelsEndpoint" placeholder="https://provider.example.com/v1/models" />
+      <small>Used by the Models JSON button. Leave empty to disable model JSON preview for this provider.</small>
+    </label>
+    <label>
+      <span>Models endpoint auth</span>
+      <select formControlName="modelsEndpointAuth">
+        <option value="BEARER">Bearer authorization header</option>
+        <option value="API_KEY_QUERY">API key query parameter</option>
+        <option value="NONE">No auth</option>
+      </select>
+    </label>
+    <label>
+      <span>API key query parameter</span>
+      <input formControlName="apiKeyQueryParam" placeholder="key" />
+      <small>Only used when auth is API key query parameter.</small>
+    </label>
     <label><span>Priority</span><input type="number" formControlName="priority" /></label>
     <label><span>Rate limit per minute</span><input type="number" formControlName="rateLimitPerMinute" /></label>
     <label><span>Cost multiplier</span><input type="number" step="0.0001" formControlName="costMultiplier" /></label>
@@ -89,4 +107,17 @@
 
 <app-dialog [open]="credentialDialogOpen()" title="Secure provider credential" (closed)="credentialDialogOpen.set(false)">
   <app-provider-credential-form [credential]="editingCredential()" [saving]="store.saving()" (saved)="saveCredential($event)" (closed)="credentialDialogOpen.set(false)" />
+</app-dialog>
+
+<app-dialog [open]="modelsDialogOpen()" title="Provider Models JSON" description="Raw JSON returned by the configured provider models endpoint using the saved server-side credential." panelClass="sm:max-w-4xl" (closed)="closeModelsDialog()">
+  @if (store.modelsJson(); as result) {
+    <div class="models-json-meta">
+      <span>{{ result.providerCode }}</span>
+      <span>{{ result.environment }}</span>
+      <span>HTTP {{ result.httpStatus }}</span>
+      <span>{{ result.endpoint }}</span>
+      <span>{{ result.retrievedAt }}</span>
+    </div>
+    <pre class="models-json-output">{{ modelsJsonText() }}</pre>
+  }
 </app-dialog>

@@ -18,6 +18,7 @@ import com.lebhas.ai.application.dto.ProviderRoutingPolicyCommand;
 import com.lebhas.ai.application.dto.ProviderRoutingPolicyView;
 import com.lebhas.ai.application.dto.ProviderConnectionTestResult;
 import com.lebhas.ai.application.dto.ProviderCredentialSavedView;
+import com.lebhas.ai.application.dto.ProviderModelsJsonView;
 import com.lebhas.ai.application.dto.SaveProviderCredentialRequest;
 import com.lebhas.ai.application.dto.TestProviderConnectionRequest;
 import com.lebhas.ai.application.dto.UpdateMasterProviderRequest;
@@ -149,6 +150,18 @@ public class MasterAiProviderRegistryController {
         return ApiResponse.success(
                 "Provider connection test completed",
                 providerSettingsService.testConnection(providerId, request));
+    }
+
+    @PostMapping("/providers/{providerId}/models-json")
+    @PreAuthorize("hasRole('MASTER')")
+    @Operation(summary = "Fetch OpenAI provider models JSON")
+    public ApiResponse<ProviderModelsJsonView> fetchConfigurableProviderModelsJson(
+            @PathVariable String providerId,
+            @Valid @RequestBody TestProviderConnectionRequest request
+    ) {
+        return ApiResponse.success(
+                "Provider models JSON loaded",
+                providerSettingsService.fetchModelsJson(providerId, request));
     }
 
     @DeleteMapping("/providers/{providerId}/credentials")

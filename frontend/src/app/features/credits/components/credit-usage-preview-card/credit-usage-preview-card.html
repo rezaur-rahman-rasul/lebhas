@@ -1,7 +1,8 @@
 <article class="usage-preview" [class.blocked]="preview()?.canQueueGeneration === false">
-  <p>Generation credit preview</p>
+  <p>Generation credit availability</p>
   @if (preview(); as item) {
-    <div><span>Requested versions</span><strong>{{ item.requestedVersionCount }}</strong></div><div><span>Estimated credit cost</span><strong>{{ item.estimatedCreditCost | number }}</strong></div><div><span>Available credits</span><strong>{{ item.availableCredits | number }}</strong></div><div><span>Remaining after generation</span><strong>{{ item.remainingCreditsAfterGeneration | number }}</strong></div>
+    <div><span>Requested versions</span><strong>{{ item.requestedVersionCount }}</strong></div><div><span>Credit status</span><strong>{{ item.creditStatus || 'Checking' }}</strong></div><div><span>Available credits</span><strong>{{ item.availableCredits | number }}</strong></div><div><span>Final usage</span><strong>{{ item.estimatedCreditCost === null ? 'Calculated after generation' : (item.estimatedCreditCost | number) }}</strong></div>
+    @if (item.message) {<ul><li>{{ item.message }}</li></ul>}
     @if (!item.canQueueGeneration) {<ul>@for (reason of item.blockingReasons; track reason) {<li>{{ reason }}</li>}</ul>}
   } @else {<span>Credits: --</span>}
 </article>

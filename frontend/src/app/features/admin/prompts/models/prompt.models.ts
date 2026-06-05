@@ -1,6 +1,6 @@
 import { Asset } from '@app/features/admin/assets/models/asset.models';
 
-export type PromptPlatform = 'FACEBOOK' | 'INSTAGRAM' | 'TIKTOK' | 'LINKEDIN';
+export type PromptPlatform = 'FACEBOOK' | 'INSTAGRAM' | 'TIKTOK' | 'LINKEDIN' | 'OTHER';
 export type CampaignObjective =
   | 'AWARENESS'
   | 'TRAFFIC'
@@ -273,6 +273,7 @@ export const PLATFORM_OPTIONS: readonly { readonly value: PromptPlatform; readon
   { value: 'INSTAGRAM', label: 'Instagram' },
   { value: 'TIKTOK', label: 'TikTok' },
   { value: 'LINKEDIN', label: 'LinkedIn' },
+  { value: 'OTHER', label: 'More' },
 ];
 
 export const CAMPAIGN_OBJECTIVE_OPTIONS: readonly {

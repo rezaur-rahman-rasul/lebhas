@@ -2,6 +2,7 @@ import {
   ChangeDetectionStrategy,
   Component,
   DestroyRef,
+  HostListener,
   OnDestroy,
   computed,
   inject,
@@ -38,8 +39,13 @@ import { CreativeOutputDrawer } from '../../components/creative-output-drawer/cr
 import {
   CreateCreativeGenerationRequest,
   CreateCampaignCreativeRequest,
+  AiCreativeGenerateRequest,
+  AiCreativePlatform,
+  AiCreativeSize,
+  AiCreativeType,
   CreativeGenerationDraft,
   CreativeGenerationRequest,
+  CreativePipelineLayerRun,
   CreativeOutput,
   CreativeOutputFormat,
   CreativeType,
@@ -74,6 +80,7 @@ import {
 type GeneratorTone = 'Promotional' | 'Premium' | 'Friendly' | 'Urgent';
 type ModelQuality = 'Basic' | 'Premium';
 type VisualCreativeFormat = 'SQUARE_POST' | 'STORY' | 'BANNER' | 'PRODUCT_AD';
+type ContextDropdown = 'brand' | 'product' | 'project' | 'language';
 
 interface CreativePreset {
   readonly id: VisualCreativeFormat;
@@ -119,16 +126,40 @@ export class CreativeGeneratorPage implements OnDestroy {
   protected readonly selectedBrandId = signal<string>('');
   protected readonly selectedProductId = signal<string>('');
   protected readonly selectedProjectId = signal<string>('');
+  protected readonly openContextDropdown = signal<ContextDropdown | null>(null);
   protected readonly selectedTone = signal<GeneratorTone>('Premium');
   protected readonly selectedQuality = signal<ModelQuality>('Basic');
   protected readonly selectedVisualFormat = signal<VisualCreativeFormat>('SQUARE_POST');
   protected readonly selectedVariationId = signal<string | null>(null);
+  protected readonly selectedProductImageFile = signal<File | null>(null);
   protected readonly localProductImagePreviewUrl = signal<string | null>(null);
+  protected readonly advancedCreativeOptionsOpen = signal(false);
+  protected readonly selectedLogoImageFile = signal<File | null>(null);
+  protected readonly selectedReferenceImageFile = signal<File | null>(null);
+  protected readonly selectedMaskImageFile = signal<File | null>(null);
   protected readonly assetPickerOpen = signal(false);
   protected readonly assetPickerSearch = signal('');
   private readonly readinessRequestKey = signal<string | null>(null);
   private readonly formRevision = signal(0);
   protected readonly generationSteps = ['Understanding brand', 'Analyzing product', 'Creating ad layout', 'Preparing output'] as const;
+  protected readonly visibleGenerationSteps = computed(() =>
+    this.generationModeHint() === 'TEXT_ONLY_CREATIVE'
+      ? ['Understanding brand', 'Text-only mode', 'Creating ad layout', 'Preparing output'] as const
+      : this.generationSteps,
+  );
+  protected readonly fallbackPipelineSteps = computed(() => {
+    const textOnly = this.generationModeHint() === 'TEXT_ONLY_CREATIVE';
+    return [
+      { label: 'Understanding brand', helper: 'Waiting for backend plan', status: 'PLANNED' },
+      {
+        label: textOnly ? 'Product analysis skipped' : 'Analyzing product',
+        helper: textOnly ? 'Text-only mode does not require a product image' : 'Waiting for backend plan',
+        status: textOnly ? 'SKIPPED' : 'PLANNED',
+      },
+      { label: 'Creating ad layout', helper: 'Waiting for backend plan', status: 'PLANNED' },
+      { label: 'Preparing output', helper: 'Waiting for backend plan', status: 'PLANNED' },
+    ] as const;
+  });
   protected readonly tools = [
     { title: 'Post Generator', description: 'Create platform-ready post concepts.', icon: 'megaphone', route: '/post-generator' },
     { title: 'Captions', description: 'Write short, on-brand captions.', icon: 'pencil-line', route: '/captions' },
@@ -145,7 +176,7 @@ export class CreativeGeneratorPage implements OnDestroy {
   ] as const;
   protected readonly tones: readonly GeneratorTone[] = ['Promotional', 'Premium', 'Friendly', 'Urgent'];
   protected readonly qualities: readonly ModelQuality[] = ['Basic', 'Premium'];
-  protected readonly platformOptions = [...PLATFORM_OPTIONS, { value: 'MORE' as const, label: 'More' }] as const;
+  protected readonly platformOptions = PLATFORM_OPTIONS;
   protected readonly languageOptions = PROMPT_LANGUAGE_OPTIONS.filter((option) => option.value !== 'MIXED');
   protected readonly allowedLanguageOptions = computed(() => {
     const preference = this.selectedBrand()?.languagePreference ?? 'BOTH';
@@ -161,7 +192,7 @@ export class CreativeGeneratorPage implements OnDestroy {
       promptHistoryId: new FormControl('', { nonNullable: true }),
       sourcePrompt: new FormControl(DEFAULT_GENERATION_DRAFT.sourcePrompt, {
         nonNullable: true,
-        validators: [Validators.required, Validators.minLength(5), Validators.maxLength(4000)],
+        validators: [Validators.maxLength(4000)],
       }),
       enhancedPrompt: new FormControl(DEFAULT_GENERATION_DRAFT.enhancedPrompt, {
         nonNullable: true,
@@ -197,10 +228,31 @@ export class CreativeGeneratorPage implements OnDestroy {
         nonNullable: true,
         validators: [Validators.required, Validators.min(1), Validators.max(20)],
       }),
-      cta: new FormControl('Shop Now', {
+      cta: new FormControl('', {
         nonNullable: true,
-        validators: [Validators.maxLength(160)],
+        validators: [Validators.maxLength(40)],
       }),
+      headline: new FormControl('', {
+        nonNullable: true,
+        validators: [Validators.maxLength(80)],
+      }),
+      subheadline: new FormControl('', {
+        nonNullable: true,
+        validators: [Validators.maxLength(120)],
+      }),
+      offerText: new FormControl('', {
+        nonNullable: true,
+        validators: [Validators.maxLength(80)],
+      }),
+      targetAudience: new FormControl('', {
+        nonNullable: true,
+        validators: [Validators.maxLength(150)],
+      }),
+      backgroundPrompt: new FormControl('', {
+        nonNullable: true,
+        validators: [Validators.maxLength(500)],
+      }),
+      transparentBackground: new FormControl(false, { nonNullable: true }),
       useBrandContext: new FormControl(DEFAULT_GENERATION_DRAFT.useBrandContext, { nonNullable: true }),
       generationConfigText: new FormControl('{}', {
         nonNullable: true,
@@ -227,14 +279,26 @@ export class CreativeGeneratorPage implements OnDestroy {
     this.productStore.items().find((product) => product.id === this.selectedProductId()) ?? null,
   );
   protected readonly filteredProjects = computed(() =>
-    this.projectStore.items().filter((project) => project.productServiceId === this.selectedProductId()),
+    this.projectStore.items().filter((project) => {
+      const productId = this.selectedProductId();
+      if (productId) {
+        return project.productServiceId === productId;
+      }
+      return Boolean(this.selectedBrandId()) && project.brandId === this.selectedBrandId();
+    }),
   );
   protected readonly selectedProject = computed(() =>
     this.projectStore.items().find((project) => project.id === this.selectedProjectId()) ?? null,
   );
   protected readonly selectedAsset = computed(() => this.store.selectedAssets()[0] ?? null);
   protected readonly productAssetId = computed(() => this.selectedAsset()?.id ?? '');
-  protected readonly selectedProductImageReady = computed(() => isGenerationReadyAsset(this.selectedAsset()));
+  protected readonly productImageRequired = computed(() => false);
+  protected readonly selectedProductImageReady = computed(() =>
+    Boolean(this.selectedProductImageFile()) || isGenerationReadyAsset(this.selectedAsset()),
+  );
+  protected readonly hasProductImageInput = computed(() =>
+    Boolean(this.selectedProductImageFile()) || Boolean(this.productAssetId()),
+  );
   protected readonly selectedProductImagePreviewUrl = computed(() => {
     const asset = this.selectedAsset();
     return (
@@ -245,17 +309,63 @@ export class CreativeGeneratorPage implements OnDestroy {
       null
     );
   });
+  protected readonly imageInputModeLabel = computed(() =>
+    generationModeHintLabel(this.generationModeHint()),
+  );
+  protected readonly generationModeHint = computed<NonNullable<AiCreativeGenerateRequest['generationModeHint']>>(() => {
+    this.formRevision();
+    const value = this.generationForm.getRawValue();
+    const hasPrimaryImage = this.hasProductImageInput();
+    const hasReference = Boolean(this.selectedLogoImageFile() || this.selectedReferenceImageFile());
+    const hasMaskReplacement = Boolean(this.selectedMaskImageFile() && value.backgroundPrompt.trim());
+    if (value.transparentBackground) {
+      return 'TRANSPARENT_ASSET';
+    }
+    if (hasMaskReplacement) {
+      return 'BACKGROUND_REPLACEMENT';
+    }
+    if (hasPrimaryImage && hasReference) {
+      return 'MULTI_REFERENCE_CREATIVE';
+    }
+    return hasPrimaryImage ? 'PRODUCT_IMAGE_CREATIVE' : 'TEXT_ONLY_CREATIVE';
+  });
+  protected readonly promptTitlePreview = computed(() => {
+    this.formRevision();
+    const brandName = this.selectedBrand()?.name?.trim();
+    const productName = this.selectedProduct()?.name?.trim();
+    const campaignName = this.selectedProject()?.name?.trim();
+    const creativeType = visualCreativeFormatLabel(this.selectedVisualFormat());
+    const platform = promptPlatformLabel(this.generationForm.controls.platform.value || null);
+    if (!brandName) {
+      return `Select brand - ${creativeType} - ${platform}`;
+    }
+    const parts = productName && campaignName
+      ? [brandName, productName, campaignName, creativeType, platform]
+      : campaignName
+        ? [brandName, campaignName, creativeType, platform]
+        : [brandName, creativeType, platform];
+    return parts.filter((part) => part && part !== 'Not selected').join(' - ');
+  });
   protected readonly readinessChecklist = computed(() => {
     const readiness = this.store.campaignReadiness();
+    const productImageReady = this.productImageRequired()
+      ? this.selectedProductImageReady()
+      : true;
     return [
-      { label: 'Project hierarchy ready', ready: readiness?.workspaceReady ?? false },
-      { label: 'Package ready', ready: readiness?.packageReady ?? false },
-      { label: 'Credits ready', ready: readiness?.creditsReady ?? false },
-      { label: 'Provider ready', ready: readiness?.providerReady ?? false },
-      { label: 'Routing ready', ready: readiness?.routingReady ?? false },
-      { label: 'Product image ready', ready: readiness?.productAssetReady ?? false },
+      { label: 'Project hierarchy ready', ready: Boolean(this.auth.activeWorkspaceId() && this.selectedBrandId()) },
+      { label: 'Package ready', ready: readiness?.packageReady ?? this.packageReadyForSubmit() },
+      { label: 'Credits ready', ready: this.hasSufficientCredits() },
+      { label: 'Provider ready', ready: readiness?.providerReady ?? true },
+      { label: 'Routing ready', ready: readiness?.routingReady ?? true },
+      { label: `Image input: ${this.imageInputModeLabel()}`, ready: productImageReady },
     ] as const;
   });
+  protected readonly pipelineLayers = computed(() => this.store.campaignPipeline()?.layers ?? []);
+  protected readonly currentPipelineLayer = computed(() =>
+    this.pipelineLayers().find((layer) => layer.status === 'PROCESSING') ??
+    this.pipelineLayers().find((layer) => layer.status === 'PLANNED' || layer.status === 'QUEUED') ??
+    null,
+  );
   protected readonly promptLength = computed(() => {
     this.formRevision();
     return this.generationForm.controls.sourcePrompt.value.length;
@@ -277,21 +387,17 @@ export class CreativeGeneratorPage implements OnDestroy {
     this.formRevision();
     const value = this.generationForm.getRawValue();
     return Boolean(
-      this.auth.activeWorkspaceId() &&
+        this.auth.activeWorkspaceId() &&
         this.selectedBrandId() &&
-        this.selectedProductId() &&
-        this.selectedProjectId() &&
         value.platform &&
-        this.resolvedCreativeFormat() &&
         value.language &&
         value.language !== 'MIXED' &&
         this.isSelectedLanguageAllowed() &&
         this.qualityMode() &&
-        this.productAssetId() &&
-        this.selectedProductImageReady() &&
-        this.store.campaignReadiness()?.ready === true &&
-        this.store.campaignCostPreview() !== null &&
-        value.sourcePrompt.trim().length > 0 &&
+        (!this.productImageRequired() || this.hasProductImageInput()) &&
+        (!this.productImageRequired() || this.selectedProductImageReady()) &&
+        this.generationSetupReady() &&
+        (value.sourcePrompt.trim().length > 0 || this.hasEnoughCreativeContext()) &&
         this.packageReadyForSubmit() &&
         this.hasSufficientCredits() &&
         this.generationForm.valid &&
@@ -306,22 +412,17 @@ export class CreativeGeneratorPage implements OnDestroy {
     if (this.workspace.loading()) return 'Workspace package and credits are loading.';
     if (this.workspace.error()) return 'Credits or package could not be loaded. Please refresh or contact support.';
     if (!this.selectedBrandId()) return 'Select a brand.';
-    if (!this.selectedProductId()) return 'Select a product or service.';
-    if (!this.selectedProjectId()) return 'Select a project or campaign.';
     if (!value.platform) return 'Select a platform.';
-    if (!this.resolvedCreativeFormat()) return 'Selected creative type is not supported for this platform.';
     if (!value.language || value.language === 'MIXED') return 'Select English or Bangla.';
     if (!this.isSelectedLanguageAllowed()) return 'Selected language does not match the brand language preference.';
-    if (!this.productAssetId()) return 'Upload or select a product image first.';
-    if (!this.selectedProductImageReady()) return 'Selected product image is not ready yet.';
-    if (this.store.campaignReadiness()?.ready !== true) return 'Generation setup is not ready. Check the readiness checklist.';
-    if (!value.sourcePrompt.trim()) return 'Add a campaign idea or prompt.';
+    if (this.hasProductImageInput() && !this.selectedProductImageReady()) return 'Selected product image is not ready yet.';
+    if (!this.generationSetupReady()) return 'Generation setup is not ready. Check the readiness checklist.';
+    if (!value.sourcePrompt.trim() && !this.hasEnoughCreativeContext()) return 'Add campaign idea or select enough context to generate.';
     if (!this.packageReadyForSubmit()) return 'No active package is assigned to this workspace.';
-    if (!this.store.campaignCostPreview()) return 'Credit preview is loading from the server.';
-    if (!this.hasSufficientCredits()) return `Insufficient credits. This request needs ${this.generationCreditPreview().estimatedCreditCost} credits.`;
+    if (!this.hasSufficientCredits()) return this.generationCreditPreview().blockingReasons[0] ?? 'Credit availability is not ready.';
     if (this.uploadInProgress()) return 'Wait for image upload to finish.';
     if (this.store.generationLoading()) return 'Generation request is in progress.';
-    if (this.generationForm.invalid) return 'Fix the highlighted form fields.';
+    if (this.generationForm.invalid) return this.formValidationReason() ?? 'Fix the highlighted form fields.';
     return null;
   });
   protected readonly creditCost = computed(() => {
@@ -333,22 +434,23 @@ export class CreativeGeneratorPage implements OnDestroy {
   protected readonly generationCreditPreview = computed(() => {
     this.formRevision();
     const costPreview = this.store.campaignCostPreview();
+    const availability = parseAvailabilityPreview(costPreview?.toolCode ?? null);
     const requestedVersionCount = costPreview?.requestedVersionCount ?? this.generationForm.controls.requestedVersionCount.value;
-    const estimatedCreditCost = costPreview?.totalCreditCost ?? 0;
+    const estimatedCreditCost = costPreview ? costPreview.totalCreditCost : null;
     const availableCredits = this.workspaceCredits.creditAccount()?.availableCredits ?? this.workspace.usage()?.creditsRemaining ?? 0;
-    const remainingCreditsAfterGeneration = availableCredits - estimatedCreditCost;
-    const blockingReasons = [
-      ...(costPreview ? [] : ['Credit preview is not loaded yet.']),
-      ...(remainingCreditsAfterGeneration < 0 ? ['Not enough credits available.'] : []),
-    ];
+    const remainingCreditsAfterGeneration = estimatedCreditCost === null ? null : availableCredits - estimatedCreditCost;
+    const blockingReasons = availability.blockGeneration ? [availability.message || 'Credit availability blocks generation.'] : [];
+    const availabilityLoaded = Boolean(costPreview);
     return {
       requestedVersionCount,
       estimatedCreditCost,
       availableCredits,
       remainingCreditsAfterGeneration,
+      creditStatus: availability.status,
+      message: availability.message,
       packageLimit: this.creditsTotal(),
-      canReserveCredits: blockingReasons.length === 0,
-      canQueueGeneration: blockingReasons.length === 0 && this.store.campaignReadiness()?.ready === true,
+      canReserveCredits: availabilityLoaded && blockingReasons.length === 0,
+      canQueueGeneration: availabilityLoaded && blockingReasons.length === 0 && this.store.campaignReadiness()?.ready !== false,
       blockingReasons,
     };
   });
@@ -360,11 +462,24 @@ export class CreativeGeneratorPage implements OnDestroy {
       Boolean(this.workspace.featurePolicy()),
   );
   protected readonly hasSufficientCredits = computed(() => {
-    if (!this.store.campaignCostPreview()) {
-      return false;
+    return this.generationCreditPreview().canQueueGeneration;
+  });
+  protected readonly creditPreviewAvailable = computed(() =>
+    Boolean(this.store.campaignCostPreview()) ||
+      this.generationForm.controls.sourcePrompt.value.trim().length > 0 ||
+      this.hasEnoughCreativeContext(),
+  );
+  protected readonly generationSetupReady = computed(() => {
+    const readiness = this.store.campaignReadiness();
+    if (!readiness) {
+      return true;
     }
-    const credits = this.workspace.usage()?.creditsRemaining;
-    return typeof credits !== 'number' || credits >= this.generationCreditPreview().estimatedCreditCost;
+    return (
+      readiness.packageReady !== false &&
+      readiness.creditsReady !== false &&
+      readiness.providerReady !== false &&
+      readiness.routingReady !== false
+    );
   });
   protected readonly currentOutput = computed(() => {
     const selectedId = this.selectedVariationId();
@@ -405,6 +520,32 @@ export class CreativeGeneratorPage implements OnDestroy {
     { label: 'Captions Generated', value: '--', icon: 'captions' },
   ]);
 
+  protected layerTypeLabel(layerType: string | null | undefined): string {
+    const labels: Record<string, string> = {
+      IMAGE_ANALYSIS: 'Image analysis',
+      BACKGROUND_REMOVAL: 'Background removal',
+      IMAGE_CLEANUP: 'Cleanup',
+      PROMPT_GENERATION: 'Prompt generation',
+      IMAGE_GENERATION: 'Image generation',
+      TEXT_OVERLAY: 'Text overlay',
+      VISION_QUALITY_CHECK: 'Quality check',
+      IMAGE_RESIZE: 'Resize',
+      IMAGE_EXPORT: 'Export',
+      INTERNAL_SAVE: 'Save',
+    };
+    if (!layerType) {
+      return 'Processing';
+    }
+    return labels[layerType] ?? layerType.replaceAll('_', ' ').toLowerCase();
+  }
+
+  protected layerStatusTone(layer: CreativePipelineLayerRun): 'neutral' | 'brand' | 'blue' | 'red' {
+    if (layer.status === 'COMPLETED') return 'brand';
+    if (layer.status === 'PROCESSING') return 'blue';
+    if (layer.status === 'FAILED') return 'red';
+    return 'neutral';
+  }
+
   constructor() {
     void this.store.loadGeneratorContext();
     this.loadHierarchyContext();
@@ -427,32 +568,45 @@ export class CreativeGeneratorPage implements OnDestroy {
     this.revokeLocalProductImagePreview();
   }
 
+  @HostListener('document:click')
+  protected closeContextDropdown(): void {
+    this.openContextDropdown.set(null);
+  }
+
+  @HostListener('document:keydown.escape')
+  protected closeContextDropdownOnEscape(): void {
+    this.openContextDropdown.set(null);
+  }
+
+  protected toggleContextDropdown(kind: ContextDropdown, disabled = false): void {
+    if (disabled) {
+      return;
+    }
+    this.openContextDropdown.update((openKind) => openKind === kind ? null : kind);
+  }
+
   protected selectBrand(brandId: string): void {
+    this.openContextDropdown.set(null);
     this.selectedBrandId.set(brandId);
-    const product = this.productStore.items().find((item) => item.brandId === brandId);
-    this.selectedProductId.set(product?.id ?? '');
-    const project = this.projectStore.items().find((item) => item.productServiceId === product?.id);
-    this.setSelectedProject(project?.id ?? '');
+    this.selectedProductId.set('');
+    this.setSelectedProject('');
     this.ensureAllowedLanguageForSelectedBrand();
     void this.refreshCampaignReadiness();
   }
 
   protected selectProduct(productId: string): void {
+    this.openContextDropdown.set(null);
     this.selectedProductId.set(productId);
-    const project = this.projectStore.items().find((item) => item.productServiceId === productId);
-    this.setSelectedProject(project?.id ?? '');
+    this.setSelectedProject('');
     void this.refreshCampaignReadiness();
   }
 
-  protected selectPlatform(platform: PromptPlatform | 'MORE'): void {
-    if (platform === 'MORE') {
-      this.notifications.info('More platforms are coming soon.', 'Use Facebook, Instagram, TikTok, or LinkedIn for now.');
-      return;
-    }
+  protected selectPlatform(platform: PromptPlatform): void {
     this.generationForm.controls.platform.setValue(platform);
   }
 
   protected selectLanguage(language: PromptLanguage): void {
+    this.openContextDropdown.set(null);
     if (!isLanguageAllowed(language, this.selectedBrand()?.languagePreference ?? 'BOTH')) {
       this.notifications.info('Language unavailable for this brand', 'Update the brand language preference or choose an allowed language.');
       this.ensureAllowedLanguageForSelectedBrand();
@@ -483,6 +637,7 @@ export class CreativeGeneratorPage implements OnDestroy {
       this.notifications.info('Select an image asset', 'JPG, PNG, and WebP product images work best for creative generation.');
       return;
     }
+    this.selectedProductImageFile.set(null);
     this.revokeLocalProductImagePreview();
     this.selectSingleProductAsset(asset);
     this.closeAssetPicker();
@@ -508,8 +663,57 @@ export class CreativeGeneratorPage implements OnDestroy {
 
   protected removeSelectedProductImage(): void {
     this.store.clearSelectedAssets();
+    this.selectedProductImageFile.set(null);
     this.readinessRequestKey.set(null);
     this.revokeLocalProductImagePreview();
+    void this.refreshCampaignReadiness();
+  }
+
+  protected onAdvancedImageSelected(
+    kind: 'logo' | 'reference' | 'mask',
+    event: Event,
+  ): void {
+    const input = event.target as HTMLInputElement;
+    const file = input.files?.[0] ?? null;
+    input.value = '';
+    if (!file) {
+      return;
+    }
+    const allowedTypes = ['image/jpeg', 'image/jpg', 'image/png', 'image/webp'];
+    if (!allowedTypes.includes(file.type)) {
+      this.notifications.info('Unsupported image type', 'Please upload a PNG, JPG, JPEG, or WEBP image under 10 MB.');
+      return;
+    }
+    if (file.size <= 0 || file.size > 10 * 1024 * 1024) {
+      this.notifications.info('Image size is invalid', 'Please upload an image under 10 MB.');
+      return;
+    }
+    if (kind === 'mask' && file.type !== 'image/png') {
+      this.notifications.info('PNG mask required', 'Mask images should be PNG for background replacement.');
+      return;
+    }
+
+    if (kind === 'logo') {
+      this.selectedLogoImageFile.set(file);
+    } else if (kind === 'reference') {
+      this.selectedReferenceImageFile.set(file);
+    } else {
+      this.selectedMaskImageFile.set(file);
+    }
+    this.formRevision.update((revision) => revision + 1);
+    void this.refreshCampaignReadiness();
+  }
+
+  protected removeAdvancedImage(kind: 'logo' | 'reference' | 'mask'): void {
+    if (kind === 'logo') {
+      this.selectedLogoImageFile.set(null);
+    } else if (kind === 'reference') {
+      this.selectedReferenceImageFile.set(null);
+    } else {
+      this.selectedMaskImageFile.set(null);
+    }
+    this.formRevision.update((revision) => revision + 1);
+    void this.refreshCampaignReadiness();
   }
 
   protected async onAssetFileSelected(event: Event): Promise<void> {
@@ -519,15 +723,13 @@ export class CreativeGeneratorPage implements OnDestroy {
     if (!file) {
       return;
     }
-    const projectId = this.selectedProjectId();
-    if (!projectId) {
-      this.notifications.info('Select a project or campaign', 'Choose the project before uploading a product image.');
+    const allowedTypes = ['image/jpeg', 'image/jpg', 'image/png', 'image/webp'];
+    if (!allowedTypes.includes(file.type)) {
+      this.notifications.info('Unsupported image type', 'Please upload a PNG, JPG, JPEG, or WEBP image under 10 MB.');
       return;
     }
-
-    const allowedTypes = ['image/jpeg', 'image/png', 'image/webp'];
-    if (!allowedTypes.includes(file.type)) {
-      this.notifications.info('Unsupported image type', 'Upload a JPG, PNG, or WebP product image.');
+    if (file.size > 10 * 1024 * 1024) {
+      this.notifications.info('Image is too large', 'Please upload a PNG, JPG, JPEG, or WEBP image under 10 MB.');
       return;
     }
     if (file.size <= 0) {
@@ -536,6 +738,14 @@ export class CreativeGeneratorPage implements OnDestroy {
     }
 
     this.setLocalProductImagePreview(file);
+    this.selectedProductImageFile.set(file);
+
+    const projectId = this.selectedProjectId();
+    if (!projectId) {
+      this.store.clearSelectedAssets();
+      void this.refreshCampaignReadiness();
+      return;
+    }
 
     const result = await this.assetStore.uploadProjectAsset(projectId, {
       file,
@@ -552,8 +762,14 @@ export class CreativeGeneratorPage implements OnDestroy {
     });
 
     if (!result.ok) {
-      this.revokeLocalProductImagePreview();
-      this.notifications.error('Upload failed', result.message ?? 'The product image could not be uploaded.');
+      this.store.clearSelectedAssets();
+      this.notifications.info(
+        'Image selected for generation',
+        result.message
+          ? `Library upload failed: ${result.message} The image will still be sent directly with this generation.`
+          : 'The image will be sent directly with this generation, but it was not saved to the asset library.',
+      );
+      void this.refreshCampaignReadiness();
       return;
     }
 
@@ -566,57 +782,26 @@ export class CreativeGeneratorPage implements OnDestroy {
   }
 
   protected async onSubmit(): Promise<void> {
+    const value = this.generationForm.getRawValue();
     if (!this.selectedBrandId()) {
       this.notifications.info('Select a brand', 'Choose a brand before generating a creative.');
       return;
     }
-    if (!this.selectedProductId()) {
-      this.notifications.info('Select a product or service', 'Choose a product/service before generating a creative.');
-      return;
-    }
-    if (!this.selectedProjectId()) {
-      this.notifications.info('Select a project or campaign', 'Choose a project/campaign before generating a creative.');
-      return;
-    }
-    if (!this.productAssetId()) {
-      this.notifications.info('Select a product image', 'Upload or select one image before generating.');
-      return;
-    }
-    if (!this.selectedProductImageReady()) {
+    if (this.hasProductImageInput() && !this.selectedProductImageReady()) {
       this.notifications.info('Product image is not ready', 'Wait for the upload to finish or select a ready image.');
       return;
     }
-    if (!this.resolvedCreativeFormat()) {
-      this.notifications.info('Unsupported creative type', 'Choose a creative type supported by the selected platform.');
+    if (!value.sourcePrompt.trim() && !this.hasEnoughCreativeContext()) {
+      this.notifications.info('Add campaign idea', 'Add a campaign idea or select product/campaign context with enough metadata.');
       return;
     }
     if (this.generationForm.invalid) {
       this.generationForm.markAllAsTouched();
-      this.notifications.info('Complete the campaign idea', 'Add a clear campaign idea with at least 5 characters.');
+      this.notifications.info('Fix highlighted fields', this.formValidationReason() ?? 'Review the highlighted fields before generating.');
       return;
     }
 
-    const payload = this.buildCampaignCreativeRequest();
-    const readiness = await this.store.checkCampaignCreativeReadiness(
-      this.selectedProjectId(),
-      payload.productAssetId,
-      payload.qualityMode,
-      payload.requestedVersionCount,
-    );
-
-    if (!readiness) {
-      return;
-    }
-
-    if (!readiness.ready) {
-      this.notifications.error(
-        'Creative generation is not ready',
-        readiness.messages.join(' ') || 'Check package, credits, provider routing, and selected product image.',
-      );
-      return;
-    }
-
-    const submitted = await this.store.submitCampaignCreative(this.selectedProjectId(), payload);
+    const submitted = await this.store.submitAiCreative(this.buildAiCreativeRequest());
     if (submitted) {
       this.selectedVariationId.set(null);
       if (this.auth.activeWorkspaceId()) {
@@ -666,7 +851,7 @@ export class CreativeGeneratorPage implements OnDestroy {
   }
 
   protected sendForApproval(): void {
-    this.notifications.info('Approval handoff', 'Open Generated Versions to submit completed creatives for approval.');
+    void this.store.sendSelectedForApproval();
   }
 
   protected formatTime(value: string | null): string {
@@ -736,25 +921,21 @@ export class CreativeGeneratorPage implements OnDestroy {
       this.brandStore.load(workspaceId),
       this.productStore.load(workspaceId),
       this.projectStore.load(workspaceId),
-    ]).then(() => {
-      const brand = this.brandStore.items()[0];
-      if (brand && !this.selectedBrandId()) {
-        this.selectBrand(brand.id);
-      }
-    });
+    ]);
   }
 
   protected setSelectedProject(projectId: string): void {
+    this.openContextDropdown.set(null);
     const currentProjectId = this.selectedProjectId();
     this.selectedProjectId.set(projectId);
 
     if (currentProjectId !== projectId) {
-      this.store.clearSelectedAssets();
-      this.revokeLocalProductImagePreview();
+      if (this.store.selectedAssets().length > 0 || this.selectedProductImageFile()) {
+        this.store.clearSelectedAssets();
+        this.revokeLocalProductImagePreview();
+      }
+      this.readinessRequestKey.set(null);
     }
-
-    void this.store.loadGeneratorContext('', projectId || null);
-    void this.refreshCampaignReadiness();
   }
 
   private buildDraft(): CreativeGenerationDraft {
@@ -823,7 +1004,51 @@ export class CreativeGeneratorPage implements OnDestroy {
       requestedVersionCount: value.requestedVersionCount,
       stylePreset: toneToStylePreset(this.selectedTone()),
       backgroundStyle: null,
-      cta: value.cta.trim() || 'Shop Now',
+      cta: value.cta.trim() || null,
+    };
+  }
+
+  private buildAiCreativeRequest(): AiCreativeGenerateRequest {
+    const value = this.generationForm.getRawValue();
+    if (!this.auth.activeWorkspaceId() || !value.platform || value.language === 'MIXED' || !value.language) {
+      throw new Error('AI creative payload is incomplete.');
+    }
+
+    const creativeType = mapVisualFormatToAiCreativeType(this.selectedVisualFormat());
+    const outputFormat = mapOutputFormatToAi(value.outputFormat || 'PNG');
+
+    return {
+      workspaceId: this.auth.activeWorkspaceId()!,
+      brandId: this.selectedBrandId(),
+      productServiceId: this.selectedProductId() || undefined,
+      campaignId: this.selectedProjectId() || undefined,
+      promptTitlePreview: this.promptTitlePreview(),
+      platform: mapPromptPlatformToAi(value.platform),
+      language: mapPromptLanguageToAi(value.language),
+      creativeType,
+      tone: mapToneToAi(this.selectedTone()),
+      modelQuality: this.selectedQuality() === 'Premium' ? 'PREMIUM' : 'BASIC',
+      generationModeHint: this.generationModeHint(),
+      campaignIdea: value.sourcePrompt.trim(),
+      headline: value.headline.trim() || undefined,
+      subheadline: value.subheadline.trim() || undefined,
+      offerText: value.offerText.trim() || undefined,
+      targetAudience: value.targetAudience.trim() || (this.selectedProduct()?.targetAudience ?? undefined),
+      productDescription: this.selectedProduct()?.description ?? undefined,
+      campaignObjective: this.selectedProject()?.campaignObjective ?? String(value.campaignObjective || ''),
+      cta: value.cta.trim() || undefined,
+      versions: value.requestedVersionCount,
+      size: mapVisualFormatToAiSize(creativeType),
+      quality: this.selectedQuality() === 'Premium' ? 'high' : 'medium',
+      outputFormat,
+      background: value.transparentBackground ? 'transparent' : 'opaque',
+      noHumanModel: true,
+      productImage: this.selectedProductImageFile() ?? undefined,
+      existingAssetId: this.productAssetId() || undefined,
+      logoImage: this.selectedLogoImageFile() ?? undefined,
+      referenceImage: this.selectedReferenceImageFile() ?? undefined,
+      maskImage: this.selectedMaskImageFile() ?? undefined,
+      backgroundPrompt: value.backgroundPrompt.trim() || undefined,
     };
   }
 
@@ -845,6 +1070,50 @@ export class CreativeGeneratorPage implements OnDestroy {
 
   private qualityMode(): ImageCreativeQualityMode {
     return this.selectedQuality() === 'Premium' ? 'PREMIUM' : 'BASIC';
+  }
+
+  private hasEnoughCreativeContext(): boolean {
+    return Boolean(
+      this.selectedBrandId() &&
+        (
+          this.selectedProduct()?.description ||
+          this.selectedProduct()?.sellingPoints ||
+          this.selectedProject()?.campaignObjective ||
+          this.selectedProject()?.description
+        ),
+    );
+  }
+
+  private formValidationReason(): string | null {
+    const controls = this.generationForm.controls;
+    if (controls.sourcePrompt.errors?.['maxlength']) {
+      return 'Campaign idea must be 4000 characters or fewer.';
+    }
+    if (controls.cta.errors?.['maxlength']) {
+      return 'CTA must be 40 characters or fewer.';
+    }
+    if (controls.headline.errors?.['maxlength']) {
+      return 'Headline must be 80 characters or fewer.';
+    }
+    if (controls.subheadline.errors?.['maxlength']) {
+      return 'Subheadline must be 120 characters or fewer.';
+    }
+    if (controls.offerText.errors?.['maxlength']) {
+      return 'Offer text must be 80 characters or fewer.';
+    }
+    if (controls.targetAudience.errors?.['maxlength']) {
+      return 'Target audience must be 150 characters or fewer.';
+    }
+    if (controls.backgroundPrompt.errors?.['maxlength']) {
+      return 'Background prompt must be 500 characters or fewer.';
+    }
+    if (controls.generationConfigText.errors) {
+      return 'Advanced generation config must be a valid JSON object.';
+    }
+    if (this.generationForm.errors?.['unsupportedOutputFormat']) {
+      return 'Selected output format is not supported for this creative type.';
+    }
+    return null;
   }
 
   private selectSingleProductAsset(asset: Asset): void {
@@ -886,7 +1155,7 @@ export class CreativeGeneratorPage implements OnDestroy {
 
     if (!projectId || !productAssetId || !this.selectedProductImageReady()) {
       this.readinessRequestKey.set(null);
-      this.store.clearCampaignCostPreview();
+      await this.refreshCampaignCostPreview();
       return;
     }
 
@@ -906,23 +1175,38 @@ export class CreativeGeneratorPage implements OnDestroy {
   }
 
   private async refreshCampaignCostPreview(): Promise<void> {
-    const projectId = this.selectedProjectId();
     const value = this.generationForm.getRawValue();
     if (
-      !projectId ||
-      !this.productAssetId() ||
-      !this.selectedProductImageReady() ||
-      !this.resolvedCreativeFormat() ||
+      !this.auth.activeWorkspaceId() ||
+      !this.selectedBrandId() ||
       !value.platform ||
       !value.language ||
       value.language === 'MIXED' ||
-      value.sourcePrompt.trim().length < 5
+      (!value.sourcePrompt.trim() && !this.hasEnoughCreativeContext())
     ) {
       this.store.clearCampaignCostPreview();
       return;
     }
 
-    await this.store.previewCampaignCreativeCost(projectId, this.buildCampaignCreativeRequest());
+    const creativeType = mapVisualFormatToAiCreativeType(this.selectedVisualFormat());
+    const outputFormat = mapOutputFormatToAi(value.outputFormat || 'PNG');
+    await this.store.previewAiCreativeCost({
+      workspaceId: this.auth.activeWorkspaceId()!,
+      brandId: this.selectedBrandId(),
+      productServiceId: this.selectedProductId() || undefined,
+      campaignId: this.selectedProjectId() || undefined,
+      platform: mapPromptPlatformToAi(value.platform),
+      creativeType,
+      modelQuality: this.selectedQuality() === 'Premium' ? 'PREMIUM' : 'BASIC',
+      versions: value.requestedVersionCount,
+      hasProductImage: this.hasProductImageInput(),
+      hasLogoImage: Boolean(this.selectedLogoImageFile()),
+      hasReferenceImage: Boolean(this.selectedReferenceImageFile()),
+      hasMaskImage: Boolean(this.selectedMaskImageFile()),
+      outputFormat,
+      background: value.transparentBackground ? 'transparent' : 'opaque',
+      size: mapVisualFormatToAiSize(creativeType),
+    });
   }
 
   private setLocalProductImagePreview(file: File): void {
@@ -970,6 +1254,117 @@ function toneToStylePreset(tone: GeneratorTone): string {
     case 'Urgent':
       return 'urgent';
   }
+}
+
+function mapToneToAi(tone: GeneratorTone): AiCreativeGenerateRequest['tone'] {
+  switch (tone) {
+    case 'Promotional':
+      return 'PROMOTIONAL';
+    case 'Premium':
+      return 'PREMIUM';
+    case 'Friendly':
+      return 'FRIENDLY';
+    case 'Urgent':
+      return 'URGENT';
+  }
+}
+
+function mapPromptPlatformToAi(platform: PromptPlatform): AiCreativePlatform {
+  switch (platform) {
+    case 'FACEBOOK':
+    case 'INSTAGRAM':
+    case 'TIKTOK':
+    case 'LINKEDIN':
+      return platform;
+    case 'OTHER':
+      return 'OTHER';
+    default:
+      return 'OTHER';
+  }
+}
+
+function mapPromptLanguageToAi(language: Exclude<PromptLanguage, 'MIXED'>): string {
+  return language === 'BANGLA' ? 'bn' : 'en';
+}
+
+function mapVisualFormatToAiCreativeType(format: VisualCreativeFormat): AiCreativeType {
+  return format;
+}
+
+function mapVisualFormatToAiSize(type: AiCreativeType): AiCreativeSize {
+  switch (type) {
+    case 'STORY':
+      return '1024x1536';
+    case 'BANNER':
+      return '1536x1024';
+    case 'SQUARE_POST':
+    case 'PRODUCT_AD':
+      return '1024x1024';
+  }
+}
+
+function mapOutputFormatToAi(format: CreativeOutputFormat): AiCreativeGenerateRequest['outputFormat'] {
+  switch (format) {
+    case 'WEBP':
+      return 'webp';
+    case 'JPG':
+      return 'jpeg';
+    case 'PNG':
+    default:
+      return 'png';
+  }
+}
+
+function visualCreativeFormatLabel(format: VisualCreativeFormat): string {
+  switch (format) {
+    case 'SQUARE_POST':
+      return 'Square Post';
+    case 'STORY':
+      return 'Story';
+    case 'BANNER':
+      return 'Banner';
+    case 'PRODUCT_AD':
+      return 'Product Ad';
+  }
+}
+
+function generationModeHintLabel(mode: NonNullable<AiCreativeGenerateRequest['generationModeHint']>): string {
+  switch (mode) {
+    case 'PRODUCT_IMAGE_CREATIVE':
+    case 'PRODUCT_IMAGE_TO_CREATIVE':
+      return 'Product-image creative';
+    case 'MULTI_REFERENCE_CREATIVE':
+    case 'MULTI_REFERENCE':
+      return 'Multi-reference creative';
+    case 'BACKGROUND_REPLACEMENT':
+    case 'BACKGROUND_REPLACE':
+      return 'Background replacement';
+    case 'TRANSPARENT_ASSET':
+      return 'Transparent asset';
+    case 'TEXT_ONLY_CREATIVE':
+    case 'TEXT_TO_CREATIVE':
+    default:
+      return 'Text-only creative';
+  }
+}
+
+function parseAvailabilityPreview(toolCode: string | null): {
+  status: 'READY' | 'MAY_BE_INSUFFICIENT' | 'UNAVAILABLE' | null;
+  blockGeneration: boolean;
+  message: string | null;
+} {
+  if (!toolCode?.startsWith('AI_CREATIVE:')) {
+    return { status: null, blockGeneration: false, message: null };
+  }
+  const [, status, blocked, ...messageParts] = toolCode.split(':');
+  const validStatus = status === 'READY' || status === 'MAY_BE_INSUFFICIENT' || status === 'UNAVAILABLE'
+    ? status
+    : null;
+  return {
+    status: validStatus,
+    blockGeneration: blocked === 'BLOCKED',
+    message: messageParts.join(':') || null,
+  };
 }
 
 function resolveCreativeFormat(

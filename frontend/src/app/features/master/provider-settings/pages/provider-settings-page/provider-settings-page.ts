@@ -26,12 +26,16 @@ export class ProviderSettingsPage {
   protected readonly credentialDialogOpen = signal(false);
   protected readonly editingProvider = signal<AiProviderView | null>(null);
   protected readonly editingCredential = signal<AiProviderCredentialView | null>(null);
+  protected readonly modelsDialogOpen = signal(false);
 
   protected readonly providerForm = new FormGroup({
     providerCode: new FormControl('', { nonNullable: true, validators: [Validators.required] }),
     providerName: new FormControl('', { nonNullable: true, validators: [Validators.required] }),
     apiKey: new FormControl('', { nonNullable: true }),
     defaultModel: new FormControl('', { nonNullable: true }),
+    modelsEndpoint: new FormControl('', { nonNullable: true }),
+    modelsEndpointAuth: new FormControl('BEARER', { nonNullable: true }),
+    apiKeyQueryParam: new FormControl('', { nonNullable: true }),
     priority: new FormControl(100, { nonNullable: true, validators: [Validators.min(0)] }),
     rateLimitPerMinute: new FormControl(60, { nonNullable: true, validators: [Validators.min(1)] }),
     costMultiplier: new FormControl(1, { nonNullable: true, validators: [Validators.min(0.0001)] }),
@@ -45,6 +49,7 @@ export class ProviderSettingsPage {
 
   protected readonly selectedProvider = this.store.selectedProvider;
   protected readonly selectedProviderCredentials = computed(() => this.store.credentials());
+  protected readonly modelsJsonText = computed(() => JSON.stringify(this.store.modelsJson()?.modelsJson ?? {}, null, 2));
 
   constructor() {
     effect(() => void this.store.loadProviders());
@@ -57,6 +62,9 @@ export class ProviderSettingsPage {
       providerName: provider.providerName,
       apiKey: '',
       defaultModel: provider.defaultModel ?? '',
+      modelsEndpoint: provider.modelsEndpoint ?? '',
+      modelsEndpointAuth: provider.modelsEndpointAuth ?? 'BEARER',
+      apiKeyQueryParam: provider.apiKeyQueryParam ?? '',
       priority: provider.priority ?? 100,
       rateLimitPerMinute: provider.rateLimitPerMinute ?? 60,
       costMultiplier: Number(provider.costMultiplier ?? 1),
@@ -66,7 +74,7 @@ export class ProviderSettingsPage {
       supportsText: provider.supportsText,
       supportsVideo: provider.supportsVideo,
       supportsVoice: provider.supportsVoice,
-    } : { providerCode: '', providerName: '', apiKey: '', defaultModel: '', priority: 100, rateLimitPerMinute: 60, costMultiplier: 1, metadataJson: '', active: true, supportsImage: true, supportsText: true, supportsVideo: false, supportsVoice: false });
+    } : { providerCode: '', providerName: '', apiKey: '', defaultModel: '', modelsEndpoint: '', modelsEndpointAuth: 'BEARER', apiKeyQueryParam: '', priority: 100, rateLimitPerMinute: 60, costMultiplier: 1, metadataJson: '', active: true, supportsImage: true, supportsText: true, supportsVideo: false, supportsVoice: false });
     this.providerDialogOpen.set(true);
   }
 
@@ -135,6 +143,16 @@ export class ProviderSettingsPage {
 
   async test(provider: AiProviderView): Promise<void> {
     await this.store.testConnection(provider);
+  }
+
+  async viewModelsJson(provider: AiProviderView): Promise<void> {
+    const ok = await this.store.loadModelsJson(provider);
+    if (ok) this.modelsDialogOpen.set(true);
+  }
+
+  closeModelsDialog(): void {
+    this.modelsDialogOpen.set(false);
+    this.store.clearModelsJson();
   }
 
   viewPool(provider: AiProviderView): void { void this.router.navigate(['/master/provider-credit-pools'], { queryParams: { providerId: provider.id } }); }

@@ -8,6 +8,7 @@ import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.ConstraintViolationException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.dao.DataAccessException;
 import org.springframework.http.converter.HttpMessageNotReadableException;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -81,6 +82,22 @@ public class GlobalExceptionHandler {
                     "Value could not be converted to " + targetType);
             return failure(ErrorCode.VALIDATION_FAILED, List.of(error));
         }
+        if (exception.getCause() instanceof tools.jackson.databind.exc.InvalidFormatException invalidFormatException) {
+            String field = invalidFormatException.getPath().stream()
+                    .map(tools.jackson.core.JacksonException.Reference::getPropertyName)
+                    .filter(name -> name != null && !name.isBlank())
+                    .reduce((first, second) -> second)
+                    .orElse(null);
+            String targetType = invalidFormatException.getTargetType() == null
+                    ? "the required type"
+                    : invalidFormatException.getTargetType().getSimpleName();
+            ApiError error = ApiError.of(
+                    ErrorCode.VALIDATION_FAILED.code(),
+                    field,
+                    "Value could not be converted to " + targetType);
+            return failure(ErrorCode.VALIDATION_FAILED, List.of(error));
+        }
+        log.warn("Unreadable request body: {}", exception.getMessage(), exception);
         ApiError error = ApiError.of(ErrorCode.VALIDATION_FAILED.code(), "Malformed request body");
         return failure(ErrorCode.VALIDATION_FAILED, List.of(error));
     }
@@ -95,8 +112,14 @@ public class GlobalExceptionHandler {
     }
 
     @ExceptionHandler(IllegalArgumentException.class)
-    ResponseEntity<ApiResponse<Void>> handleIllegalArgument(IllegalArgumentException exception) {
-        ApiError error = ApiError.of(ErrorCode.VALIDATION_FAILED.code(), exception.getMessage());
+    ResponseEntity<ApiResponse<Void>> handleIllegalArgument(IllegalArgumentException exception, HttpServletRequest request) {
+        log.warn("Illegal argument at {} {}: {}", request.getMethod(), request.getRequestURI(), exception.getMessage(), exception);
+        String message = exception.getMessage() == null ? ErrorCode.VALIDATION_FAILED.defaultMessage() : exception.getMessage();
+        if (message.startsWith("wrong number")) {
+            message = "Invalid request parameters";
+        }
+        String field = message.contains(" must ") ? message.substring(0, message.indexOf(" must ")) : null;
+        ApiError error = ApiError.of(ErrorCode.VALIDATION_FAILED.code(), field, message);
         return failure(ErrorCode.VALIDATION_FAILED, List.of(error));
     }
 
@@ -116,6 +139,16 @@ public class GlobalExceptionHandler {
     @ExceptionHandler(AccessDeniedException.class)
     ResponseEntity<ApiResponse<Void>> handleAccessDenied(AccessDeniedException exception) {
         return failure(ErrorCode.FORBIDDEN, List.of(ApiError.of(ErrorCode.FORBIDDEN.code(), ErrorCode.FORBIDDEN.defaultMessage())));
+    }
+
+    @ExceptionHandler(DataAccessException.class)
+    ResponseEntity<ApiResponse<Void>> handleDataAccess(DataAccessException exception, HttpServletRequest request) {
+        log.error("Database exception at {} {}: {}", request.getMethod(), request.getRequestURI(), exception.getMostSpecificCause().getMessage(), exception);
+        return ResponseEntity
+                .status(HttpStatus.INTERNAL_SERVER_ERROR)
+                .body(ApiResponse.failure(
+                        ErrorCode.INTERNAL_ERROR.defaultMessage(),
+                        ApiError.of(ErrorCode.INTERNAL_ERROR.code(), "Database operation failed. Check creative-service logs for the SQL constraint or migration error.")));
     }
 
     @ExceptionHandler(Exception.class)

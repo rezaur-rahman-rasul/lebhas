@@ -46,15 +46,15 @@ spring:
       time-to-live: ${CACHE_TTL:15m}
   kafka:
     bootstrap-servers: ${KAFKA_BOOTSTRAP_SERVERS:localhost:9092}
-      producer:
-        key-serializer: org.apache.kafka.common.serialization.StringSerializer
-        value-serializer: org.springframework.kafka.support.serializer.JsonSerializer
-        properties:
-          max.block.ms: ${KAFKA_PRODUCER_MAX_BLOCK_MS:1000}
-          request.timeout.ms: ${KAFKA_PRODUCER_REQUEST_TIMEOUT_MS:1000}
-          delivery.timeout.ms: ${KAFKA_PRODUCER_DELIVERY_TIMEOUT_MS:3000}
-          retries: ${KAFKA_PRODUCER_RETRIES:0}
-          spring.json.add.type.headers: false
+    producer:
+      key-serializer: org.apache.kafka.common.serialization.StringSerializer
+      value-serializer: org.springframework.kafka.support.serializer.JsonSerializer
+      properties:
+        max.block.ms: ${KAFKA_PRODUCER_MAX_BLOCK_MS:1000}
+        request.timeout.ms: ${KAFKA_PRODUCER_REQUEST_TIMEOUT_MS:1000}
+        delivery.timeout.ms: ${KAFKA_PRODUCER_DELIVERY_TIMEOUT_MS:3000}
+        retries: ${KAFKA_PRODUCER_RETRIES:0}
+        spring.json.add.type.headers: false
     consumer:
       group-id: ${KAFKA_CONSUMER_GROUP_ID:${spring.application.name}}
       key-deserializer: org.apache.kafka.common.serialization.StringDeserializer
@@ -364,3 +364,11 @@ platform:
 ai:
   credentials:
     encryption-key: ${AI_CREDENTIAL_ENCRYPTION_KEY}
+
+openai:
+  base-url: ${OPENAI_BASE_URL:https://api.openai.com}
+  api-key: ${OPENAI_API_KEY:}
+  default-image-model: ${OPENAI_DEFAULT_IMAGE_MODEL:gpt-image-1.5}
+  default-output-format: ${OPENAI_DEFAULT_OUTPUT_FORMAT:png}
+  default-background: ${OPENAI_DEFAULT_BACKGROUND:opaque}
+  timeout-seconds: ${OPENAI_TIMEOUT_SECONDS:120}

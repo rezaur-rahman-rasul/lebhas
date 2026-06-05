@@ -31,6 +31,9 @@
   </dl>
   <div class="actions">
     <app-button type="button" size="sm" (click)="testProvider.emit(provider()); $event.stopPropagation()">Test Connection</app-button>
+    @if (canShowModelsJson(provider())) {
+      <app-button type="button" variant="secondary" size="sm" (click)="viewModelsJson.emit(provider()); $event.stopPropagation()">Models JSON</app-button>
+    }
     <app-button type="button" variant="secondary" size="sm" (click)="configureCredentials.emit(provider()); $event.stopPropagation()">Rotate Key</app-button>
     <app-button type="button" variant="secondary" size="sm" (click)="editProvider.emit(provider()); $event.stopPropagation()">Edit Provider</app-button>
     <app-button type="button" variant="secondary" size="sm" (click)="toggleProvider.emit(provider()); $event.stopPropagation()">{{ provider().active ? 'Disable' : 'Enable' }}</app-button>

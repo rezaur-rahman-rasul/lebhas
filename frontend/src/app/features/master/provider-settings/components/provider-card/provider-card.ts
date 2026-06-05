@@ -21,6 +21,15 @@ export class ProviderCardComponent {
   readonly toggleProvider = output<AiProviderView>();
   readonly deleteProvider = output<AiProviderView>();
   readonly testProvider = output<AiProviderView>();
+  readonly viewModelsJson = output<AiProviderView>();
   readonly viewCreditPool = output<AiProviderView>();
   readonly exchangePolicy = output<AiProviderView>();
+
+  protected canShowModelsJson(provider: AiProviderView): boolean {
+    const providerType = (provider.providerType || provider.category || '').toUpperCase();
+    const providerCode = provider.providerCode.toUpperCase();
+    return Boolean(provider.modelsEndpoint?.trim())
+      && providerType !== 'PAYMENT'
+      && !['STRIPE', 'SSLCOMMERZ', 'BKASH', 'NAGAD'].includes(providerCode);
+  }
 }

@@ -3,6 +3,8 @@ package com.lebhas.creativesaas.creative.interfaces;
 import com.lebhas.creativesaas.common.api.ApiResponse;
 import com.lebhas.creativesaas.common.api.PagedResult;
 import com.lebhas.creativesaas.imagecreative.application.ProductImageCreativeService;
+import com.lebhas.creativesaas.generation.application.CreativePipelineRunQueryService;
+import com.lebhas.creativesaas.generation.application.dto.CreativePipelineRunView;
 import com.lebhas.creativesaas.imagecreative.application.dto.ImageCreativeCostPreviewView;
 import com.lebhas.creativesaas.imagecreative.application.dto.ImageCreativeGenerationView;
 import com.lebhas.creativesaas.imagecreative.application.dto.ProductImageCreativeCommand;
@@ -30,9 +32,14 @@ import java.util.UUID;
 public class ProductImageCreativeController {
 
     private final ProductImageCreativeService productImageCreativeService;
+    private final CreativePipelineRunQueryService pipelineRunQueryService;
 
-    public ProductImageCreativeController(ProductImageCreativeService productImageCreativeService) {
+    public ProductImageCreativeController(
+            ProductImageCreativeService productImageCreativeService,
+            CreativePipelineRunQueryService pipelineRunQueryService
+    ) {
         this.productImageCreativeService = productImageCreativeService;
+        this.pipelineRunQueryService = pipelineRunQueryService;
     }
 
     @PostMapping("/api/v1/workspaces/{workspaceId}/projects/{projectId}/image-creatives/generate")
@@ -82,6 +89,15 @@ public class ProductImageCreativeController {
     ) {
         Pageable pageable = PageRequest.of(Math.max(0, page), Math.min(Math.max(1, size), 100));
         return ApiResponse.success(productImageCreativeService.history(workspaceId, projectId, pageable));
+    }
+
+    @GetMapping("/api/v1/workspaces/{workspaceId}/creative-generator/requests/{requestId}/pipeline")
+    @PreAuthorize("hasAuthority('WORKSPACE_VIEW')")
+    public ApiResponse<CreativePipelineRunView> pipeline(
+            @PathVariable UUID workspaceId,
+            @PathVariable UUID requestId
+    ) {
+        return ApiResponse.success(pipelineRunQueryService.getLatestByCreativeRequest(workspaceId, requestId));
     }
 
     private ProductImageCreativeCommand command(UUID workspaceId, UUID projectId, ProductImageCreativeApiRequest request) {

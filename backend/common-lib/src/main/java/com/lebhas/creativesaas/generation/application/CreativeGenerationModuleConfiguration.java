@@ -1,6 +1,7 @@
 package com.lebhas.creativesaas.generation.application;
 
 import com.lebhas.ai.config.AiProviderFoundationConfiguration;
+import com.lebhas.ai.creative.service.OpenAiDirectProperties;
 import com.lebhas.creativesaas.generation.rate.CreativeGenerationRateLimitProperties;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
@@ -14,6 +15,7 @@ import org.springframework.scheduling.concurrent.ThreadPoolTaskExecutor;
 @Import(AiProviderFoundationConfiguration.class)
 @EnableConfigurationProperties({
         CreativeGenerationProperties.class,
+        OpenAiDirectProperties.class,
         CreativeGenerationRateLimitProperties.class
 })
 public class CreativeGenerationModuleConfiguration {

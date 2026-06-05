@@ -6,8 +6,13 @@ export interface AiProviderView {
   readonly providerCode: string;
   readonly providerName: string;
   readonly displayName?: string | null;
+  readonly providerType?: string | null;
+  readonly category?: string | null;
   readonly baseUrl?: string | null;
   readonly defaultModel?: string | null;
+  readonly modelsEndpoint?: string | null;
+  readonly modelsEndpointAuth?: string | null;
+  readonly apiKeyQueryParam?: string | null;
   readonly metadataJson?: string | null;
   readonly status?: string | null;
   readonly healthStatus?: string | null;
@@ -36,6 +41,17 @@ export interface AiProviderCredentialView {
   readonly updatedAt: string;
 }
 
+export interface ProviderModelsJsonView {
+  readonly providerKey: string;
+  readonly providerCode: string;
+  readonly displayName: string;
+  readonly environment: ProviderEnvironment;
+  readonly endpoint: string;
+  readonly httpStatus: number;
+  readonly retrievedAt: string;
+  readonly modelsJson: Record<string, unknown>;
+}
+
 export interface CreateProviderCredentialRequest {
   readonly credentialName: string;
   readonly apiKey: string;
@@ -50,6 +66,9 @@ export interface CreateProviderRequest {
   readonly baseUrl?: string | null;
   readonly apiKey?: string | null;
   readonly defaultModel?: string | null;
+  readonly modelsEndpoint?: string | null;
+  readonly modelsEndpointAuth?: string | null;
+  readonly apiKeyQueryParam?: string | null;
   readonly priority?: number | null;
   readonly rateLimitPerMinute?: number | null;
   readonly costMultiplier?: number | null;
@@ -132,9 +151,11 @@ export interface MasterCreditOverviewView {
 
 export interface GenerationCreditPreviewView {
   readonly requestedVersionCount: number;
-  readonly estimatedCreditCost: number;
+  readonly estimatedCreditCost: number | null;
   readonly availableCredits: number;
-  readonly remainingCreditsAfterGeneration: number;
+  readonly remainingCreditsAfterGeneration: number | null;
+  readonly creditStatus?: 'READY' | 'MAY_BE_INSUFFICIENT' | 'UNAVAILABLE' | null;
+  readonly message?: string | null;
   readonly packageLimit?: number | null;
   readonly canReserveCredits: boolean;
   readonly canQueueGeneration: boolean;

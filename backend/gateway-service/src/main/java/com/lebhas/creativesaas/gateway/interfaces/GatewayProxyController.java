@@ -72,6 +72,7 @@ public class GatewayProxyController {
     @RequestMapping({
             "/api/v1/auth/**",
             "/api/v1/credit-packages/**",
+            "/api/v1/ai/creatives/**",
             "/api/v1/master/**",
             "/api/v1/payments/**",
             "/api/v1/profile/**",
@@ -135,6 +136,7 @@ public class GatewayProxyController {
                         "/api/v1/workspaces/*/creative-outputs/**",
                         "/api/v1/workspaces/*/creative-approvals/**",
                         "/api/v1/workspaces/*/projects/*/image-creatives/**",
+                        "/api/v1/ai/creatives/**",
                         "/api/v1/master/providers/**",
                         "/api/v1/master/providers",
                         "/internal/storage/local/assets/**")),

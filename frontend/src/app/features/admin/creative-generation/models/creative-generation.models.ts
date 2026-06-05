@@ -31,6 +31,159 @@ export type CreativeGenerationStatus =
   | 'FAILED'
   | 'CANCELLED';
 export type GenerationJobType = 'IMAGE_GENERATION' | 'VIDEO_GENERATION';
+export type CreativePipelineStatus =
+  | 'PLANNED'
+  | 'QUEUED'
+  | 'PROCESSING'
+  | 'COMPLETED'
+  | 'FAILED'
+  | 'SKIPPED'
+  | 'FALLBACK_USED';
+export type CreativePipelineLayerType =
+  | 'IMAGE_ANALYSIS'
+  | 'BACKGROUND_REMOVAL'
+  | 'IMAGE_CLEANUP'
+  | 'PROMPT_GENERATION'
+  | 'IMAGE_GENERATION'
+  | 'TEXT_OVERLAY'
+  | 'VISION_QUALITY_CHECK'
+  | 'IMAGE_RESIZE'
+  | 'IMAGE_EXPORT'
+  | 'INTERNAL_SAVE'
+  | string;
+
+export type AiCreativePlatform = 'FACEBOOK' | 'INSTAGRAM' | 'TIKTOK' | 'LINKEDIN' | 'OTHER';
+export type AiCreativeType = 'SQUARE_POST' | 'STORY' | 'BANNER' | 'PRODUCT_AD';
+export type AiCreativeTone = 'PROMOTIONAL' | 'PREMIUM' | 'FRIENDLY' | 'URGENT';
+export type AiModelQuality = 'BASIC' | 'PREMIUM';
+export type AiCreativeSize = '1024x1024' | '1024x1536' | '1536x1024';
+export type AiCreativeQuality = 'low' | 'medium' | 'high';
+export type AiOutputFormat = 'png' | 'jpeg' | 'webp';
+export type AiCreativeBackground = 'opaque' | 'transparent';
+export type AiCreativeStatus = 'REQUESTED' | 'PLANNING' | 'STARTED' | 'PROCESSING' | 'COMPLETED' | 'FAILED';
+export type AiLayerStatus = 'PLANNED' | 'PROCESSING' | 'COMPLETED' | 'FAILED';
+export type AiGenerationMode =
+  | 'TEXT_TO_CREATIVE'
+  | 'PRODUCT_IMAGE_TO_CREATIVE'
+  | 'MULTI_REFERENCE'
+  | 'BACKGROUND_REPLACE'
+  | 'TRANSPARENT_ASSET'
+  | 'TEXT_ONLY_CREATIVE'
+  | 'PRODUCT_IMAGE_CREATIVE'
+  | 'MULTI_REFERENCE_CREATIVE'
+  | 'BACKGROUND_REPLACEMENT';
+
+export interface AiCreativeGenerateRequest {
+  readonly workspaceId: string;
+  readonly brandId: string;
+  readonly productServiceId?: string;
+  readonly campaignId?: string;
+  readonly promptTitlePreview?: string;
+  readonly platform: AiCreativePlatform;
+  readonly language: string;
+  readonly creativeType: AiCreativeType;
+  readonly tone: AiCreativeTone;
+  readonly modelQuality: AiModelQuality;
+  readonly generationModeHint?: AiGenerationMode;
+  readonly campaignIdea?: string;
+  readonly headline?: string;
+  readonly subheadline?: string;
+  readonly offerText?: string;
+  readonly targetAudience?: string;
+  readonly productDescription?: string;
+  readonly campaignObjective?: string;
+  readonly cta?: string;
+  readonly versions: number;
+  readonly size: AiCreativeSize;
+  readonly quality: AiCreativeQuality;
+  readonly outputFormat: AiOutputFormat;
+  readonly background: AiCreativeBackground;
+  readonly noHumanModel: boolean;
+  readonly productImage?: File;
+  readonly existingAssetId?: string;
+  readonly logoImage?: File;
+  readonly referenceImage?: File;
+  readonly maskImage?: File;
+  readonly backgroundPrompt?: string;
+}
+
+export interface AiCreativeResponse {
+  readonly creativeId: string;
+  readonly workspaceId: string;
+  readonly brandId: string;
+  readonly productServiceId?: string | null;
+  readonly campaignId?: string | null;
+  readonly status: AiCreativeStatus;
+  readonly generationMode: AiGenerationMode;
+  readonly provider: string;
+  readonly model: string;
+  readonly platform: AiCreativePlatform;
+  readonly creativeType: AiCreativeType;
+  readonly language: string;
+  readonly tone: AiCreativeTone;
+  readonly modelQuality: AiModelQuality;
+  readonly size: AiCreativeSize;
+  readonly quality: AiCreativeQuality;
+  readonly outputFormat: AiOutputFormat;
+  readonly background: AiCreativeBackground;
+  readonly fileUrl?: string | null;
+  readonly thumbnailUrl?: string | null;
+  readonly r2ObjectKey?: string | null;
+  readonly requestedVersions: number;
+  readonly generatedVersionNo?: number | null;
+  readonly costEstimate?: number | null;
+  readonly creditUsed?: number | null;
+  readonly errorMessage?: string | null;
+  readonly createdAt: string;
+  readonly completedAt?: string | null;
+}
+
+export interface CreativeProgressResponse {
+  readonly creativeId: string;
+  readonly status: AiCreativeStatus;
+  readonly currentLayerKey?: string | null;
+  readonly currentLayerLabel?: string | null;
+  readonly layers: readonly CreativeProgressLayer[];
+}
+
+export interface CreativeProgressLayer {
+  readonly layerKey: string;
+  readonly label: string;
+  readonly sequenceNo: number;
+  readonly status: AiLayerStatus;
+  readonly startedAt?: string | null;
+  readonly completedAt?: string | null;
+  readonly errorMessage?: string | null;
+}
+
+export interface CreativeCreditPreviewRequest {
+  readonly workspaceId: string;
+  readonly brandId: string;
+  readonly productServiceId?: string;
+  readonly campaignId?: string;
+  readonly platform?: AiCreativePlatform;
+  readonly creativeType: AiCreativeType;
+  readonly modelQuality: AiModelQuality;
+  readonly versions: number;
+  readonly hasProductImage: boolean;
+  readonly hasLogoImage?: boolean;
+  readonly hasReferenceImage?: boolean;
+  readonly hasMaskImage?: boolean;
+  readonly outputFormat?: AiOutputFormat;
+  readonly background?: AiCreativeBackground;
+  readonly size?: AiCreativeSize;
+}
+
+export interface CreativeCreditPreviewResponse {
+  readonly requestedVersions: number;
+  readonly availableCredits: number;
+  readonly creditStatus: 'READY' | 'MAY_BE_INSUFFICIENT' | 'UNAVAILABLE';
+  readonly hasEnoughCredits: boolean;
+  readonly blockGeneration: boolean;
+  readonly message: string;
+  readonly remainingCreditsAfterGeneration: number | null;
+  readonly actualCreditsUsed: number | null;
+}
 
 export interface CreativeGenerationRequest {
   readonly id: string;
@@ -147,13 +300,47 @@ export interface ImageCreativeCostPreview {
   readonly toolCode: string;
   readonly qualityMode: ImageCreativeQualityMode;
   readonly requestedVersionCount: number;
-  readonly unitCreditCost: number;
-  readonly totalCreditCost: number;
+  readonly unitCreditCost: number | null;
+  readonly totalCreditCost: number | null;
 }
 
 export interface ProductImageCreativeReadinessMessage {
   readonly code: string;
   readonly message: string;
+}
+
+export interface CreativePipelineLayerRun {
+  readonly id: string;
+  readonly sequence: number;
+  readonly layerType: CreativePipelineLayerType;
+  readonly providerCode: string;
+  readonly modelCode: string | null;
+  readonly status: CreativePipelineStatus;
+  readonly inputJson: Readonly<Record<string, unknown>>;
+  readonly outputJson: Readonly<Record<string, unknown>>;
+  readonly inputAssetIds: readonly string[];
+  readonly outputAssetIds: readonly string[];
+  readonly estimatedCost: number;
+  readonly actualCost: number | null;
+  readonly startedAt: string | null;
+  readonly completedAt: string | null;
+  readonly failureReason: string | null;
+}
+
+export interface CreativePipelineRun {
+  readonly creativeRequestId: string;
+  readonly pipelineRunId: string;
+  readonly status: CreativePipelineStatus;
+  readonly strategy: string;
+  readonly primaryProviderCode: string;
+  readonly planJson: Readonly<Record<string, unknown>>;
+  readonly estimatedCreditCost: number;
+  readonly actualCreditCost: number | null;
+  readonly failureReason: string | null;
+  readonly createdAt: string | null;
+  readonly updatedAt: string | null;
+  readonly completedAt: string | null;
+  readonly layers: readonly CreativePipelineLayerRun[];
 }
 
 export interface CreativeGenerationFilter {

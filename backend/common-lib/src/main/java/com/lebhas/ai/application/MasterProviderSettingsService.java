@@ -4,6 +4,7 @@ import com.lebhas.ai.application.dto.CreateMasterProviderRequest;
 import com.lebhas.ai.application.dto.MasterProviderView;
 import com.lebhas.ai.application.dto.ProviderConnectionTestResult;
 import com.lebhas.ai.application.dto.ProviderCredentialSavedView;
+import com.lebhas.ai.application.dto.ProviderModelsJsonView;
 import com.lebhas.ai.application.dto.SaveProviderCredentialRequest;
 import com.lebhas.ai.application.dto.TestProviderConnectionRequest;
 import com.lebhas.ai.application.dto.UpdateMasterProviderRequest;
@@ -24,14 +25,18 @@ import com.lebhas.creativesaas.auditlog.domain.AuditOutcome;
 import com.lebhas.creativesaas.common.exception.BusinessException;
 import com.lebhas.creativesaas.common.exception.ErrorCode;
 import com.lebhas.creativesaas.messaging.kafka.KafkaTopicConstants;
+import com.fasterxml.jackson.core.type.TypeReference;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.io.IOException;
 import java.net.URI;
+import java.net.URLEncoder;
 import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
 import java.math.BigDecimal;
+import java.nio.charset.StandardCharsets;
 import java.time.Clock;
 import java.time.Duration;
 import java.time.Instant;
@@ -51,6 +56,7 @@ public class MasterProviderSettingsService {
     private final AuditLogService auditLogService;
     private final Clock clock;
     private final HttpClient httpClient;
+    private final ObjectMapper objectMapper = new ObjectMapper();
     private static final String AVAILABLE_CREDIT_BALANCE_METADATA_KEY = "availableCreditBalance";
     private static final String BASE_URL_METADATA_KEY = "baseUrl";
     private static final String DEFAULT_MODEL_METADATA_KEY = "defaultModel";
@@ -58,6 +64,12 @@ public class MasterProviderSettingsService {
     private static final String COST_MULTIPLIER_METADATA_KEY = "costMultiplier";
     private static final String PRIORITY_METADATA_KEY = "priority";
     private static final String RATE_LIMIT_PER_MINUTE_METADATA_KEY = "rateLimitPerMinute";
+    private static final String PROVIDER_JSON_ENDPOINT_METADATA_KEY = "jsonEndpoint";
+    private static final String PROVIDER_MODELS_ENDPOINT_METADATA_KEY = "modelsEndpoint";
+    private static final String PROVIDER_HEALTH_ENDPOINT_METADATA_KEY = "healthEndpoint";
+    private static final String PROVIDER_ENDPOINT_PATH_METADATA_KEY = "endpointPath";
+    private static final String PROVIDER_ENDPOINT_AUTH_METADATA_KEY = "endpointAuth";
+    private static final String PROVIDER_API_KEY_QUERY_PARAM_METADATA_KEY = "apiKeyQueryParam";
 
     public MasterProviderSettingsService(
             AiToolProviderRepository providerRepository,
@@ -117,7 +129,14 @@ public class MasterProviderSettingsService {
                 true,
                 true,
                 true,
-                costMetadata(request.baseUrl(), request.defaultModel(), request.metadataJson(), request.costMultiplier()),
+                costMetadata(
+                        request.baseUrl(),
+                        request.defaultModel(),
+                        request.modelsEndpoint(),
+                        request.modelsEndpointAuth(),
+                        request.apiKeyQueryParam(),
+                        request.metadataJson(),
+                        request.costMultiplier()),
                 Map.of(),
                 rateLimitMetadata(request.priority(), request.rateLimitPerMinute()));
         provider.updateSettings(
@@ -153,7 +172,14 @@ public class MasterProviderSettingsService {
                 provider.isFallbackEligible(),
                 provider.isWorkspaceRoutingEligible(),
                 provider.isPlanRoutingEligible(),
-                costMetadata(request.baseUrl(), request.defaultModel(), request.metadataJson(), request.costMultiplier()),
+                costMetadata(
+                        request.baseUrl(),
+                        request.defaultModel(),
+                        request.modelsEndpoint(),
+                        request.modelsEndpointAuth(),
+                        request.apiKeyQueryParam(),
+                        request.metadataJson(),
+                        request.costMultiplier()),
                 provider.getQualityMetadata(),
                 rateLimitMetadata(request.priority(), request.rateLimitPerMinute()));
         AiToolProvider saved = providerRepository.save(provider);
@@ -263,6 +289,43 @@ public class MasterProviderSettingsService {
         return testConnection(requireProvider(providerKey).getId(), request);
     }
 
+    @Transactional(readOnly = true)
+    public ProviderModelsJsonView fetchModelsJson(String providerKey, TestProviderConnectionRequest request) {
+        AiToolProvider provider = requireProvider(providerKey);
+        ProviderEnvironment environment = environment(request.environment());
+        validateEnvironment(provider, environment);
+        String secret = resolveConnectionSecret(provider.getId(), environment, request);
+        Instant startedAt = clock.instant();
+        try {
+            ProviderJsonEndpointRequest endpointRequest = providerJsonEndpointRequest(provider, secret);
+            HttpResponse<String> response = httpClient.send(endpointRequest.request(), HttpResponse.BodyHandlers.ofString());
+            if (response.statusCode() < 200 || response.statusCode() >= 300) {
+                throw new BusinessException(
+                        ErrorCode.BUSINESS_RULE_VIOLATION,
+                        response.statusCode() == 401 || response.statusCode() == 403
+                                ? provider.getProviderName() + " rejected the configured credential"
+                                : provider.getProviderName() + " JSON endpoint failed with HTTP " + response.statusCode());
+            }
+            Map<String, Object> modelsJson = objectMapper.readValue(response.body(), new TypeReference<>() {
+            });
+            audit(provider, "provider.models-json.fetched", AuditActionType.PROCESS, "Provider models JSON fetched");
+            return new ProviderModelsJsonView(
+                    provider.getProviderCode(),
+                    provider.getProviderCode(),
+                    provider.getProviderName(),
+                    environment,
+                    endpointRequest.safeEndpoint(),
+                    response.statusCode(),
+                    startedAt,
+                    modelsJson);
+        } catch (IOException exception) {
+            throw new BusinessException(ErrorCode.BUSINESS_RULE_VIOLATION, provider.getProviderName() + " JSON endpoint could not be reached or did not return valid JSON");
+        } catch (InterruptedException exception) {
+            Thread.currentThread().interrupt();
+            throw new BusinessException(ErrorCode.BUSINESS_RULE_VIOLATION, provider.getProviderName() + " JSON endpoint request was interrupted");
+        }
+    }
+
     public ProviderCredentialSavedView revokeCredential(UUID providerId, ProviderEnvironment requestedEnvironment) {
         AiToolProvider provider = requireProvider(providerId);
         ProviderEnvironment environment = environment(requestedEnvironment);
@@ -309,6 +372,9 @@ public class MasterProviderSettingsService {
                 provider.getSupportedLayers(),
                 metadataString(provider.getCostMetadata(), BASE_URL_METADATA_KEY),
                 metadataString(provider.getCostMetadata(), DEFAULT_MODEL_METADATA_KEY),
+                metadataString(provider.getCostMetadata(), PROVIDER_MODELS_ENDPOINT_METADATA_KEY),
+                metadataString(provider.getCostMetadata(), PROVIDER_ENDPOINT_AUTH_METADATA_KEY),
+                metadataString(provider.getCostMetadata(), PROVIDER_API_KEY_QUERY_PARAM_METADATA_KEY),
                 supportedEnvironments(provider),
                 provider.isSupportsSandbox(),
                 provider.isSupportsLive(),
@@ -390,12 +456,18 @@ public class MasterProviderSettingsService {
     private Map<String, Object> costMetadata(
             String baseUrl,
             String defaultModel,
+            String modelsEndpoint,
+            String modelsEndpointAuth,
+            String apiKeyQueryParam,
             String metadataJson,
             BigDecimal costMultiplier
     ) {
         Map<String, Object> metadata = new LinkedHashMap<>();
         putIfPresent(metadata, BASE_URL_METADATA_KEY, baseUrl);
         putIfPresent(metadata, DEFAULT_MODEL_METADATA_KEY, defaultModel);
+        putIfPresent(metadata, PROVIDER_MODELS_ENDPOINT_METADATA_KEY, modelsEndpoint);
+        putIfPresent(metadata, PROVIDER_ENDPOINT_AUTH_METADATA_KEY, modelsEndpointAuth);
+        putIfPresent(metadata, PROVIDER_API_KEY_QUERY_PARAM_METADATA_KEY, apiKeyQueryParam);
         putIfPresent(metadata, METADATA_JSON_KEY, metadataJson);
         metadata.put(COST_MULTIPLIER_METADATA_KEY, normalizePositive(costMultiplier, BigDecimal.ONE, "Cost multiplier"));
         return Map.copyOf(metadata);
@@ -581,12 +653,7 @@ public class MasterProviderSettingsService {
         }
 
         try {
-            HttpRequest httpRequest = HttpRequest.newBuilder(URI.create("https://api.openai.com/v1/models"))
-                    .timeout(Duration.ofSeconds(15))
-                    .header("Authorization", "Bearer " + secret)
-                    .GET()
-                    .build();
-            HttpResponse<String> response = httpClient.send(httpRequest, HttpResponse.BodyHandlers.ofString());
+            HttpResponse<String> response = httpClient.send(openAiModelsRequest(secret), HttpResponse.BodyHandlers.ofString());
             long latencyMs = Math.max(0L, Duration.between(startedAt, clock.instant()).toMillis());
             if (response.statusCode() >= 200 && response.statusCode() < 300) {
                 return new ProviderConnectionTestResult(
@@ -622,6 +689,146 @@ public class MasterProviderSettingsService {
             Thread.currentThread().interrupt();
             return failedConnectionResult(provider, environment, startedAt, "OpenAI connection test was interrupted");
         }
+    }
+
+    private String resolveConnectionSecret(UUID providerId, ProviderEnvironment environment, TestProviderConnectionRequest request) {
+        AiProviderCredential credential = credentialRepository
+                .findFirstByProviderIdAndEnvironmentAndDeletedFalseOrderByUpdatedAtDesc(providerId, environment)
+                .orElse(null);
+        if ((request.secret() == null || request.secret().isBlank()) && (credential == null || credential.getEncryptedSecret() == null)) {
+            throw new BusinessException(ErrorCode.VALIDATION_FAILED, "Provider credential is not configured");
+        }
+        String secret = request.secret() == null || request.secret().isBlank()
+                ? encryptionService.decryptNullable(credential.getEncryptedSecret())
+                : request.secret().trim();
+        if (secret == null || secret.isBlank()) {
+            throw new BusinessException(ErrorCode.VALIDATION_FAILED, "Provider credential is not configured");
+        }
+        return secret;
+    }
+
+    private ProviderJsonEndpointRequest providerJsonEndpointRequest(AiToolProvider provider, String secret) {
+        Map<String, Object> metadata = parsedMetadataJson(provider);
+        String configuredEndpoint = metadataString(provider.getCostMetadata(), PROVIDER_MODELS_ENDPOINT_METADATA_KEY);
+        if (configuredEndpoint == null) {
+            configuredEndpoint = firstMetadataString(metadata, PROVIDER_JSON_ENDPOINT_METADATA_KEY, PROVIDER_MODELS_ENDPOINT_METADATA_KEY, PROVIDER_HEALTH_ENDPOINT_METADATA_KEY);
+        }
+        if (configuredEndpoint == null) {
+            String endpointPath = firstMetadataString(metadata, PROVIDER_ENDPOINT_PATH_METADATA_KEY);
+            String baseUrl = metadataString(provider.getCostMetadata(), BASE_URL_METADATA_KEY);
+            if (endpointPath != null && baseUrl != null && !baseUrl.isBlank()) {
+                configuredEndpoint = joinUrl(baseUrl, endpointPath);
+            }
+        }
+        if (configuredEndpoint != null) {
+            validateProviderEndpoint(configuredEndpoint);
+            String authMode = metadataString(provider.getCostMetadata(), PROVIDER_ENDPOINT_AUTH_METADATA_KEY);
+            if (authMode == null) {
+                authMode = firstMetadataString(metadata, PROVIDER_ENDPOINT_AUTH_METADATA_KEY);
+            }
+            String queryParam = metadataString(provider.getCostMetadata(), PROVIDER_API_KEY_QUERY_PARAM_METADATA_KEY);
+            if (queryParam == null) {
+                queryParam = firstMetadataString(metadata, PROVIDER_API_KEY_QUERY_PARAM_METADATA_KEY);
+            }
+            return configuredProviderJsonEndpoint(configuredEndpoint, authMode, queryParam, secret);
+        }
+
+        throw new BusinessException(
+                ErrorCode.BUSINESS_RULE_VIOLATION,
+                "Models endpoint is not configured for " + provider.getProviderCode());
+    }
+
+    private ProviderJsonEndpointRequest configuredProviderJsonEndpoint(String endpoint, String authMode, String queryParam, String secret) {
+        String normalizedAuthMode = authMode == null ? "BEARER" : authMode.trim().toUpperCase(java.util.Locale.ROOT);
+        return switch (normalizedAuthMode) {
+            case "NONE" -> noAuthJsonEndpoint(endpoint);
+            case "API_KEY_QUERY", "QUERY_KEY" -> queryKeyJsonEndpoint(endpoint, queryParam == null ? "key" : queryParam, secret);
+            case "BEARER" -> bearerJsonEndpoint(endpoint, secret);
+            default -> throw new BusinessException(ErrorCode.VALIDATION_FAILED, "Unsupported provider endpointAuth: " + authMode);
+        };
+    }
+
+    private ProviderJsonEndpointRequest bearerJsonEndpoint(String endpoint, String secret) {
+        return new ProviderJsonEndpointRequest(
+                endpoint,
+                HttpRequest.newBuilder(URI.create(endpoint))
+                        .timeout(Duration.ofSeconds(15))
+                        .header("Authorization", "Bearer " + secret)
+                        .GET()
+                        .build());
+    }
+
+    private ProviderJsonEndpointRequest queryKeyJsonEndpoint(String endpoint, String queryParam, String secret) {
+        String safeEndpoint = appendQueryParam(endpoint, queryParam, "***");
+        String endpointWithSecret = appendQueryParam(endpoint, queryParam, secret);
+        return new ProviderJsonEndpointRequest(
+                safeEndpoint,
+                HttpRequest.newBuilder(URI.create(endpointWithSecret))
+                        .timeout(Duration.ofSeconds(15))
+                        .GET()
+                        .build());
+    }
+
+    private ProviderJsonEndpointRequest noAuthJsonEndpoint(String endpoint) {
+        return new ProviderJsonEndpointRequest(
+                endpoint,
+                HttpRequest.newBuilder(URI.create(endpoint))
+                        .timeout(Duration.ofSeconds(15))
+                        .GET()
+                        .build());
+    }
+
+    private HttpRequest openAiModelsRequest(String secret) {
+        return bearerJsonEndpoint("https://api.openai.com/v1/models", secret).request();
+    }
+
+    private Map<String, Object> parsedMetadataJson(AiToolProvider provider) {
+        String metadataJson = metadataString(provider.getCostMetadata(), METADATA_JSON_KEY);
+        if (metadataJson == null || metadataJson.isBlank()) {
+            return Map.of();
+        }
+        try {
+            return objectMapper.readValue(metadataJson, new TypeReference<>() {
+            });
+        } catch (IOException exception) {
+            throw new BusinessException(ErrorCode.VALIDATION_FAILED, "Provider metadataJson must be valid JSON");
+        }
+    }
+
+    private String firstMetadataString(Map<String, Object> metadata, String... keys) {
+        for (String key : keys) {
+            Object value = metadata.get(key);
+            if (value instanceof String stringValue && !stringValue.isBlank()) {
+                return stringValue.trim();
+            }
+        }
+        return null;
+    }
+
+    private String joinUrl(String baseUrl, String path) {
+        String normalizedBase = baseUrl.endsWith("/") ? baseUrl.substring(0, baseUrl.length() - 1) : baseUrl;
+        String normalizedPath = path.startsWith("/") ? path : "/" + path;
+        return normalizedBase + normalizedPath;
+    }
+
+    private String appendQueryParam(String endpoint, String queryParam, String value) {
+        String separator = endpoint.contains("?") ? "&" : "?";
+        return endpoint + separator + URLEncoder.encode(queryParam, StandardCharsets.UTF_8)
+                + "=" + URLEncoder.encode(value, StandardCharsets.UTF_8);
+    }
+
+    private void validateProviderEndpoint(String endpoint) {
+        try {
+            URI uri = URI.create(endpoint);
+            if (uri.getScheme() == null || uri.getHost() == null || (!uri.getScheme().equals("https") && !uri.getScheme().equals("http"))) {
+                throw new IllegalArgumentException();
+            }
+        } catch (RuntimeException exception) {
+            throw new BusinessException(ErrorCode.VALIDATION_FAILED, "Models endpoint must be a valid HTTP or HTTPS URL");
+        }
+    }
+
+    private record ProviderJsonEndpointRequest(String safeEndpoint, HttpRequest request) {
     }
 
     private ProviderConnectionTestResult failedConnectionResult(

@@ -6,6 +6,7 @@ import com.lebhas.ai.application.GeneratedVersionQualityService;
 import com.lebhas.ai.application.MasterAiProviderToolRegistryService;
 import com.lebhas.ai.application.dto.QualityScoreInput;
 import com.lebhas.ai.application.dto.ResolvedProviderRouteView;
+import com.lebhas.ai.domain.CreativeLayerType;
 import com.lebhas.ai.domain.AiProviderCredential;
 import com.lebhas.ai.domain.AiToolProvider;
 import com.lebhas.ai.domain.CredentialStatus;
@@ -43,9 +44,12 @@ import com.lebhas.creativesaas.generatedversion.domain.GeneratedVersionStatus;
 import com.lebhas.creativesaas.generatedversion.domain.GenerationStatus;
 import com.lebhas.creativesaas.generatedversion.infrastructure.persistence.GeneratedVersionRepository;
 import com.lebhas.creativesaas.generation.application.CreativeCreditReservationService;
+import com.lebhas.creativesaas.generation.application.CreativePipelineOrchestrationService;
+import com.lebhas.creativesaas.generation.application.CreativePipelineRunQueryService;
 import com.lebhas.creativesaas.generation.application.dto.CreditFinalizeCommand;
 import com.lebhas.creativesaas.generation.application.dto.CreditRefundCommand;
 import com.lebhas.creativesaas.generation.application.dto.CreditReservationResult;
+import com.lebhas.creativesaas.generation.domain.CreativePipelineRunEntity;
 import com.lebhas.creativesaas.generation.domain.CreativeType;
 import com.lebhas.creativesaas.imagecreative.application.dto.ImageCreativeCostPreviewView;
 import com.lebhas.creativesaas.imagecreative.application.dto.ImageCreativeGenerationView;
@@ -116,11 +120,14 @@ public class ProductImageCreativeService {
     private final StorageFileService storageFileService;
     private final GeneratedVersionQualityService qualityService;
     private final StorageService storageService;
+    private final CreativePipelineOrchestrationService pipelineOrchestrationService;
+    private final CreativePipelineRunQueryService pipelineRunQueryService;
     private final ImageCreativeMapper mapper;
     private final ObjectMapper objectMapper;
     private DomainEventPublisher domainEventPublisher;
     private CurrentUserContext currentUserContext;
 
+    @Autowired
     public ProductImageCreativeService(
             ProjectCampaignRepository projectCampaignRepository,
             BrandRepository brandRepository,
@@ -143,6 +150,8 @@ public class ProductImageCreativeService {
             StorageFileService storageFileService,
             GeneratedVersionQualityService qualityService,
             StorageService storageService,
+            CreativePipelineOrchestrationService pipelineOrchestrationService,
+            CreativePipelineRunQueryService pipelineRunQueryService,
             ImageCreativeMapper mapper,
             ObjectMapper objectMapper
     ) {
@@ -167,8 +176,59 @@ public class ProductImageCreativeService {
         this.storageFileService = storageFileService;
         this.qualityService = qualityService;
         this.storageService = storageService;
+        this.pipelineOrchestrationService = pipelineOrchestrationService;
+        this.pipelineRunQueryService = pipelineRunQueryService;
         this.mapper = mapper;
         this.objectMapper = objectMapper;
+    }
+
+    ProductImageCreativeService(
+            ProjectCampaignRepository projectCampaignRepository,
+            BrandRepository brandRepository,
+            ProductServiceRepository productRepository,
+            AssetRepository assetRepository,
+            CreativeToolRepository toolRepository,
+            ToolCreditCostPolicyRepository costPolicyRepository,
+            WorkspacePlanContextService planContextService,
+            MasterAiProviderToolRegistryService providerToolRegistryService,
+            CreativeCreditReservationService creditReservationService,
+            ObjectProvider<ProductImageCreativeProvider> provider,
+            ImageCreativeGenerationRepository generationRepository,
+            CreativeRequestRepository creativeRequestRepository,
+            GeneratedVersionRepository generatedVersionRepository,
+            GeneratedVersionViewMapper generatedVersionViewMapper,
+            UsageBillingLogRepository usageBillingLogRepository,
+            GeneratedVersionQualityService qualityService,
+            StorageService storageService,
+            ImageCreativeMapper mapper,
+            ObjectMapper objectMapper
+    ) {
+        this(
+                projectCampaignRepository,
+                brandRepository,
+                productRepository,
+                assetRepository,
+                null,
+                null,
+                toolRepository,
+                costPolicyRepository,
+                planContextService,
+                providerToolRegistryService,
+                creditReservationService,
+                provider,
+                generationRepository,
+                creativeRequestRepository,
+                generatedVersionRepository,
+                generatedVersionViewMapper,
+                usageBillingLogRepository,
+                null,
+                null,
+                qualityService,
+                storageService,
+                null,
+                null,
+                mapper,
+                objectMapper);
     }
 
     @Autowired(required = false)
@@ -261,17 +321,17 @@ public class ProductImageCreativeService {
                 AiToolProvider routedProvider = route.providerId() == null
                         ? null
                         : providerRepository.findByIdAndDeletedFalse(route.providerId()).orElse(null);
-                if (!isOpenAiProviderReady(routedProvider)) {
+                if (!isImageProviderReady(routedProvider)) {
                     providerReady = false;
-                    addReadinessMessage(messages, "PROVIDER_NOT_CONFIGURED", "No active OpenAI or image provider is configured by Master.");
+                    addReadinessMessage(messages, "PROVIDER_NOT_CONFIGURED", "No active image provider is configured by Master.");
                 } else if (!hasActiveConfiguredCredential(routedProvider.getId())) {
                     providerReady = false;
-                    addReadinessMessage(messages, "PROVIDER_CREDENTIAL_MISSING", "OpenAI credential is missing or inactive.");
+                    addReadinessMessage(messages, "PROVIDER_CREDENTIAL_MISSING", "Image provider credential is missing or inactive.");
                 }
             } catch (RuntimeException exception) {
                 routingReady = false;
                 providerReady = false;
-                addReadinessMessage(messages, "PROVIDER_ROUTING_MISSING", "Configure OpenAI in Master Provider Settings and Provider Routing.");
+                addReadinessMessage(messages, "PROVIDER_ROUTING_MISSING", "Configure a primary image provider in Master Provider Settings and Provider Routing.");
             }
         }
 
@@ -335,11 +395,33 @@ public class ProductImageCreativeService {
             generation = generationRepository.save(generation);
 
             ResolvedProviderRouteView route = requireResolvedOpenAiRoute(context.tool().getId(), context.qualityMode().name());
+            String primaryProviderCode = resolveProviderCode(route);
+            CreativePipelineRunEntity pipelineRun = pipelineOrchestrationService == null
+                    ? null
+                    : pipelineOrchestrationService.planAndCreateRun(
+                            creativeRequest,
+                            context.request(),
+                            primaryProviderCode,
+                            null,
+                            context.totalCreditCost(),
+                            context.productAsset() == null ? null : context.productAsset().getId());
+            UUID pipelineRunId = pipelineRun == null ? null : pipelineRun.getId();
+            if (pipelineRunId != null) {
+                pipelineOrchestrationService.markRunProcessing(pipelineRunId);
+            }
+            completePipelineLayer(pipelineRunId, CreativeLayerType.IMAGE_ANALYSIS, mapOfNonNull(
+                    "productAssetId", context.productAsset() == null ? null : context.productAsset().getId().toString(),
+                    "brandId", context.brand().getId().toString(),
+                    "productServiceId", context.product() == null ? null : context.product().getId().toString()), List.of(), BigDecimal.ZERO);
+            completePipelineLayer(pipelineRunId, CreativeLayerType.PROMPT_GENERATION, mapOfNonNull(
+                    "sourcePrompt", context.request().sourcePrompt(),
+                    "stylePreset", context.request().stylePreset(),
+                    "cta", context.request().cta()), List.of(), BigDecimal.ZERO);
             ProductImageCreativeProvider generationProvider = provider.getIfAvailable(() ->
                     new ProductImageCreativeProvider() {
                         @Override
                         public List<ProductImageCreativeProviderOutput> generate(ProductImageCreativeContext context, int count, ResolvedProviderRouteView route) {
-                            throw new BusinessException(ErrorCode.GENERATION_PROVIDER_UNAVAILABLE, "OpenAI product image creative provider is not registered");
+                            throw new BusinessException(ErrorCode.GENERATION_PROVIDER_UNAVAILABLE, "Product image creative provider is not registered");
                         }
                     });
             List<ProductImageCreativeProviderOutput> outputs = generationProvider.generate(new ProductImageCreativeContext(
@@ -350,8 +432,11 @@ public class ProductImageCreativeService {
                     context.product(),
                     context.productAsset(),
                     context.request()), context.requestedVersionCount(), route);
+            completePipelineLayer(pipelineRunId, CreativeLayerType.IMAGE_GENERATION, Map.of(
+                    "providerOutputCount", outputs.size()), List.of(), context.totalCreditCost());
 
             List<GeneratedVersionEntity> versions = new ArrayList<>();
+            List<UUID> generatedAssetIds = new ArrayList<>();
             int versionNumber = 1;
             for (ProductImageCreativeProviderOutput output : outputs) {
                 AssetEntity generatedAsset = assetRepository.saveAndFlush(createGeneratedAsset(context, output, versionNumber));
@@ -371,22 +456,25 @@ public class ProductImageCreativeService {
                         output.width(),
                         output.height(),
                         null);
-                StorageFileEntity storageFile = storageFileService.registerGeneratedOutput(
-                        context.workspaceId(),
-                        context.project().getId(),
-                        storageService.provider(),
-                        storedObject.bucket(),
-                        storedObject.storageKey(),
-                        storedObject.publicUrl(),
-                        output.mimeType(),
-                        output.fileExtension(),
-                        output.content().length,
-                        output.width(),
-                        output.height(),
-                        null,
-                        output.content());
-                generatedAsset.attachStorageFile(storageFile.getId());
+                if (storageFileService != null) {
+                    StorageFileEntity storageFile = storageFileService.registerGeneratedOutput(
+                            context.workspaceId(),
+                            context.project().getId(),
+                            storageService.provider(),
+                            storedObject.bucket(),
+                            storedObject.storageKey(),
+                            storedObject.publicUrl(),
+                            output.mimeType(),
+                            output.fileExtension(),
+                            output.content().length,
+                            output.width(),
+                            output.height(),
+                            null,
+                            output.content());
+                    generatedAsset.attachStorageFile(storageFile.getId());
+                }
                 generatedAsset = assetRepository.save(generatedAsset);
+                generatedAssetIds.add(generatedAsset.getId());
                 publish(KafkaTopicConstants.ASSET_GENERATED_METADATA_CREATED, context.workspaceId(), generatedAsset.getId(), Map.of(
                         "assetId", generatedAsset.getId().toString(),
                         "storageProvider", generatedAsset.getStorageProvider().name()));
@@ -411,12 +499,22 @@ public class ProductImageCreativeService {
                 scoreQuality(context, version, route);
                 versionNumber++;
             }
+            completePipelineLayer(pipelineRunId, CreativeLayerType.VISION_QUALITY_CHECK, Map.of(
+                    "qualityCheck", "deterministic_quality_score_recorded",
+                    "generatedVersionCount", versions.size()), List.of(), BigDecimal.ZERO);
+            completePipelineLayer(pipelineRunId, CreativeLayerType.IMAGE_EXPORT, Map.of(
+                    "storageProvider", storageService.provider().name()), generatedAssetIds, BigDecimal.ZERO);
 
             creativeRequest.markGenerationCompleted(Instant.now(), versions.size());
             creativeRequestRepository.save(creativeRequest);
             List<UUID> versionIds = versions.stream().map(GeneratedVersionEntity::getId).toList();
             generation.complete(versionIds);
             generation = generationRepository.save(generation);
+            completePipelineLayer(pipelineRunId, CreativeLayerType.INTERNAL_SAVE, Map.of(
+                    "generatedVersionIds", versionIds.stream().map(UUID::toString).toList()), versionIds, BigDecimal.ZERO);
+            if (pipelineRunId != null) {
+                pipelineOrchestrationService.completeRun(pipelineRunId, context.totalCreditCost());
+            }
 
             if (reservation != null) {
                 creditReservationService.finalizeCredits(new CreditFinalizeCommand(context.workspaceId(), reservation.reservationId(), REFERENCE_TYPE, generation.getId(), "image_creative_generation_completed"));
@@ -435,10 +533,16 @@ public class ProductImageCreativeService {
             publish(KafkaTopicConstants.IMAGE_CREATIVE_GENERATION_COMPLETED, context.workspaceId(), generation.getId(), Map.of("generatedVersionCount", versions.size()));
 
             List<GeneratedVersionView> versionViews = versions.stream().map(generatedVersionViewMapper::toView).toList();
-            return new ProductImageCreativeGenerationResult(mapper.toView(generation), versionViews);
+            return new ProductImageCreativeGenerationResult(
+                    mapper.toView(generation),
+                    versionViews,
+                    pipelineRunId == null ? null : pipelineRunQueryService.getLatestByCreativeRequest(context.workspaceId(), creativeRequest.getId()));
         } catch (RuntimeException ex) {
             generation.fail(ex.getMessage());
             generationRepository.save(generation);
+            if (generation.getCreativeRequestId() != null) {
+                pipelineRunQueryServiceSafeFail(context.workspaceId(), generation.getCreativeRequestId(), ex.getMessage());
+            }
             if (reservation != null) {
                 creditReservationService.refundCredits(new CreditRefundCommand(context.workspaceId(), reservation.reservationId(), REFERENCE_TYPE, generation.getId(), "image_creative_generation_failed"));
                 publish(KafkaTopicConstants.CREDITS_REFUNDED, context.workspaceId(), generation.getId(), Map.of("amount", context.totalCreditCost()));
@@ -447,6 +551,42 @@ public class ProductImageCreativeService {
                     "reason", ex.getMessage() == null ? "generation_failed" : ex.getMessage()));
             throw ex;
         }
+    }
+
+    private void pipelineRunQueryServiceSafeFail(UUID workspaceId, UUID creativeRequestId, String reason) {
+        try {
+            if (pipelineOrchestrationService == null || pipelineRunQueryService == null) {
+                return;
+            }
+            pipelineOrchestrationService.failRun(
+                    pipelineRunQueryService.getLatestByCreativeRequest(workspaceId, creativeRequestId).pipelineRunId(),
+                    reason);
+        } catch (RuntimeException ignored) {
+            // Pipeline failure state is diagnostic; preserve the original generation failure.
+        }
+    }
+
+    private void completePipelineLayer(
+            UUID pipelineRunId,
+            CreativeLayerType layerType,
+            Map<String, Object> output,
+            List<UUID> outputAssetIds,
+            BigDecimal actualCost
+    ) {
+        if (pipelineRunId != null && pipelineOrchestrationService != null) {
+            pipelineOrchestrationService.completeLayer(pipelineRunId, layerType, output, outputAssetIds, actualCost);
+        }
+    }
+
+    private Map<String, Object> mapOfNonNull(Object... values) {
+        Map<String, Object> result = new LinkedHashMap<>();
+        for (int index = 0; index + 1 < values.length; index += 2) {
+            Object value = values[index + 1];
+            if (value != null) {
+                result.put(String.valueOf(values[index]), value);
+            }
+        }
+        return result;
     }
 
     @Transactional(readOnly = true)
@@ -503,7 +643,7 @@ public class ProductImageCreativeService {
             throw new BusinessException(ErrorCode.PLAN_FEATURE_DISABLED, "CAMPAIGN_CREATIVE_GENERATOR is not enabled in plan feature policy.");
         }
         if (enabledCodes == null || !enabledCodes.contains(toolCode)) {
-            throw new BusinessException(ErrorCode.PLAN_FEATURE_DISABLED, "CAMPAIGN_CREATIVE_GENERATOR is not enabled in plan feature policy.");
+            throw new BusinessException(ErrorCode.PLAN_FEATURE_DISABLED, "Package does not allow selected image creative tool");
         }
         if (qualityMode == ImageCreativeQualityMode.PREMIUM && !policy.premiumQualityEnabled()) {
             throw new BusinessException(ErrorCode.BUSINESS_RULE_VIOLATION, "Package does not allow premium image creative generation");
@@ -622,6 +762,10 @@ public class ProductImageCreativeService {
                 .filter(policy -> isEffective(policy, now))
                 .map(ToolCreditCostPolicy::getCreditCost)
                 .findFirst()
+                .or(() -> costPolicyRepository.findFirstByToolIdAndEnabledTrueAndDeletedFalseOrderByUpdatedAtDesc(toolId)
+                        .filter(policy -> matchesQualityMode(policy, qualityMode))
+                        .filter(policy -> isEffective(policy, now))
+                        .map(ToolCreditCostPolicy::getCreditCost))
                 .orElseThrow(() -> new BusinessException(ErrorCode.RESOURCE_NOT_FOUND, "Master tool credit cost policy is not configured"));
     }
 
@@ -831,8 +975,8 @@ public class ProductImageCreativeService {
             ResolvedProviderRouteView route = providerToolRegistryService.resolveProvider(toolId, qualityMode);
             AiToolProvider routedProvider = route.providerId() == null
                     ? null
-                    : providerRepository.findByIdAndDeletedFalse(route.providerId()).orElse(null);
-            if (!isOpenAiProviderReady(routedProvider) || !hasActiveConfiguredCredential(routedProvider.getId())) {
+                    : providerRepository == null ? null : providerRepository.findByIdAndDeletedFalse(route.providerId()).orElse(null);
+            if (providerRepository != null && (!isImageProviderReady(routedProvider) || !hasActiveConfiguredCredential(routedProvider.getId()))) {
                 throw providerUnavailable();
             }
             return route;
@@ -853,12 +997,20 @@ public class ProductImageCreativeService {
                 List.of(ApiError.of(
                         "PROVIDER_ROUTING_MISSING",
                         "provider",
-                        "Configure OpenAI in Master Provider Settings and Provider Routing.")));
+                        "Configure a primary image provider in Master Provider Settings and Provider Routing.")));
     }
 
-    private boolean isOpenAiProviderReady(AiToolProvider provider) {
+    private String resolveProviderCode(ResolvedProviderRouteView route) {
+        if (route == null || route.providerId() == null || providerRepository == null) {
+            return "PRIMARY_AI_PROVIDER";
+        }
+        return providerRepository.findByIdAndDeletedFalse(route.providerId())
+                .map(AiToolProvider::getProviderCode)
+                .orElse("PRIMARY_AI_PROVIDER");
+    }
+
+    private boolean isImageProviderReady(AiToolProvider provider) {
         return provider != null
-                && "OPENAI".equalsIgnoreCase(provider.getProviderCode())
                 && supportsImageGeneration(provider)
                 && provider.isEnabled()
                 && provider.getStatus() == ProviderStatus.ACTIVE;
@@ -878,6 +1030,9 @@ public class ProductImageCreativeService {
     private boolean hasActiveConfiguredCredential(UUID providerId) {
         if (providerId == null) {
             return false;
+        }
+        if (credentialRepository == null) {
+            return true;
         }
         return credentialRepository.findFirstByProviderIdAndActiveTrueAndDeletedFalseOrderByUpdatedAtDesc(providerId)
                 .filter(AiProviderCredential::isActive)
