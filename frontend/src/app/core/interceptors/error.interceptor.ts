@@ -72,7 +72,7 @@ function requestFailureMessage(status: number, url: string, fallback: string): s
   }
 
   if (status >= 500) {
-    return 'We could not load this data. Please try again.';
+    return fallback || 'We could not load this data. Please try again.';
   }
 
   return fallback || requestFailureTitle(url);

@@ -6,6 +6,13 @@ import com.lebhas.ai.application.GeneratedVersionQualityService;
 import com.lebhas.ai.application.MasterAiProviderToolRegistryService;
 import com.lebhas.ai.application.dto.QualityScoreInput;
 import com.lebhas.ai.application.dto.ResolvedProviderRouteView;
+import com.lebhas.ai.creative.dto.AiCreativeGenerateRequest;
+import com.lebhas.ai.creative.enums.CreativeQuality;
+import com.lebhas.ai.creative.enums.CreativeTone;
+import com.lebhas.ai.creative.enums.ModelQuality;
+import com.lebhas.ai.creative.enums.OutputFormat;
+import com.lebhas.ai.creative.service.BengaliTypographyOverlayService;
+import com.lebhas.ai.creative.service.LogoOverlayService;
 import com.lebhas.ai.domain.CreativeLayerType;
 import com.lebhas.ai.domain.AiProviderCredential;
 import com.lebhas.ai.domain.AiToolProvider;
@@ -71,6 +78,7 @@ import com.lebhas.creativesaas.product.domain.ProductServiceEntity;
 import com.lebhas.creativesaas.product.infrastructure.persistence.ProductServiceRepository;
 import com.lebhas.creativesaas.prompt.domain.CampaignObjective;
 import com.lebhas.creativesaas.prompt.domain.PromptLanguage;
+import com.lebhas.creativesaas.prompt.domain.PromptPlatform;
 import com.lebhas.creativesaas.usage.domain.UsageBillingLog;
 import com.lebhas.creativesaas.storage.application.StorageFileService;
 import com.lebhas.creativesaas.storage.domain.StorageFileEntity;
@@ -97,8 +105,6 @@ public class ProductImageCreativeService {
 
     public static final String TOOL_CODE = "CAMPAIGN_CREATIVE_GENERATOR";
     private static final String REFERENCE_TYPE = "product_image_creative_generation";
-    private static final UUID SYSTEM_USER_ID = new UUID(0L, 0L);
-
     private final ProjectCampaignRepository projectCampaignRepository;
     private final BrandRepository brandRepository;
     private final ProductServiceRepository productRepository;
@@ -124,6 +130,8 @@ public class ProductImageCreativeService {
     private final CreativePipelineRunQueryService pipelineRunQueryService;
     private final ImageCreativeMapper mapper;
     private final ObjectMapper objectMapper;
+    private final LogoOverlayService logoOverlayService;
+    private final BengaliTypographyOverlayService typographyOverlayService;
     private DomainEventPublisher domainEventPublisher;
     private CurrentUserContext currentUserContext;
 
@@ -153,7 +161,9 @@ public class ProductImageCreativeService {
             CreativePipelineOrchestrationService pipelineOrchestrationService,
             CreativePipelineRunQueryService pipelineRunQueryService,
             ImageCreativeMapper mapper,
-            ObjectMapper objectMapper
+            ObjectMapper objectMapper,
+            LogoOverlayService logoOverlayService,
+            BengaliTypographyOverlayService typographyOverlayService
     ) {
         this.projectCampaignRepository = projectCampaignRepository;
         this.brandRepository = brandRepository;
@@ -180,6 +190,8 @@ public class ProductImageCreativeService {
         this.pipelineRunQueryService = pipelineRunQueryService;
         this.mapper = mapper;
         this.objectMapper = objectMapper;
+        this.logoOverlayService = logoOverlayService;
+        this.typographyOverlayService = typographyOverlayService;
     }
 
     ProductImageCreativeService(
@@ -201,7 +213,8 @@ public class ProductImageCreativeService {
             GeneratedVersionQualityService qualityService,
             StorageService storageService,
             ImageCreativeMapper mapper,
-            ObjectMapper objectMapper
+            ObjectMapper objectMapper,
+            LogoOverlayService logoOverlayService
     ) {
         this(
                 projectCampaignRepository,
@@ -228,7 +241,9 @@ public class ProductImageCreativeService {
                 null,
                 null,
                 mapper,
-                objectMapper);
+                objectMapper,
+                logoOverlayService,
+                null);
     }
 
     @Autowired(required = false)
@@ -431,7 +446,14 @@ public class ProductImageCreativeService {
                     context.brand(),
                     context.product(),
                     context.productAsset(),
-                    context.request()), context.requestedVersionCount(), route);
+                    context.logoAsset(),
+                    context.request(),
+                    CreativeGenerationContext.from(
+                            context.project(),
+                            context.brand(),
+                            context.product(),
+                            context.productAsset(),
+                            context.request())), context.requestedVersionCount(), route);
             completePipelineLayer(pipelineRunId, CreativeLayerType.IMAGE_GENERATION, Map.of(
                     "providerOutputCount", outputs.size()), List.of(), context.totalCreditCost());
 
@@ -439,6 +461,7 @@ public class ProductImageCreativeService {
             List<UUID> generatedAssetIds = new ArrayList<>();
             int versionNumber = 1;
             for (ProductImageCreativeProviderOutput output : outputs) {
+                output = applyInternalPostProcessing(context, output);
                 AssetEntity generatedAsset = assetRepository.saveAndFlush(createGeneratedAsset(context, output, versionNumber));
                 StorageService.StoredObject storedObject = storeGeneratedAsset(context, generatedAsset.getId(), output);
                 generatedAsset.completeUpload(
@@ -489,9 +512,9 @@ public class ProductImageCreativeService {
                         GenerationStatus.READY,
                         ApprovalStatus.NOT_SUBMITTED,
                         true,
-                        route.providerId().toString(),
-                        route.modelId() == null ? null : route.modelId().toString(),
-                        currentUserId(),
+                        generatedByProvider(route),
+                        generatedByModel(route),
+                        currentUserId(context.project()),
                         GeneratedVersionStatus.ACTIVE);
                 version.recordGeneratedAsset(generatedAsset.getId(), generatedAsset.getId(), generatedAsset.getId(), 0L, context.unitCreditCost(), BigDecimal.ZERO, output.width(), output.height(), output.fileExtension());
                 versions.add(generatedVersionRepository.save(version));
@@ -602,9 +625,6 @@ public class ProductImageCreativeService {
         UUID workspaceId = require(command.workspaceId(), "workspaceId");
         UUID projectId = require(command.projectId(), "projectId");
         ProductImageCreativeRequest request = require(command.request(), "request");
-        if (request.sourcePrompt() == null || request.sourcePrompt().isBlank()) {
-            throw new BusinessException(ErrorCode.VALIDATION_FAILED, "sourcePrompt is required");
-        }
         ImageCreativeFormat format = require(request.creativeFormat(), "creativeFormat");
         if (!format.supports(require(request.platform(), "platform"))) {
             throw new BusinessException(ErrorCode.VALIDATION_FAILED, "creativeFormat is not valid for platform");
@@ -625,13 +645,64 @@ public class ProductImageCreativeService {
         requirePackageAllows(planContext.featurePolicy(), tool.getToolCode(), qualityMode, count);
         boolean productAssetRequired = isProductAssetRequired(tool);
         AssetEntity productAsset = resolveProductAsset(workspaceId, projectId, request.productAssetId(), productAssetRequired);
+        AssetEntity logoAsset = resolveLogoAsset(workspaceId, request.logoAssetId());
         ProductServiceEntity product = resolveProduct(workspaceId, brand.getId(), project.getProductServiceId(), productAsset);
         if (product == null) {
             throw new BusinessException(ErrorCode.VALIDATION_FAILED, "Product/service context is required for image creative generation");
         }
+        request = normalizeRequestPrompt(request, project, product);
         BigDecimal unitCost = resolveCreditCost(tool.getId(), qualityMode);
         BigDecimal totalCost = unitCost.multiply(BigDecimal.valueOf(count));
-        return new ValidationContext(workspaceId, project, brand, product, productAsset, tool, planContext, request, qualityMode, count, unitCost, totalCost);
+        return new ValidationContext(workspaceId, project, brand, product, productAsset, logoAsset, tool, planContext, request, qualityMode, count, unitCost, totalCost);
+    }
+
+    private ProductImageCreativeRequest normalizeRequestPrompt(
+            ProductImageCreativeRequest request,
+            ProjectCampaignEntity project,
+            ProductServiceEntity product
+    ) {
+        String sourcePrompt = request.sourcePrompt() == null ? "" : request.sourcePrompt().trim();
+        if (sourcePrompt.isBlank()) {
+            sourcePrompt = fallbackSourcePrompt(project, product);
+        }
+        return new ProductImageCreativeRequest(
+                request.promptDraftId(),
+                sourcePrompt,
+                request.productAssetId(),
+                request.logoAssetId(),
+                request.creativeFormat(),
+                request.platform(),
+                request.language(),
+                request.qualityMode(),
+                request.requestedVersionCount(),
+                request.stylePreset(),
+                request.backgroundStyle(),
+                request.headline(),
+                request.subheadline(),
+                request.offerText(),
+                request.includeCta() != null && request.includeCta() && (request.includeTypography() == null || request.includeTypography()) ? request.cta() : null,
+                request.includeCta(),
+                request.includeTypography());
+    }
+
+    private String fallbackSourcePrompt(ProjectCampaignEntity project, ProductServiceEntity product) {
+        List<String> parts = new ArrayList<>();
+        addPromptPart(parts, "Campaign", project.getName());
+        addPromptPart(parts, "Campaign description", project.getDescription());
+        addPromptPart(parts, "Product/service", product.getName());
+        addPromptPart(parts, "Product description", product.getDescription());
+        addPromptPart(parts, "Target audience", product.getTargetAudience());
+        addPromptPart(parts, "Selling points", product.getSellingPoints());
+        if (parts.isEmpty()) {
+            throw new BusinessException(ErrorCode.VALIDATION_FAILED, "sourcePrompt or product/campaign context is required");
+        }
+        return "Generate a campaign creative using this context: " + String.join("; ", parts);
+    }
+
+    private void addPromptPart(List<String> parts, String label, String value) {
+        if (value != null && !value.isBlank()) {
+            parts.add(label + ": " + value.trim());
+        }
     }
 
     private void requirePackageAllows(PlanFeaturePolicyView policy, String toolCode, ImageCreativeQualityMode qualityMode, int count) {
@@ -681,6 +752,23 @@ public class ProductImageCreativeService {
         }
         if (!asset.isReady()) {
             throw productAssetValidation("ASSET_NOT_READY", "Upload or select a READY product image before generating creative.");
+        }
+        return asset;
+    }
+
+    private AssetEntity resolveLogoAsset(UUID workspaceId, UUID logoAssetId) {
+        if (logoAssetId == null) {
+            return null;
+        }
+        AssetEntity asset = assetRepository.findByIdAndWorkspaceIdAndDeletedFalse(logoAssetId, workspaceId)
+                .orElseThrow(() -> new BusinessException(ErrorCode.ASSET_NOT_FOUND, "Selected brand logo asset was not found."));
+        boolean brandLogo = asset.getAssetCategory() == AssetCategory.BRAND_LOGO
+                || asset.getAssetType() == AssetType.BRAND_LOGO;
+        if (!brandLogo) {
+            throw productAssetValidation("LOGO_ASSET_TYPE_INVALID", "Selected logo asset must be a brand logo.");
+        }
+        if (!asset.isReady()) {
+            throw productAssetValidation("LOGO_ASSET_NOT_READY", "Selected brand logo must be ready before generating creative.");
         }
         return asset;
     }
@@ -788,7 +876,7 @@ public class ProductImageCreativeService {
                 context.brand().getId(),
                 context.product().getId(),
                 context.project().getId(),
-                currentUserId(),
+                currentUserId(context.project()),
                 "Product Image Creative",
                 context.request().sourcePrompt(),
                 null,
@@ -811,12 +899,13 @@ public class ProductImageCreativeService {
         metadata.put("r2ObjectKey", output.objectKey());
         metadata.put("creativeFormat", context.request().creativeFormat().name());
         metadata.put("sourceProductAssetId", context.productAsset() == null ? null : context.productAsset().getId().toString());
+        metadata.put("cta", context.request().cta() == null || context.request().cta().isBlank() ? "Not generated" : context.request().cta().trim());
         AssetEntity asset = AssetEntity.createUploading(
                 context.workspaceId(),
                 context.brand().getId(),
                 context.product() == null ? null : context.product().getId(),
                 context.project().getId(),
-                currentUserId(),
+                currentUserId(context.project()),
                 null,
                 AssetType.GENERATED_CREATIVE,
                 AssetCategory.GENERATED_CREATIVE,
@@ -828,6 +917,112 @@ public class ProductImageCreativeService {
                 metadataJson(metadata),
                 storageService.provider());
         return asset;
+    }
+
+    private ProductImageCreativeProviderOutput applyInternalPostProcessing(
+            ValidationContext context,
+            ProductImageCreativeProviderOutput output
+    ) {
+        Map<String, Object> metadata = new LinkedHashMap<>(output.metadata());
+        byte[] content = output.content();
+
+        if (context.logoAsset() != null && logoOverlayService != null) {
+            byte[] logoBytes = storageService.readBytes(context.logoAsset());
+            LogoOverlayService.OverlayResult overlay = logoOverlayService.overlay(content, logoBytes, output.fileExtension());
+            if (overlay.applied()) {
+                content = overlay.imageBytes();
+                metadata.put("logoOverlay", overlay.metadata());
+            }
+        }
+
+        AiCreativeGenerateRequest typographyRequest = typographyRequest(context);
+        if (typographyOverlayService != null && typographyOverlayService.requiresOverlay(typographyRequest)) {
+            BengaliTypographyOverlayService.RenderedTypography typography = typographyOverlayService.render(
+                    content,
+                    typographyRequest,
+                    outputFormat(output.fileExtension()));
+            if (typography.applied()) {
+                content = typography.imageBytes();
+                metadata.put("typographyOverlay", typography.metadata());
+            }
+        }
+
+        return new ProductImageCreativeProviderOutput(
+                output.objectKey(),
+                output.fileName(),
+                output.mimeType(),
+                output.fileExtension(),
+                output.width(),
+                output.height(),
+                content,
+                metadata);
+    }
+
+    private AiCreativeGenerateRequest typographyRequest(ValidationContext context) {
+        ProductImageCreativeRequest request = context.request();
+        boolean includeTypography = request.includeTypography() == null || request.includeTypography();
+        return new AiCreativeGenerateRequest(
+                context.workspaceId(),
+                context.brand().getId(),
+                context.product() == null ? null : context.product().getId(),
+                context.project().getId(),
+                creativePlatform(request.platform()),
+                request.language() == PromptLanguage.BANGLA ? "bn" : "en",
+                creativeType(request.creativeFormat()),
+                outputFormat("png"),
+                CreativeTone.PREMIUM,
+                context.qualityMode() == ImageCreativeQualityMode.PREMIUM ? ModelQuality.PREMIUM : ModelQuality.BASIC,
+                request.sourcePrompt(),
+                includeTypography ? request.headline() : null,
+                includeTypography ? request.subheadline() : null,
+                includeTypography ? request.offerText() : null,
+                includeTypography && request.includeCta() != null && request.includeCta() ? request.cta() : null,
+                context.project().getCampaignObjective(),
+                context.product() == null ? null : context.product().getTargetAudience(),
+                context.product() == null ? null : context.product().getDescription(),
+                request.includeCta(),
+                false,
+                request.includeTypography(),
+                context.requestedVersionCount(),
+                request.productAssetId(),
+                request.logoAssetId(),
+                true,
+                context.request().creativeFormat().width() + "x" + context.request().creativeFormat().height(),
+                context.qualityMode() == ImageCreativeQualityMode.PREMIUM ? CreativeQuality.high : CreativeQuality.medium,
+                "opaque",
+                null,
+                "PRODUCT_IMAGE_CREATIVE",
+                currentUserId(context.project()));
+    }
+
+    private com.lebhas.ai.creative.enums.CreativePlatform creativePlatform(PromptPlatform platform) {
+        if (platform == null) {
+            return com.lebhas.ai.creative.enums.CreativePlatform.OTHER;
+        }
+        return com.lebhas.ai.creative.enums.CreativePlatform.valueOf(platform.name());
+    }
+
+    private com.lebhas.ai.creative.enums.CreativeType creativeType(ImageCreativeFormat format) {
+        if (format == ImageCreativeFormat.INSTAGRAM_STORY || format == ImageCreativeFormat.TIKTOK_VERTICAL) {
+            return com.lebhas.ai.creative.enums.CreativeType.STORY;
+        }
+        if (format == ImageCreativeFormat.FACEBOOK_BANNER || format == ImageCreativeFormat.LINKEDIN_BANNER) {
+            return com.lebhas.ai.creative.enums.CreativeType.BANNER;
+        }
+        if (format == ImageCreativeFormat.TIKTOK_PRODUCT_AD) {
+            return com.lebhas.ai.creative.enums.CreativeType.PRODUCT_AD;
+        }
+        return com.lebhas.ai.creative.enums.CreativeType.SQUARE_POST;
+    }
+
+    private OutputFormat outputFormat(String fileExtension) {
+        if ("jpg".equalsIgnoreCase(fileExtension) || "jpeg".equalsIgnoreCase(fileExtension)) {
+            return OutputFormat.jpeg;
+        }
+        if ("webp".equalsIgnoreCase(fileExtension)) {
+            return OutputFormat.webp;
+        }
+        return OutputFormat.png;
     }
 
     private StorageService.StoredObject storeGeneratedAsset(
@@ -915,11 +1110,13 @@ public class ProductImageCreativeService {
         }
     }
 
-    private UUID currentUserId() {
-        if (currentUserContext == null) {
-            return SYSTEM_USER_ID;
+    private UUID currentUserId(ProjectCampaignEntity project) {
+        if (currentUserContext != null) {
+            return currentUserContext.getCurrentUser()
+                    .map(user -> user.userId())
+                    .orElse(project.getCreatedByUserId());
         }
-        return currentUserContext.getCurrentUser().map(user -> user.userId()).orElse(SYSTEM_USER_ID);
+        return project.getCreatedByUserId();
     }
 
     private void publish(String topic, UUID workspaceId, UUID aggregateId, Map<String, Object> attributes) {
@@ -1009,6 +1206,22 @@ public class ProductImageCreativeService {
                 .orElse("PRIMARY_AI_PROVIDER");
     }
 
+    private String generatedByProvider(ResolvedProviderRouteView route) {
+        if (route == null || route.providerId() == null) {
+            return "PRIMARY_AI_PROVIDER";
+        }
+        if (providerRepository == null) {
+            return route.providerId().toString();
+        }
+        return providerRepository.findByIdAndDeletedFalse(route.providerId())
+                .map(AiToolProvider::getProviderCode)
+                .orElse(route.providerId().toString());
+    }
+
+    private String generatedByModel(ResolvedProviderRouteView route) {
+        return route == null || route.modelId() == null ? null : route.modelId().toString();
+    }
+
     private boolean isImageProviderReady(AiToolProvider provider) {
         return provider != null
                 && supportsImageGeneration(provider)
@@ -1057,6 +1270,7 @@ public class ProductImageCreativeService {
             BrandEntity brand,
             ProductServiceEntity product,
             AssetEntity productAsset,
+            AssetEntity logoAsset,
             CreativeTool tool,
             WorkspacePlanContextView planContext,
             ProductImageCreativeRequest request,

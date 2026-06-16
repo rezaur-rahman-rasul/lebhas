@@ -11,6 +11,7 @@ public record OpenAiImageResponse(
     public record ImageData(
             @JsonProperty("b64_json")
             String b64Json,
+            String url,
             @JsonProperty("revised_prompt")
             String revisedPrompt
     ) {

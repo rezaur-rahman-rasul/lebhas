@@ -17,31 +17,31 @@ public class UserProfileMapper {
     }
 
     public UserProfileView toView(UserProfile profile, UserAccountSettings settings) {
-        return new UserProfileView(
-                profile.getId(),
-                profile.getUserId(),
-                profile.getFirstName(),
-                profile.getLastName(),
-                profile.getDisplayName(),
-                profile.getPhoneNumber(),
-                profile.getJobTitle(),
-                profile.getProfileImageAssetId(),
-                null,
-                null,
-                profile.getTimezone(),
-                profile.getLocale(),
-                userAccountSettingsMapper.toView(settings),
-                profile.getCreatedAt(),
-                profile.getUpdatedAt());
+        return toView(profile, settings, null, null, null);
+    }
+
+    public UserProfileView toView(UserProfile profile, UserAccountSettings settings, String email) {
+        return toView(profile, settings, email, null, null);
     }
 
     public UserProfileView toView(UserProfile profile, UserAccountSettings settings, String profileImageUrl, java.time.Instant profileImageExpiresAt) {
+        return toView(profile, settings, null, profileImageUrl, profileImageExpiresAt);
+    }
+
+    public UserProfileView toView(
+            UserProfile profile,
+            UserAccountSettings settings,
+            String email,
+            String profileImageUrl,
+            java.time.Instant profileImageExpiresAt
+    ) {
         return new UserProfileView(
                 profile.getId(),
                 profile.getUserId(),
                 profile.getFirstName(),
                 profile.getLastName(),
                 profile.getDisplayName(),
+                email,
                 profile.getPhoneNumber(),
                 profile.getJobTitle(),
                 profile.getProfileImageAssetId(),

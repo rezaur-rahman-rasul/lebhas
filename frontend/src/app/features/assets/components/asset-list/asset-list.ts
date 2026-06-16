@@ -42,4 +42,20 @@ export class AssetList {
   protected readonly formatFileSize = formatFileSize;
   protected readonly resolveFileSize = resolveFileSize;
   protected readonly isVideoAsset = isVideoAsset;
+
+  protected assetPreviewUrl(asset: Asset): string | null {
+    return (
+      cleanUrl(asset.thumbnailUrl) ||
+      cleanUrl(asset.previewUrl) ||
+      cleanUrl(asset.publicPreviewUrl) ||
+      cleanUrl(asset.publicUrl) ||
+      cleanUrl(asset.signedPreviewUrl) ||
+      cleanUrl(asset.url) ||
+      cleanUrl(asset.downloadUrl)
+    );
+  }
+}
+
+function cleanUrl(value: string | null | undefined): string | null {
+  return typeof value === 'string' && value.trim() ? value.trim() : null;
 }

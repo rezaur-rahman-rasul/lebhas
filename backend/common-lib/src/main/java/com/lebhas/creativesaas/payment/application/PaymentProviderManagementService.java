@@ -103,6 +103,24 @@ public class PaymentProviderManagementService {
     }
 
     @Transactional
+    public PaymentProviderView toggleProvider(UUID providerId) {
+        requireMaster();
+        PaymentProvider provider = requireProvider(providerId);
+        if (provider.isEnabled()) {
+            provider.disable();
+        } else {
+            provider.enable();
+        }
+        return saveAndView(provider);
+    }
+
+    @Transactional(readOnly = true)
+    public PaymentProviderView testProvider(UUID providerId) {
+        requireMaster();
+        return getProvider(providerId);
+    }
+
+    @Transactional
     public PaymentProviderView prioritizeProvider(UUID providerId, int priority) {
         requireMaster();
         PaymentProvider provider = requireProvider(providerId);

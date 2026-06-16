@@ -121,7 +121,7 @@ public class CreditUsageService {
                     null,
                     null,
                     null,
-                    CreditLedgerTransactionType.PURCHASE,
+                    CreditLedgerTransactionType.CREDIT_PURCHASE,
                     amount,
                     movement.balanceBefore(),
                     movement.balanceAfter(),
@@ -237,6 +237,155 @@ public class CreditUsageService {
     }
 
     @Transactional
+    public CreditUsageResult reservePromptRequestCredits(
+            UUID workspaceId,
+            UUID promptRequestId,
+            UUID generationJobId,
+            BigDecimal creditsAmount,
+            UUID createdBy
+    ) {
+        UUID effectiveWorkspaceId = require(workspaceId, "workspaceId");
+        UUID effectivePromptRequestId = require(promptRequestId, "promptRequestId");
+        BigDecimal amount = normalizePositive(creditsAmount, "creditsAmount");
+        String referenceType = "AI_CREATIVE_PROMPT_REQUEST";
+
+        return creditBalanceService.withCreditLock(effectiveWorkspaceId, () -> {
+            CreditBalanceService.BalanceMovement movement = creditBalanceService.reserve(effectiveWorkspaceId, amount);
+            CreditTransactionEntity transaction = creditTransactionRepository.save(CreditTransactionEntity.create(
+                    effectiveWorkspaceId,
+                    CreditTransactionType.RESERVE,
+                    amount,
+                    referenceType,
+                    effectivePromptRequestId,
+                    CreditTransactionStatus.COMPLETED));
+            CreditLedger ledger = creditLedgerService.append(
+                    effectiveWorkspaceId,
+                    null,
+                    null,
+                    null,
+                    CreditLedgerTransactionType.RESERVE,
+                    amount,
+                    movement.balanceBefore(),
+                    movement.balanceAfter(),
+                    referenceType,
+                    effectivePromptRequestId,
+                    "Credit reservation for direct AI creative generation",
+                    createdBy);
+            WorkspaceUsageSummary summary = summary(effectiveWorkspaceId);
+            summary.recordReservation(amount);
+            workspaceUsageSummaryService.recordSummaryMutation(summary, referenceType, effectivePromptRequestId, "AI_CREATIVE_CREDITS_RESERVED");
+            reserveProviderCreditsIfConfigured(amount, referenceType, effectivePromptRequestId, createdBy);
+            return creditUsageMapper.toUsageResult(
+                    ledger,
+                    transaction.getId(),
+                    movement.wallet(),
+                    amount,
+                    referenceType,
+                    effectivePromptRequestId);
+        });
+    }
+
+    @Transactional
+    public CreditUsageResult finalizePromptRequestCredits(
+            UUID workspaceId,
+            UUID promptRequestId,
+            UUID generationJobId,
+            UUID creditReservationId,
+            String reason,
+            UUID createdBy
+    ) {
+        UUID effectiveWorkspaceId = require(workspaceId, "workspaceId");
+        UUID effectivePromptRequestId = require(promptRequestId, "promptRequestId");
+        String referenceType = "AI_CREATIVE_PROMPT_REQUEST";
+        BigDecimal amount = outstandingAmount(effectiveWorkspaceId, referenceType, effectivePromptRequestId);
+
+        return creditBalanceService.withCreditLock(effectiveWorkspaceId, () -> {
+            CreditBalanceService.BalanceMovement movement = creditBalanceService.finalizeReservation(effectiveWorkspaceId, amount);
+            CreditTransactionEntity transaction = creditTransactionRepository.save(CreditTransactionEntity.create(
+                    effectiveWorkspaceId,
+                    CreditTransactionType.FINALIZE,
+                    amount,
+                    referenceType,
+                    effectivePromptRequestId,
+                    CreditTransactionStatus.COMPLETED));
+            CreditLedger ledger = creditLedgerService.append(
+                    effectiveWorkspaceId,
+                    null,
+                    null,
+                    null,
+                    CreditLedgerTransactionType.FINALIZE,
+                    amount,
+                    movement.balanceBefore(),
+                    movement.balanceAfter(),
+                    referenceType,
+                    effectivePromptRequestId,
+                    normalizeDescription(reason, "Credit finalized after direct AI creative generation success"),
+                    createdBy);
+            WorkspaceUsageSummary summary = summary(effectiveWorkspaceId);
+            summary.recordFinalization(amount);
+            workspaceUsageSummaryService.recordSummaryMutation(summary, referenceType, effectivePromptRequestId, "AI_CREATIVE_CREDITS_FINALIZED");
+            useProviderCreditsIfReserved(amount, referenceType, effectivePromptRequestId, createdBy);
+            return creditUsageMapper.toUsageResult(
+                    ledger,
+                    creditReservationId == null ? transaction.getId() : creditReservationId,
+                    movement.wallet(),
+                    amount,
+                    referenceType,
+                    effectivePromptRequestId);
+        });
+    }
+
+    @Transactional
+    public CreditUsageResult refundPromptRequestCredits(
+            UUID workspaceId,
+            UUID promptRequestId,
+            UUID generationJobId,
+            UUID creditReservationId,
+            String reason,
+            UUID createdBy
+    ) {
+        UUID effectiveWorkspaceId = require(workspaceId, "workspaceId");
+        UUID effectivePromptRequestId = require(promptRequestId, "promptRequestId");
+        String referenceType = "AI_CREATIVE_PROMPT_REQUEST";
+        BigDecimal amount = outstandingAmount(effectiveWorkspaceId, referenceType, effectivePromptRequestId);
+
+        return creditBalanceService.withCreditLock(effectiveWorkspaceId, () -> {
+            CreditBalanceService.BalanceMovement movement = creditBalanceService.refundReservation(effectiveWorkspaceId, amount);
+            CreditTransactionEntity transaction = creditTransactionRepository.save(CreditTransactionEntity.create(
+                    effectiveWorkspaceId,
+                    CreditTransactionType.REFUND,
+                    amount,
+                    referenceType,
+                    effectivePromptRequestId,
+                    CreditTransactionStatus.COMPLETED));
+            CreditLedger ledger = creditLedgerService.append(
+                    effectiveWorkspaceId,
+                    null,
+                    null,
+                    null,
+                    CreditLedgerTransactionType.REFUND,
+                    amount,
+                    movement.balanceBefore(),
+                    movement.balanceAfter(),
+                    referenceType,
+                    effectivePromptRequestId,
+                    normalizeDescription(reason, "Credit refunded after direct AI creative generation failure"),
+                    createdBy);
+            WorkspaceUsageSummary summary = summary(effectiveWorkspaceId);
+            summary.recordRefund(amount);
+            workspaceUsageSummaryService.recordSummaryMutation(summary, referenceType, effectivePromptRequestId, "AI_CREATIVE_CREDITS_REFUNDED");
+            releaseProviderCreditsIfReserved(amount, referenceType, effectivePromptRequestId, createdBy);
+            return creditUsageMapper.toUsageResult(
+                    ledger,
+                    creditReservationId == null ? transaction.getId() : creditReservationId,
+                    movement.wallet(),
+                    amount,
+                    referenceType,
+                    effectivePromptRequestId);
+        });
+    }
+
+    @Transactional
     public CreditUsageResult finalizeCredits(CreditUsageSettlementCommand command) {
         UUID workspaceId = require(command.workspaceId(), "workspaceId");
         String referenceType = referenceType(command.referenceType());
@@ -325,9 +474,8 @@ public class CreditUsageService {
     }
 
     private BigDecimal calculateCredits(CreativeRequestEntity creativeRequest) {
-        BigDecimal baseCredits = creditEstimationService.estimate(creativeRequest.getCreativeType());
         int requestedVersions = Math.max(1, creativeRequest.getRequestedVersions());
-        return baseCredits.multiply(BigDecimal.valueOf(requestedVersions)).setScale(4, RoundingMode.HALF_UP);
+        return creditEstimationService.estimate(creativeRequest.getCreativeType(), requestedVersions).setScale(4, RoundingMode.HALF_UP);
     }
 
     private BigDecimal outstandingAmount(UUID workspaceId, String referenceType, UUID referenceId) {

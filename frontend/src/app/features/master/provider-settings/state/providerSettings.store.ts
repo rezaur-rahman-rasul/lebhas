@@ -1,7 +1,7 @@
 import { Injectable, computed, inject, signal } from '@angular/core';
 import { normalizeHttpError } from '@app/core/api/http-error';
 import { NotificationStateService } from '@app/core/state/notification-state.service';
-import { AiProviderCredentialView, AiProviderView, CreateProviderCredentialRequest, CreateProviderRequest, ProviderModelsJsonView } from '../models/provider-credit-exchange.models';
+import { AiProviderCredentialView, AiProviderView, CreateProviderCredentialRequest, CreateProviderRequest, OpenAiCostSyncResult, ProviderManagementCategory, ProviderModelsJsonView, SmsProviderActionResult } from '../models/provider-credit-exchange.models';
 import { ProviderSettingsApiService } from '../services/provider-settings-api.service';
 
 @Injectable({ providedIn: 'root' })
@@ -32,6 +32,13 @@ export class ProviderSettingsStore {
   readonly providerOptions = computed(() => this.providersSignal().map((provider) => ({ id: provider.id, label: provider.providerName || provider.providerCode })));
 
   setSelectedProvider(providerId: string | null): void {
+    const currentProviderId = this.selectedProviderIdSignal();
+    if (currentProviderId === providerId) {
+      if (providerId && this.credentialsSignal().length === 0) {
+        void this.loadCredentials(providerId);
+      }
+      return;
+    }
     this.selectedProviderIdSignal.set(providerId);
     this.credentialsSignal.set([]);
     if (providerId) {
@@ -39,15 +46,38 @@ export class ProviderSettingsStore {
     }
   }
 
-  async loadProviders(): Promise<void> {
+  async loadProviders(category?: ProviderManagementCategory | string | null): Promise<void> {
     await this.run(async () => {
-      const providers = await this.api.getProviders();
+      const providers = await this.api.getProviders(category);
       this.providersSignal.set(providers);
-      this.selectedProviderIdSignal.set(this.selectedProviderIdSignal() ?? providers[0]?.id ?? null);
+      const selectedId = this.selectedProviderIdSignal();
+      const selectedStillVisible = selectedId && providers.some((provider) => provider.id === selectedId);
+      this.selectedProviderIdSignal.set(selectedStillVisible ? selectedId : providers[0]?.id ?? null);
       if (this.selectedProviderIdSignal()) {
         await this.loadCredentials(this.selectedProviderIdSignal()!);
+      } else {
+        this.credentialsSignal.set([]);
       }
     });
+  }
+
+  async refreshProvidersQuietly(category?: ProviderManagementCategory | string | null): Promise<void> {
+    try {
+      const providers = await this.api.getProviders(category);
+      this.providersSignal.set(providers);
+      const selectedId = this.selectedProviderIdSignal();
+      if (!selectedId || providers.some((provider) => provider.id === selectedId)) {
+        return;
+      }
+      const nextProviderId = providers[0]?.id ?? null;
+      this.selectedProviderIdSignal.set(nextProviderId);
+      this.credentialsSignal.set([]);
+      if (nextProviderId) {
+        await this.loadCredentials(nextProviderId);
+      }
+    } catch {
+      // Background refresh must not replace the visible page state with a transient polling error.
+    }
   }
 
   async saveProvider(payload: CreateProviderRequest, providerId?: string): Promise<boolean> {
@@ -133,6 +163,78 @@ export class ProviderSettingsStore {
       return false;
     } finally {
       this.modelsJsonLoadingSignal.set(false);
+    }
+  }
+
+  async testSms(provider: AiProviderView, mobileNumber: string, message?: string): Promise<SmsProviderActionResult | null> {
+    this.savingSignal.set(true);
+    this.errorSignal.set(null);
+    try {
+      const result = await this.api.testSms(provider.id, mobileNumber, message);
+      this.notifications.info(result.success ? 'Test SMS sent.' : 'Test SMS failed.', result.message || 'SMS provider test completed.');
+      return result;
+    } catch (error) {
+      const message = normalizeHttpError(error).message || 'Test SMS could not be sent.';
+      this.errorSignal.set(message);
+      this.notifications.error('Test SMS could not be sent.', message);
+      return null;
+    } finally {
+      this.savingSignal.set(false);
+    }
+  }
+
+  async checkSmsBalance(provider: AiProviderView): Promise<SmsProviderActionResult | null> {
+    this.savingSignal.set(true);
+    this.errorSignal.set(null);
+    try {
+      const result = await this.api.checkSmsBalance(provider.id);
+      this.notifications.info(result.success ? 'SMS balance checked.' : 'SMS balance check failed.', result.message || 'SMS balance request completed.');
+      return result;
+    } catch (error) {
+      const message = normalizeHttpError(error).message || 'SMS balance could not be checked.';
+      this.errorSignal.set(message);
+      this.notifications.error('SMS balance could not be checked.', message);
+      return null;
+    } finally {
+      this.savingSignal.set(false);
+    }
+  }
+
+  async checkProviderBalance(provider: AiProviderView): Promise<SmsProviderActionResult | null> {
+    this.savingSignal.set(true);
+    this.errorSignal.set(null);
+    try {
+      const result = await this.api.checkProviderBalance(provider.id);
+      this.notifications.info(result.success ? 'Provider balance checked.' : 'Provider balance check failed.', result.message || 'Provider balance request completed.');
+      if (result.success) {
+        await this.loadProviders();
+      }
+      return result;
+    } catch (error) {
+      const message = normalizeHttpError(error).message || 'Provider balance could not be checked.';
+      this.errorSignal.set(message);
+      this.notifications.error('Provider balance could not be checked.', message);
+      return null;
+    } finally {
+      this.savingSignal.set(false);
+    }
+  }
+
+  async syncOpenAiCosts(provider: AiProviderView): Promise<OpenAiCostSyncResult | null> {
+    this.savingSignal.set(true);
+    this.errorSignal.set(null);
+    try {
+      const result = await this.api.syncOpenAiCosts(provider.id);
+      this.notifications.info(result.success ? 'OpenAI costs synced.' : 'OpenAI cost sync failed.', result.message || 'Cost sync completed.');
+      await this.loadProviders();
+      return result;
+    } catch (error) {
+      const message = normalizeHttpError(error).message || 'OpenAI costs could not be synced.';
+      this.errorSignal.set(message);
+      this.notifications.error('OpenAI costs could not be synced.', message);
+      return null;
+    } finally {
+      this.savingSignal.set(false);
     }
   }
 

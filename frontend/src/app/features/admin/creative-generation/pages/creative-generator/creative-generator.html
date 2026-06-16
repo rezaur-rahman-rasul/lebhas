@@ -90,11 +90,11 @@
           <div
             class="floating-select-field custom-select-field"
             [class.has-value]="!!selectedProjectId()"
-            [class.is-disabled]="!selectedBrandId()"
+            [class.is-disabled]="!selectedProductId()"
             [class.is-open]="openContextDropdown() === 'project'"
             (click)="$event.stopPropagation()"
           >
-            <button type="button" class="generator-select floating-select-control custom-select-trigger" [disabled]="!selectedBrandId()" (click)="toggleContextDropdown('project', !selectedBrandId())">
+            <button type="button" class="generator-select floating-select-control custom-select-trigger" [disabled]="!selectedProductId()" (click)="toggleContextDropdown('project', !selectedProductId())">
               <span>{{ selectedProject()?.name || '' }}</span>
               <app-icon name="chevron-down" [size]="14" />
             </button>
@@ -115,195 +115,78 @@
             }
           </div>
 
-          <div class="context-note-slot">
-            @if (!selectedBrandId()) {
-              <p class="dependency-note">Create or select a brand before generating creatives.</p>
-            } @else if (!selectedProductId()) {
-              <p class="dependency-note">Product/service context is optional. Add it when you want stronger product-specific guidance.</p>
-            } @else if (!selectedProjectId()) {
-              <p class="dependency-note">Project/campaign context is optional. Select one to organize generated versions.</p>
-            }
-          </div>
-
-        </section>
-
-        <section class="generator-section generator-section--settings">
-          <div class="generator-two-column">
-            <div class="generator-field">
-              <span>Platform</span>
-              <div class="segmented-grid platform-icon-grid">
-                @for (platform of platformOptions; track platform.value) {
-                  <button
-                    type="button"
-                    class="choice-pill platform-icon-button"
-                    [class.is-active]="generationForm.controls.platform.value === platform.value"
-                    [attr.aria-label]="platform.label"
-                    [attr.title]="platform.label"
-                    (click)="selectPlatform(platform.value)"
-                  >
-                    @switch (platform.value) {
-                      @case ('FACEBOOK') {
-                        <svg class="brand-platform-icon brand-platform-icon--facebook" viewBox="0 0 24 24" aria-hidden="true">
-                          <path d="M14 8.5V6.75c0-.5.4-.75.85-.75H17V2.25h-3.05c-3.4 0-5.2 2-5.2 5.05V8.5H6v3.85h2.75V22h4.15v-9.65h3.05l.55-3.85H12.9V7.7c0-.9.35-1.2 1.1-1.2Z" />
-                        </svg>
-                      }
-                      @case ('INSTAGRAM') {
-                        <svg class="brand-platform-icon brand-platform-icon--instagram" viewBox="0 0 24 24" aria-hidden="true">
-                          <path d="M7.8 2h8.4A5.8 5.8 0 0 1 22 7.8v8.4a5.8 5.8 0 0 1-5.8 5.8H7.8A5.8 5.8 0 0 1 2 16.2V7.8A5.8 5.8 0 0 1 7.8 2Zm0 2A3.8 3.8 0 0 0 4 7.8v8.4A3.8 3.8 0 0 0 7.8 20h8.4a3.8 3.8 0 0 0 3.8-3.8V7.8A3.8 3.8 0 0 0 16.2 4H7.8Zm4.2 3.35A4.65 4.65 0 1 1 7.35 12 4.65 4.65 0 0 1 12 7.35Zm0 2A2.65 2.65 0 1 0 14.65 12 2.65 2.65 0 0 0 12 9.35Zm4.9-2.55a1.1 1.1 0 1 1-1.1 1.1 1.1 1.1 0 0 1 1.1-1.1Z" />
-                        </svg>
-                      }
-                      @case ('TIKTOK') {
-                        <svg class="brand-platform-icon brand-platform-icon--tiktok" viewBox="0 0 24 24" aria-hidden="true">
-                          <path d="M15.45 2c.35 3.05 2.05 4.85 5.05 5.05v3.45a8.2 8.2 0 0 1-4.9-1.55v6.5A6.55 6.55 0 1 1 9 8.9c.4 0 .8.05 1.15.12v3.65A2.95 2.95 0 1 0 12.05 15.4V2h3.4Z" />
-                        </svg>
-                      }
-                      @case ('LINKEDIN') {
-                        <svg class="brand-platform-icon brand-platform-icon--linkedin" viewBox="0 0 24 24" aria-hidden="true">
-                          <path d="M5.1 8.9H9V21H5.1V8.9ZM7.05 3A2.25 2.25 0 1 1 4.8 5.25 2.25 2.25 0 0 1 7.05 3Zm4.15 5.9h3.75v1.65h.05a4.1 4.1 0 0 1 3.7-2.05c3.95 0 4.68 2.6 4.68 5.98V21h-3.9v-5.8c0-1.38-.03-3.15-1.92-3.15-1.92 0-2.22 1.5-2.22 3.05V21H11.2V8.9Z" />
-                        </svg>
-                      }
-                      @default {
-                        <app-icon name="ellipsis" [size]="16" />
-                      }
-                    }
-                  </button>
-                }
-              </div>
-            </div>
-
-            <div
-              class="floating-select-field custom-select-field"
-              [class.has-value]="!!generationForm.controls.language.value"
-              [class.is-open]="openContextDropdown() === 'language'"
-              (click)="$event.stopPropagation()"
-            >
-              <button type="button" class="generator-select floating-select-control custom-select-trigger" (click)="toggleContextDropdown('language')">
-                <span>{{ languageLabel(generationForm.controls.language.value) }}</span>
-                <app-icon name="chevron-down" [size]="14" />
-              </button>
-              <span class="floating-select-label">Language</span>
-              @if (openContextDropdown() === 'language') {
-                <div class="custom-select-panel">
-                  @for (language of allowedLanguageOptions(); track language.value) {
-                    <button
-                      type="button"
-                      class="custom-select-option"
-                      [class.is-selected]="generationForm.controls.language.value === language.value"
-                      (click)="selectLanguage(language.value)"
-                    >
-                      <span>{{ language.label === 'Mixed' ? 'Bangla + English' : language.label }}</span>
-                      @if (generationForm.controls.language.value === language.value) {
-                        <app-icon name="check" [size]="14" />
-                      }
-                    </button>
-                  }
-                </div>
+          @if (!selectedBrandId() || !selectedProductId() || !selectedProjectId()) {
+            <div class="context-note-slot">
+              @if (!selectedBrandId()) {
+                <p class="dependency-note">Create or select a brand before generating creatives.</p>
+              } @else if (!selectedProductId()) {
+                <p class="dependency-note">Select a product/service before choosing a project campaign.</p>
+              } @else if (!selectedProjectId()) {
+                <p class="dependency-note">Select a project/campaign before generating creatives.</p>
               }
             </div>
-          </div>
+          }
 
-          <div class="generator-field generator-field--full">
-            <span>Creative Type</span>
-            <div class="preset-list">
-              @for (preset of creativePresets; track preset.label) {
-                <button
-                  type="button"
-                  class="preset-card"
-                  [class.is-active]="selectedVisualFormat() === preset.id"
-                  (click)="selectPreset(preset)"
-                >
-                  <strong>{{ preset.label }}</strong>
-                  <small>{{ preset.format }}</small>
-                </button>
-              }
-            </div>
-          </div>
-
-          <div class="generator-two-column">
-            <div class="generator-field">
-              <span>Tone</span>
-              <div class="segmented-grid">
-                @for (tone of tones; track tone) {
-                  <button type="button" class="choice-pill" [class.is-active]="selectedTone() === tone" (click)="selectedTone.set(tone)">
-                    {{ tone }}
-                  </button>
-                }
-              </div>
-            </div>
-
-            <div class="generator-field">
-              <span>Model Quality</span>
-              <div class="quality-grid">
-                @for (quality of qualities; track quality) {
-                  <button type="button" class="quality-card" [class.is-active]="selectedQuality() === quality" (click)="selectQuality(quality)">
-                    <strong>{{ quality }}</strong>
-                  </button>
-                }
-              </div>
-            </div>
-          </div>
         </section>
 
         <section class="generator-section">
           <div class="generator-field">
             <div class="product-image-heading">
-              <span>Product Image Optional</span>
+              <div class="field-label">
+                <span>Product Image</span>
+                <button type="button" class="info-button" title="Optional product image used as the primary visual reference." aria-label="Product image help" (click)="openHelp('productImage', $event)">
+                  <app-icon name="info" [size]="13" />
+                </button>
+              </div>
               <app-badge tone="neutral">{{ imageInputModeLabel() }}</app-badge>
             </div>
             <p class="dependency-note">Optional: upload or select a product image for product-focused creatives. Without an image, Lebhas will generate from your brand context and campaign prompt.</p>
-            <p class="generation-mode-note">Generation mode: {{ imageInputModeLabel() }}</p>
 
-            <div class="asset-dropzone" [class.has-selection]="!!selectedAsset() || !!selectedProductImageFile()">
+            <div class="asset-dropzone" [class.has-selection]="selectedProductAssets().length > 0 || !!selectedProductImageFile()">
               <div class="product-image-actions asset-dropzone-actions">
                 <button type="button" class="image-action-button secondary" (click)="openAssetPicker()">
                   <app-icon name="images" [size]="15" />
                   Select Existing
                 </button>
               </div>
-              @if (selectedAsset(); as asset) {
-                <div class="selected-asset">
-                  @if (selectedProductImagePreviewUrl(); as previewUrl) {
-                    <img [src]="previewUrl" [alt]="asset.originalFileName" />
-                  } @else {
-                    <div class="asset-icon"><app-icon name="image" [size]="22" /></div>
+              @if (selectedProductAssets().length > 0 || selectedProductImageFile()) {
+                <div class="selected-image-grid">
+                  @for (asset of selectedProductAssets(); track asset.id) {
+                    <div class="selected-image-preview">
+                      @if (productAssetPreviewUrl(asset); as previewUrl) {
+                        <img [src]="previewUrl" [alt]="asset.originalFileName" />
+                      } @else {
+                        <div class="asset-icon"><app-icon name="image" [size]="22" /></div>
+                      }
+                      <button type="button" aria-label="Remove image" (click)="removeProductAsset(asset.id)">
+                        <app-icon name="x" [size]="13" />
+                      </button>
+                    </div>
                   }
-                  <div>
-                    <strong>{{ asset.originalFileName }}</strong>
-                    <span>{{ formatFileSize(asset.fileSize) }} - {{ asset.assetCategory === 'REFERENCE_IMAGE' ? 'Reference image' : 'Product image' }}</span>
-                    <app-badge [tone]="assetStatusTone(asset.status)">
-                      {{ assetStatusLabel(asset.status) }}
-                    </app-badge>
-                  </div>
+                  @if (selectedProductImageFile(); as file) {
+                    <div class="selected-image-preview is-uploading">
+                      @if (localProductImagePreviewUrl(); as previewUrl) {
+                        <img [src]="previewUrl" [alt]="file.name" />
+                      } @else {
+                        <div class="asset-icon"><app-icon name="image" [size]="22" /></div>
+                      }
+                    </div>
+                  }
                 </div>
                 <div class="selected-asset-actions">
-                  <label for="generatorAssetUpload" class="asset-text-action">Replace Image</label>
-                  <button type="button" class="asset-text-action" (click)="removeSelectedProductImage()">Remove Image</button>
-                </div>
-              } @else if (selectedProductImageFile(); as file) {
-                <div class="selected-asset">
-                  @if (selectedProductImagePreviewUrl(); as previewUrl) {
-                    <img [src]="previewUrl" [alt]="file.name" />
-                  } @else {
-                    <div class="asset-icon"><app-icon name="image" [size]="22" /></div>
+                  @if (selectedProductAssets().length < maxProductImages) {
+                    <label for="generatorAssetUpload" class="asset-text-action">Add Image</label>
                   }
-                  <div>
-                    <strong>{{ file.name }}</strong>
-                    <span>{{ formatFileSize(file.size) }} - Direct image input</span>
-                    <app-badge tone="brand">Ready for generation</app-badge>
-                  </div>
-                </div>
-                <div class="selected-asset-actions">
-                  <label for="generatorAssetUpload" class="asset-text-action">Replace Image</label>
-                  <button type="button" class="asset-text-action" (click)="removeSelectedProductImage()">Remove Image</button>
+                  <button type="button" class="asset-text-action" (click)="removeSelectedProductImage()">Remove All</button>
                 </div>
               } @else {
                 <label for="generatorAssetUpload" class="dropzone-empty dropzone-upload-trigger">
                   <app-icon name="upload-cloud" [size]="24" />
                   <strong>Upload Product Image</strong>
-                  <span>Optional image input. Leave empty for text-only creative generation.</span>
+                  <span>Optional image input. Add up to 3 images.</span>
                 </label>
               }
-              <input id="generatorAssetUpload" type="file" accept="image/jpeg,image/png,image/webp" (change)="onAssetFileSelected($event)" />
+              <input id="generatorAssetUpload" type="file" accept="image/jpeg,image/png,image/webp" multiple (change)="onAssetFileSelected($event)" />
               @if (uploadInProgress()) {
                 <p class="upload-progress">Uploading image{{ assetStore.uploadProgress() !== null ? ' ' + assetStore.uploadProgress() + '%' : '' }}...</p>
               }
@@ -319,44 +202,93 @@
               formControlName="sourcePrompt"
               rows="4"
               placeholder=" "
+              (keydown.control.enter)="submitFromKeyboard($event)"
+              (keydown.meta.enter)="submitFromKeyboard($event)"
             ></textarea>
             <span class="floating-field-label">Campaign Idea / Prompt</span>
+            <button
+              type="button"
+              class="voice-prompt-button"
+              [class.is-listening]="voiceListening()"
+              [disabled]="!voiceSupported"
+              [attr.aria-label]="voiceListening() ? 'Stop voice input' : 'Start voice input'"
+              [attr.title]="voiceSupported ? 'Voice input in ' + voiceLanguageLabel() : 'Voice input is not supported in this browser'"
+              (click)="$event.preventDefault(); toggleVoicePrompt()"
+            >
+              <app-icon [name]="voiceListening() ? 'square' : 'mic'" [size]="17" />
+            </button>
           </label>
           <div class="prompt-footer">
             <span>{{ promptLength() }} / 4000 characters</span>
-            <span>{{ languageLabel(generationForm.controls.language.value) }}</span>
+            <span>
+              {{ languageLabel(generationForm.controls.language.value) }}
+              @if (voiceListening()) {
+                - Listening
+              }
+            </span>
           </div>
 
-          <details class="advanced-options">
-            <summary>
-              <span>Advanced Prompt Options</span>
-              <small>Optional structured variables for backend prompt building</small>
-            </summary>
-            <div class="advanced-grid">
-              <label class="floating-field" [class.has-value]="!!generationForm.controls.headline.value">
-                <input class="generator-input floating-input-control" formControlName="headline" type="text" maxlength="80" placeholder=" " />
-                <span class="floating-field-label">Headline</span>
-              </label>
-              <label class="floating-field" [class.has-value]="!!generationForm.controls.subheadline.value">
-                <input class="generator-input floating-input-control" formControlName="subheadline" type="text" maxlength="120" placeholder=" " />
-                <span class="floating-field-label">Subheadline</span>
-              </label>
-              <label class="floating-field" [class.has-value]="!!generationForm.controls.offerText.value">
-                <input class="generator-input floating-input-control" formControlName="offerText" type="text" maxlength="80" placeholder=" " />
-                <span class="floating-field-label">Offer Text</span>
-              </label>
-              <label class="floating-field" [class.has-value]="!!generationForm.controls.targetAudience.value">
-                <input class="generator-input floating-input-control" formControlName="targetAudience" type="text" maxlength="150" placeholder=" " />
-                <span class="floating-field-label">Target Audience</span>
-              </label>
-            </div>
-          </details>
+          @if (isBanglaSelected() && generationForm.controls.includeTypography.value) {
+            <p class="bangla-typography-helper">Bangla text will be rendered with safe typography after image generation.</p>
+          }
         </section>
 
-        <section class="generator-section generator-section--compact">
-          <label class="floating-field" [class.has-value]="!!generationForm.controls.cta.value">
-            <input class="generator-input floating-input-control" formControlName="cta" type="text" maxlength="40" placeholder=" " />
-            <span class="floating-field-label">CTA (Optional)</span>
+        <section class="generator-section generator-section--toggles">
+          <label class="toggle-card" title="Controls whether a call-to-action is included in the prompt.">
+            <span>
+              <strong>Include CTA</strong>
+              <small>{{ generationForm.controls.includeCta.value ? 'CTA will be sent to AI' : 'No CTA instruction will be sent' }}</small>
+            </span>
+            <input type="checkbox" formControlName="includeCta" />
+          </label>
+
+          @if (generationForm.controls.includeCta.value) {
+            <label class="floating-field" [class.has-value]="!!generationForm.controls.cta.value">
+              <input class="generator-input floating-input-control" formControlName="cta" type="text" maxlength="40" placeholder=" " />
+              <span class="floating-field-label">CTA Text</span>
+              <button type="button" class="info-button floating-info-button" title="Example: Order Now, Book Today, Learn More." aria-label="CTA help" (click)="openHelp('cta', $event)">
+                <app-icon name="info" [size]="13" />
+              </button>
+            </label>
+          }
+
+          <label class="toggle-card" title="Use the logo from the selected brand definition.">
+            <span>
+              <strong>Include Brand Logo</strong>
+              <small>
+                @if (generationForm.controls.includeLogo.value && brandLogoAsset()) {
+                  Uses uploaded brand logo
+                } @else if (generationForm.controls.includeLogo.value) {
+                  Brand logo required
+                } @else {
+                  Brand logo ignored
+                }
+              </small>
+            </span>
+            <input type="checkbox" formControlName="includeLogo" />
+          </label>
+
+          @if (shouldShowBrandLogoUpload()) {
+            <div class="inline-file-row">
+              <div class="field-label">
+                <span>Upload Brand Logo</span>
+                <button type="button" class="info-button" title="This logo will be saved to the selected brand for future generation." aria-label="Brand logo upload help" (click)="openHelp('logo', $event)">
+                  <app-icon name="info" [size]="13" />
+                </button>
+              </div>
+              <label class="advanced-file-picker">
+                <input type="file" accept="image/jpeg,image/jpg,image/png,image/webp,image/svg+xml,.jpg,.jpeg,.png,.webp,.svg" (change)="onBrandLogoSelected($event)" />
+                <span>{{ selectedLogoImageFile()?.name || 'Choose brand logo' }}</span>
+              </label>
+            </div>
+          }
+
+          <label class="toggle-card" title="Disable for image-only creatives without headlines, captions, or CTA text.">
+            <span>
+              <strong>Include Typography</strong>
+              <small>{{ generationForm.controls.includeTypography.value ? 'Text layout allowed' : 'Image-only creative' }}</small>
+            </span>
+            <input type="checkbox" formControlName="includeTypography" />
           </label>
 
           <label class="floating-field" [class.has-value]="generationForm.controls.requestedVersionCount.value !== null">
@@ -368,24 +300,35 @@
         <section class="generator-section">
           <details class="advanced-options" [open]="advancedCreativeOptionsOpen()" (toggle)="advancedCreativeOptionsOpen.set($any($event.target).open)">
             <summary>
-              <span>Advanced Creative Options</span>
-              <small>Optional logo, reference, mask, and transparent output settings</small>
+              <strong>Advanced Settings</strong>
+              <div class="accordion-summary-actions">
+                <span class="accordion-double-chevron" aria-hidden="true">
+                  <span></span>
+                  <span></span>
+                </span>
+<!--                <button type="button" class="info-button" title="Optional controls for precise generation." aria-label="Advanced settings help" (click)="openHelp('advanced', $event)">-->
+<!--                  <app-icon name="info" [size]="13" />-->
+<!--                </button>-->
+              </div>
             </summary>
             <div class="advanced-grid">
-              <label>
-                <span>Logo image</span>
-                <label class="advanced-file-picker">
-                  <input type="file" accept="image/jpeg,image/png,image/webp" (change)="onAdvancedImageSelected('logo', $event)" />
-                  <span>Choose logo</span>
+              @if (generationForm.controls.includeTypography.value) {
+                <label class="floating-field" [class.has-value]="!!generationForm.controls.headline.value">
+                  <input class="generator-input floating-input-control" formControlName="headline" type="text" maxlength="80" placeholder=" " />
+                  <span class="floating-field-label">Headline</span>
                 </label>
-                @if (selectedLogoImageFile(); as file) {
-                  <div class="advanced-file-selected">
-                    <span [title]="file.name">{{ file.name }}</span>
-                    <button type="button" aria-label="Remove logo image" (click)="removeAdvancedImage('logo')">
-                      <app-icon name="x" [size]="13" />
-                    </button>
-                  </div>
-                }
+                <label class="floating-field" [class.has-value]="!!generationForm.controls.subheadline.value">
+                  <input class="generator-input floating-input-control" formControlName="subheadline" type="text" maxlength="120" placeholder=" " />
+                  <span class="floating-field-label">Subheadline</span>
+                </label>
+                <label class="floating-field" [class.has-value]="!!generationForm.controls.offerText.value">
+                  <input class="generator-input floating-input-control" formControlName="offerText" type="text" maxlength="80" placeholder=" " />
+                  <span class="floating-field-label">Offer Text</span>
+                </label>
+              }
+              <label class="floating-field" [class.has-value]="!!generationForm.controls.targetAudience.value">
+                <input class="generator-input floating-input-control" formControlName="targetAudience" type="text" maxlength="150" placeholder=" " />
+                <span class="floating-field-label">Target Audience</span>
               </label>
               <label>
                 <span>Reference image</span>
@@ -426,17 +369,42 @@
               <input type="checkbox" formControlName="transparentBackground" />
               <span>Transparent background output</span>
             </label>
+            <div class="advanced-diagnostics">
+              <div class="readiness-header">
+                <span>Readiness Diagnostics</span>
+                <app-badge [tone]="store.campaignReadiness()?.ready ? 'brand' : 'neutral'">
+                  {{ store.campaignReadiness()?.ready ? 'Ready' : 'Needs setup' }}
+                </app-badge>
+              </div>
+              <div class="readiness-grid">
+                @for (item of readinessChecklist(); track item.label) {
+                  <div class="readiness-item" [class.is-ready]="item.ready">
+                    <app-icon [name]="item.ready ? 'check-circle-2' : 'circle-alert'" [size]="15" />
+                    <span>{{ item.label }}</span>
+                  </div>
+                }
+              </div>
+              @if (store.campaignReadiness()?.messages?.length) {
+                <div class="readiness-messages">
+                  @for (message of store.campaignReadiness()?.messages ?? []; track message) {
+                    <p>{{ message }}</p>
+                  }
+                </div>
+              }
+              <app-credit-usage-preview-card [preview]="generationCreditPreview()" />
+            </div>
           </details>
         </section>
 
         <section class="generator-submit-panel">
-          @if (submitDisabledReason(); as reason) {
-            <p class="dependency-note">{{ reason }}</p>
-          }
-
-          <button type="submit" class="generate-button" [disabled]="!canSubmitCampaignCreative()">
+          <button
+            type="submit"
+            class="generate-button"
+            [disabled]="!canSubmitCampaignCreative()"
+            (keydown.enter)="submitFromKeyboard($event)"
+          >
             @if (store.generationLoading()) {
-              <app-icon name="loader-circle" [size]="18" />
+              <app-icon class="generate-button__spinner" name="loader-circle" [size]="18" />
               <span>Generating...</span>
             } @else {
               <app-icon name="sparkles" [size]="18" />
@@ -452,101 +420,48 @@
         <div>
           <p>Creative Preview</p>
         </div>
-        <app-badge [tone]="requestStatusTone()">{{ requestStatusLabel() }}</app-badge>
       </div>
 
       <div class="creative-preview-stage">
         @if (store.generationLoading()) {
-            <div class="progress-card">
-              <div class="progress-orbit"><app-icon name="sparkles" [size]="28" /></div>
-              <h3>Generating your creative</h3>
-              <p class="generation-mode-note">Generation mode: {{ imageInputModeLabel() }}</p>
-              <div class="generation-steps">
-              @for (step of visibleGenerationSteps(); track step; let index = $index) {
-                <div class="step-row" [class.is-active]="index < 3">
-                  <span></span>
-                  <p>{{ step }}</p>
-                </div>
-              }
-            </div>
+          <div class="preview-state-card">
+            <app-icon class="generate-button__spinner" name="loader-circle" [size]="30" />
+            <h3>Generating</h3>
+            <p>Your creative is being generated.</p>
           </div>
         } @else if (currentOutput(); as output) {
           <div class="result-shell">
-            @if (output.previewUrl) {
-              <img [src]="output.previewUrl" [alt]="output.headline || 'Generated creative'" />
+            @if (previewUnavailableOutputId() === output.id) {
+              <div class="preview-state-card">
+                <app-icon name="image-off" [size]="34" />
+                <h3>Failed</h3>
+                <span>The generated creative exists, but the preview URL could not be loaded.</span>
+                <button type="button" class="asset-text-action" (click)="retryPreviewOutput(output)">Retry preview URL</button>
+              </div>
+            } @else if (output.previewUrl) {
+              <img [src]="output.previewUrl" [alt]="output.headline || 'Generated creative'" (error)="markPreviewUnavailable(output.id)" />
+            } @else if (previewLoadingOutputId() === output.id) {
+              <div class="preview-state-card">
+                <app-icon name="loader-circle" [size]="34" />
+                <h3>Generating</h3>
+                <span>Preparing the generated creative preview.</span>
+              </div>
             } @else {
-              <div class="result-placeholder">
+              <div class="preview-state-card">
                 <app-icon name="image" [size]="34" />
-                <strong>{{ output.headline || creativeTypeLabel(output.creativeType) }}</strong>
-                <span>{{ output.caption || 'Preview URL will be available when processing completes.' }}</span>
+                <h3>Completed</h3>
+                <span>Select Preview to load this generated creative.</span>
               </div>
             }
           </div>
         } @else {
-          <div class="ready-state">
+          <div class="preview-state-card">
             <app-icon name="sparkles" [size]="30" />
-            <h3>Ready when you are</h3>
-            <p>Select context and campaign idea. Product image is optional.</p>
-            <small class="generation-mode-note">Generation mode: {{ imageInputModeLabel() }}</small>
+            <h3>Waiting</h3>
+            <p>Complete the setup and generate a creative.</p>
           </div>
         }
       </div>
-
-      <section class="pipeline-progress-panel">
-        <div class="hierarchy-section-head">
-          <div>
-            <p>
-              @if (store.generationLoading() && !store.campaignPipeline()) {
-                Planning pipeline...
-              } @else if (currentPipelineLayer(); as layer) {
-                {{ layerTypeLabel(layer.layerType) }}
-              } @else {
-                Layer progress
-              }
-            </p>
-          </div>
-          @if (store.campaignPipeline(); as pipeline) {
-            <app-badge [tone]="pipeline.status === 'FAILED' ? 'red' : pipeline.status === 'COMPLETED' ? 'brand' : 'blue'">
-              {{ pipeline.status }}
-            </app-badge>
-          }
-        </div>
-
-        @if (store.campaignPipeline(); as pipeline) {
-          <div class="pipeline-credit-row">
-            <span>Estimated Lebhas credits</span>
-            <strong>{{ pipeline.estimatedCreditCost }}</strong>
-          </div>
-          <div class="pipeline-layer-list">
-            @for (layer of pipeline.layers; track layer.id) {
-              <div class="pipeline-layer-item">
-                <div>
-                  <span class="pipeline-dot" [class.is-complete]="layer.status === 'COMPLETED'" [class.is-active]="layer.status === 'PROCESSING'"></span>
-                  <strong>{{ layerTypeLabel(layer.layerType) }}</strong>
-                  <small>{{ layer.providerCode }}</small>
-                </div>
-                <app-badge [tone]="layerStatusTone(layer)">{{ layer.status }}</app-badge>
-              </div>
-            }
-          </div>
-          @if (pipeline.failureReason) {
-            <p class="dependency-note">{{ pipeline.failureReason }}</p>
-          }
-        } @else {
-          <div class="pipeline-layer-list">
-            @for (step of fallbackPipelineSteps(); track step.label) {
-              <div class="pipeline-layer-item">
-                <div>
-                  <span class="pipeline-dot"></span>
-                  <strong>{{ step.label }}</strong>
-                  <small>{{ step.helper }}</small>
-                </div>
-                <app-badge tone="neutral">{{ step.status }}</app-badge>
-              </div>
-            }
-          </div>
-        }
-      </section>
 
       @if (store.selectedRequest(); as request) {
         <div class="job-row">
@@ -561,12 +476,13 @@
       }
 
       <div class="preview-actions">
-        <app-button variant="secondary" icon="download" [disabled]="!currentOutput() || !store.canDownloadOutputs()" (click)="currentOutput() && downloadOutput(currentOutput()!)">Download</app-button>
-        <app-button variant="secondary" icon="share-2" [disabled]="!currentOutput()" (click)="sendForApproval()">Share</app-button>
-        <app-button icon="shield-check" [disabled]="!currentOutput()" (click)="sendForApproval()">Send for Approval</app-button>
-        <app-button variant="secondary" icon="more-horizontal" [disabled]="!currentOutput()" (click)="currentOutput() && openOutputDetail(currentOutput()!)">More</app-button>
+        @if (currentOutput()) {
+          <app-button variant="secondary" icon="download" [disabled]="!store.canDownloadOutputs()" (click)="currentOutput() && downloadOutput(currentOutput()!)">Download</app-button>
+          <app-button variant="secondary" icon="eye" (click)="currentOutput() && openOutputDetail(currentOutput()!)">Preview</app-button>
+        }
       </div>
 
+      @if (store.creativeOutputs().length > 0) {
       <div class="variations-panel">
         <div class="hierarchy-section-head">
           <div>
@@ -575,162 +491,233 @@
           </div>
           <a routerLink="/generated-versions">View All</a>
         </div>
-        @if (store.creativeOutputs().length > 0) {
-          <div class="variation-strip">
-            @for (output of store.creativeOutputs(); track output.id) {
-              <button type="button" [class.is-active]="isSelectedOutput(output.id)" (click)="selectedVariationId.set(output.id)">
-                @if (output.previewUrl) {
-                  <img [src]="output.previewUrl" [alt]="output.headline || 'Creative variation'" />
-                } @else {
-                  <app-icon name="image" [size]="18" />
-                }
-              </button>
-            }
-          </div>
-        } @else {
-          <p class="panel-muted">Generated variations will appear here after the job completes.</p>
-        }
+        <div class="variation-strip">
+          @for (output of store.creativeOutputs(); track output.id) {
+            <button type="button" [class.is-active]="isSelectedOutput(output.id)" (click)="previewOutput(output)">
+              @if (output.previewUrl) {
+                <img [src]="output.previewUrl" [alt]="output.headline || 'Creative variation'" />
+              } @else if (previewLoadingOutputId() === output.id) {
+                <app-icon name="loader-circle" [size]="18" />
+              } @else {
+                <app-icon name="image" [size]="18" />
+              }
+            </button>
+          }
+        </div>
       </div>
-
-      <section class="preview-guidance-panel">
-        <div class="hierarchy-section-head">
-          <div>
-            <p>Generation flow</p>
-            <h2>Use the setup space</h2>
-          </div>
-        </div>
-        <div class="preview-guidance-grid">
-          <article>
-            <span>1</span>
-            <strong>Context</strong>
-            <small>{{ selectedBrand()?.name || 'Select brand' }} - {{ selectedProduct()?.name || 'Product optional' }}</small>
-          </article>
-          <article>
-            <span>2</span>
-            <strong>Image</strong>
-            <small>{{ selectedAsset() ? selectedAsset()!.originalFileName : imageInputModeLabel() }}</small>
-          </article>
-          <article>
-            <span>3</span>
-            <strong>Prompt</strong>
-            <small>{{ promptLength() > 0 ? promptLength() + ' characters added' : 'Add campaign idea' }}</small>
-          </article>
-          <article>
-            <span>4</span>
-            <strong>Generate</strong>
-            <small>{{ store.campaignReadiness()?.ready ? 'Ready to generate' : 'Complete setup checklist' }}</small>
-          </article>
-        </div>
-      </section>
+      }
     </main>
 
     <aside class="right-stack">
-      <section class="generator-panel generation-status-card">
+      <section class="generator-panel creative-settings-card">
         <div class="generator-panel__head">
           <div>
-            <p>Generation Setup</p>
+            <p>Creative Settings</p>
           </div>
         </div>
-
-        <div class="readiness-checklist">
-          <div class="readiness-header">
-            <span>Generation Readiness</span>
-            <app-badge [tone]="store.campaignReadiness()?.ready ? 'brand' : 'neutral'">
-              {{ store.campaignReadiness()?.ready ? 'Ready' : 'Needs setup' }}
-            </app-badge>
+        <div class="generator-two-column creative-settings-grid">
+          <div class="generator-field">
+            <div class="field-label">
+              <span>Platform</span>
+            </div>
+            <div class="segmented-grid platform-icon-grid">
+              @for (platform of platformOptions; track platform.value) {
+                <button
+                  type="button"
+                  class="choice-pill platform-icon-button"
+                  [class.is-active]="generationForm.controls.platform.value === platform.value"
+                  [attr.aria-label]="platform.label"
+                  [attr.title]="platform.label"
+                  (click)="selectPlatform(platform.value)"
+                >
+                  @switch (platform.value) {
+                    @case ('FACEBOOK') {
+                      <svg class="brand-platform-icon brand-platform-icon--facebook" viewBox="0 0 24 24" aria-hidden="true">
+                        <path d="M14 8.5V6.75c0-.5.4-.75.85-.75H17V2.25h-3.05c-3.4 0-5.2 2-5.2 5.05V8.5H6v3.85h2.75V22h4.15v-9.65h3.05l.55-3.85H12.9V7.7c0-.9.35-1.2 1.1-1.2Z" />
+                      </svg>
+                    }
+                    @case ('INSTAGRAM') {
+                      <svg class="brand-platform-icon brand-platform-icon--instagram" viewBox="0 0 24 24" aria-hidden="true">
+                        <path d="M7.8 2h8.4A5.8 5.8 0 0 1 22 7.8v8.4a5.8 5.8 0 0 1-5.8 5.8H7.8A5.8 5.8 0 0 1 2 16.2V7.8A5.8 5.8 0 0 1 7.8 2Zm0 2A3.8 3.8 0 0 0 4 7.8v8.4A3.8 3.8 0 0 0 7.8 20h8.4a3.8 3.8 0 0 0 3.8-3.8V7.8A3.8 3.8 0 0 0 16.2 4H7.8Zm4.2 3.35A4.65 4.65 0 1 1 7.35 12 4.65 4.65 0 0 1 12 7.35Zm0 2A2.65 2.65 0 1 0 14.65 12 2.65 2.65 0 0 0 12 9.35Zm4.9-2.55a1.1 1.1 0 1 1-1.1 1.1 1.1 1.1 0 0 1 1.1-1.1Z" />
+                      </svg>
+                    }
+                    @case ('TIKTOK') {
+                      <svg class="brand-platform-icon brand-platform-icon--tiktok" viewBox="0 0 24 24" aria-hidden="true">
+                        <path d="M15.45 2c.35 3.05 2.05 4.85 5.05 5.05v3.45a8.2 8.2 0 0 1-4.9-1.55v6.5A6.55 6.55 0 1 1 9 8.9c.4 0 .8.05 1.15.12v3.65A2.95 2.95 0 1 0 12.05 15.4V2h3.4Z" />
+                      </svg>
+                    }
+                    @case ('LINKEDIN') {
+                      <svg class="brand-platform-icon brand-platform-icon--linkedin" viewBox="0 0 24 24" aria-hidden="true">
+                        <path d="M5.1 8.9H9V21H5.1V8.9ZM7.05 3A2.25 2.25 0 1 1 4.8 5.25 2.25 2.25 0 0 1 7.05 3Zm4.15 5.9h3.75v1.65h.05a4.1 4.1 0 0 1 3.7-2.05c3.95 0 4.68 2.6 4.68 5.98V21h-3.9v-5.8c0-1.38-.03-3.15-1.92-3.15-1.92 0-2.22 1.5-2.22 3.05V21H11.2V8.9Z" />
+                      </svg>
+                    }
+                    @default {
+                      <app-icon name="ellipsis" [size]="16" />
+                    }
+                  }
+                </button>
+              }
+            </div>
           </div>
-          <div class="readiness-grid">
-            @for (item of readinessChecklist(); track item.label) {
-              <div class="readiness-item" [class.is-ready]="item.ready">
-                <app-icon [name]="item.ready ? 'check-circle-2' : 'circle-alert'" [size]="15" />
-                <span>{{ item.label }}</span>
+
+          <div
+            class="floating-select-field custom-select-field"
+            [class.has-value]="!!generationForm.controls.language.value"
+            [class.is-open]="openContextDropdown() === 'language'"
+            (click)="$event.stopPropagation()"
+          >
+            <button type="button" class="generator-select floating-select-control custom-select-trigger" (click)="toggleContextDropdown('language')">
+              <span>{{ languageLabel(generationForm.controls.language.value) }}</span>
+              <app-icon name="chevron-down" [size]="14" />
+            </button>
+            <span class="floating-select-label">Language</span>
+            @if (openContextDropdown() === 'language') {
+              <div class="custom-select-panel">
+                @for (language of allowedLanguageOptions(); track language.value) {
+                  <button
+                    type="button"
+                    class="custom-select-option"
+                    [class.is-selected]="generationForm.controls.language.value === language.value"
+                    (click)="selectLanguage(language.value)"
+                  >
+                    <span>{{ language.label === 'Mixed' ? 'Bangla + English' : language.label }}</span>
+                    @if (generationForm.controls.language.value === language.value) {
+                      <app-icon name="check" [size]="14" />
+                    }
+                  </button>
+                }
               </div>
             }
           </div>
-          @if (store.campaignReadiness()?.messages?.length) {
-            <div class="readiness-messages">
-              @for (message of store.campaignReadiness()?.messages ?? []; track message) {
-                <p>{{ message }}</p>
+        </div>
+
+        <div class="generator-field generator-field--full">
+          <div class="field-label">
+            <span>Creative Type</span>
+            <button type="button" class="info-button" title="Chooses the output shape and placement format." aria-label="Creative type help" (click)="openHelp('creativeType', $event)">
+              <app-icon name="info" [size]="13" />
+            </button>
+          </div>
+          <div class="preset-list">
+            @for (preset of creativePresets; track preset.label) {
+              <button
+                type="button"
+                class="preset-card"
+                [class.is-active]="selectedVisualFormat() === preset.id"
+                [title]="preset.width + 'x' + preset.height + ' - ' + preset.format"
+                (click)="selectPreset(preset)"
+              >
+                <strong>{{ preset.label }}</strong>
+                <small>{{ preset.placement }}</small>
+              </button>
+            }
+          </div>
+        </div>
+
+        <div class="generator-two-column">
+          <div class="generator-field">
+            <div class="field-label">
+              <span>Tone</span>
+              <button type="button" class="info-button" title="Sets the commercial style and emotional direction." aria-label="Tone help" (click)="openHelp('tone', $event)">
+                <app-icon name="info" [size]="13" />
+              </button>
+            </div>
+            <div class="segmented-grid">
+              @for (tone of tones; track tone) {
+                <button type="button" class="choice-pill" [class.is-active]="selectedTone() === tone" (click)="selectedTone.set(tone)">
+                  {{ tone }}
+                </button>
               }
             </div>
-          }
-        </div>
-        <app-credit-usage-preview-card [preview]="generationCreditPreview()" />
+          </div>
 
+          <div class="generator-field">
+            <div class="field-label">
+              <span>Quality</span>
+              <button type="button" class="info-button" title="Uses more AI processing for higher visual quality." aria-label="Quality help" (click)="openHelp('quality', $event)">
+                <app-icon name="info" [size]="13" />
+              </button>
+            </div>
+            <div class="quality-grid">
+              @for (quality of qualities; track quality) {
+                <button type="button" class="quality-card" [class.is-active]="selectedQuality() === quality" (click)="selectQuality(quality)">
+                  <strong>{{ quality }}</strong>
+                </button>
+              }
+            </div>
+          </div>
+        </div>
+      </section>
+
+
+      <section class="generator-panel generation-context-card">
+        <div class="generator-panel__head">
+          <div>
+            <p>Generation Context</p>
+          </div>
+        </div>
+        <div class="generation-context-list">
+          <div>
+            <span>Brand</span>
+            <strong>{{ generationContextPreview().brand }}</strong>
+          </div>
+          <div>
+            <span>Product</span>
+            <strong>{{ generationContextPreview().product }}</strong>
+          </div>
+          <div>
+            <span>Campaign</span>
+            <strong>{{ generationContextPreview().campaign }}</strong>
+          </div>
+          <div>
+            <span>Language</span>
+            <strong>{{ generationContextPreview().language }}</strong>
+          </div>
+          <div>
+            <span>Audience</span>
+            <strong>{{ generationContextPreview().audience }}</strong>
+          </div>
+          <div>
+            <span>CTA</span>
+            <strong>{{ generationContextPreview().cta }}</strong>
+          </div>
+          <div>
+            <span>Objective</span>
+            <strong>{{ generationContextPreview().objective }}</strong>
+          </div>
+          <div>
+            <span>Brand Colors</span>
+            @if (generationContextPreview().colors.length > 0) {
+              <div class="context-color-row">
+                @for (color of generationContextPreview().colors; track color) {
+                  <span class="context-color-chip">
+                    <i [style.background]="color"></i>
+                    <strong>{{ color }}</strong>
+                  </span>
+                }
+              </div>
+            } @else {
+              <strong>Not configured</strong>
+            }
+          </div>
+        </div>
+      </section>
+
+      <section class="generator-panel generation-requirements-card">
+        <div class="generator-panel__head">
+          <div>
+            <p>Generation Requirements</p>
+          </div>
+        </div>
+        @if (submitDisabledReason(); as reason) {
+          <p class="dependency-note">{{ reason }}</p>
+        }
         @if (!hasSufficientCredits()) {
           <app-insufficient-credit-card (buyCredits)="buyCredits()" (reduceVersions)="reduceGeneratedVersions()" />
         }
       </section>
 
-      <section class="generator-panel">
-        <div class="generator-panel__head">
-          <div>
-            <p>AI Content Tools</p>
-          </div>
-        </div>
-        <div class="tool-list">
-          @for (tool of tools; track tool.title) {
-            <a [routerLink]="tool.route" class="tool-item">
-              <div><app-icon [name]="tool.icon" [size]="17" /></div>
-              <span><strong>{{ tool.title }}</strong><small>{{ tool.description }}</small></span>
-              <app-icon name="chevron-right" [size]="16" />
-            </a>
-          }
-        </div>
-      </section>
-
-      <section class="generator-panel">
-        <div class="generator-panel__head">
-          <div>
-            <p>Recent Generations</p>
-            <h2>Latest jobs</h2>
-          </div>
-          <a routerLink="/generated-versions">View All</a>
-        </div>
-        @if (recentGenerations().length > 0) {
-          <div class="recent-list">
-            @for (request of recentGenerations(); track request.id) {
-              <div class="recent-item">
-                <div class="recent-thumb"><app-icon name="image" [size]="17" /></div>
-                <div>
-                  <strong>{{ creativeTypeLabel(request.creativeType) }}</strong>
-                  <span>{{ platformLabel(request.platform) }} - {{ request.outputFormat }} - {{ formatTime(request.updatedAt) }}</span>
-                </div>
-                <app-badge [tone]="creativeGenerationStatusTone(request.status)">{{ creativeGenerationStatusLabel(request.status) }}</app-badge>
-              </div>
-            }
-          </div>
-        } @else {
-          <p class="panel-muted">Your recent creative jobs will appear here.</p>
-        }
-      </section>
-
-      <section class="credit-cta">
-        <div>
-          <p>Need more credits?</p>
-          <h2>{{ creditsRemaining() === null ? 'Credits unavailable' : creditsRemaining() + ' credits left' }}</h2>
-        </div>
-        <a routerLink="/payments/credits">Buy Credits</a>
-      </section>
     </aside>
-  </section>
-
-  <section class="usage-summary">
-    <div class="usage-progress-card">
-      <div>
-        <p>This Month Usage</p>
-        <h2>{{ creditUsageLabel() }} credits</h2>
-      </div>
-      <div class="usage-bar"><span [style.width.%]="creditPercent()"></span></div>
-      <strong>{{ creditPercent() }}%</strong>
-    </div>
-    @for (card of usageCards().slice(1); track card.label) {
-      <div class="usage-card">
-        <div><app-icon [name]="card.icon" [size]="18" /></div>
-        <span>{{ card.label }}</span>
-        <strong>{{ card.value }}</strong>
-      </div>
-    }
   </section>
 
   @if (assetPickerOpen()) {
@@ -794,6 +781,62 @@
       </section>
     </div>
   }
+
+  @if (activeHelp(); as help) {
+    <div class="help-drawer-backdrop" role="presentation" (click)="closeHelp()">
+      <aside class="help-drawer" role="dialog" aria-modal="true" aria-labelledby="help-drawer-title" (click)="$event.stopPropagation()">
+        <div class="help-drawer__head">
+          <div>
+            <p>Help</p>
+            <h2 id="help-drawer-title">{{ help.title }}</h2>
+          </div>
+          <button type="button" aria-label="Close help" (click)="closeHelp()">
+            <app-icon name="x" [size]="18" />
+          </button>
+        </div>
+        <section>
+          <span>What it does</span>
+          <p>{{ help.description }}</p>
+        </section>
+        <section>
+          <span>Recommended</span>
+          <p>{{ help.bestPractice }}</p>
+        </section>
+        <section>
+          <span>Examples</span>
+          @for (example of help.examples; track example) {
+            <p>{{ example }}</p>
+          }
+        </section>
+        <div class="help-drawer__links">
+          <a [href]="help.videoUrl" target="_blank" rel="noopener">Watch Tutorial</a>
+          <a [href]="help.docsUrl" target="_blank" rel="noopener">Read Documentation</a>
+        </div>
+      </aside>
+    </div>
+  }
+
+  <app-modal-shell
+    [open]="textOnlyConfirmOpen()"
+    title="Generate without product image?"
+    description="No product image is selected. Lebhas will create the creative from your brand, product, campaign, and prompt context."
+    (closed)="closeTextOnlyConfirm()"
+  >
+    <div class="space-y-5">
+      <div class="rounded-xl border border-amber-300/50 bg-amber-50 px-4 py-3 text-sm leading-6 text-amber-950 dark:border-amber-400/25 dark:bg-amber-400/10 dark:text-amber-100">
+        Text-only generation is allowed, but product accuracy can be lower without a visual reference.
+      </div>
+
+      <div class="flex flex-col-reverse gap-3 sm:flex-row sm:justify-end">
+        <app-button type="button" variant="secondary" icon="image" (click)="closeTextOnlyConfirm()">
+          Add image first
+        </app-button>
+        <app-button type="button" icon="sparkles" (click)="confirmTextOnlyGeneration()">
+          Continue text-only
+        </app-button>
+      </div>
+    </div>
+  </app-modal-shell>
 }
 
 <app-creative-output-drawer
@@ -805,5 +848,3 @@
   (previewRequested)="previewOutput($event)"
   (downloadRequested)="downloadOutput($event)"
 />
-
-

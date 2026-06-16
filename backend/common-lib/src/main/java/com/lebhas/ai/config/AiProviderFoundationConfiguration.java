@@ -7,7 +7,11 @@ import com.lebhas.ai.application.CreativePipelineMapper;
 import com.lebhas.ai.application.MasterAiProviderManagementService;
 import com.lebhas.ai.application.MasterAiProviderToolRegistryService;
 import com.lebhas.ai.application.MasterCreativePipelineManagementService;
+import com.lebhas.ai.application.OpenAiCostTrackingService;
 import com.lebhas.ai.application.MasterProviderSettingsService;
+import com.lebhas.ai.application.OpenAiCostSyncScheduler;
+import com.lebhas.ai.credit.application.CreditValuePolicyService;
+import com.lebhas.ai.credit.application.ProviderCreditPoolService;
 import com.lebhas.ai.infrastructure.persistence.AiModelRepository;
 import com.lebhas.ai.infrastructure.persistence.AiProviderCredentialRepository;
 import com.lebhas.ai.infrastructure.persistence.AiToolCapabilityRepository;
@@ -111,6 +115,7 @@ public class AiProviderFoundationConfiguration {
             AiCredentialEncryptionService encryptionService,
             ObjectProvider<AssetEventPublisher> eventPublisher,
             ObjectProvider<AuditLogService> auditLogService,
+            ObjectProvider<CreditValuePolicyService> creditValuePolicyService,
             Clock clock
     ) {
         return new MasterProviderSettingsService(
@@ -119,7 +124,31 @@ public class AiProviderFoundationConfiguration {
                 encryptionService,
                 eventPublisher.getIfAvailable(),
                 auditLogService.getIfAvailable(),
+                creditValuePolicyService,
                 clock);
+    }
+
+    @Bean
+    OpenAiCostTrackingService openAiCostTrackingService(
+            AiToolProviderRepository providerRepository,
+            AiCredentialEncryptionService encryptionService,
+            ObjectProvider<CreditValuePolicyService> creditValuePolicyService,
+            ObjectProvider<ProviderCreditPoolService> providerCreditPoolService,
+            ObjectProvider<AuditLogService> auditLogService,
+            Clock clock
+    ) {
+        return new OpenAiCostTrackingService(
+                providerRepository,
+                encryptionService,
+                creditValuePolicyService,
+                providerCreditPoolService,
+                auditLogService.getIfAvailable(),
+                clock);
+    }
+
+    @Bean
+    OpenAiCostSyncScheduler openAiCostSyncScheduler(OpenAiCostTrackingService costTrackingService) {
+        return new OpenAiCostSyncScheduler(costTrackingService);
     }
 
     @Bean

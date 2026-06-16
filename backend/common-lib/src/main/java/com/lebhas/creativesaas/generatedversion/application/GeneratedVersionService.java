@@ -112,6 +112,11 @@ public class GeneratedVersionService {
     }
 
     @Transactional(readOnly = true)
+    public List<GeneratedVersionEntity> listByWorkspace(UUID workspaceId) {
+        return generatedVersionRepository.findAllByWorkspaceIdAndDeletedFalseOrderByCreatedAtDesc(workspaceId);
+    }
+
+    @Transactional(readOnly = true)
     public Optional<GeneratedVersionEntity> latestByCreativeRequest(UUID workspaceId, UUID creativeRequestId) {
         return generatedVersionRepository.findFirstByWorkspaceIdAndCreativeRequestIdAndDeletedFalseOrderByVersionNumberDesc(
                 workspaceId,

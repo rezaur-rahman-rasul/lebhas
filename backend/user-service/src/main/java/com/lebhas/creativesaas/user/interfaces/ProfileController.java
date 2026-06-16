@@ -21,6 +21,7 @@ import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.Valid;
+import org.springframework.http.MediaType;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -30,7 +31,9 @@ import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
+import org.springframework.web.bind.annotation.RequestPart;
 import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.multipart.MultipartFile;
 
 import java.util.List;
 
@@ -70,7 +73,7 @@ public class ProfileController {
         return ApiResponse.success(userProfileService.viewOwnProfile());
     }
 
-    @PutMapping
+    @PutMapping(consumes = MediaType.APPLICATION_JSON_VALUE)
     @Operation(summary = "Update the current user's profile")
     public ApiResponse<UserProfileView> updateOwnProfile(
             @Valid @RequestBody UpdateProfileRequest request,
@@ -78,6 +81,36 @@ public class ProfileController {
     ) {
         return ApiResponse.success(userProfileService.updateOwnProfile(
                 request,
+                resolveClientIp(httpServletRequest),
+                httpServletRequest.getHeader("User-Agent")));
+    }
+
+    @PutMapping(consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
+    @Operation(summary = "Update the current user's profile with an optional profile image")
+    public ApiResponse<UserProfileView> updateOwnProfileMultipart(
+            @RequestParam String firstName,
+            @RequestParam String lastName,
+            @RequestParam String displayName,
+            @RequestParam(required = false) String phoneNumber,
+            @RequestParam(required = false) String jobTitle,
+            @RequestParam(required = false) String bio,
+            @RequestParam String timezone,
+            @RequestParam String locale,
+            @RequestPart(value = "profileImage", required = false) MultipartFile profileImage,
+            HttpServletRequest httpServletRequest
+    ) {
+        UpdateProfileRequest request = new UpdateProfileRequest(
+                firstName,
+                lastName,
+                displayName,
+                phoneNumber,
+                jobTitle,
+                bio,
+                timezone,
+                locale);
+        return ApiResponse.success(userProfileService.updateOwnProfile(
+                request,
+                profileImage,
                 resolveClientIp(httpServletRequest),
                 httpServletRequest.getHeader("User-Agent")));
     }
@@ -119,6 +152,18 @@ public class ProfileController {
             @Valid @RequestBody ProfileImageUploadUrlRequest request
     ) {
         return ApiResponse.success(profileImageService.requestSignedUploadUrl(request));
+    }
+
+    @PostMapping(value = "/profile-image", consumes = "multipart/form-data")
+    @Operation(summary = "Upload the current user's profile image")
+    public ApiResponse<UserProfileView> uploadProfileImage(
+            @RequestParam("file") MultipartFile file,
+            HttpServletRequest httpServletRequest
+    ) {
+        return ApiResponse.success(profileImageService.uploadDirect(
+                file,
+                resolveClientIp(httpServletRequest),
+                httpServletRequest.getHeader("User-Agent")));
     }
 
     @PostMapping("/profile-image/confirm")

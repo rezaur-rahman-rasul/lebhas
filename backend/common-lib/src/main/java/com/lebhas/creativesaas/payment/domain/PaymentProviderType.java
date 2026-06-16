@@ -4,6 +4,7 @@ public enum PaymentProviderType {
     SSLCOMMERZ,
     BKASH,
     NAGAD,
+    ROCKET,
     STRIPE,
     MANUAL
 }

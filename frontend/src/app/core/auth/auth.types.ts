@@ -10,6 +10,11 @@ export interface AuthTokens {
 
 export interface AuthSession extends AuthTokens {
   readonly user: CurrentUser;
+  readonly workspaceId?: string | null;
+  readonly brandId?: string | null;
+  readonly productServiceId?: string | null;
+  readonly projectCampaignId?: string | null;
+  readonly nextStep?: string | null;
 }
 
 export interface PersistedAuthSession extends AuthTokens {

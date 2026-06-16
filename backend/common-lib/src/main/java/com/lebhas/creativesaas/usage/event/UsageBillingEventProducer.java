@@ -1,6 +1,9 @@
 package com.lebhas.creativesaas.usage.event;
 
 import com.lebhas.creativesaas.common.exception.KafkaPublishingException;
+import com.lebhas.creativesaas.messaging.kafka.KafkaMessagingProperties;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.kafka.core.KafkaTemplate;
 import org.springframework.transaction.support.TransactionSynchronization;
 import org.springframework.transaction.support.TransactionSynchronizationManager;
@@ -9,12 +12,28 @@ import java.util.UUID;
 
 public class UsageBillingEventProducer {
 
+    private static final Logger log = LoggerFactory.getLogger(UsageBillingEventProducer.class);
+
     private final KafkaTemplate<String, Object> kafkaTemplate;
     private final UsageBillingKafkaTopicNames topicNames;
+    private final boolean kafkaEnabled;
 
     public UsageBillingEventProducer(KafkaTemplate<String, Object> kafkaTemplate, UsageBillingKafkaTopicNames topicNames) {
+        this(kafkaTemplate, topicNames, true);
+    }
+
+    public UsageBillingEventProducer(
+            KafkaTemplate<String, Object> kafkaTemplate,
+            UsageBillingKafkaTopicNames topicNames,
+            KafkaMessagingProperties kafkaMessagingProperties
+    ) {
+        this(kafkaTemplate, topicNames, kafkaMessagingProperties.isEnabled());
+    }
+
+    private UsageBillingEventProducer(KafkaTemplate<String, Object> kafkaTemplate, UsageBillingKafkaTopicNames topicNames, boolean kafkaEnabled) {
         this.kafkaTemplate = kafkaTemplate;
         this.topicNames = topicNames;
+        this.kafkaEnabled = kafkaEnabled;
     }
 
     public void publishUsageUpdated(UsageUpdatedEventDto event) {
@@ -59,6 +78,10 @@ public class UsageBillingEventProducer {
     }
 
     private void publishNow(String topic, String key, Object event) {
+        if (!kafkaEnabled) {
+            log.debug("Skipping usage billing Kafka event publish because platform.kafka.enabled=false topic={}", topic);
+            return;
+        }
         try {
             kafkaTemplate.send(topic, key, event);
         } catch (RuntimeException exception) {

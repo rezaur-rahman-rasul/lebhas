@@ -25,11 +25,21 @@
 
       <div class="space-y-6 p-5">
         <div class="drawer-preview overflow-hidden rounded-lg">
-          @if (isImageFormat(output()!.outputFormat) && output()!.previewUrl) {
-            <img class="max-h-[34rem] w-full object-contain" [src]="output()!.previewUrl!" [alt]="output()!.headline || 'Creative preview'" />
+          @if (isImageFormat(output()!.outputFormat) && isOutputReady(output()!) && output()!.previewUrl && !imageFailed()) {
+            <img class="max-h-[34rem] w-full object-contain" [src]="output()!.previewUrl!" [alt]="output()!.headline || 'Creative preview'" (error)="markImageFailed()" />
           } @else {
             <div class="drawer-placeholder grid aspect-video place-items-center">
-              <app-icon [name]="isImageFormat(output()!.outputFormat) ? 'image' : 'video'" [size]="40" />
+              <div class="grid place-items-center gap-3 text-center">
+                <app-icon [name]="isImageFormat(output()!.outputFormat) ? 'image' : 'video'" [size]="40" />
+                @if (isImageFormat(output()!.outputFormat)) {
+                  <p class="text-sm text-muted">{{ finalizingLabel(output()!) }}</p>
+                  @if (output()!.generatedAssetId) {
+                    <app-button variant="secondary" icon="refresh-cw" (click)="retryPreview(output()!)">
+                      Retry preview URL
+                    </app-button>
+                  }
+                }
+              </div>
             </div>
           }
         </div>
@@ -44,9 +54,9 @@
           <app-button variant="secondary" icon="eye" (click)="previewRequested.emit(output()!)">
             Preview URL
           </app-button>
-          @if (canDownload()) {
+          @if (canDownload() && isOutputReady(output()!) && output()!.downloadUrl) {
             <app-button icon="download" (click)="downloadRequested.emit(output()!)">
-              Download URL
+              Download
             </app-button>
           }
         </div>

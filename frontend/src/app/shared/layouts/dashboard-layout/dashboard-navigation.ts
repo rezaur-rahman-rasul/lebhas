@@ -212,12 +212,13 @@ export const DASHBOARD_NAVIGATION: readonly NavigationItem[] = [
     activeMatch: 'exact',
   },
   {
-    label: 'Provider Settings',
+    label: 'Provider Management',
     icon: 'settings',
-    route: '/master/provider-settings',
+    route: '/master/provider-management',
     group: 'AI Operations',
     roles: ['MASTER'],
     permissionKey: 'canViewAiMonitoring',
+    activePaths: ['/master/provider-management', '/master/provider-settings'],
     activeMatch: 'exact',
   },
   {
@@ -259,7 +260,7 @@ export const DASHBOARD_NAVIGATION: readonly NavigationItem[] = [
   },
   {
     label: 'Exchange Policies',
-    icon: 'repeat-2',
+    icon: 'arrow-left-right',
     route: '/master/exchange-policies',
     group: 'Monetization',
     roles: ['MASTER'],
@@ -274,7 +275,17 @@ export const DASHBOARD_NAVIGATION: readonly NavigationItem[] = [
     roles: ['MASTER'],
     permissionKey: 'canViewMasterUsage',
     activeMatch: 'exact',
-  },  {
+  },
+  {
+    label: 'Credit Adjustments',
+    icon: 'wallet-cards',
+    route: '/master/credit-adjustments',
+    group: 'Monetization',
+    roles: ['MASTER'],
+    permissionKey: 'canViewMasterUsage',
+    activeMatch: 'exact',
+  },
+  {
     label: 'Pricing Packages',
     icon: 'package-check',
     route: '/master/pricing-packages',
@@ -356,4 +367,3 @@ export const DASHBOARD_NAVIGATION: readonly NavigationItem[] = [
     activeMatch: 'prefix',
   },
 ];
-

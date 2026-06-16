@@ -10,6 +10,7 @@ import {
   inject,
   input,
   output,
+  signal,
   viewChild,
 } from '@angular/core';
 
@@ -27,6 +28,7 @@ export class ModalComponent {
   private readonly document = inject(DOCUMENT);
   private readonly destroyRef = inject(DestroyRef);
   private readonly panel = viewChild<ElementRef<HTMLElement>>('panel');
+  private readonly overlay = viewChild<ElementRef<HTMLElement>>('overlay');
   private readonly modalId = `modal-${Math.random().toString(36).slice(2, 10)}`;
 
   readonly open = input(false);
@@ -42,9 +44,11 @@ export class ModalComponent {
 
   protected readonly titleId = `${this.modalId}-title`;
   protected readonly descriptionId = `${this.modalId}-description`;
+  protected readonly hasAdminModalForm = signal(false);
   protected readonly panelClasses = computed(() =>
     [
-      'relative z-10 flex max-h-[calc(100dvh-1rem)] w-full flex-col overflow-hidden rounded-2xl border border-border bg-surface-elevated shadow-panel outline-none sm:max-h-[calc(100dvh-2rem)]',
+      'relative z-10 flex h-[calc(100dvh-32px)] max-h-[calc(100dvh-32px)] w-full flex-col overflow-hidden rounded-2xl border border-border bg-surface-elevated shadow-panel outline-none',
+      'max-w-[48rem]',
       this.panelClass(),
     ]
       .filter(Boolean)
@@ -52,9 +56,9 @@ export class ModalComponent {
   );
   protected readonly contentPaddingClasses = computed(() =>
     [
-      this.title() || this.description()
-        ? 'min-h-0 overflow-y-auto p-4 sm:p-6'
-        : 'min-h-0 overflow-y-auto p-4 sm:p-6',
+      this.hasAdminModalForm()
+        ? 'app-dialog-content app-dialog-content--admin-form min-h-0 flex-1 overflow-hidden !p-0'
+        : 'app-dialog-content min-h-0 flex-1 overflow-y-auto overscroll-contain px-4 py-4 pb-6 sm:px-6 sm:py-6 sm:pb-6',
       this.contentClass(),
     ]
       .filter(Boolean)
@@ -63,6 +67,13 @@ export class ModalComponent {
 
   private previousActiveElement: HTMLElement | null = null;
   private wasOpen = false;
+  private lockedScrollY = 0;
+  private previousHtmlOverflow = '';
+  private previousBodyOverflow = '';
+  private previousBodyPosition = '';
+  private previousBodyTop = '';
+  private previousBodyWidth = '';
+  private attachedOverlay: HTMLElement | null = null;
 
   constructor() {
     effect(() => {
@@ -71,10 +82,16 @@ export class ModalComponent {
       if (isOpen && !this.wasOpen) {
         this.previousActiveElement =
           this.document.activeElement instanceof HTMLElement ? this.document.activeElement : null;
-        this.document.body.style.overflow = 'hidden';
-        queueMicrotask(() => this.focusInitialElement());
+        this.lockDocumentScroll();
+        queueMicrotask(() => {
+          this.attachOverlayToDocumentBody();
+          this.updateProjectedContentMode();
+          this.focusInitialElement();
+        });
       } else if (!isOpen && this.wasOpen) {
-        this.document.body.style.overflow = '';
+        this.hasAdminModalForm.set(false);
+        this.detachOverlayFromDocumentBody();
+        this.unlockDocumentScroll();
         this.restoreFocus();
       }
 
@@ -82,7 +99,8 @@ export class ModalComponent {
     });
 
     this.destroyRef.onDestroy(() => {
-      this.document.body.style.overflow = '';
+      this.detachOverlayFromDocumentBody();
+      this.unlockDocumentScroll();
       this.restoreFocus();
     });
   }
@@ -163,5 +181,65 @@ export class ModalComponent {
   private restoreFocus(): void {
     this.previousActiveElement?.focus();
     this.previousActiveElement = null;
+  }
+
+  private updateProjectedContentMode(): void {
+    const panel = this.panel()?.nativeElement;
+    this.hasAdminModalForm.set(!!panel?.querySelector('.admin-modal-form'));
+  }
+
+  private attachOverlayToDocumentBody(): void {
+    const overlay = this.overlay()?.nativeElement;
+    if (!overlay || overlay.parentElement === this.document.body) {
+      return;
+    }
+
+    this.document.body.appendChild(overlay);
+    this.attachedOverlay = overlay;
+  }
+
+  private detachOverlayFromDocumentBody(): void {
+    if (this.attachedOverlay?.parentElement === this.document.body) {
+      this.document.body.removeChild(this.attachedOverlay);
+    }
+    this.attachedOverlay = null;
+  }
+
+  private lockDocumentScroll(): void {
+    const html = this.document.documentElement;
+    const body = this.document.body;
+
+    this.lockedScrollY = globalThis.scrollY || html.scrollTop || body.scrollTop || 0;
+    this.previousHtmlOverflow = html.style.overflow;
+    this.previousBodyOverflow = body.style.overflow;
+    this.previousBodyPosition = body.style.position;
+    this.previousBodyTop = body.style.top;
+    this.previousBodyWidth = body.style.width;
+
+    html.classList.add('app-modal-open', 'lebhas-modal-open');
+    body.classList.add('app-modal-open', 'lebhas-modal-open');
+    html.style.overflow = 'hidden';
+    body.style.overflow = 'hidden';
+    body.style.position = 'fixed';
+    body.style.top = `-${this.lockedScrollY}px`;
+    body.style.width = '100%';
+  }
+
+  private unlockDocumentScroll(): void {
+    const html = this.document.documentElement;
+    const body = this.document.body;
+
+    html.classList.remove('app-modal-open', 'lebhas-modal-open');
+    body.classList.remove('app-modal-open', 'lebhas-modal-open');
+    html.style.overflow = this.previousHtmlOverflow;
+    body.style.overflow = this.previousBodyOverflow;
+    body.style.position = this.previousBodyPosition;
+    body.style.top = this.previousBodyTop;
+    body.style.width = this.previousBodyWidth;
+
+    if (this.lockedScrollY > 0) {
+      globalThis.scrollTo(0, this.lockedScrollY);
+    }
+    this.lockedScrollY = 0;
   }
 }

@@ -59,6 +59,10 @@ interface AssetViewDto {
   readonly publicUrl?: string | null;
   readonly previewUrl?: string | null;
   readonly thumbnailUrl?: string | null;
+  readonly publicPreviewUrl?: string | null;
+  readonly signedPreviewUrl?: string | null;
+  readonly downloadUrl?: string | null;
+  readonly url?: string | null;
   readonly displayName: string;
   readonly description: string | null;
   readonly uploadSessionId: string | null;
@@ -194,10 +198,11 @@ export class AssetApiService {
     );
   }
 
-  async getPreviewUrl(workspaceId: string, assetId: string): Promise<AssetUrl> {
+  async getPreviewUrl(workspaceId: string, assetId: string, context?: HttpContext): Promise<AssetUrl> {
     const response = await firstValueFrom(
       this.api.get<AssetUrlResponseDto>(
         ApiEndpoints.assets.previewUrl(workspaceId, assetId),
+        { context },
       ),
     );
 
@@ -339,6 +344,11 @@ function mapAsset(source: AssetViewDto): Asset {
       : null,
     previewUrl: source.previewUrl ?? source.publicUrl ?? null,
     thumbnailUrl: source.thumbnailUrl ?? null,
+    publicUrl: source.publicUrl ?? null,
+    publicPreviewUrl: source.publicPreviewUrl ?? null,
+    signedPreviewUrl: source.signedPreviewUrl ?? null,
+    downloadUrl: source.downloadUrl ?? null,
+    url: source.url ?? null,
   };
 }
 

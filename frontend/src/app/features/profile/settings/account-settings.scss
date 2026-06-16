@@ -47,25 +47,76 @@
   gap: 0.35rem;
 }
 
-.settings-form span {
+.settings-form select {
+  height: 3rem;
+  border: 1px solid rgb(var(--color-input-border));
+  border-radius: 0.75rem;
+  background: rgb(var(--color-input));
+  padding: 0.8rem 2.2rem 0 0.78rem;
   color: rgb(var(--color-ink));
   font-size: 0.84rem;
-  font-weight: 850;
-}
-
-.settings-form select {
-  height: 2.65rem;
-  border: 1px solid rgb(var(--color-border) / 0.72);
-  border-radius: var(--app-radius-input);
-  background: rgb(var(--color-panel) / 0.48);
-  padding: 0 0.8rem;
-  color: rgb(var(--color-ink));
+  font-weight: 750;
   outline: none;
+  transition:
+    border-color 180ms ease,
+    box-shadow 180ms ease,
+    background-color 180ms ease;
 }
 
 .settings-form select:focus {
-  border-color: rgb(var(--color-accent-purple));
-  box-shadow: 0 0 0 3px rgb(var(--color-accent-purple) / 0.16);
+  border-color: rgb(34 211 238 / 0.82);
+  box-shadow: 0 0 0 4px rgb(34 211 238 / 0.13);
+}
+
+.settings-floating-field {
+  position: relative;
+  display: block !important;
+  min-width: 0;
+}
+
+.settings-floating-field > span {
+  position: absolute;
+  top: 50%;
+  left: 0.72rem;
+  z-index: 1;
+  max-width: calc(100% - 1.5rem);
+  padding: 0 0.28rem;
+  overflow: hidden;
+  color: rgb(var(--color-muted));
+  background:
+    linear-gradient(
+      180deg,
+      rgb(var(--color-surface-elevated)) 0%,
+      rgb(var(--color-surface-elevated)) 55%,
+      rgb(var(--color-input)) 55%,
+      rgb(var(--color-input)) 100%
+    );
+  font-size: 0.875rem;
+  font-weight: 800;
+  line-height: 1;
+  pointer-events: none;
+  text-overflow: ellipsis;
+  transform: translateY(-50%);
+  transition:
+    top 180ms ease,
+    transform 180ms ease,
+    color 180ms ease,
+    font-size 180ms ease,
+    background 180ms ease;
+  white-space: nowrap;
+}
+
+.settings-floating-field:focus-within > span,
+.settings-floating-field.has-value > span {
+  top: 0;
+  color: rgb(34 211 238);
+  background: rgb(var(--color-surface-elevated));
+  font-size: 0.64rem;
+  transform: translateY(-50%);
+}
+
+.settings-floating-field.has-value:not(:focus-within) > span {
+  color: rgb(148 163 184);
 }
 
 .toggle-list,

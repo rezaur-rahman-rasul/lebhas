@@ -151,6 +151,7 @@ public class SignedAssetUploadService {
                 storageService.provider(),
                 bucket,
                 null,
+                metadata.fileType(),
                 metadata.mimeType(),
                 metadata.extension(),
                 metadata.size(),

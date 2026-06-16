@@ -1,5 +1,5 @@
 <section
-  class="grid gap-3 rounded-lg border border-border bg-surface p-4 lg:grid-cols-[repeat(3,minmax(9rem,1fr))_repeat(2,minmax(8rem,0.8fr))_auto] lg:items-end"
+  class="grid gap-3 rounded-lg border border-border bg-surface p-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-[repeat(4,minmax(9rem,1fr))_repeat(2,minmax(8rem,0.8fr))_auto] xl:items-end"
   aria-label="Audit log filters"
 >
   <label class="grid gap-2 text-sm text-ink">
@@ -49,57 +49,45 @@
     </select>
   </label>
 
-  <div class="grid gap-2 sm:grid-cols-2 lg:grid-cols-1">
-    <label class="grid gap-2 text-sm text-ink">
-      <span class="font-medium">From</span>
-      <input
-        type="date"
-        class="h-10 min-w-0 rounded-md border border-border bg-panel px-3 text-sm text-ink outline-none transition focus:border-brand-500 focus:ring-2 focus:ring-brand-500/30"
-        [value]="selectedDateRange()?.from || ''"
-        (change)="updateFrom($any($event.target).value)"
-      />
-    </label>
-    <label class="grid gap-2 text-sm text-ink lg:hidden">
-      <span class="font-medium">To</span>
-      <input
-        type="date"
-        class="h-10 min-w-0 rounded-md border border-border bg-panel px-3 text-sm text-ink outline-none transition focus:border-brand-500 focus:ring-2 focus:ring-brand-500/30"
-        [value]="selectedDateRange()?.to || ''"
-        (change)="updateTo($any($event.target).value)"
-      />
-    </label>
-  </div>
+  <label class="grid gap-2 text-sm text-ink">
+    <span class="font-medium">From</span>
+    <input
+      type="date"
+      class="h-10 min-w-0 rounded-md border border-border bg-panel px-3 text-sm text-ink outline-none transition focus:border-brand-500 focus:ring-2 focus:ring-brand-500/30"
+      [value]="selectedDateRange()?.from || ''"
+      (change)="updateFrom($any($event.target).value)"
+    />
+  </label>
 
-  <div class="flex flex-col gap-2 sm:flex-row lg:flex-col">
-    <label class="hidden gap-2 text-sm text-ink lg:grid">
-      <span class="font-medium">To</span>
-      <input
-        type="date"
-        class="h-10 min-w-0 rounded-md border border-border bg-panel px-3 text-sm text-ink outline-none transition focus:border-brand-500 focus:ring-2 focus:ring-brand-500/30"
-        [value]="selectedDateRange()?.to || ''"
-        (change)="updateTo($any($event.target).value)"
-      />
-    </label>
-    <div class="flex gap-2">
-      <app-button
-        type="button"
-        variant="secondary"
-        icon="rotate-cw"
-        [loading]="loading()"
-        ariaLabel="Refresh audit logs"
-        (click)="refresh.emit()"
-      >
-        Refresh
-      </app-button>
-      <app-button
-        type="button"
-        variant="ghost"
-        icon="x"
-        ariaLabel="Clear audit filters"
-        (click)="clear.emit()"
-      >
-        Clear
-      </app-button>
-    </div>
+  <label class="grid gap-2 text-sm text-ink">
+    <span class="font-medium">To</span>
+    <input
+      type="date"
+      class="h-10 min-w-0 rounded-md border border-border bg-panel px-3 text-sm text-ink outline-none transition focus:border-brand-500 focus:ring-2 focus:ring-brand-500/30"
+      [value]="selectedDateRange()?.to || ''"
+      (change)="updateTo($any($event.target).value)"
+    />
+  </label>
+
+  <div class="flex gap-2 sm:col-span-2 lg:col-span-3 xl:col-span-1 xl:self-end">
+    <app-button
+      type="button"
+      variant="secondary"
+      icon="rotate-cw"
+      [loading]="loading()"
+      ariaLabel="Refresh audit logs"
+      (click)="refresh.emit()"
+    >
+      Refresh
+    </app-button>
+    <app-button
+      type="button"
+      variant="ghost"
+      icon="x"
+      ariaLabel="Clear audit filters"
+      (click)="clear.emit()"
+    >
+      Clear
+    </app-button>
   </div>
 </section>

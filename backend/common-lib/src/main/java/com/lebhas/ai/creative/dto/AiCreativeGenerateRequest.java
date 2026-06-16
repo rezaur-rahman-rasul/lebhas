@@ -28,13 +28,18 @@ public record AiCreativeGenerateRequest(
         String campaignObjective,
         String targetAudience,
         String productDescription,
+        Boolean includeCta,
+        Boolean includeLogo,
+        Boolean includeTypography,
         Integer versions,
         UUID existingAssetId,
+        UUID logoAssetId,
         Boolean noHumanModel,
         String size,
         CreativeQuality quality,
         String background,
         String promptTitlePreview,
-        String generationModeHint
+        String generationModeHint,
+        UUID requestedByUserId
 ) {
 }

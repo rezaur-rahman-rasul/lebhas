@@ -19,9 +19,9 @@
             <td class="px-4 py-4">
               <div class="flex items-start gap-3">
                 <div class="grid h-11 w-11 shrink-0 place-items-center overflow-hidden rounded-lg bg-slate-100 dark:bg-slate-900">
-                  @if (asset.thumbnailUrl || asset.previewUrl) {
+                  @if (assetPreviewUrl(asset); as previewUrl) {
                     <img
-                      [src]="asset.thumbnailUrl || asset.previewUrl || ''"
+                      [src]="previewUrl"
                       [alt]="asset.displayName"
                       class="h-full w-full object-cover"
                     />
@@ -102,9 +102,9 @@
       <app-card>
         <div class="flex items-start gap-3">
           <div class="grid h-14 w-14 shrink-0 place-items-center overflow-hidden rounded-lg bg-slate-100 dark:bg-slate-900">
-            @if (asset.thumbnailUrl || asset.previewUrl) {
+            @if (assetPreviewUrl(asset); as previewUrl) {
               <img
-                [src]="asset.thumbnailUrl || asset.previewUrl || ''"
+                [src]="previewUrl"
                 [alt]="asset.displayName"
                 class="h-full w-full object-cover"
               />

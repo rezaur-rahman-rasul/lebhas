@@ -6,6 +6,17 @@ export const ApiEndpoints = {
   auth: {
     register: `${API_PREFIX}/auth/register`,
     login: `${API_PREFIX}/auth/login`,
+    mobileStart: `${API_PREFIX}/auth/mobile/start`,
+    mobileVerify: `${API_PREFIX}/auth/mobile/verify`,
+    registerMobileStart: `${API_PREFIX}/auth/register/mobile/start`,
+    registerMobileVerify: `${API_PREFIX}/auth/register/mobile/verify`,
+    registerEmailSkip: `${API_PREFIX}/auth/register/email/skip`,
+    registerEmailStart: `${API_PREFIX}/auth/register/email/start`,
+    registerEmailVerify: `${API_PREFIX}/auth/register/email/verify`,
+    registerPassword: `${API_PREFIX}/auth/register/password`,
+    registerBrand: `${API_PREFIX}/auth/register/brand`,
+    registerProductService: `${API_PREFIX}/auth/register/product-service`,
+    registerProjectCampaign: `${API_PREFIX}/auth/register/project-campaign`,
     refresh: `${API_PREFIX}/auth/refresh`,
     logout: `${API_PREFIX}/auth/logout`,
     logoutAll: `${API_PREFIX}/auth/logout-all`,
@@ -22,10 +33,15 @@ export const ApiEndpoints = {
     profileImageUploadUrl: `${API_PREFIX}/profile/me/profile-image/upload-url`,
     profileImageConfirm: `${API_PREFIX}/profile/me/profile-image/confirm`,
     profileImage: `${API_PREFIX}/profile/me/profile-image`,
+    profileImageUpload: `${API_PREFIX}/profile/me/profile-image`,
     securityActivity: `${API_PREFIX}/profile/me/security-activity`,
     sessions: `${API_PREFIX}/profile/me/sessions`,
     session: (sessionId: string) => `${API_PREFIX}/profile/me/sessions/${path(sessionId)}`,
     otherSessions: `${API_PREFIX}/profile/me/sessions/others`,
+    rewards: `${API_PREFIX}/profile/rewards`,
+    emailReward: `${API_PREFIX}/profile/email`,
+    facebookConnection: `${API_PREFIX}/profile/social-connections/facebook`,
+    instagramConnection: `${API_PREFIX}/profile/social-connections/instagram`,
   },
   workspaces: {
     my: `${API_PREFIX}/workspaces/my`,
@@ -129,6 +145,8 @@ export const ApiEndpoints = {
       `${API_PREFIX}/workspaces/${path(workspaceId)}/generation-jobs/${path(generationJobId)}/retry`,
   },
   generatedVersions: {
+    list: (workspaceId: string) =>
+      `${API_PREFIX}/workspaces/${path(workspaceId)}/generated-versions`,
     approvals: (workspaceId: string) =>
       `${API_PREFIX}/workspaces/${path(workspaceId)}/approvals/generated-versions`,
     detail: (workspaceId: string, generatedVersionId: string) =>
@@ -208,6 +226,8 @@ export const ApiEndpoints = {
       `${API_PREFIX}/workspaces/${path(workspaceId)}/subscriptions/renew`,
     purchaseCredits: (workspaceId: string) =>
       `${API_PREFIX}/workspaces/${path(workspaceId)}/credits/purchase`,
+    paymentGateways: (workspaceId: string) =>
+      `${API_PREFIX}/workspaces/${path(workspaceId)}/payment-gateways`,
     payments: (workspaceId: string) => `${API_PREFIX}/workspaces/${path(workspaceId)}/payments`,
     payment: (workspaceId: string, paymentTransactionId: string) =>
       `${API_PREFIX}/workspaces/${path(workspaceId)}/payments/${path(paymentTransactionId)}`,

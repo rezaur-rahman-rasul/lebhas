@@ -2,6 +2,9 @@ package com.lebhas.creativesaas.auth.interfaces;
 
 public record LogoutRequest(
         String refreshToken,
-        boolean logoutAllDevices
+        Boolean logoutAllDevices
 ) {
+    public boolean shouldLogoutAllDevices() {
+        return Boolean.TRUE.equals(logoutAllDevices);
+    }
 }

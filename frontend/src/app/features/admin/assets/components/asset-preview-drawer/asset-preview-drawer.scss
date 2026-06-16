@@ -2,6 +2,12 @@
   display: contents;
 }
 
+.asset-preview-drawer {
+  height: 100dvh;
+  max-height: 100dvh;
+  min-height: 100vh;
+}
+
 .asset-preview-drawer__body {
   scrollbar-color: rgba(148, 163, 184, 0.35) rgba(15, 23, 42, 0.3);
 }

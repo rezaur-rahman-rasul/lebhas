@@ -16,6 +16,9 @@ import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
+import java.math.BigDecimal;
+import java.time.Instant;
+import java.time.LocalDate;
 
 @Entity
 @Table(name = "ai_tool_providers", schema = "platform")
@@ -81,6 +84,30 @@ public class AiToolProvider extends BaseEntity {
     @JdbcTypeCode(SqlTypes.JSON)
     @Column(name = "rate_limit_metadata", nullable = false, columnDefinition = "jsonb")
     private Map<String, Object> rateLimitMetadata = new LinkedHashMap<>();
+
+    @Column(name = "openai_admin_api_key_encrypted")
+    private String openAiAdminApiKeyEncrypted;
+
+    @Column(name = "provider_top_up_amount_usd", precision = 19, scale = 4)
+    private BigDecimal providerTopUpAmountUsd;
+
+    @Column(name = "provider_top_up_date")
+    private LocalDate providerTopUpDate;
+
+    @Column(name = "provider_manual_balance_usd", precision = 19, scale = 4)
+    private BigDecimal providerManualBalanceUsd;
+
+    @Column(name = "last_cost_sync_at")
+    private Instant lastCostSyncAt;
+
+    @Column(name = "total_cost_spent_usd", precision = 19, scale = 4)
+    private BigDecimal totalCostSpentUsd;
+
+    @Column(name = "estimated_remaining_balance_usd", precision = 19, scale = 4)
+    private BigDecimal estimatedRemainingBalanceUsd;
+
+    @Column(name = "cost_sync_enabled", nullable = false)
+    private boolean costSyncEnabled;
 
     protected AiToolProvider() {
     }
@@ -224,6 +251,67 @@ public class AiToolProvider extends BaseEntity {
         return Map.copyOf(rateLimitMetadata);
     }
 
+    public String getOpenAiAdminApiKeyEncrypted() {
+        return openAiAdminApiKeyEncrypted;
+    }
+
+    public BigDecimal getProviderTopUpAmountUsd() {
+        return providerTopUpAmountUsd;
+    }
+
+    public LocalDate getProviderTopUpDate() {
+        return providerTopUpDate;
+    }
+
+    public BigDecimal getProviderManualBalanceUsd() {
+        return providerManualBalanceUsd;
+    }
+
+    public Instant getLastCostSyncAt() {
+        return lastCostSyncAt;
+    }
+
+    public BigDecimal getTotalCostSpentUsd() {
+        return totalCostSpentUsd;
+    }
+
+    public BigDecimal getEstimatedRemainingBalanceUsd() {
+        return estimatedRemainingBalanceUsd;
+    }
+
+    public boolean isCostSyncEnabled() {
+        return costSyncEnabled;
+    }
+
+    public void configureOpenAiCostTracking(
+            String openAiAdminApiKeyEncrypted,
+            BigDecimal providerTopUpAmountUsd,
+            LocalDate providerTopUpDate,
+            BigDecimal providerManualBalanceUsd,
+            Boolean costSyncEnabled
+    ) {
+        this.openAiAdminApiKeyEncrypted = normalizeNullable(openAiAdminApiKeyEncrypted);
+        this.providerTopUpAmountUsd = nonNegative(providerTopUpAmountUsd);
+        this.providerTopUpDate = providerTopUpDate;
+        this.providerManualBalanceUsd = nonNegative(providerManualBalanceUsd);
+        this.costSyncEnabled = costSyncEnabled != null && costSyncEnabled;
+        recalculateEstimatedRemainingBalance();
+    }
+
+    public void applyOpenAiCostSync(BigDecimal totalCostSpentUsd, BigDecimal estimatedRemainingBalanceUsd, Instant syncedAt) {
+        this.totalCostSpentUsd = nonNegative(totalCostSpentUsd);
+        this.estimatedRemainingBalanceUsd = nonNegative(estimatedRemainingBalanceUsd);
+        this.lastCostSyncAt = require(syncedAt, "syncedAt");
+    }
+
+    public void recordOpenAiSpend(BigDecimal amountUsd, Instant recordedAt) {
+        BigDecimal amount = nonNegative(amountUsd);
+        BigDecimal currentSpend = totalCostSpentUsd == null ? BigDecimal.ZERO : totalCostSpentUsd;
+        this.totalCostSpentUsd = currentSpend.add(amount);
+        this.lastCostSyncAt = require(recordedAt, "recordedAt");
+        recalculateEstimatedRemainingBalance();
+    }
+
     private void apply(
             String providerCode,
             String providerName,
@@ -306,5 +394,29 @@ public class AiToolProvider extends BaseEntity {
             return new LinkedHashMap<>();
         }
         return new LinkedHashMap<>(metadata);
+    }
+
+    private void recalculateEstimatedRemainingBalance() {
+        if (providerManualBalanceUsd != null) {
+            estimatedRemainingBalanceUsd = providerManualBalanceUsd;
+            return;
+        }
+        if (providerTopUpAmountUsd == null) {
+            estimatedRemainingBalanceUsd = null;
+            return;
+        }
+        BigDecimal spent = totalCostSpentUsd == null ? BigDecimal.ZERO : totalCostSpentUsd;
+        BigDecimal remaining = providerTopUpAmountUsd.subtract(spent);
+        estimatedRemainingBalanceUsd = remaining.signum() < 0 ? BigDecimal.ZERO : remaining;
+    }
+
+    private static BigDecimal nonNegative(BigDecimal value) {
+        if (value == null) {
+            return null;
+        }
+        if (value.signum() < 0) {
+            throw new IllegalArgumentException("OpenAI cost tracking values must not be negative");
+        }
+        return value;
     }
 }

@@ -92,6 +92,7 @@ export interface CurrentUser {
   readonly id: string;
   readonly firstName: string;
   readonly lastName: string;
+  readonly profileImageUrl?: string | null;
   readonly name: string;
   readonly fullName: string;
   readonly email: string;

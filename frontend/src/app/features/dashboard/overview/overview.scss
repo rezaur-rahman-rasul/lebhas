@@ -17,12 +17,47 @@
 }
 
 .dashboard-primary-action {
-  min-height: 2.55rem;
-  padding: 0 1rem;
+  position: relative;
+  isolation: isolate;
+  min-height: 2.7rem;
+  overflow: hidden;
+  padding: 0.18rem 1.05rem 0.18rem 0.32rem;
+  border: 1px solid rgb(125 211 252 / 0.38);
+  border-radius: 999px;
+  color: rgb(240 249 255);
+  background:
+    linear-gradient(135deg, rgb(8 47 73 / 0.92), rgb(15 23 42 / 0.88)) padding-box,
+    linear-gradient(135deg, rgb(34 211 238), rgb(168 85 247), rgb(236 72 153)) border-box;
+  box-shadow:
+    0 0.8rem 1.8rem rgb(8 47 73 / 0.28),
+    inset 0 1px 0 rgb(255 255 255 / 0.12);
+}
+
+.dashboard-primary-action::before {
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  content: '';
+  opacity: 0.55;
+  background:
+    radial-gradient(circle at 18% 22%, rgb(34 211 238 / 0.45), transparent 32%),
+    radial-gradient(circle at 86% 0%, rgb(236 72 153 / 0.34), transparent 34%);
+  transition: opacity 160ms ease;
+}
+
+.dashboard-primary-action__icon {
+  display: grid;
+  width: 2.05rem;
+  height: 2.05rem;
+  flex-shrink: 0;
+  place-items: center;
   border: 1px solid rgb(255 255 255 / 0.16);
-  color: #fff;
-  background: var(--lb-gradient-primary);
-  box-shadow: 0 16px 34px rgb(190 24 93 / 0.25);
+  border-radius: 999px;
+  color: rgb(167 243 208);
+  background:
+    linear-gradient(135deg, rgb(34 211 238 / 0.18), rgb(16 185 129 / 0.18)),
+    rgb(15 23 42 / 0.72);
+  box-shadow: inset 0 1px 0 rgb(255 255 255 / 0.14);
 }
 
 .dashboard-primary-action:hover,
@@ -33,7 +68,32 @@
 
 .dashboard-primary-action--compact {
   min-height: 2.25rem;
-  padding-inline: 0.85rem;
+  padding-right: 0.85rem;
+}
+
+.dashboard-primary-action:hover {
+  border-color: rgb(125 211 252 / 0.7);
+  box-shadow:
+    0 1rem 2.2rem rgb(8 47 73 / 0.34),
+    0 0 0 4px rgb(34 211 238 / 0.1),
+    inset 0 1px 0 rgb(255 255 255 / 0.16);
+}
+
+.dashboard-primary-action:hover::before {
+  opacity: 0.85;
+}
+
+.dashboard-primary-action:active {
+  transform: translateY(0) scale(0.985);
+  transition-duration: 90ms;
+}
+
+.dashboard-primary-action:focus-visible {
+  outline: none;
+  box-shadow:
+    0 1rem 2.2rem rgb(8 47 73 / 0.34),
+    0 0 0 4px rgb(34 211 238 / 0.18),
+    inset 0 1px 0 rgb(255 255 255 / 0.16);
 }
 
 .panel-link {

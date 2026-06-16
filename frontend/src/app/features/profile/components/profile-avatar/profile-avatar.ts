@@ -23,7 +23,9 @@ export class ProfileAvatarComponent {
   protected readonly safeImageUrl = computed(() => {
     const explicitUrl = this.imageUrl()?.trim();
     if (explicitUrl) {
-      return explicitUrl.startsWith('https://') || explicitUrl.startsWith('/') ? explicitUrl : null;
+      return explicitUrl.startsWith('https://') || explicitUrl.startsWith('/') || explicitUrl.startsWith('blob:')
+        ? explicitUrl
+        : null;
     }
 
     return safeProfileImageUrl(this.profile());

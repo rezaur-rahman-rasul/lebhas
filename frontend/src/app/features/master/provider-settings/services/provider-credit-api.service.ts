@@ -3,7 +3,7 @@ import { firstValueFrom } from 'rxjs';
 
 import { ApiService } from '@app/core/api/api.service';
 import { unwrapApiResponse } from '@app/shared/utils/api-response';
-import { CreditLedgerItemView, MasterCreditOverviewView, ProviderCreditAdjustmentRequest, ProviderCreditPoolView } from '../models/provider-credit-exchange.models';
+import { CreditLedgerItemView, MasterCreditOverviewView, ProviderCreditAdjustmentRequest, ProviderCreditPoolView, WorkspaceCreditAccountView, WorkspaceCreditAdjustmentRequest } from '../models/provider-credit-exchange.models';
 
 @Injectable({ providedIn: 'root' })
 export class ProviderCreditApiService {
@@ -31,6 +31,15 @@ export class ProviderCreditApiService {
 
   async getMasterCreditOverview(): Promise<MasterCreditOverviewView> {
     return this.get<MasterCreditOverviewView>('/api/v1/master/credits/overview');
+  }
+
+  async adjustWorkspaceCredits(workspaceId: string, payload: WorkspaceCreditAdjustmentRequest): Promise<unknown> {
+    return this.post<unknown, WorkspaceCreditAdjustmentRequest>(`/api/v1/master/workspaces/${encodeURIComponent(workspaceId)}/credits/adjust`, payload);
+  }
+
+  async getMasterWorkspaceCredits(workspaceId: string): Promise<WorkspaceCreditAccountView> {
+    const data = await this.get<WorkspaceCreditAccountView | { readonly creditAccount?: WorkspaceCreditAccountView }>(`/api/v1/master/workspaces/${encodeURIComponent(workspaceId)}/credits`);
+    return 'creditAccount' in data && data.creditAccount ? data.creditAccount : data as WorkspaceCreditAccountView;
   }
 
   private async get<T>(path: string): Promise<T> {

@@ -30,7 +30,7 @@ export class InputComponent {
   }
 
   protected inputClasses(): string {
-    const iconPadding = this.icon() ? 'pl-10' : 'pl-3';
-    return `${iconPadding} h-12 w-full rounded-xl border border-border bg-surface pr-3 text-base text-ink shadow-sm outline-none transition placeholder:text-muted focus:border-brand-500 focus:ring-4 focus:ring-brand-100/60 disabled:bg-panel`;
+    const iconPadding = this.icon() ? '!pl-10' : '';
+    return `${iconPadding} h-11 w-full rounded-md border border-border bg-white px-3 text-sm font-semibold text-ink outline-none transition placeholder:text-slate-400 focus:border-brand-500 focus:ring-2 focus:ring-brand-100 disabled:cursor-not-allowed disabled:bg-slate-50`;
   }
 }

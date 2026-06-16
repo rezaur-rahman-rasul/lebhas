@@ -1,12 +1,60 @@
 <app-page-header eyebrow="MONETIZATION" title="Exchange Policies" description="Define how provider capacity becomes Lebhas internal credits and free signup credit.">
-  <select class="provider-select" [value]="providers.selectedProvider()?.id ?? ''" (change)="selectProvider($any($event.target).value)">
+  <select class="provider-select" [value]="providers.selectedProviderId() ?? ''" (change)="selectProvider($any($event.target).value)">
     @for (provider of providers.providerOptions(); track provider.id) {<option [value]="provider.id">{{ provider.label }}</option>}
   </select>
 </app-page-header>
 
 @if (policies.error()) {
-  <app-error-state title="Exchange policy could not load" [description]="policies.error()!"><app-button type="button" variant="secondary" (click)="providers.selectedProvider()?.id && policies.loadPolicy(providers.selectedProvider()!.id)">Retry</app-button></app-error-state>
+  <app-error-state title="Exchange policy could not load" [description]="policies.error()!"><app-button type="button" variant="secondary" (click)="providers.selectedProviderId() && policies.loadPolicy(providers.selectedProviderId()!)">Retry</app-button></app-error-state>
 } @else if (providers.selectedProvider(); as provider) {
+  <section class="credit-value-card">
+    <div class="card-head">
+      <div>
+        <p>Credit Value & Free Signup Policy</p>
+        <h2>Master credit economics</h2>
+        <span>Backend remains the source of truth for credit cost and free signup grants.</span>
+      </div>
+      <app-button type="button" variant="secondary" [loading]="policies.saving()" (click)="previewCreditValuePolicy()">Refresh backend preview</app-button>
+    </div>
+
+    <form class="credit-value-form" [formGroup]="creditValueForm" (ngSubmit)="saveCreditValuePolicy()">
+      <label><span>Credit display currency</span><input formControlName="currency" /></label>
+      <label><span>Credit USD value</span><input type="number" step="0.000001" formControlName="creditUsdValue" /></label>
+      <label><span>Average provider cost per creative USD</span><input type="number" step="0.000001" formControlName="averageProviderCostPerCreativeUsd" /></label>
+      <label><span>Provider cost multiplier</span><input type="number" step="0.0001" formControlName="providerCostMultiplier" /></label>
+      <label><span>Free signup mode</span><select formControlName="freeSignupMode">@for (mode of freeSignupModes; track mode) {<option [value]="mode">{{ mode }}</option>}</select></label>
+      <label><span>Free signup credits</span><input type="number" step="0.0001" formControlName="freeSignupCredits" /></label>
+      <label><span>Free signup USD value</span><input type="number" step="0.000001" formControlName="freeSignupUsdValue" /></label>
+      <label><span>Free signup percentage</span><input type="number" step="0.0001" formControlName="freeSignupPercentage" /></label>
+      <label><span>Minimum wallet balance warning</span><input type="number" step="0.0001" formControlName="minimumWalletBalanceWarning" /></label>
+      <label><span>Effective from</span><input type="datetime-local" formControlName="effectiveFrom" /></label>
+
+      <div class="check-grid">
+        <label><input type="checkbox" formControlName="freeSignupCreditEnabled" /><span>Enable free signup credit</span></label>
+        <label><input type="checkbox" formControlName="oneTimePerWorkspace" /><span>One-time grant per workspace</span></label>
+        <label><input type="checkbox" formControlName="active" /><span>Active policy</span></label>
+      </div>
+
+      <div class="calculated-preview">
+        <div><span>Provider cost</span><strong>${{ creditValueForm.controls.averageProviderCostPerCreativeUsd.value }}</strong></div>
+        <div><span>Multiplier</span><strong>{{ creditValueForm.controls.providerCostMultiplier.value }}x</strong></div>
+        <div><span>Cost per creative</span><strong>${{ localCreditPreview().creativeCostUsd.toFixed(2) }}</strong></div>
+        <div><span>Credit value</span><strong>${{ creditValueForm.controls.creditUsdValue.value }}</strong></div>
+        <div><span>Credits charged per creative</span><strong>{{ localCreditPreview().creativeCredits }} credits</strong></div>
+        <div><span>Free signup credits</span><strong>{{ localCreditPreview().freeCredits }} credits</strong></div>
+        <div><span>Free signup USD equivalent</span><strong>${{ localCreditPreview().freeSignupUsdEquivalent.toFixed(2) }}</strong></div>
+      </div>
+
+      @if (creditValueForm.invalid) {
+        <p class="validation-note">Credit value must be greater than 0, multiplier must be at least 1, and percentage must be 0-100.</p>
+      }
+
+      <div class="form-actions">
+        <app-button type="submit" [loading]="policies.saving()" [disabled]="creditValueForm.invalid || policies.saving()">Save credit value policy</app-button>
+      </div>
+    </form>
+  </section>
+
   <section class="policy-grid">
     <app-exchange-policy-form [providerId]="provider.id" [policy]="policies.selectedPolicy()" [saving]="policies.saving()" (saved)="policies.savePolicy(provider.id, $event)" />
     <app-free-credit-preview-card [preview]="policies.freeCreditPreview()" />

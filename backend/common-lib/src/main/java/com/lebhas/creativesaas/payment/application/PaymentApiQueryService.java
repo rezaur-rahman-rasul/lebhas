@@ -5,10 +5,12 @@ import com.lebhas.creativesaas.common.exception.BusinessException;
 import com.lebhas.creativesaas.common.exception.ErrorCode;
 import com.lebhas.creativesaas.payment.application.dto.CreditPurchaseOrderView;
 import com.lebhas.creativesaas.payment.application.dto.InvoiceView;
+import com.lebhas.creativesaas.payment.application.dto.PaymentProviderView;
 import com.lebhas.creativesaas.payment.application.dto.PaymentTransactionView;
 import com.lebhas.creativesaas.payment.application.dto.SubscriptionOrderView;
 import com.lebhas.creativesaas.payment.infrastructure.persistence.CreditPurchaseOrderRepository;
 import com.lebhas.creativesaas.payment.infrastructure.persistence.InvoiceRepository;
+import com.lebhas.creativesaas.payment.infrastructure.persistence.PaymentProviderRepository;
 import com.lebhas.creativesaas.payment.infrastructure.persistence.PaymentTransactionRepository;
 import com.lebhas.creativesaas.payment.infrastructure.persistence.SubscriptionOrderRepository;
 import org.springframework.stereotype.Service;
@@ -24,23 +26,29 @@ public class PaymentApiQueryService {
     private final SubscriptionOrderRepository subscriptionOrderRepository;
     private final CreditPurchaseOrderRepository creditPurchaseOrderRepository;
     private final PaymentTransactionRepository paymentTransactionRepository;
+    private final PaymentProviderRepository paymentProviderRepository;
     private final InvoiceRepository invoiceRepository;
     private final PaymentApiMapper mapper;
+    private final PaymentProviderMapper paymentProviderMapper;
 
     public PaymentApiQueryService(
             WorkspaceAuthorizationService workspaceAuthorizationService,
             SubscriptionOrderRepository subscriptionOrderRepository,
             CreditPurchaseOrderRepository creditPurchaseOrderRepository,
             PaymentTransactionRepository paymentTransactionRepository,
+            PaymentProviderRepository paymentProviderRepository,
             InvoiceRepository invoiceRepository,
-            PaymentApiMapper mapper
+            PaymentApiMapper mapper,
+            PaymentProviderMapper paymentProviderMapper
     ) {
         this.workspaceAuthorizationService = workspaceAuthorizationService;
         this.subscriptionOrderRepository = subscriptionOrderRepository;
         this.creditPurchaseOrderRepository = creditPurchaseOrderRepository;
         this.paymentTransactionRepository = paymentTransactionRepository;
+        this.paymentProviderRepository = paymentProviderRepository;
         this.invoiceRepository = invoiceRepository;
         this.mapper = mapper;
+        this.paymentProviderMapper = paymentProviderMapper;
     }
 
     @Transactional(readOnly = true)
@@ -53,6 +61,15 @@ public class PaymentApiQueryService {
     public List<CreditPurchaseOrderView> creditPurchaseOrders(UUID workspaceId) {
         UUID effectiveWorkspaceId = requireWorkspaceAccess(workspaceId);
         return mapper.toCreditPurchaseOrderViews(creditPurchaseOrderRepository.findAllByWorkspaceIdOrderByCreatedAtDesc(effectiveWorkspaceId));
+    }
+
+    @Transactional(readOnly = true)
+    public CreditPurchaseOrderView creditPurchaseOrder(UUID workspaceId, UUID creditPurchaseOrderId) {
+        UUID effectiveWorkspaceId = requireWorkspaceAccess(workspaceId);
+        return creditPurchaseOrderRepository.findById(creditPurchaseOrderId)
+                .filter(order -> order.getWorkspaceId().equals(effectiveWorkspaceId))
+                .map(mapper::toCreditPurchaseOrderView)
+                .orElseThrow(() -> new BusinessException(ErrorCode.RESOURCE_NOT_FOUND, "Credit purchase order not found"));
     }
 
     @Transactional(readOnly = true)
@@ -74,6 +91,14 @@ public class PaymentApiQueryService {
     public List<InvoiceView> invoices(UUID workspaceId) {
         UUID effectiveWorkspaceId = requireWorkspaceAccess(workspaceId);
         return mapper.toInvoiceViews(invoiceRepository.findAllByWorkspaceIdOrderByCreatedAtDesc(effectiveWorkspaceId));
+    }
+
+    @Transactional(readOnly = true)
+    public List<PaymentProviderView> enabledPaymentGateways(UUID workspaceId) {
+        requireWorkspaceAccess(workspaceId);
+        return paymentProviderRepository.findAllByEnabledTrueOrderByPriorityAscNameAsc().stream()
+                .map(provider -> paymentProviderMapper.toProviderView(provider, List.of()))
+                .toList();
     }
 
     private UUID requireWorkspaceAccess(UUID workspaceId) {

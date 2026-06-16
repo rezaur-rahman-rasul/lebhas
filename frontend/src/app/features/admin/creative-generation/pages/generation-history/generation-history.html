@@ -7,17 +7,17 @@
   <app-badge tone="neutral">{{ workspaceLabel() }}</app-badge>
 </app-page-header>
 
-@if (!store.hasWorkspaceContext()) {
+@if (!hasWorkspaceContext()) {
   <div class="mt-6">
     <app-empty-state icon="building-2" title="Workspace context required" description="Select a workspace before reviewing generated versions." />
   </div>
-} @else if (!store.canViewGenerations()) {
+} @else if (!canViewVersions()) {
   <div class="mt-6">
     <app-empty-state icon="circle-alert" title="Generated versions are not available" description="This session does not have permission to view generated creatives." />
   </div>
 } @else {
-  @if (store.generationError()) {
-    <div class="versions-alert">{{ store.generationError() }}</div>
+  @if (versionStore.error()) {
+    <div class="versions-alert">Failed to load versions: {{ versionStore.error() }}</div>
   }
 
   <section class="versions-shell">
@@ -53,7 +53,8 @@
         </button>
       </form>
 
-      @if (store.generationLoading() && !store.hasGenerationRequests()) {
+      @if (versionStore.loading() && versionStore.versions().length === 0) {
+        <p class="versions-loading">Loading versions...</p>
         <div class="version-grid">
           @for (item of [0, 1, 2, 3, 4, 5]; track item) {
             <div class="version-card is-loading"></div>
@@ -61,23 +62,23 @@
         </div>
       } @else if (filteredCards().length > 0) {
         <div class="version-grid">
-          @for (card of filteredCards(); track card.request.id) {
+          @for (card of filteredCards(); track card.version.id) {
             <article
               class="version-card"
-              [class.is-selected]="selectedRequestId() === card.request.id"
-              (click)="selectVersion(card.request)"
+              [class.is-selected]="selectedVersionId() === card.version.id"
+              (click)="selectVersion(card.version)"
             >
               <div class="preview-frame">
-                @if (card.output?.previewUrl) {
-                  <img [src]="card.output!.previewUrl" [alt]="card.title" />
+                @if (card.previewUrl) {
+                  <img [src]="card.previewUrl" [alt]="card.title" />
                 } @else {
                   <div class="preview-placeholder">
                     <app-icon name="image" [size]="28" />
-                    <span>{{ creativeTypeLabel(card.request.creativeType) }}</span>
+                    <span>Preview preparing</span>
                   </div>
                 }
                 <span class="version-number">{{ card.versionNumber }}</span>
-                <span class="platform-mark">{{ platformLabel(card.request.platform).slice(0, 2) }}</span>
+                <span class="platform-mark">{{ platformLabel(card.version.platform).slice(0, 2) }}</span>
               </div>
 
               <div class="version-card__body">
@@ -85,15 +86,15 @@
                   <h2>{{ card.title }}</h2>
                   <app-badge [tone]="statusTone(card.status)">{{ statusLabel(card.status) }}</app-badge>
                 </div>
-                <p>{{ card.request.createdAt | date: 'mediumDate' }} · {{ card.request.createdAt | date: 'shortTime' }}</p>
-                <span>{{ platformLabel(card.request.platform) }}</span>
+                <p>{{ card.version.createdAt | date: 'mediumDate' }} · {{ card.version.createdAt | date: 'shortTime' }}</p>
+                <span>{{ platformLabel(card.version.platform) }}</span>
               </div>
 
               <div class="quick-actions" (click)="$event.stopPropagation()">
-                <button type="button" title="Preview version" [disabled]="!card.output" (click)="selectVersion(card.request); previewSelected()">
+                <button type="button" title="Preview version" (click)="selectVersion(card.version); previewSelected()">
                   <app-icon name="eye" [size]="16" />
                 </button>
-                <button type="button" title="Copy creative details" (click)="copyPrompt(card.request)">
+                <button type="button" title="Copy version details" (click)="copyPrompt(card.version)">
                   <app-icon name="copy" [size]="16" />
                 </button>
                 <button type="button" [title]="shareDisabledReason()" disabled>
@@ -149,42 +150,30 @@
             <h2>{{ card.title }}</h2>
             <app-badge [tone]="statusTone(card.status)">{{ statusLabel(card.status) }}</app-badge>
           </div>
-          <button type="button" title="Copy version ID" (click)="copyVersionId(card.request.id)">
+          <button type="button" title="Copy version ID" (click)="copyVersionId(card.version.id)">
             <app-icon name="copy" [size]="16" />
           </button>
         </div>
 
         <div class="detail-preview">
-          @if (selectedOutput(); as output) {
-            @if (output.previewUrl) {
-              <img [src]="output.previewUrl" [alt]="card.title" />
-            } @else if (card.output?.previewUrl) {
-              <img [src]="card.output!.previewUrl" [alt]="card.title" />
-            } @else {
-              <div class="detail-placeholder">
-                <app-icon name="image" [size]="34" />
-                <strong>{{ creativeTypeLabel(card.request.creativeType) }}</strong>
-                <span>Preview will appear when the generated asset is available.</span>
-              </div>
-            }
-          } @else if (card.output?.previewUrl) {
-            <img [src]="card.output!.previewUrl" [alt]="card.title" />
+          @if (card.previewUrl) {
+            <img [src]="card.previewUrl" [alt]="card.title" />
           } @else {
             <div class="detail-placeholder">
               <app-icon name="image" [size]="34" />
-              <strong>{{ creativeTypeLabel(card.request.creativeType) }}</strong>
-              <span>Preview will appear when the generated asset is available.</span>
+              <strong>{{ creativeTypeLabel(card.version.creativeType) }}</strong>
+              <span>Preview preparing. The generated version will show an image when the asset is ready.</span>
             </div>
           }
         </div>
 
         <dl class="version-meta">
-          <div><dt>Version ID</dt><dd>{{ selectedOutput() ? selectedOutput()!.id : card.request.id }}</dd></div>
-          <div><dt>Campaign</dt><dd>{{ metadataValue(selectedOutput() || card.output, 'projectName') }}</dd></div>
-          <div><dt>Product / Service</dt><dd>{{ metadataValue(selectedOutput() || card.output, 'productServiceName') }}</dd></div>
-          <div><dt>Platform</dt><dd>{{ platformLabel(card.request.platform) }}</dd></div>
-          <div><dt>Created On</dt><dd>{{ card.request.createdAt | date: 'medium' }}</dd></div>
-          <div><dt>Created By</dt><dd>{{ card.request.userId || 'Workspace user' }}</dd></div>
+          <div><dt>Version ID</dt><dd>{{ card.version.id }}</dd></div>
+          <div><dt>Creative Request</dt><dd>{{ card.version.creativeRequestId }}</dd></div>
+          <div><dt>Product / Service</dt><dd>{{ card.version.productServiceId || 'Not provided' }}</dd></div>
+          <div><dt>Platform</dt><dd>{{ platformLabel(card.version.platform) }}</dd></div>
+          <div><dt>Created On</dt><dd>{{ card.version.createdAt | date: 'medium' }}</dd></div>
+          <div><dt>Created By</dt><dd>{{ card.version.createdByName || 'Workspace user' }}</dd></div>
         </dl>
 
         <section class="notes-box">
@@ -196,14 +185,14 @@
           <button
             type="button"
             class="primary"
-            [disabled]="!selectedOutput() || !store.canDownloadOutputs() || downloadingOutputId() === (selectedOutput() ? selectedOutput()!.id : null)"
-            [title]="store.canDownloadOutputs() ? 'Download selected creative' : 'Download is disabled by workspace policy'"
+            [disabled]="!canDownload(card.version) || downloadingVersionId() === card.version.id"
+            [title]="canDownload(card.version) ? 'Download selected creative' : 'Download is available after the asset is ready'"
             (click)="downloadSelected()"
           >
             <app-icon name="download" [size]="17" />
             <span>Download</span>
           </button>
-          <button type="button" title="Compare requires multiple generated outputs for the selected request" [disabled]="store.creativeOutputs().length < 2" (click)="compareUnavailable()">
+          <button type="button" title="Compare requires multiple generated versions for the selected request" disabled (click)="compareUnavailable()">
             <app-icon name="columns-2" [size]="17" />
             <span>Compare</span>
           </button>

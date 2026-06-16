@@ -1,7 +1,7 @@
 import { Injectable, computed, inject, signal } from '@angular/core';
 import { normalizeHttpError } from '@app/core/api/http-error';
 import { NotificationStateService } from '@app/core/state/notification-state.service';
-import { CreditLedgerItemView, MasterCreditOverviewView, ProviderCreditAdjustmentRequest, ProviderCreditPoolView } from '../models/provider-credit-exchange.models';
+import { CreditLedgerItemView, MasterCreditOverviewView, ProviderCreditAdjustmentRequest, ProviderCreditPoolView, WorkspaceCreditAccountView, WorkspaceCreditAdjustmentRequest } from '../models/provider-credit-exchange.models';
 import { ProviderCreditApiService } from '../services/provider-credit-api.service';
 
 @Injectable({ providedIn: 'root' })
@@ -13,6 +13,7 @@ export class ProviderCreditsStore {
   private readonly selectedProviderPoolSignal = signal<ProviderCreditPoolView | null>(null);
   private readonly providerLedgerSignal = signal<readonly CreditLedgerItemView[]>([]);
   private readonly masterCreditOverviewSignal = signal<MasterCreditOverviewView | null>(null);
+  private readonly workspaceCreditAccountSignal = signal<WorkspaceCreditAccountView | null>(null);
   private readonly loadingSignal = signal(false);
   private readonly adjustingSignal = signal(false);
   private readonly errorSignal = signal<string | null>(null);
@@ -21,6 +22,7 @@ export class ProviderCreditsStore {
   readonly selectedProviderPool = this.selectedProviderPoolSignal.asReadonly();
   readonly providerLedger = this.providerLedgerSignal.asReadonly();
   readonly masterCreditOverview = this.masterCreditOverviewSignal.asReadonly();
+  readonly workspaceCreditAccount = this.workspaceCreditAccountSignal.asReadonly();
   readonly loading = this.loadingSignal.asReadonly();
   readonly adjusting = this.adjustingSignal.asReadonly();
   readonly error = this.errorSignal.asReadonly();
@@ -65,6 +67,31 @@ export class ProviderCreditsStore {
     } finally {
       this.adjustingSignal.set(false);
     }
+  }
+
+  async adjustWorkspaceCredits(workspaceId: string, payload: WorkspaceCreditAdjustmentRequest): Promise<boolean> {
+    this.adjustingSignal.set(true);
+    this.errorSignal.set(null);
+    try {
+      await this.api.adjustWorkspaceCredits(workspaceId, payload);
+      this.workspaceCreditAccountSignal.set(await this.api.getMasterWorkspaceCredits(workspaceId));
+      await this.loadOverview();
+      this.notifications.success('Workspace credits adjusted successfully.', 'Workspace credits adjusted successfully.');
+      return true;
+    } catch (error) {
+      const message = normalizeHttpError(error).message || 'Workspace credits could not be updated.';
+      this.errorSignal.set(message);
+      this.notifications.error('Workspace credits could not be updated.', 'Workspace credits could not be updated.');
+      return false;
+    } finally {
+      this.adjustingSignal.set(false);
+    }
+  }
+
+  async loadWorkspaceCredits(workspaceId: string): Promise<void> {
+    await this.run(async () => {
+      this.workspaceCreditAccountSignal.set(await this.api.getMasterWorkspaceCredits(workspaceId));
+    });
   }
 
   private async run(action: () => Promise<void>): Promise<void> {

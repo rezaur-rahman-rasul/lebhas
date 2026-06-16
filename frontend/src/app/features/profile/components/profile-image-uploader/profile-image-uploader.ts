@@ -3,9 +3,11 @@ import {
   Component,
   OnDestroy,
   computed,
+  effect,
   input,
   output,
   signal,
+  untracked,
 } from '@angular/core';
 
 import { ButtonComponent } from '@app/shared/components/app-button/app-button';
@@ -31,10 +33,9 @@ export class ProfileImageUploaderComponent implements OnDestroy {
   readonly uploading = input(false);
   readonly progress = input(0);
   readonly error = input<string | null>(null);
-  readonly canRemove = input(true);
+  readonly resetPreviewKey = input(0);
 
   readonly imageSelected = output<File>();
-  readonly removeImage = output<void>();
   readonly retryUpload = output<void>();
 
   private readonly previewUrlSignal = signal<string | null>(null);
@@ -45,6 +46,17 @@ export class ProfileImageUploaderComponent implements OnDestroy {
   protected readonly displayImageUrl = computed(() => this.previewUrlSignal() ?? this.profile()?.profileImageUrl ?? null);
   protected readonly hasImage = computed(() => Boolean(this.displayImageUrl()));
   protected readonly progressValue = computed(() => Math.max(0, Math.min(100, this.progress())));
+
+  constructor() {
+    effect(() => {
+      this.resetPreviewKey();
+      untracked(() => {
+        this.revokePreview();
+        this.selectedFileSignal.set(null);
+        this.validationMessage.set(null);
+      });
+    });
+  }
 
   ngOnDestroy(): void {
     this.revokePreview();
@@ -74,13 +86,6 @@ export class ProfileImageUploaderComponent implements OnDestroy {
     this.revokePreview();
     this.previewUrlSignal.set(URL.createObjectURL(file));
     this.imageSelected.emit(file);
-  }
-
-  protected remove(): void {
-    this.revokePreview();
-    this.selectedFileSignal.set(null);
-    this.validationMessage.set(null);
-    this.removeImage.emit();
   }
 
   protected retry(): void {

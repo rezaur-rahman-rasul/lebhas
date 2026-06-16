@@ -1,8 +1,12 @@
 import { ChangeDetectionStrategy, Component, effect, inject, signal } from '@angular/core';
 import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
+import { firstValueFrom } from 'rxjs';
 
 import { PermissionStore } from '@app/core/permissions/permission.store';
 import { WorkspaceStore } from '@app/core/workspace/workspace.store';
+import { Asset, DEFAULT_ASSET_FILTERS } from '@app/features/admin/assets/models/asset.models';
+import { AssetService } from '@app/features/admin/assets/services/asset.service';
+import { AssetStore } from '@app/features/admin/assets/state/asset.store';
 import { BadgeComponent } from '@app/shared/components/badge/badge';
 import { ButtonComponent } from '@app/shared/components/button/button';
 import { CardComponent } from '@app/shared/components/card/card';
@@ -50,10 +54,15 @@ export class BrandsComponent {
   private readonly formBuilder = inject(FormBuilder).nonNullable;
   private readonly workspace = inject(WorkspaceStore);
   private readonly permissions = inject(PermissionStore);
+  private readonly assetStore = inject(AssetStore);
+  private readonly assetService = inject(AssetService);
   protected readonly store = inject(BrandStore);
 
   protected readonly dialogMode = signal<BrandDialogMode>(null);
   protected readonly attemptedSubmit = signal(false);
+  protected readonly selectedLogoFile = signal<File | null>(null);
+  protected readonly currentLogoAsset = signal<Asset | null>(null);
+  protected readonly logoError = signal('');
   protected readonly skeletonRows = [0, 1, 2, 3] as const;
 
   protected readonly canView = this.permissions.canViewBrands;
@@ -99,6 +108,9 @@ export class BrandsComponent {
 
   protected openCreateDialog(): void {
     this.attemptedSubmit.set(false);
+    this.selectedLogoFile.set(null);
+    this.currentLogoAsset.set(null);
+    this.logoError.set('');
     this.form.reset({
       name: '',
       businessType: '',
@@ -126,6 +138,9 @@ export class BrandsComponent {
     }
 
     this.attemptedSubmit.set(false);
+    this.selectedLogoFile.set(null);
+    this.currentLogoAsset.set(null);
+    this.logoError.set('');
     this.form.reset({
       name: brand.name,
       businessType: brand.businessType ?? '',
@@ -144,10 +159,53 @@ export class BrandsComponent {
       status: brand.status,
     });
     this.dialogMode.set('edit');
+    void this.loadCurrentLogoAsset(brand.id);
   }
 
   protected closeDialog(): void {
+    this.selectedLogoFile.set(null);
+    this.currentLogoAsset.set(null);
+    this.logoError.set('');
     this.dialogMode.set(null);
+  }
+
+  protected onLogoSelected(event: Event): void {
+    const input = event.target as HTMLInputElement | null;
+    const file = input?.files?.item(0) ?? null;
+
+    this.logoError.set('');
+    if (!file) {
+      this.selectedLogoFile.set(null);
+      return;
+    }
+
+    const allowedTypes = new Set(['image/jpeg', 'image/jpg', 'image/png', 'image/svg+xml', 'image/webp']);
+    const extension = file.name.split('.').pop()?.toLowerCase() ?? '';
+    const allowedExtensions = new Set(['jpg', 'jpeg', 'png', 'svg', 'webp']);
+    if (!allowedTypes.has(file.type) && !allowedExtensions.has(extension)) {
+      this.selectedLogoFile.set(null);
+      this.logoError.set('Upload a JPG, PNG, SVG, or WebP logo.');
+      if (input) {
+        input.value = '';
+      }
+      return;
+    }
+
+    if (file.size > 5 * 1024 * 1024) {
+      this.selectedLogoFile.set(null);
+      this.logoError.set('Logo file must be 5 MB or smaller.');
+      if (input) {
+        input.value = '';
+      }
+      return;
+    }
+
+    this.selectedLogoFile.set(file);
+  }
+
+  protected removeLogo(): void {
+    this.selectedLogoFile.set(null);
+    this.logoError.set('');
   }
 
   protected async submit(): Promise<void> {
@@ -165,19 +223,25 @@ export class BrandsComponent {
     const payload = this.toPayload();
 
     try {
+      let savedBrand: Brand;
       if (this.dialogMode() === 'create') {
-        await this.store.create(workspaceId, payload);
+        savedBrand = await this.store.create(workspaceId, payload);
       } else {
         const brand = this.selectedBrand();
         if (!brand) {
           return;
         }
 
-        const updatedBrand = await this.store.update(workspaceId, brand.id, {
+        savedBrand = await this.store.update(workspaceId, brand.id, {
           ...payload,
           status: this.form.getRawValue().status,
         });
-        this.store.selectBrand(updatedBrand.id);
+        this.store.selectBrand(savedBrand.id);
+      }
+
+      const logoUploaded = await this.uploadSelectedLogo(savedBrand.id);
+      if (!logoUploaded) {
+        return;
       }
     } catch {
       return;
@@ -247,5 +311,60 @@ export class BrandsComponent {
   private normalize(value: string): string | null {
     const trimmed = value.trim();
     return trimmed ? trimmed : null;
+  }
+
+  private async uploadSelectedLogo(brandId: string): Promise<boolean> {
+    const file = this.selectedLogoFile();
+    if (!file) {
+      return true;
+    }
+
+    const result = await this.assetStore.uploadAsset({
+      file,
+      assetCategory: 'BRAND_LOGO',
+      folderId: null,
+      tags: ['brand-logo'],
+      metadata: { brandId },
+    });
+
+    if (!result.ok) {
+      this.logoError.set(result.message ?? 'Brand saved, but logo upload failed.');
+      return false;
+    }
+
+    this.currentLogoAsset.set(this.assetStore.selectedAsset());
+    return true;
+  }
+
+  private async loadCurrentLogoAsset(brandId: string): Promise<void> {
+    const workspaceId = this.workspaceId();
+    if (!workspaceId) {
+      this.currentLogoAsset.set(null);
+      return;
+    }
+
+    try {
+      const page = await firstValueFrom(
+        this.assetService.listAssets(
+          workspaceId,
+          {
+            ...DEFAULT_ASSET_FILTERS,
+            assetCategory: 'BRAND_LOGO',
+            status: null,
+            search: '',
+          },
+          0,
+          50,
+        ),
+      );
+      this.currentLogoAsset.set(
+        page.items.find((asset) =>
+          String(asset.metadata?.['brandId'] ?? '') === brandId &&
+          (asset.status === 'READY' || asset.status === 'AVAILABLE')
+        ) ?? null,
+      );
+    } catch {
+      this.currentLogoAsset.set(null);
+    }
   }
 }

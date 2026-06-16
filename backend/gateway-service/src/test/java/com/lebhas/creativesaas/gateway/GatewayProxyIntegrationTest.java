@@ -145,6 +145,23 @@ class GatewayProxyIntegrationTest {
     }
 
     @Test
+    void shouldRouteProjectAssetUploadUrlRequestsToCreativeService() {
+        String accessToken = jwtAccessTokenService.generate(masterUser, null, Role.MASTER).token();
+
+        given()
+                .header("Authorization", "Bearer " + accessToken)
+                .contentType(ContentType.JSON)
+                .body(Map.of("originalFileName", "product.png", "contentType", "image/png", "sizeBytes", 128))
+                .when()
+                .post("/api/v1/workspaces/demo/projects/project-1/assets/upload-url")
+                .then()
+                .statusCode(200)
+                .body("service", equalTo("creative"))
+                .body("method", equalTo("POST"))
+                .body("path", equalTo("/api/v1/workspaces/demo/projects/project-1/assets/upload-url"));
+    }
+
+    @Test
     void shouldProxyPublicAuthRequests() {
         given()
                 .contentType(ContentType.JSON)

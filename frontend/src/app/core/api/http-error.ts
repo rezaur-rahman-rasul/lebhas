@@ -76,8 +76,7 @@ function friendlyHttpMessage(
 
   if (
     status === 400 &&
-    detailMessages.length > 0 &&
-    (rawMessage.toLowerCase().includes('validation failed') || rawMessage.toLowerCase().includes('validation'))
+    detailMessages.length > 0
   ) {
     return detailMessages.join(' ');
   }

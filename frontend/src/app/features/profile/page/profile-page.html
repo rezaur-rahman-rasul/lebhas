@@ -37,14 +37,98 @@
       <div class="profile-grid">
         <div class="profile-main">
           <article class="profile-summary-card">
-            <app-profile-avatar [profile]="profile()!" size="xl" />
+            <app-profile-avatar [profile]="profile()!" [imageUrl]="savedProfileImageUrl()" size="xl" />
             <div>
               <p>Profile summary</p>
               <h2>{{ store.displayName() }}</h2>
-              <span>{{ profile()!.email }}</span>
+              <span>{{ profileEmail() || 'Email unavailable' }}</span>
               <div class="identity-badges">
                 <app-status-badge tone="brand">{{ role() }}</app-status-badge>
                 <app-status-badge tone="neutral">{{ workspaceName() }}</app-status-badge>
+              </div>
+            </div>
+          </article>
+
+          <article class="profile-panel">
+            <div class="section-head">
+              <div>
+                <p>Profile rewards</p>
+                <h2>One-time social rewards</h2>
+              </div>
+            </div>
+
+            @if (rewardMessage()) {
+              <div class="form-alert success">{{ rewardMessage() }}</div>
+            }
+
+            <div class="reward-grid">
+              @if (!hasAccountEmail()) {
+                <div class="reward-card">
+                  <div class="reward-card__head">
+                    <div>
+                      <strong>Add email</strong>
+                      <span>One-time reward: 5 credits</span>
+                    </div>
+                    @if (rewardStatus()['email']) {
+                      <app-status-badge tone="brand">Claimed</app-status-badge>
+                    }
+                  </div>
+                  @if (!rewardStatus()['email']) {
+                    <div class="reward-card__action">
+                      <input
+                        type="email"
+                        [value]="rewardEmail()"
+                        placeholder="Email address"
+                        (input)="rewardEmail.set($any($event.target).value)"
+                      />
+                      <app-button type="button" size="sm" [disabled]="!rewardEmail().trim()" (click)="claimEmailReward()">Claim</app-button>
+                    </div>
+                  }
+                </div>
+              }
+
+              <div class="reward-card">
+                <div class="reward-card__head">
+                  <div>
+                    <strong>Connect Facebook</strong>
+                    <span>One-time reward: 5 credits</span>
+                  </div>
+                  @if (rewardStatus()['facebook']) {
+                    <app-status-badge tone="brand">Claimed</app-status-badge>
+                  }
+                </div>
+                @if (!rewardStatus()['facebook']) {
+                  <div class="reward-card__action">
+                  <input
+                    type="url"
+                    placeholder="Facebook page/profile URL"
+                    (input)="facebookUrl.set($any($event.target).value)"
+                  />
+                    <app-button type="button" size="sm" [disabled]="!facebookUrl().trim()" (click)="claimFacebookReward()">Claim</app-button>
+                  </div>
+                }
+              </div>
+
+              <div class="reward-card">
+                <div class="reward-card__head">
+                  <div>
+                    <strong>Connect Instagram</strong>
+                    <span>One-time reward: claim once only</span>
+                  </div>
+                  @if (rewardStatus()['instagram']) {
+                    <app-status-badge tone="brand">Claimed</app-status-badge>
+                  }
+                </div>
+                @if (!rewardStatus()['instagram']) {
+                  <div class="reward-card__action">
+                  <input
+                    type="url"
+                    placeholder="Instagram profile URL"
+                    (input)="instagramUrl.set($any($event.target).value)"
+                  />
+                    <app-button type="button" size="sm" [disabled]="!instagramUrl().trim()" (click)="claimInstagramReward()">Claim</app-button>
+                  </div>
+                }
               </div>
             </div>
           </article>
@@ -68,7 +152,7 @@
                 <div class="form-alert success">{{ successMessage() }}</div>
               }
 
-              <label>
+              <label class="profile-floating-field" [class.has-value]="form.controls.firstName.value">
                 <span>First name</span>
                 <input formControlName="firstName" autocomplete="given-name" />
                 @if (submitted() && form.controls.firstName.invalid) {
@@ -76,7 +160,7 @@
                 }
               </label>
 
-              <label>
+              <label class="profile-floating-field" [class.has-value]="form.controls.lastName.value">
                 <span>Last name</span>
                 <input formControlName="lastName" autocomplete="family-name" />
                 @if (submitted() && form.controls.lastName.invalid) {
@@ -84,32 +168,32 @@
                 }
               </label>
 
-              <label>
+              <label class="profile-floating-field" [class.has-value]="form.controls.displayName.value">
                 <span>Display name</span>
                 <input formControlName="displayName" autocomplete="name" />
               </label>
 
-              <label>
+              <label class="profile-floating-field" [class.has-value]="form.controls.phoneNumber.value">
                 <span>Phone number</span>
                 <input formControlName="phoneNumber" autocomplete="tel" />
               </label>
 
-              <label>
+              <label class="profile-floating-field" [class.has-value]="form.controls.timezone.value">
                 <span>Timezone</span>
                 <input formControlName="timezone" placeholder="Asia/Dhaka" />
               </label>
 
-              <label>
+              <label class="profile-floating-field" [class.has-value]="form.controls.locale.value">
                 <span>Locale</span>
                 <input formControlName="locale" placeholder="en-US" />
               </label>
 
-              <label class="wide">
+              <label class="wide profile-floating-field profile-floating-field--textarea" [class.has-value]="form.controls.bio.value">
                 <span>Bio</span>
                 <textarea formControlName="bio" rows="3"></textarea>
               </label>
 
-              <label class="wide">
+              <label class="wide profile-floating-field" [class.has-value]="form.controls.jobTitle.value">
                 <span>Workspace identity</span>
                 <input formControlName="jobTitle" placeholder="Owner, designer, marketer..." />
               </label>
@@ -121,7 +205,7 @@
                 <app-button type="button" variant="ghost" icon="shield-check" (click)="goToSecurityActivity()">
                   Security Activity
                 </app-button>
-                <app-button type="submit" icon="save" [loading]="store.saving()" [disabled]="store.saving() || !canEdit()">
+                <app-button type="submit" icon="save" [loading]="store.saving()" [disabled]="store.saving() || !canEdit() || !profileDirty()">
                   Save changes
                 </app-button>
               </div>
@@ -134,10 +218,9 @@
             [profile]="profile()!"
             [uploading]="store.uploading()"
             [progress]="store.imageUploadProgress()"
-            [error]="store.error()"
-            [canRemove]="canManageImage() && store.hasProfileImage()"
+            [error]="store.uploadError()"
+            [resetPreviewKey]="previewResetKey()"
             (imageSelected)="requestPhotoUpload($event)"
-            (removeImage)="removeProfileImage()"
             (retryUpload)="photoMessage.set(null)"
           />
 

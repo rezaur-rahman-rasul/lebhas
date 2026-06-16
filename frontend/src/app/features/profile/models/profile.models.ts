@@ -80,18 +80,20 @@ export interface ChangePasswordRequest {
 
 export interface ProfileImageUploadUrlRequest {
   readonly fileName: string;
-  readonly contentType: string;
-  readonly fileSizeBytes: number;
+  readonly mimeType: string;
+  readonly fileSize: number;
 }
 
 export interface ProfileImageUploadUrlResponse {
   readonly uploadUrl: string;
-  readonly uploadSessionId: string;
+  readonly uploadReferenceId: string;
   readonly expiresAt: string;
+  readonly maxFileSize: number;
+  readonly requiredMethod: string;
 }
 
 export interface ConfirmProfileImageUploadRequest {
-  readonly uploadSessionId: string;
+  readonly uploadReferenceId: string;
   readonly checksum?: string;
 }
 

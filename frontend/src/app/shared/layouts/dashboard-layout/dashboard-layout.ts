@@ -93,6 +93,7 @@ export class ProtectedLayoutComponent {
     return DASHBOARD_NAVIGATION.filter((item) => this.canShowNavigationItem(item, role));
   });
   protected readonly roleLabel = computed(() => this.auth.currentRole() ?? 'ADMIN');
+  protected readonly showWorkspaceSwitcher = computed(() => this.roleLabel() === 'MASTER');
   protected readonly workspaceLabel = this.workspace.workspaceLabel;
   protected readonly workspaceOptions = this.workspace.workspaces;
   protected readonly workspaceDropdownOpen = signal(false);
@@ -209,9 +210,7 @@ export class ProtectedLayoutComponent {
     }
 
     window.requestAnimationFrame(() => this.resetDashboardScroll());
-    window.setTimeout(() => this.resetDashboardScroll(), 0);
-    window.setTimeout(() => this.resetDashboardScroll(), 75);
-    window.setTimeout(() => this.resetDashboardScroll(), 150);
+    window.setTimeout(() => this.resetDashboardScroll(), 80);
   }
 
   private resetDashboardScroll(): void {

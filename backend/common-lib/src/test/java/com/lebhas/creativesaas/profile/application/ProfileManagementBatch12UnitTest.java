@@ -453,8 +453,8 @@ class ProfileManagementBatch12UnitTest {
     }
 
     private UserProfileService profileService() {
-        UserProfileService service = new UserProfileService(currentUserContext, queryService, profileRepository, mapper(),
-                profileCache, settingsCache, rateLimitService, lockService, eventProducer);
+        UserProfileService service = new UserProfileService(currentUserContext, queryService, profileRepository, mock(UserRepository.class),
+                mapper(), profileCache, settingsCache, rateLimitService, lockService, eventProducer, mock(ProfileImageService.class));
         service.setProfileIntegration(integration);
         return service;
     }

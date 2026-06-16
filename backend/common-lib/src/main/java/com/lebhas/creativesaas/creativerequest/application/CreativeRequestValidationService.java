@@ -131,8 +131,7 @@ public class CreativeRequestValidationService {
                 selectedAssetIds,
                 normalizeNullable(command.enhancedPrompt()));
         validatePrompt(sourcePrompt, enhancedPrompt);
-        BigDecimal estimatedCreditCost = creditEstimationService.estimate(creativeType)
-                .multiply(BigDecimal.valueOf(requestedVersions));
+        BigDecimal estimatedCreditCost = creditEstimationService.estimate(creativeType, requestedVersions);
 
         creativePlanValidationService.validateForCreativeRequest(
                 command.workspaceId(),

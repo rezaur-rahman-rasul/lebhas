@@ -76,6 +76,11 @@ export interface Asset {
   readonly storageFile?: StorageFile | null;
   readonly previewUrl?: string | null;
   readonly thumbnailUrl?: string | null;
+  readonly publicUrl?: string | null;
+  readonly publicPreviewUrl?: string | null;
+  readonly signedPreviewUrl?: string | null;
+  readonly downloadUrl?: string | null;
+  readonly url?: string | null;
 }
 
 export interface AssetFilter {

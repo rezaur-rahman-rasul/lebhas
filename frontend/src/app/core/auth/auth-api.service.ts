@@ -10,8 +10,20 @@ import {
   LoginRequest,
   LoginResponse,
   LogoutRequest,
+  MobileOtpSessionResponse,
+  MobileOtpStartRequest,
+  MobileOtpStartResponse,
+  MobileOtpVerifyRequest,
   RefreshTokenRequest,
   RefreshTokenResponse,
+  RegistrationBrandRequest,
+  RegistrationEmailStartRequest,
+  RegistrationEmailVerifyRequest,
+  RegistrationPasswordRequest,
+  RegistrationProductServiceRequest,
+  RegistrationProjectCampaignRequest,
+  RegistrationSessionRequest,
+  RegistrationStepResponse,
   RegisterRequest,
   RegisterResponse,
 } from '@app/features/auth/models/auth.models';
@@ -31,7 +43,7 @@ export class AuthApiService {
   async login(payload: LoginRequest): Promise<AuthSession> {
     const response = await firstValueFrom(
       this.api.post<LoginResponse, LoginRequest>(ApiEndpoints.auth.login, payload, {
-        context: this.authRequestContext({ skipRefresh: true }),
+        context: this.authRequestContext({ skipAuth: true, skipRefresh: true }),
       }),
     );
 
@@ -41,7 +53,117 @@ export class AuthApiService {
   async register(payload: RegisterRequest): Promise<AuthSession> {
     const response = await firstValueFrom(
       this.api.post<RegisterResponse, RegisterRequest>(ApiEndpoints.auth.register, payload, {
-        context: this.authRequestContext({ skipRefresh: true }),
+        context: this.authRequestContext({ skipAuth: true, skipRefresh: true }),
+      }),
+    );
+
+    return this.mapSession(unwrapApiResponse(response));
+  }
+
+  async startMobileOtp(payload: MobileOtpStartRequest): Promise<MobileOtpStartResponse> {
+    const response = await firstValueFrom(
+      this.api.post<MobileOtpStartResponse, MobileOtpStartRequest>(ApiEndpoints.auth.mobileStart, payload, {
+        context: this.authRequestContext({ skipAuth: true, skipRefresh: true }),
+      }),
+    );
+
+    return unwrapApiResponse(response);
+  }
+
+  async verifyMobileOtp(payload: MobileOtpVerifyRequest): Promise<AuthSession> {
+    const response = await firstValueFrom(
+      this.api.post<MobileOtpSessionResponse, MobileOtpVerifyRequest>(ApiEndpoints.auth.mobileVerify, payload, {
+        context: this.authRequestContext({ skipAuth: true, skipRefresh: true }),
+      }),
+    );
+
+    return this.mapSession(unwrapApiResponse(response));
+  }
+
+  async startRegistrationMobile(payload: MobileOtpStartRequest): Promise<RegistrationStepResponse> {
+    const response = await firstValueFrom(
+      this.api.post<RegistrationStepResponse, MobileOtpStartRequest>(ApiEndpoints.auth.registerMobileStart, payload, {
+        context: this.authRequestContext({ skipAuth: true, skipRefresh: true }),
+      }),
+    );
+
+    return unwrapApiResponse(response);
+  }
+
+  async verifyRegistrationMobile(payload: MobileOtpVerifyRequest): Promise<RegistrationStepResponse> {
+    const response = await firstValueFrom(
+      this.api.post<RegistrationStepResponse, MobileOtpVerifyRequest>(ApiEndpoints.auth.registerMobileVerify, payload, {
+        context: this.authRequestContext({ skipAuth: true, skipRefresh: true }),
+      }),
+    );
+
+    return unwrapApiResponse(response);
+  }
+
+  async skipRegistrationEmail(payload: RegistrationSessionRequest): Promise<RegistrationStepResponse> {
+    const response = await firstValueFrom(
+      this.api.post<RegistrationStepResponse, RegistrationSessionRequest>(ApiEndpoints.auth.registerEmailSkip, payload, {
+        context: this.authRequestContext({ skipAuth: true, skipRefresh: true }),
+      }),
+    );
+
+    return unwrapApiResponse(response);
+  }
+
+  async startRegistrationEmail(payload: RegistrationEmailStartRequest): Promise<RegistrationStepResponse> {
+    const response = await firstValueFrom(
+      this.api.post<RegistrationStepResponse, RegistrationEmailStartRequest>(ApiEndpoints.auth.registerEmailStart, payload, {
+        context: this.authRequestContext({ skipAuth: true, skipRefresh: true }),
+      }),
+    );
+
+    return unwrapApiResponse(response);
+  }
+
+  async verifyRegistrationEmail(payload: RegistrationEmailVerifyRequest): Promise<RegistrationStepResponse> {
+    const response = await firstValueFrom(
+      this.api.post<RegistrationStepResponse, RegistrationEmailVerifyRequest>(ApiEndpoints.auth.registerEmailVerify, payload, {
+        context: this.authRequestContext({ skipAuth: true, skipRefresh: true }),
+      }),
+    );
+
+    return unwrapApiResponse(response);
+  }
+
+  async setRegistrationPassword(payload: RegistrationPasswordRequest): Promise<RegistrationStepResponse> {
+    const response = await firstValueFrom(
+      this.api.post<RegistrationStepResponse, RegistrationPasswordRequest>(ApiEndpoints.auth.registerPassword, payload, {
+        context: this.authRequestContext({ skipAuth: true, skipRefresh: true }),
+      }),
+    );
+
+    return unwrapApiResponse(response);
+  }
+
+  async completeRegistrationBrand(payload: RegistrationBrandRequest): Promise<RegistrationStepResponse> {
+    const response = await firstValueFrom(
+      this.api.post<RegistrationStepResponse, RegistrationBrandRequest>(ApiEndpoints.auth.registerBrand, payload, {
+        context: this.authRequestContext({ skipAuth: true, skipRefresh: true }),
+      }),
+    );
+
+    return unwrapApiResponse(response);
+  }
+
+  async completeRegistrationProductService(payload: RegistrationProductServiceRequest): Promise<RegistrationStepResponse> {
+    const response = await firstValueFrom(
+      this.api.post<RegistrationStepResponse, RegistrationProductServiceRequest>(ApiEndpoints.auth.registerProductService, payload, {
+        context: this.authRequestContext({ skipAuth: true, skipRefresh: true }),
+      }),
+    );
+
+    return unwrapApiResponse(response);
+  }
+
+  async completeRegistrationProjectCampaign(payload: RegistrationProjectCampaignRequest): Promise<AuthSession> {
+    const response = await firstValueFrom(
+      this.api.post<AuthSessionResponse, RegistrationProjectCampaignRequest>(ApiEndpoints.auth.registerProjectCampaign, payload, {
+        context: this.authRequestContext({ skipAuth: true, skipRefresh: true }),
       }),
     );
 
@@ -97,6 +219,11 @@ export class AuthApiService {
       accessTokenExpiresAt: response.accessTokenExpiresAt,
       refreshTokenExpiresAt: response.refreshTokenExpiresAt,
       user: this.mapUser(response.user),
+      workspaceId: response.workspaceId,
+      brandId: response.brandId,
+      productServiceId: response.productServiceId,
+      projectCampaignId: response.projectCampaignId,
+      nextStep: response.nextStep,
     };
   }
 

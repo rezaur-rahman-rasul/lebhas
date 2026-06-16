@@ -13,6 +13,7 @@ import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PatchMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.PutMapping;
@@ -40,7 +41,7 @@ public class MasterPaymentProviderController {
         this.configurationService = configurationService;
     }
 
-    @PostMapping("/payment-providers")
+    @PostMapping({"/payment-providers", "/payment-gateways"})
     @PreAuthorize("hasRole('MASTER')")
     @Operation(summary = "Create a payment provider")
     public ApiResponse<PaymentProviderView> createProvider(@Valid @RequestBody CreatePaymentProviderRequest request) {
@@ -56,21 +57,21 @@ public class MasterPaymentProviderController {
         )));
     }
 
-    @GetMapping("/payment-providers")
+    @GetMapping({"/payment-providers", "/payment-gateways"})
     @PreAuthorize("hasRole('MASTER')")
     @Operation(summary = "List payment providers")
     public ApiResponse<List<PaymentProviderView>> listProviders() {
         return ApiResponse.success(providerManagementService.listProviders());
     }
 
-    @GetMapping("/payment-providers/{providerId}")
+    @GetMapping({"/payment-providers/{providerId}", "/payment-gateways/{providerId}"})
     @PreAuthorize("hasRole('MASTER')")
     @Operation(summary = "Get payment provider details")
     public ApiResponse<PaymentProviderView> getProvider(@PathVariable UUID providerId) {
         return ApiResponse.success(providerManagementService.getProvider(providerId));
     }
 
-    @PutMapping("/payment-providers/{providerId}")
+    @PutMapping({"/payment-providers/{providerId}", "/payment-gateways/{providerId}"})
     @PreAuthorize("hasRole('MASTER')")
     @Operation(summary = "Update a payment provider")
     public ApiResponse<PaymentProviderView> updateProvider(
@@ -87,6 +88,20 @@ public class MasterPaymentProviderController {
                 request.liveEnabled(),
                 request.priority()
         )));
+    }
+
+    @PatchMapping("/payment-gateways/{providerId}/toggle")
+    @PreAuthorize("hasRole('MASTER')")
+    @Operation(summary = "Toggle a payment gateway")
+    public ApiResponse<PaymentProviderView> toggleGateway(@PathVariable UUID providerId) {
+        return ApiResponse.success(providerManagementService.toggleProvider(providerId));
+    }
+
+    @PostMapping("/payment-gateways/{providerId}/test")
+    @PreAuthorize("hasRole('MASTER')")
+    @Operation(summary = "Test payment gateway configuration")
+    public ApiResponse<PaymentProviderView> testGateway(@PathVariable UUID providerId) {
+        return ApiResponse.success(providerManagementService.testProvider(providerId));
     }
 
     @PostMapping("/payment-providers/{providerId}/enable")

@@ -1,9 +1,7 @@
 import {
-  AfterViewInit,
   ChangeDetectionStrategy,
   Component,
   DestroyRef,
-  afterNextRender,
   computed,
   effect,
   inject,
@@ -21,7 +19,7 @@ import { CardComponent } from '@app/shared/components/card/card';
 import { EmptyStateComponent } from '@app/shared/components/empty-state/empty-state';
 import { InputComponent } from '@app/shared/components/input/input';
 import { ModalComponent } from '@app/shared/components/modal/modal';
-import { PageHeaderComponent } from '@app/shared/components/page-header/page-header';
+import { SectionHeaderComponent } from '@app/shared/components/section-header/section-header';
 import { BrandStore } from '../brands/brand.store';
 import { ProductServiceStore } from '../product-services/product-service.store';
 import {
@@ -57,13 +55,13 @@ const TARGET_PLATFORMS: readonly string[] = [
     EmptyStateComponent,
     InputComponent,
     ModalComponent,
-    PageHeaderComponent,
+    SectionHeaderComponent,
   ],
   templateUrl: './projects.html',
   styleUrl: './projects.scss',
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
-export class ProjectsComponent implements AfterViewInit {
+export class ProjectsComponent {
   private readonly formBuilder = inject(FormBuilder).nonNullable;
   private readonly route = inject(ActivatedRoute);
   private readonly destroyRef = inject(DestroyRef);
@@ -123,8 +121,6 @@ export class ProjectsComponent implements AfterViewInit {
   });
 
   constructor() {
-    afterNextRender(() => this.resetRouteViewport());
-
     this.route.queryParamMap.pipe(takeUntilDestroyed(this.destroyRef)).subscribe((params) => {
       this.selectedProjectId.set(params.get('projectId'));
     });
@@ -172,10 +168,6 @@ export class ProjectsComponent implements AfterViewInit {
         this.selectedProjectId.set(projects[0].id);
       }
     });
-  }
-
-  ngAfterViewInit(): void {
-    this.queueViewportReset();
   }
 
   protected selectProject(projectId: string): void {
@@ -339,35 +331,5 @@ export class ProjectsComponent implements AfterViewInit {
   private normalize(value: string): string | null {
     const trimmed = value.trim();
     return trimmed ? trimmed : null;
-  }
-
-  private queueViewportReset(): void {
-    if (typeof window === 'undefined') {
-      return;
-    }
-
-    const frameId = window.requestAnimationFrame(() => this.resetRouteViewport());
-    const timeoutIds = [0, 75].map((delay) =>
-      window.setTimeout(() => this.resetRouteViewport(), delay),
-    );
-
-    this.destroyRef.onDestroy(() => {
-      window.cancelAnimationFrame(frameId);
-      timeoutIds.forEach((timeoutId) => window.clearTimeout(timeoutId));
-    });
-  }
-
-  private resetRouteViewport(): void {
-    if (typeof window === 'undefined') {
-      return;
-    }
-
-    window.scrollTo({ top: 0, left: 0, behavior: 'auto' });
-    document.documentElement.scrollTop = 0;
-    document.documentElement.scrollLeft = 0;
-    document.body.scrollTop = 0;
-    document.body.scrollLeft = 0;
-
-    document.querySelector('main')?.scrollTo({ top: 0, left: 0, behavior: 'auto' });
   }
 }

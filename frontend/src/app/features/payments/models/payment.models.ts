@@ -2,6 +2,7 @@ export enum PaymentProviderType {
   Sslcommerz = 'SSLCOMMERZ',
   Bkash = 'BKASH',
   Nagad = 'NAGAD',
+  Rocket = 'ROCKET',
   Stripe = 'STRIPE',
   Manual = 'MANUAL',
 }
@@ -313,6 +314,8 @@ export interface CreditPackagePayload {
 export interface SubscriptionPurchasePayload {
   readonly pricingPlanId: string;
   readonly billingCycle: BillingCycle | string;
+  readonly environmentType?: EnvironmentType | string | null;
+  readonly preferredProviderCode?: string | null;
   readonly returnUrl?: string | null;
 }
 
@@ -321,6 +324,8 @@ export type SubscriptionRenewPayload = SubscriptionPurchasePayload;
 
 export interface CreditPurchasePayload {
   readonly creditPackageId: string;
+  readonly environmentType?: EnvironmentType | string | null;
+  readonly preferredProviderCode?: string | null;
   readonly returnUrl?: string | null;
 }
 

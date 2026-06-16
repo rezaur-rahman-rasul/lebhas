@@ -39,6 +39,7 @@ export class ProfileStore {
   private readonly savingSignal = signal(false);
   private readonly uploadingSignal = signal(false);
   private readonly errorSignal = signal<string | null>(null);
+  private readonly uploadErrorSignal = signal<string | null>(null);
   private readonly uploadSessionSignal = signal<ProfileImageUploadUrlResponse | null>(null);
 
   readonly profile = this.profileSignal.asReadonly();
@@ -50,6 +51,7 @@ export class ProfileStore {
   readonly saving = this.savingSignal.asReadonly();
   readonly uploading = this.uploadingSignal.asReadonly();
   readonly error = this.errorSignal.asReadonly();
+  readonly uploadError = this.uploadErrorSignal.asReadonly();
 
   readonly displayName = computed(() => {
     const profile = this.profileSignal();
@@ -61,7 +63,8 @@ export class ProfileStore {
     return fullName || this.auth.displayName();
   });
   readonly initials = computed(() => getInitials(this.profileSignal()));
-  readonly profileImageUrl = computed(() => safeProfileImageUrl(this.profileSignal()));
+  readonly savedProfileImageUrl = computed(() => safeProfileImageUrl(this.profileSignal()));
+  readonly profileImageUrl = this.savedProfileImageUrl;
   readonly preferredLanguageLabel = computed(() =>
     preferredLanguageLabel(this.accountSettingsSignal()?.preferredLanguage),
   );
@@ -87,13 +90,23 @@ export class ProfileStore {
     });
   }
 
-  async updateMyProfile(payload: UpdateProfileRequest): Promise<ProfileActionResult> {
+  async updateMyProfile(
+    payload: UpdateProfileRequest,
+    profileImageFile: File | null = null,
+  ): Promise<ProfileActionResult> {
     if (!this.permissions.canEditOwnProfile()) {
       return this.restricted('You do not have permission to update your profile.');
     }
 
     return this.runSaving(async () => {
-      this.setProfile(await this.api.updateMyProfile(payload));
+      const profile = profileImageFile
+        ? await this.api.updateMyProfileWithImage(payload, profileImageFile)
+        : await this.api.updateMyProfile(payload);
+      this.setProfile(profile);
+      if (profileImageFile) {
+        this.uploadSessionSignal.set(null);
+        this.imageUploadProgressSignal.set(100);
+      }
     });
   }
 
@@ -134,29 +147,9 @@ export class ProfileStore {
     if (!this.permissions.canManageProfileImage()) {
       return this.restricted('You do not have permission to update your profile image.');
     }
-
-    return this.runUploading(async () => {
-      this.imageUploadProgressSignal.set(0);
-      const uploadSession = await this.api.requestProfileImageUploadUrl({
-        fileName: file.name,
-        contentType: file.type,
-        fileSizeBytes: file.size,
-      });
-
-      this.uploadSessionSignal.set(uploadSession);
-      await this.api.uploadProfileImageToSignedUrl(uploadSession.uploadUrl, file, (progress) => {
-        this.imageUploadProgressSignal.set(progress);
-      });
-
-      this.setProfile(
-        await this.api.confirmProfileImageUpload({
-          uploadSessionId: uploadSession.uploadSessionId,
-        }),
-      );
-      this.uploadSessionSignal.set(null);
-      this.imageUploadProgressSignal.set(100);
-      this.notifications.success('Profile', 'Profile photo updated successfully.');
-    });
+    this.uploadErrorSignal.set(null);
+    this.imageUploadProgressSignal.set(0);
+    return { ok: true };
   }
 
   async confirmProfileImageUpload(
@@ -241,11 +234,17 @@ export class ProfileStore {
 
   clearError(): void {
     this.errorSignal.set(null);
+    this.uploadErrorSignal.set(null);
   }
 
   resetUploadProgress(): void {
     this.imageUploadProgressSignal.set(0);
     this.uploadSessionSignal.set(null);
+  }
+
+  discardStagedProfileImagePreview(): void {
+    this.imageUploadProgressSignal.set(0);
+    this.uploadErrorSignal.set(null);
   }
 
   reset(): void {
@@ -258,6 +257,7 @@ export class ProfileStore {
     this.savingSignal.set(false);
     this.uploadingSignal.set(false);
     this.errorSignal.set(null);
+    this.uploadErrorSignal.set(null);
     this.uploadSessionSignal.set(null);
   }
 
@@ -288,6 +288,7 @@ export class ProfileStore {
       lastName: profile.lastName,
       name: profile.displayName || fullName || current.name,
       fullName: profile.displayName || fullName || current.fullName,
+      profileImageUrl: profile.profileImageUrl ?? null,
       phone: profile.phoneNumber,
       updatedAt: profile.updatedAt,
     };
@@ -307,16 +308,27 @@ export class ProfileStore {
   }
 
   private async runUploading(action: () => Promise<void>): Promise<ProfileActionResult> {
-    return this.run(action, this.uploadingSignal);
+    return this.run(action, this.uploadingSignal, undefined, {
+      errorTarget: this.uploadErrorSignal,
+      errorMapper: friendlyProfileUploadError,
+      notifyOnError: false,
+    });
   }
 
   private async run(
     action: () => Promise<void>,
     stateSignal: { set(value: boolean): void },
     options?: { readonly successMessage?: string },
+    errorOptions: {
+      readonly errorTarget?: { set(value: string | null): void };
+      readonly errorMapper?: (error: unknown) => string;
+      readonly notifyOnError?: boolean;
+    } = {},
   ): Promise<ProfileActionResult> {
+    const errorTarget = errorOptions.errorTarget ?? this.errorSignal;
+    const errorMapper = errorOptions.errorMapper ?? friendlyProfileError;
     stateSignal.set(true);
-    this.errorSignal.set(null);
+    errorTarget.set(null);
 
     try {
       await action();
@@ -325,9 +337,11 @@ export class ProfileStore {
       }
       return { ok: true };
     } catch (error) {
-      const message = friendlyProfileError(error);
-      this.errorSignal.set(message);
-      this.notifications.error('Profile', message);
+      const message = errorMapper(error);
+      errorTarget.set(message);
+      if (errorOptions.notifyOnError !== false) {
+        this.notifications.error('Profile', message);
+      }
       return { ok: false, message };
     } finally {
       stateSignal.set(false);
@@ -368,4 +382,29 @@ function themePreferenceLabel(value: ThemePreference | string | null | undefined
 
 function friendlyProfileError(error: unknown): string {
   return normalizeHttpError(error).message || 'We could not update profile information. Please try again.';
+}
+
+function friendlyProfileUploadError(error: unknown): string {
+  const normalized = normalizeHttpError(error);
+  const technicalMessage = normalized.message.toLowerCase();
+  const genericLoadFailure = technicalMessage.includes('we could not load this data');
+
+  if (normalized.status === 0) {
+    return 'Profile photo upload could not reach storage. Check the backend and storage CORS, then retry.';
+  }
+
+  if (
+    normalized.status >= 500 ||
+    genericLoadFailure ||
+    technicalMessage.includes('internal server error') ||
+    technicalMessage.includes('unexpected server error')
+  ) {
+    return 'Profile photo upload failed on the server. Check backend storage/R2 configuration, then retry.';
+  }
+
+  if (genericLoadFailure) {
+    return 'Profile photo upload failed. Check backend storage/R2 configuration, then retry.';
+  }
+
+  return normalized.message || 'Profile photo could not be uploaded. Please try again.';
 }

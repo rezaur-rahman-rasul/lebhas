@@ -124,9 +124,6 @@
         data-testid="hero-transform-grid"
         aria-label="Raw product to campaign creative preview"
       >
-        <span class="hero-particle particle-one"></span>
-        <span class="hero-particle particle-two"></span>
-
         <article class="pipeline-block product-card">
           <p class="pipeline-label">{{ copy().hero.rawProduct }}</p>
           <div class="product-frame">
@@ -164,7 +161,10 @@
           <p class="pipeline-label">{{ copy().hero.aiProcessing }}</p>
           <div data-testid="hero-processing-panel" class="ai-processing-frame">
             <div class="ai-orbit">
-              <img src="/assets/hero-ai-processing-icon.png" alt="AI processing icon" />
+              <img
+                [src]="currentTheme() === 'light' ? '/assets/hero-ai-processing-icon-light.png' : '/assets/hero-ai-processing-icon.png'"
+                alt="AI processing icon"
+              />
             </div>
             <div class="processing-texts">
               @for (stage of activeConversion().stages; track stage) {
@@ -207,19 +207,6 @@
           </div>
         </article>
 
-        <div class="conversion-dots" aria-label="Product conversion examples">
-          @for (example of conversionExamples; track example.id; let index = $index) {
-            <button
-              type="button"
-              [class.active]="index === activeConversionIndex()"
-              [attr.aria-label]="'Show ' + example.productName + ' conversion'"
-              (click)="selectConversion(index)"
-            >
-              <span></span>
-              {{ example.productName }}
-            </button>
-          }
-        </div>
       </div>
     </section>
 
@@ -229,7 +216,16 @@
         <div class="platform-list">
           @for (platform of platformBadges; track platform.name) {
             <div class="platform-item">
-              <span [class]="platform.accentClass">{{ platform.shortLabel }}</span>
+              <span [class]="platform.accentClass">
+                <img
+                  [src]="platformIconPath(platform.icon)"
+                  [alt]="platform.name"
+                  width="18"
+                  height="18"
+                  loading="lazy"
+                  (error)="useFallbackPlatformIcon($event)"
+                />
+              </span>
               <strong>{{ platform.name }}</strong>
             </div>
           }
@@ -464,8 +460,12 @@
   <footer class="home-footer">
     <div class="home-container footer-inner">
       <div>
-        <img src="/assets/lebhas-logo-header.png" alt="Lebhas logo" />
-        <p>{{ copy().footer.slogan }}</p>
+<!--        <img src="/assets/lebhas-logo-header.png" alt="Lebhas logo" />-->
+        <img
+          [src]="currentTheme() === 'light' ? '/assets/lebhas-logo-header-light.png' : '/assets/lebhas-logo-header.png'"
+          alt="Lebhas logo"
+          class="brand-logo-image"
+        />
         <small>{{ copy().footer.note }}</small>
       </div>
       <nav>

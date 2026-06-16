@@ -15,6 +15,8 @@ public record ProductImageCreativeContext(
         BrandEntity brand,
         ProductServiceEntity product,
         AssetEntity productAsset,
-        ProductImageCreativeRequest request
+        AssetEntity logoAsset,
+        ProductImageCreativeRequest request,
+        CreativeGenerationContext generationContext
 ) {
 }

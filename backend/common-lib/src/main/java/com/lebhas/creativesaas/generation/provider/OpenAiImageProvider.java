@@ -45,12 +45,13 @@ public class OpenAiImageProvider implements ImageGenerationProvider {
 
         String responseBody;
         try {
-            HttpRequest httpRequest = HttpRequest.newBuilder(resolveUri(openAi))
+            HttpRequest.Builder requestBuilder = HttpRequest.newBuilder(resolveUri(openAi))
                     .timeout(properties.getRequestTimeout())
                     .header("Authorization", "Bearer " + openAi.getApiKey().trim())
-                    .header("Content-Type", "application/json")
-                    .headers(optionalHeader("OpenAI-Organization", openAi.getOrganization()))
-                    .headers(optionalHeader("OpenAI-Project", openAi.getProject()))
+                    .header("Content-Type", "application/json");
+            addOptionalHeader(requestBuilder, "OpenAI-Organization", openAi.getOrganization());
+            addOptionalHeader(requestBuilder, "OpenAI-Project", openAi.getProject());
+            HttpRequest httpRequest = requestBuilder
                     .POST(HttpRequest.BodyPublishers.ofString(buildRequestBody(openAi, request)))
                     .build();
             HttpResponse<String> response = httpClient.send(httpRequest, HttpResponse.BodyHandlers.ofString());
@@ -157,11 +158,10 @@ public class OpenAiImageProvider implements ImageGenerationProvider {
         }
     }
 
-    private String[] optionalHeader(String name, String value) {
-        if (!StringUtils.hasText(value)) {
-            return new String[0];
+    private void addOptionalHeader(HttpRequest.Builder builder, String name, String value) {
+        if (StringUtils.hasText(value)) {
+            builder.header(name, value.trim());
         }
-        return new String[]{name, value.trim()};
     }
 
     private void putIfPresent(Map<String, Object> metadata, String key, String value) {

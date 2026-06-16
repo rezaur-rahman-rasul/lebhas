@@ -11,6 +11,7 @@ public record ProductImageCreativeRequest(
         UUID promptDraftId,
         String sourcePrompt,
         UUID productAssetId,
+        UUID logoAssetId,
         ImageCreativeFormat creativeFormat,
         PromptPlatform platform,
         PromptLanguage language,
@@ -18,6 +19,11 @@ public record ProductImageCreativeRequest(
         Integer requestedVersionCount,
         String stylePreset,
         String backgroundStyle,
-        String cta
+        String headline,
+        String subheadline,
+        String offerText,
+        String cta,
+        Boolean includeCta,
+        Boolean includeTypography
 ) {
 }

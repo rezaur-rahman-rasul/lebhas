@@ -4,6 +4,7 @@ import com.lebhas.creativesaas.common.jpa.TenantAwareRepository;
 import com.lebhas.creativesaas.product.domain.ProductServiceEntity;
 
 import java.util.List;
+import java.util.Optional;
 import java.util.UUID;
 
 public interface ProductServiceRepository extends TenantAwareRepository<ProductServiceEntity> {
@@ -11,4 +12,6 @@ public interface ProductServiceRepository extends TenantAwareRepository<ProductS
     List<ProductServiceEntity> findAllByWorkspaceIdAndDeletedFalseOrderByCreatedAtDesc(UUID workspaceId);
 
     List<ProductServiceEntity> findAllByWorkspaceIdAndBrandIdAndDeletedFalseOrderByCreatedAtDesc(UUID workspaceId, UUID brandId);
+
+    Optional<ProductServiceEntity> findFirstByWorkspaceIdAndBrandIdAndNameIgnoreCaseAndDeletedFalse(UUID workspaceId, UUID brandId, String name);
 }

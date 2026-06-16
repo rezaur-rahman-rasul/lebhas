@@ -92,7 +92,9 @@ public class OpenAiImageClient {
         addTextPart(parts, boundary, "background", background);
         addTextPart(parts, boundary, "output_format", format.name());
         addTextPart(parts, boundary, "n", "1");
-        addFilePart(parts, boundary, "image", productImage);
+        boolean hasMultipleInputImages = hasFile(logoImage) || hasFile(referenceImage);
+        String imageFieldName = hasMultipleInputImages ? "image[]" : "image";
+        addFilePart(parts, boundary, imageFieldName, productImage);
         addFilePart(parts, boundary, "image[]", logoImage);
         addFilePart(parts, boundary, "image[]", referenceImage);
         addFilePart(parts, boundary, "mask", maskImage);
@@ -165,7 +167,7 @@ public class OpenAiImageClient {
     }
 
     private void addFilePart(List<byte[]> parts, String boundary, String name, MultipartFile file) {
-        if (file == null || file.isEmpty()) {
+        if (!hasFile(file)) {
             return;
         }
         try {
@@ -177,6 +179,10 @@ public class OpenAiImageClient {
         } catch (IOException exception) {
             throw new BusinessException(ErrorCode.ASSET_FILE_CONTENT_INVALID, "Uploaded image content could not be read");
         }
+    }
+
+    private boolean hasFile(MultipartFile file) {
+        return file != null && !file.isEmpty();
     }
 
     private String resolveModel(CreativeGenerationProperties.OpenAi openAi) {

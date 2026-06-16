@@ -27,6 +27,10 @@ export type CreativeGenerationStatus =
   | 'DRAFT'
   | 'QUEUED'
   | 'PROCESSING'
+  | 'GENERATING'
+  | 'DOWNLOADING'
+  | 'UPLOADING'
+  | 'READY'
   | 'COMPLETED'
   | 'FAILED'
   | 'CANCELLED';
@@ -60,7 +64,17 @@ export type AiCreativeSize = '1024x1024' | '1024x1536' | '1536x1024';
 export type AiCreativeQuality = 'low' | 'medium' | 'high';
 export type AiOutputFormat = 'png' | 'jpeg' | 'webp';
 export type AiCreativeBackground = 'opaque' | 'transparent';
-export type AiCreativeStatus = 'REQUESTED' | 'PLANNING' | 'STARTED' | 'PROCESSING' | 'COMPLETED' | 'FAILED';
+export type AiCreativeStatus =
+  | 'REQUESTED'
+  | 'PLANNING'
+  | 'STARTED'
+  | 'PROCESSING'
+  | 'GENERATING'
+  | 'DOWNLOADING'
+  | 'UPLOADING'
+  | 'READY'
+  | 'COMPLETED'
+  | 'FAILED';
 export type AiLayerStatus = 'PLANNED' | 'PROCESSING' | 'COMPLETED' | 'FAILED';
 export type AiGenerationMode =
   | 'TEXT_TO_CREATIVE'
@@ -92,7 +106,10 @@ export interface AiCreativeGenerateRequest {
   readonly targetAudience?: string;
   readonly productDescription?: string;
   readonly campaignObjective?: string;
-  readonly cta?: string;
+  readonly cta?: string | null;
+  readonly includeCta?: boolean;
+  readonly includeLogo?: boolean;
+  readonly includeTypography?: boolean;
   readonly versions: number;
   readonly size: AiCreativeSize;
   readonly quality: AiCreativeQuality;
@@ -101,6 +118,7 @@ export interface AiCreativeGenerateRequest {
   readonly noHumanModel: boolean;
   readonly productImage?: File;
   readonly existingAssetId?: string;
+  readonly logoAssetId?: string;
   readonly logoImage?: File;
   readonly referenceImage?: File;
   readonly maskImage?: File;
@@ -127,8 +145,21 @@ export interface AiCreativeResponse {
   readonly outputFormat: AiOutputFormat;
   readonly background: AiCreativeBackground;
   readonly fileUrl?: string | null;
+  readonly generatedAssetId?: string | null;
+  readonly assetId?: string | null;
+  readonly signedPreviewUrl?: string | null;
+  readonly publicPreviewUrl?: string | null;
+  readonly downloadUrl?: string | null;
+  readonly signedDownloadUrl?: string | null;
+  readonly publicDownloadUrl?: string | null;
   readonly thumbnailUrl?: string | null;
   readonly r2ObjectKey?: string | null;
+  readonly fileSize?: number | null;
+  readonly width?: number | null;
+  readonly height?: number | null;
+  readonly asset?: Readonly<Record<string, unknown>> | null;
+  readonly generatedAsset?: Readonly<Record<string, unknown>> | null;
+  readonly urls?: Readonly<Record<string, unknown>> | null;
   readonly requestedVersions: number;
   readonly generatedVersionNo?: number | null;
   readonly costEstimate?: number | null;
@@ -273,7 +304,8 @@ export interface CreateCreativeGenerationRequest {
 export interface CreateCampaignCreativeRequest {
   readonly promptDraftId: string | null;
   readonly sourcePrompt: string;
-  readonly productAssetId: string;
+  readonly productAssetId: string | null;
+  readonly logoAssetId?: string | null;
   readonly creativeFormat: ImageCreativeFormat;
   readonly platform: PromptPlatform;
   readonly language: Exclude<PromptLanguage, 'MIXED'>;
@@ -281,7 +313,12 @@ export interface CreateCampaignCreativeRequest {
   readonly requestedVersionCount: number;
   readonly stylePreset: string | null;
   readonly backgroundStyle: string | null;
+  readonly headline?: string | null;
+  readonly subheadline?: string | null;
+  readonly offerText?: string | null;
   readonly cta: string | null;
+  readonly includeCta?: boolean;
+  readonly includeTypography?: boolean;
 }
 
 export interface ProductImageCreativeReadiness {
@@ -457,6 +494,10 @@ export const CREATIVE_GENERATION_STATUS_OPTIONS: readonly {
   { value: 'DRAFT', label: 'Draft' },
   { value: 'QUEUED', label: 'Queued' },
   { value: 'PROCESSING', label: 'Processing' },
+  { value: 'GENERATING', label: 'Generating' },
+  { value: 'DOWNLOADING', label: 'Downloading asset' },
+  { value: 'UPLOADING', label: 'Uploading preview' },
+  { value: 'READY', label: 'Ready' },
   { value: 'COMPLETED', label: 'Completed' },
   { value: 'FAILED', label: 'Failed' },
   { value: 'CANCELLED', label: 'Cancelled' },
@@ -510,10 +551,14 @@ export function creativeGenerationStatusTone(
   value: CreativeGenerationStatus,
 ): 'brand' | 'blue' | 'red' | 'neutral' {
   switch (value) {
+    case 'READY':
     case 'COMPLETED':
       return 'brand';
     case 'QUEUED':
     case 'PROCESSING':
+    case 'GENERATING':
+    case 'DOWNLOADING':
+    case 'UPLOADING':
       return 'blue';
     case 'FAILED':
       return 'red';
@@ -539,7 +584,7 @@ export function isImageFormat(value: CreativeOutputFormat | null): boolean {
 }
 
 export function isTerminalGenerationStatus(value: CreativeGenerationStatus): boolean {
-  return value === 'COMPLETED' || value === 'FAILED' || value === 'CANCELLED';
+  return value === 'READY' || value === 'COMPLETED' || value === 'FAILED' || value === 'CANCELLED';
 }
 
 export function generationProgressPercent(value: CreativeGenerationStatus | null): number {
@@ -549,7 +594,14 @@ export function generationProgressPercent(value: CreativeGenerationStatus | null
     case 'QUEUED':
       return 25;
     case 'PROCESSING':
-      return 68;
+      return 35;
+    case 'GENERATING':
+      return 55;
+    case 'DOWNLOADING':
+      return 70;
+    case 'UPLOADING':
+      return 85;
+    case 'READY':
     case 'COMPLETED':
       return 100;
     case 'FAILED':

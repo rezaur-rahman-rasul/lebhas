@@ -4,7 +4,27 @@ spring:
   profiles:
     active: ${SPRING_PROFILES_ACTIVE:local}
   config:
-    import: optional:classpath:application-common.yaml
+    import:
+      - optional:classpath:application-common.yaml
+      - optional:file:backend/docker/.env[.properties]
+      - optional:file:../docker/.env[.properties]
+      - optional:file:.env[.properties]
 
 server:
   port: ${SERVER_PORT:8082}
+
+platform:
+  storage:
+    provider: ${STORAGE_PROVIDER:R2}
+    bucket: ${STORAGE_BUCKET:${R2_BUCKET:creative-saas-assets}}
+    signed-url-ttl: ${STORAGE_SIGNED_URL_TTL:15m}
+    r2:
+      region: ${R2_REGION:auto}
+      endpoint: ${R2_ENDPOINT:}
+      access-key: ${R2_ACCESS_KEY:}
+      secret-key: ${R2_SECRET_KEY:}
+      bucket: ${R2_BUCKET:${STORAGE_BUCKET:creative-saas-assets}}
+      public-base-url: ${R2_PUBLIC_BASE_URL:}
+      path-style-access-enabled: ${R2_PATH_STYLE_ACCESS_ENABLED:true}
+      api-call-timeout: ${R2_API_CALL_TIMEOUT:8s}
+      api-call-attempt-timeout: ${R2_API_CALL_ATTEMPT_TIMEOUT:4s}

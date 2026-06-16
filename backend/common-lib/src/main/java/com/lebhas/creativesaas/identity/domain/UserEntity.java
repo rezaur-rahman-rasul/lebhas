@@ -52,6 +52,9 @@ public class UserEntity extends BaseEntity {
     @Column(name = "last_login_at")
     private Instant lastLoginAt;
 
+    @Column(name = "mobile_verified_at")
+    private Instant mobileVerifiedAt;
+
     @Column(name = "failed_login_attempts", nullable = false)
     private int failedLoginAttempts;
 
@@ -127,6 +130,10 @@ public class UserEntity extends BaseEntity {
         return lastLoginAt;
     }
 
+    public Instant getMobileVerifiedAt() {
+        return mobileVerifiedAt;
+    }
+
     public int getFailedLoginAttempts() {
         return failedLoginAttempts;
     }
@@ -169,6 +176,18 @@ public class UserEntity extends BaseEntity {
 
     public void markEmailVerified() {
         this.emailVerified = true;
+    }
+
+    public void changeEmail(String email, boolean verified) {
+        this.email = normalizeEmail(email);
+        this.emailVerified = verified;
+    }
+
+    public void markMobileVerified(Instant verifiedAt) {
+        this.mobileVerifiedAt = verifiedAt;
+        if (this.status == UserStatus.OTP_PENDING) {
+            this.status = UserStatus.ACTIVE;
+        }
     }
 
     public void markLastLogin(Instant lastLoginAt) {

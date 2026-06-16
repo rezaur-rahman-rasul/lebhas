@@ -85,6 +85,7 @@ export class DashboardOverviewComponent {
   private readonly approvals = inject(ApprovalStore);
   protected readonly generations = inject(CreativeGenerationStore);
   protected readonly dashboard = inject(DashboardStore);
+  private secondaryDataWorkspaceId: string | null = null;
 
   protected readonly role = this.auth.currentRole;
   protected readonly workspaceId = this.workspace.activeWorkspaceId;
@@ -394,29 +395,7 @@ export class DashboardOverviewComponent {
       void this.dashboard.load(workspaceId);
 
       if (this.role() === 'ADMIN') {
-        if (this.permissions.canViewBrands()) {
-          void this.brands.load(workspaceId);
-        }
-
-        if (this.permissions.canViewProducts()) {
-          void this.products.load(workspaceId);
-        }
-
-        if (this.permissions.canViewProjects()) {
-          void this.projects.load(workspaceId);
-        }
-
-        if (this.auth.permissions().includes('ASSET_VIEW')) {
-          void this.assets.loadLibraryContext();
-        }
-
-        if (this.auth.permissions().includes('CREATIVE_GENERATE')) {
-          void this.generations.loadGenerationRequests();
-        }
-
-        if (this.role() === 'ADMIN') {
-          void this.approvals.load();
-        }
+        this.queueSecondaryDashboardData(workspaceId);
       }
     });
   }
@@ -537,5 +516,48 @@ export class DashboardOverviewComponent {
     const index = Math.min(Math.floor(Math.log(value) / Math.log(1024)), units.length - 1);
     const amount = value / Math.pow(1024, index);
     return `${amount >= 10 ? amount.toFixed(0) : amount.toFixed(1)} ${units[index]}`;
+  }
+
+  private queueSecondaryDashboardData(workspaceId: string): void {
+    if (this.secondaryDataWorkspaceId === workspaceId) {
+      return;
+    }
+
+    this.secondaryDataWorkspaceId = workspaceId;
+    this.afterFirstPaint(() => {
+      if (this.workspaceId() !== workspaceId || this.role() !== 'ADMIN') {
+        return;
+      }
+
+      if (this.auth.permissions().includes('ASSET_VIEW')) {
+        void this.assets.loadLibraryContext();
+      }
+
+      if (this.auth.permissions().includes('CREATIVE_GENERATE')) {
+        void this.generations.loadGenerationRequests();
+      }
+
+      void this.approvals.load();
+    });
+  }
+
+  private afterFirstPaint(callback: () => void): void {
+    if (typeof window === 'undefined') {
+      callback();
+      return;
+    }
+
+    window.requestAnimationFrame(() => {
+      const idleCallback = (window as Window & {
+        requestIdleCallback?: (handler: () => void, options?: { timeout: number }) => number;
+      }).requestIdleCallback;
+
+      if (idleCallback) {
+        idleCallback(callback, { timeout: 700 });
+        return;
+      }
+
+      window.setTimeout(callback, 120);
+    });
   }
 }

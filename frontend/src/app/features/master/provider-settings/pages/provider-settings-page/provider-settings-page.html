@@ -1,4 +1,4 @@
-<app-page-header eyebrow="AI OPERATIONS" title="Provider Settings" description="Configure AI providers and secure server-side credentials used by Lebhas creative tools.">
+<app-page-header eyebrow="PROVIDER MANAGEMENT" title="Provider Management" description="Configure AI, SMS, email, storage, and payment providers from one Master-controlled registry.">
   <app-button type="button" icon="plus" (click)="openProvider()">Create provider</app-button>
 </app-page-header>
 
@@ -7,16 +7,68 @@
     <app-button type="button" variant="secondary" (click)="store.loadProviders()">Retry</app-button>
   </app-error-state>
 } @else {
+  <nav class="provider-categories" aria-label="Provider categories">
+    @for (category of categories; track category.id) {
+      <button
+        type="button"
+        [class.is-active]="selectedCategory() === category.id"
+        (click)="selectCategory(category.id)"
+      >
+        <span>{{ category.label }}</span>
+        <strong>{{ categoryCount(category.id) }}</strong>
+        <small>{{ category.description }}</small>
+      </button>
+    }
+  </nav>
+
   <section class="settings-grid">
     <div class="provider-list">
+      <div class="provider-toolbar">
+        <label class="provider-search">
+          <span>Search providers</span>
+          <input
+            type="search"
+            autocomplete="off"
+            placeholder="Search by name, model, health, status..."
+            [value]="searchTerm()"
+            (input)="updateSearchTerm($any($event.target).value)"
+          />
+        </label>
+        @if (searchTerm()) {
+          <app-button type="button" variant="ghost" size="sm" icon="x" (click)="clearSearch()">Clear</app-button>
+        }
+      </div>
+
       @if (store.loading() && !store.providers().length) {
         @for (item of [1,2,3]; track item) {<div class="skeleton"></div>}
-      } @else {
-        @for (provider of store.providers(); track provider.id) {
-          <app-provider-card [provider]="provider" [selected]="selectedProvider()?.id === provider.id" (selectProvider)="selectProvider($event)" (configureCredentials)="configure($event)" (editProvider)="openProvider($event)" (toggleProvider)="toggle($event)" (deleteProvider)="deleteProvider($event)" (testProvider)="test($event)" (viewModelsJson)="viewModelsJson($event)" (viewCreditPool)="viewPool($event)" (exchangePolicy)="viewPolicy($event)" />
-        } @empty {
-          <div class="empty"><h2>No providers configured yet.</h2><p>Create the first AI provider and store its API key securely on the backend.</p><app-button type="button" (click)="openProvider()">Create provider</app-button></div>
+      } @else if (filteredProviders().length) {
+        @for (provider of filteredProviders(); track provider.id) {
+          <app-provider-card [provider]="provider" [selected]="selectedProviderId() === provider.id" [balanceResult]="provider.id === selectedProviderId() ? smsActionResult() : null" (selectProvider)="selectProvider($event)" (configureCredentials)="configure($event)" (editProvider)="openProvider($event)" (toggleProvider)="toggle($event)" (deleteProvider)="deleteProvider($event)" (testProvider)="test($event)" (testSms)="openTestSmsDialog($event)" (checkSmsBalance)="checkBalance($event)" (viewModelsJson)="viewModelsJson($event)" (viewCreditPool)="viewPool($event)" (exchangePolicy)="viewPolicy($event)" (syncCosts)="syncCosts($event)" />
         }
+      } @else if (searchTerm()) {
+        <div class="empty empty-provider-state">
+          <span class="empty-provider-state__eyebrow">No matches</span>
+          <h2>No matching {{ selectedCategoryLabel() }}</h2>
+          <p>Try a provider name, code, capability, health state, or credential status.</p>
+          <div class="empty-provider-state__actions">
+            <app-button type="button" variant="secondary" icon="x" (click)="clearSearch()">Clear search</app-button>
+            <app-button type="button" icon="plus" (click)="openProvider()">Create provider</app-button>
+          </div>
+        </div>
+      } @else {
+        <div class="empty empty-provider-state">
+          <span class="empty-provider-state__eyebrow">{{ selectedCategoryLabel() }}</span>
+          <h2>{{ selectedCategoryEmptyTitle() }}</h2>
+          <p>{{ selectedCategoryEmptyDescription() }}</p>
+          <ul>
+            @for (item of selectedCategoryEmptyChecklist(); track item) {
+              <li>{{ item }}</li>
+            }
+          </ul>
+          <div class="empty-provider-state__actions">
+            <app-button type="button" icon="plus" (click)="openProvider()">{{ selectedCategoryCreateLabel() }}</app-button>
+          </div>
+        </div>
       }
     </div>
 
@@ -39,6 +91,16 @@
           <small>{{ provider.providerCode }} - {{ provider.active ? 'Enabled' : 'Disabled' }}</small>
         </div>
       }
+      @if (smsActionResult(); as result) {
+        @if (!isSelectedSmsBalanceResult()) {
+          <div class="selected-provider-card action-result-card">
+            <span>{{ result.action }}</span>
+            <strong>{{ actionResultBalanceLabel() || (result.success ? 'Success' : 'Failed') }}</strong>
+            <small>{{ result.message }} @if (result.httpStatus) {<span>- HTTP {{ result.httpStatus }}</span>}</small>
+            @if (actionResultDetail(); as detail) {<small>{{ detail }}</small>}
+          </div>
+        }
+      }
 
       <div class="credential-list">
         @for (credential of selectedProviderCredentials(); track credential.id) {
@@ -59,8 +121,12 @@
   </section>
 }
 
-<app-dialog [open]="providerDialogOpen()" title="Provider" (closed)="providerDialogOpen.set(false)">
+<app-dialog [open]="providerDialogOpen()" [title]="editingProvider() ? 'Edit provider' : 'Create ' + selectedCategory() + ' provider'" panelClass="max-w-[46rem]" (closed)="providerDialogOpen.set(false)">
   <form class="provider-form" [formGroup]="providerForm" (ngSubmit)="saveProvider()">
+    <div class="provider-type-note">
+      <strong>{{ selectedCategory() }} provider</strong>
+      <span>Category is controlled by the selected Provider Management tab.</span>
+    </div>
     <label>
       <span>Provider code</span>
       <input formControlName="providerCode" [readonly]="editingProvider() !== null" />
@@ -70,46 +136,151 @@
     <label>
       <span>{{ editingProvider() ? 'New API key (optional)' : 'API key' }}</span>
       <input type="password" formControlName="apiKey" autocomplete="new-password" placeholder="Paste key only to create or rotate" />
+      <small title="Stored encrypted on the backend. Raw keys are never returned in API responses.">Encrypted after save. Responses show only a masked key.</small>
       @if (providerForm.controls.apiKey.touched && providerForm.controls.apiKey.invalid) {<small>API key is required when creating a provider.</small>}
     </label>
     @if (editingProvider()?.maskedApiKey) {<div class="masked-note">Saved key: {{ editingProvider()?.maskedApiKey }}</div>}
-    <label><span>Default model</span><input formControlName="defaultModel" /></label>
-    <label>
-      <span>Models endpoint</span>
-      <input formControlName="modelsEndpoint" placeholder="https://provider.example.com/v1/models" />
-      <small>Used by the Models JSON button. Leave empty to disable model JSON preview for this provider.</small>
-    </label>
-    <label>
-      <span>Models endpoint auth</span>
-      <select formControlName="modelsEndpointAuth">
-        <option value="BEARER">Bearer authorization header</option>
-        <option value="API_KEY_QUERY">API key query parameter</option>
-        <option value="NONE">No auth</option>
-      </select>
-    </label>
-    <label>
-      <span>API key query parameter</span>
-      <input formControlName="apiKeyQueryParam" placeholder="key" />
-      <small>Only used when auth is API key query parameter.</small>
-    </label>
+    <label><span>Base URL</span><input formControlName="baseUrl" placeholder="https://provider.example.com" /></label>
+    @if (isAiCategory()) {
+      <section class="form-section">
+        <h3>AI configuration</h3>
+        <label><span>Default model</span><input formControlName="defaultModel" /></label>
+        <label>
+          <span>Models endpoint</span>
+          <input formControlName="modelsEndpoint" placeholder="https://provider.example.com/v1/models" />
+          <small>Used by the Models JSON button. Leave empty to disable model JSON preview for this provider.</small>
+        </label>
+        <label>
+          <span>Models endpoint auth</span>
+          <select formControlName="modelsEndpointAuth">
+            <option value="BEARER">Bearer authorization header</option>
+            <option value="API_KEY_QUERY">API key query parameter</option>
+            <option value="NONE">No auth</option>
+          </select>
+        </label>
+        <label>
+          <span>API key query parameter</span>
+          <input formControlName="apiKeyQueryParam" placeholder="key" />
+          <small>Only used when auth is API key query parameter.</small>
+        </label>
+        <label>
+          <span>Balance endpoint</span>
+          <input formControlName="balanceEndpoint" placeholder="/provider/balance" />
+          <small>Used only for non-OpenAI providers with a provider balance API.</small>
+        </label>
+        <section class="form-section">
+          <h3>OpenAI cost tracking</h3>
+          <label>
+            <span>OpenAI Admin API Key</span>
+            <input type="password" formControlName="openAiAdminApiKey" autocomplete="new-password" placeholder="sk-admin-..." />
+            <small>Stored encrypted. Raw Admin keys are never returned to the browser.</small>
+          </label>
+          @if (editingProvider()?.maskedOpenAiAdminApiKey) {<div class="masked-note">Saved Admin key: {{ editingProvider()?.maskedOpenAiAdminApiKey }}</div>}
+          <label><span>Provider Top-Up Amount (USD)</span><input type="number" step="0.01" min="0" formControlName="providerTopUpAmountUsd" /></label>
+          <label><span>Top-Up Date</span><input type="date" formControlName="providerTopUpDate" /></label>
+          <label>
+            <span>Manual Balance Override</span>
+            <input type="number" step="0.01" min="0" formControlName="providerManualBalanceUsd" />
+            <small>Optional. When set, this overrides the top-up minus spend estimate.</small>
+          </label>
+          <label class="check"><input type="checkbox" formControlName="costSyncEnabled" />Cost Sync Enabled</label>
+        </section>
+        <div class="check-grid">
+          <label class="check"><input type="checkbox" formControlName="supportsImage" />Image</label>
+          <label class="check"><input type="checkbox" formControlName="supportsText" />Text</label>
+          <label class="check"><input type="checkbox" formControlName="supportsVideo" />Video</label>
+          <label class="check"><input type="checkbox" formControlName="supportsVoice" />Audio</label>
+        </div>
+        <label><span>Cost multiplier</span><input type="number" step="0.0001" formControlName="costMultiplier" /></label>
+          <label>
+          <span>Reference Credit Balance</span>
+          <input type="number" step="0.01" min="0" formControlName="availableCreditBalance" placeholder="2.54" />
+          <small>Optional note for the saved credential. System spend is tracked from successful provider calls and OpenAI cost sync.</small>
+        </label>
+      </section>
+    }
+    @if (isSmsCategory()) {
+      <section class="form-section">
+        <h3>API configuration</h3>
+        <label>
+          <span>Send SMS endpoint <b title="Path appended to Base URL for sending SMS messages.">?</b></span>
+          <input formControlName="sendSmsEndpoint" placeholder="/smsapi" />
+        </label>
+        <label>
+          <span>Balance endpoint <b title="Path appended to Base URL for checking SMS provider balance.">?</b></span>
+          <input formControlName="balanceEndpoint" placeholder="/getBalanceApi" />
+        </label>
+        <label>
+          <span>Request method</span>
+          <select formControlName="requestMethod">
+            <option value="GET">GET</option>
+            <option value="POST">POST</option>
+          </select>
+        </label>
+      </section>
+      <section class="form-section">
+        <h3>Authentication</h3>
+        <label>
+          <span>Sender ID <b title="Approved sender ID shown to SMS recipients.">?</b></span>
+          <input formControlName="senderId" placeholder="LEBHAS" />
+        </label>
+      </section>
+      <section class="form-section form-grid">
+        <h3>OTP configuration</h3>
+        <label><span>OTP length</span><input type="number" formControlName="otpLength" /></label>
+        <label><span>OTP expiry minutes <b title="How long an OTP remains valid.">?</b></span><input type="number" formControlName="otpExpiryMinutes" /></label>
+        <label><span>Resend cooldown seconds <b title="Minimum wait before requesting another OTP.">?</b></span><input type="number" formControlName="resendCooldownSeconds" /></label>
+        <label><span>Max attempts</span><input type="number" formControlName="maxAttempts" /></label>
+      </section>
+      <section class="form-section">
+        <h3>Capabilities</h3>
+        <div class="check-grid">
+          <label class="check"><input type="checkbox" formControlName="supportsOtp" />OTP</label>
+          <label class="check"><input type="checkbox" formControlName="supportsNotificationSms" />Notification SMS</label>
+          <label class="check"><input type="checkbox" formControlName="supportsMarketingSms" />Marketing SMS</label>
+        </div>
+      </section>
+      <section class="form-section">
+        <h3>Monitoring</h3>
+        <div class="check-grid">
+          <label class="check"><input type="checkbox" formControlName="balanceMonitoringEnabled" />Balance monitoring enabled</label>
+          <label class="check"><input type="checkbox" formControlName="healthCheckEnabled" />Health check enabled</label>
+        </div>
+      </section>
+    }
     <label><span>Priority</span><input type="number" formControlName="priority" /></label>
     <label><span>Rate limit per minute</span><input type="number" formControlName="rateLimitPerMinute" /></label>
-    <label><span>Cost multiplier</span><input type="number" step="0.0001" formControlName="costMultiplier" /></label>
     <label><span>Metadata JSON</span><textarea formControlName="metadataJson" placeholder="{ }"></textarea>@if (providerForm.controls.metadataJson.touched && providerForm.controls.metadataJson.invalid) {<small>Metadata must be valid JSON.</small>}</label>
-    <label class="check"><input type="checkbox" formControlName="supportsImage" />Image</label>
-    <label class="check"><input type="checkbox" formControlName="supportsText" />Text</label>
-    <label class="check"><input type="checkbox" formControlName="supportsVideo" />Video</label>
-    <label class="check"><input type="checkbox" formControlName="supportsVoice" />Audio</label>
     <label class="check"><input type="checkbox" formControlName="active" />Active</label>
     <div class="dialog-actions"><app-button type="button" variant="secondary" (click)="providerDialogOpen.set(false)">Cancel</app-button><app-button type="submit" [loading]="store.saving()">Save</app-button></div>
   </form>
 </app-dialog>
 
-<app-dialog [open]="credentialDialogOpen()" title="Secure provider credential" (closed)="credentialDialogOpen.set(false)">
+<app-dialog [open]="testSmsDialogOpen()" title="Test SMS provider" panelClass="max-w-[34rem]" (closed)="testSmsDialogOpen.set(false)">
+  <form class="provider-form" [formGroup]="testSmsForm" (ngSubmit)="sendTestSms()">
+    <label>
+      <span>Mobile number</span>
+      <input formControlName="mobileNumber" placeholder="8801XXXXXXXXX" />
+      @if (testSmsForm.controls.mobileNumber.touched && testSmsForm.controls.mobileNumber.invalid) {<small>Mobile number is required.</small>}
+    </label>
+    <label><span>Message</span><textarea formControlName="message"></textarea></label>
+    @if (smsActionResult(); as result) {
+      <div class="sms-result" [class.is-success]="result.success">
+        <strong>{{ result.success ? 'Success' : 'Failed' }}</strong>
+        <span>{{ result.message }}</span>
+        @if (result.httpStatus) {<small>HTTP {{ result.httpStatus }}</small>}
+        @if (result.response?.['body']) {<pre>{{ result.response?.['body'] }}</pre>}
+      </div>
+    }
+    <div class="dialog-actions"><app-button type="button" variant="secondary" (click)="testSmsDialogOpen.set(false)">Close</app-button><app-button type="submit" [loading]="store.saving()">Send Test SMS</app-button></div>
+  </form>
+</app-dialog>
+
+<app-dialog [open]="credentialDialogOpen()" title="Secure provider credential" panelClass="max-w-[34rem]" (closed)="credentialDialogOpen.set(false)">
   <app-provider-credential-form [credential]="editingCredential()" [saving]="store.saving()" (saved)="saveCredential($event)" (closed)="credentialDialogOpen.set(false)" />
 </app-dialog>
 
-<app-dialog [open]="modelsDialogOpen()" title="Provider Models JSON" description="Raw JSON returned by the configured provider models endpoint using the saved server-side credential." panelClass="sm:max-w-4xl" (closed)="closeModelsDialog()">
+<app-dialog [open]="modelsDialogOpen()" title="Provider Models JSON" description="Raw JSON returned by the configured provider models endpoint using the saved server-side credential." panelClass="max-w-[46rem]" (closed)="closeModelsDialog()">
   @if (store.modelsJson(); as result) {
     <div class="models-json-meta">
       <span>{{ result.providerCode }}</span>

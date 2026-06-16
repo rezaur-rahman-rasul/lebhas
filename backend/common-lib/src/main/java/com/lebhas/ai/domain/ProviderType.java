@@ -2,6 +2,8 @@ package com.lebhas.ai.domain;
 
 public enum ProviderType {
     AI,
+    SMS,
+    EMAIL,
     PAYMENT,
     STORAGE,
     NOTIFICATION,

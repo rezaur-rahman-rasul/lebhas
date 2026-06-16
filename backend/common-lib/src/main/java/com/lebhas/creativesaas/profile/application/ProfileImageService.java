@@ -22,6 +22,7 @@ import com.lebhas.creativesaas.redis.RedisLockService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.web.multipart.MultipartFile;
 
 import java.time.Clock;
 import java.util.UUID;
@@ -76,13 +77,41 @@ public class ProfileImageService {
         this.profileIntegration = profileIntegration;
     }
 
+    @Transactional
+    public UserProfileView uploadDirect(MultipartFile file, String ipAddress, String userAgent) {
+        CurrentUser currentUser = currentUserContext.requireCurrentUser();
+        RedisLockService.RedisLockToken lockToken = profileLockService.acquireProfileImageLock(currentUser.userId())
+                .orElseThrow(() -> new BusinessException(ErrorCode.BUSINESS_RULE_VIOLATION, "Profile image update is already in progress"));
+        try {
+            ValidatedProfileImageUpload validated = validationService.validate(file);
+            UserProfile profile = userProfileQueryService.requireProfile(currentUser.userId());
+            String oldObjectKey = profile.getProfileImageObjectKey();
+            String objectKey = objectKey(currentUser.workspaceId(), validated.extension());
+            storageService.store(objectKey, validated.mimeType(), file);
+            validationService.validateStoredObject(
+                    storageService.metadata(objectKey).contentLength(),
+                    validated.fileSize());
+            SignedProfileImageUrl preview = storageService.createPreviewUrl(objectKey, validated.mimeType());
+            profile.updateProfileImage(null, objectKey, preview.url());
+            UserProfile saved = userProfileRepository.save(profile);
+            invalidateCaches(currentUser.userId());
+            profileImageUrlCacheService.cache(currentUser.userId(), preview.url(), preview.expiresAt());
+            cleanupOldObject(oldObjectKey, objectKey);
+            profileEventProducer.profileImageUpdated(currentUser.workspaceId(), saved.getId(), currentUser.userId(), currentUser.userId());
+            integrateProfileImageUpdated(currentUser, saved.getId(), ipAddress, userAgent);
+            return profileView(saved, preview);
+        } finally {
+            profileLockService.releaseQuietly(lockToken);
+        }
+    }
+
     public ProfileImageUploadUrlResponse requestSignedUploadUrl(ProfileImageUploadUrlRequest request) {
         CurrentUser currentUser = currentUserContext.requireCurrentUser();
         RedisLockService.RedisLockToken lockToken = profileLockService.acquireProfileImageLock(currentUser.userId())
                 .orElseThrow(() -> new BusinessException(ErrorCode.BUSINESS_RULE_VIOLATION, "Profile image update is already in progress"));
         try {
             ValidatedProfileImageUpload validated = validationService.validate(request);
-            String objectKey = objectKey(currentUser.userId(), validated.extension());
+            String objectKey = objectKey(currentUser.workspaceId(), validated.extension());
             SignedProfileImageUrl signedUrl = storageService.createUploadUrl(
                     objectKey,
                     validated.mimeType(),
@@ -200,6 +229,7 @@ public class ProfileImageService {
         return userProfileMapper.toView(
                 profile,
                 settings,
+                currentUserContext.requireCurrentUser().email(),
                 signedUrl == null ? null : signedUrl.url(),
                 signedUrl == null ? null : signedUrl.expiresAt());
     }
@@ -238,8 +268,8 @@ public class ProfileImageService {
         }
     }
 
-    private static String objectKey(UUID userId, String extension) {
-        return "profiles/" + userId + "/" + UUID.randomUUID() + "." + extension;
+    private static String objectKey(UUID workspaceId, String extension) {
+        return "workspaces/" + workspaceId + "/profile/avatar." + extension;
     }
 
     private static String mimeTypeFromObjectKey(String objectKey) {

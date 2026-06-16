@@ -16,6 +16,8 @@ import com.lebhas.creativesaas.generatedversion.infrastructure.persistence.Gener
 import com.lebhas.creativesaas.generatedversion.infrastructure.persistence.GeneratedVersionRepository;
 import com.lebhas.creativesaas.identity.application.WorkspaceAuthorizationService;
 import com.lebhas.creativesaas.messaging.kafka.KafkaTopicConstants;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.StringUtils;
@@ -26,6 +28,8 @@ import java.util.UUID;
 
 @Service
 public class GeneratedVersionReviewService {
+
+    private static final Logger log = LoggerFactory.getLogger(GeneratedVersionReviewService.class);
 
     private final WorkspaceAuthorizationService workspaceAuthorizationService;
     private final CreativeRequestQueryService creativeRequestQueryService;
@@ -59,10 +63,7 @@ public class GeneratedVersionReviewService {
                 .flatMap(status -> generatedVersionRepository
                         .findAllByWorkspaceIdAndApprovalStatusAndDeletedFalseOrderByUpdatedAtDesc(workspaceId, status)
                         .stream())
-                .filter(version -> creativeRequestQueryService.requireAccessibleRequest(
-                        workspaceId,
-                        version.getCreativeRequestId(),
-                        access) != null)
+                .filter(version -> canAccessCreativeRequest(workspaceId, version, access))
                 .map(generatedVersionViewMapper::toView)
                 .toList();
     }
@@ -116,6 +117,24 @@ public class GeneratedVersionReviewService {
 
     private WorkspaceAuthorizationService.WorkspaceAccess requireManager(UUID workspaceId) {
         return workspaceAuthorizationService.requirePermission(workspaceId, Permission.GENERATED_VERSION_MANAGE);
+    }
+
+    private boolean canAccessCreativeRequest(
+            UUID workspaceId,
+            GeneratedVersionEntity version,
+            WorkspaceAuthorizationService.WorkspaceAccess access
+    ) {
+        try {
+            creativeRequestQueryService.requireAccessibleRequest(workspaceId, version.getCreativeRequestId(), access);
+            return true;
+        } catch (RuntimeException ex) {
+            log.warn(
+                    "Skipping generated version from approval queue because its creative request is not accessible: workspaceId={} generatedVersionId={} creativeRequestId={}",
+                    workspaceId,
+                    version.getId(),
+                    version.getCreativeRequestId());
+            return false;
+        }
     }
 
     private GeneratedVersionEntity requireVersion(

@@ -1,18 +1,19 @@
 <app-section-header
-  eyebrow="WORKSPACE HIERARCHY"
+  eyebrow="Product and service catalog"
   title="Products / Services"
-  description="Connect each catalog item to a brand so campaigns inherit the right commercial context."
+  description="Connect each catalog item to a brand so project campaigns inherit the right commercial context."
 >
   @if (canManage()) {
-    @if (brands().length > 0) {
-      <app-button icon="plus" aria-label="Create Product / Service" [testId]="'product-create-button'" (click)="openCreateDialog()">
-        Create Product / Service
-      </app-button>
-    } @else {
-      <a routerLink="/brands">
-        <app-button icon="badge-check" variant="secondary">Create Brand First</app-button>
-      </a>
-    }
+    <app-button
+      icon="plus"
+      aria-label="Create Product / Service"
+      [attr.title]="brands().length === 0 ? 'Create a brand first.' : null"
+      [disabled]="brands().length === 0"
+      [testId]="'product-create-button'"
+      (click)="openCreateDialog()"
+    >
+      Create Product / Service
+    </app-button>
   }
 </app-section-header>
 
@@ -49,7 +50,7 @@
         </div>
       } @else if (products().length === 0 && brands().length === 0) {
         <div class="mt-5">
-          <app-empty-state icon="badge-check" title="Create a brand first" description="Every product/service must belong to a brand. Create a brand before adding catalog items.">
+          <app-empty-state icon="badge-check" title="Create a brand first" description="Create a brand first before adding products or services.">
             <a routerLink="/brands"><app-button icon="badge-check">Create Brand First</app-button></a>
           </app-empty-state>
         </div>
@@ -75,6 +76,7 @@
                 <app-badge [tone]="product.status === 'ACTIVE' ? 'brand' : 'neutral'">{{ product.status }}</app-badge>
               </div>
               <p class="hierarchy-meta mt-3">Category: {{ product.category || 'Unassigned' }}</p>
+              <p class="hierarchy-meta">{{ product.description || 'Description pending' }}</p>
             </button>
           }
         </div>
@@ -149,14 +151,14 @@
 
             @if (canManage()) {
               <div class="hierarchy-actions">
-                <app-button variant="secondary" icon="pencil" (click)="openEditDialog()">Edit Product / Service</app-button>
+                <app-button variant="secondary" icon="pencil-line" (click)="openEditDialog()">Edit Product / Service</app-button>
                 <app-button variant="danger" icon="trash-2" (click)="deleteSelected()">Delete</app-button>
               </div>
             }
           </div>
         } @else {
           <div class="mt-5">
-            <app-empty-state icon="mouse-pointer-click" title="Select a catalog item" description="Select a product or service to see details." />
+            <app-empty-state icon="mouse-pointer-click" title="Select a catalog item" description="Select a catalog item to see details." />
           </div>
         }
       </app-card>
@@ -177,6 +179,7 @@
   [title]="dialogMode() === 'create' ? 'Create product / service' : 'Edit product / service'"
   [description]="dialogMode() === 'create' ? 'Attach a product or service to a brand before creating campaigns.' : 'Update the selected product or service.'"
   panelClass="max-w-4xl"
+  contentClass="admin-modal-content"
   testId="product-form-modal"
   (closed)="closeDialog()"
 >

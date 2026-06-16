@@ -108,6 +108,7 @@ public class ProductImageCreativeController {
                         request.promptDraftId(),
                         request.sourcePrompt(),
                         request.productAssetId(),
+                        request.logoAssetId(),
                         request.creativeFormat(),
                         request.platform(),
                         request.language(),
@@ -115,6 +116,11 @@ public class ProductImageCreativeController {
                         request.requestedVersionCount(),
                         request.stylePreset(),
                         request.backgroundStyle(),
-                        request.cta()));
+                        request.headline(),
+                        request.subheadline(),
+                        request.offerText(),
+                        request.cta(),
+                        request.includeCta(),
+                        request.includeTypography()));
     }
 }

@@ -97,37 +97,37 @@
   grid-column: 1 / -1;
 }
 
-.profile-form label span {
-  color: rgb(var(--color-ink));
-  font-size: 0.82rem;
-  font-weight: 850;
-}
-
 .profile-form input,
 .profile-form textarea {
   width: 100%;
-  border: 1px solid rgb(var(--color-border) / 0.72);
-  border-radius: var(--app-radius-input);
-  background: rgb(var(--color-panel) / 0.48);
+  border: 1px solid rgb(var(--color-input-border));
+  border-radius: 0.75rem;
+  background: rgb(var(--color-input));
   color: rgb(var(--color-ink));
-  font-size: 0.9rem;
+  font-size: 0.84rem;
+  font-weight: 750;
   outline: none;
+  transition:
+    border-color 180ms ease,
+    box-shadow 180ms ease,
+    background-color 180ms ease;
 }
 
 .profile-form input {
-  height: 2.65rem;
-  padding: 0 0.8rem;
+  height: 3rem;
+  padding: 0.8rem 0.78rem 0;
 }
 
 .profile-form textarea {
   resize: vertical;
-  padding: 0.75rem 0.8rem;
+  min-height: 6.6rem;
+  padding: 1.18rem 0.78rem 0.72rem;
 }
 
 .profile-form input:focus,
 .profile-form textarea:focus {
-  border-color: rgb(var(--color-accent-purple));
-  box-shadow: 0 0 0 3px rgb(var(--color-accent-purple) / 0.16);
+  border-color: rgb(34 211 238 / 0.82);
+  box-shadow: 0 0 0 4px rgb(34 211 238 / 0.13);
 }
 
 .profile-form input:disabled,
@@ -139,6 +139,68 @@
 .profile-form small {
   color: rgb(var(--color-danger));
   font-size: 0.78rem;
+}
+
+.profile-floating-field {
+  position: relative;
+  display: block !important;
+}
+
+.profile-floating-field > span {
+  position: absolute;
+  top: 50%;
+  left: 0.72rem;
+  z-index: 1;
+  max-width: calc(100% - 1.5rem);
+  padding: 0 0.28rem;
+  overflow: hidden;
+  color: rgb(var(--color-muted));
+  background:
+    linear-gradient(
+      180deg,
+      rgb(var(--color-surface-elevated)) 0%,
+      rgb(var(--color-surface-elevated)) 55%,
+      rgb(var(--color-input)) 55%,
+      rgb(var(--color-input)) 100%
+    );
+  font-size: 0.875rem;
+  font-weight: 800;
+  line-height: 1;
+  letter-spacing: 0;
+  pointer-events: none;
+  text-overflow: ellipsis;
+  text-transform: none;
+  transform: translateY(-50%);
+  transform-origin: left center;
+  transition:
+    top 180ms ease,
+    transform 180ms ease,
+    color 180ms ease,
+    font-size 180ms ease,
+    background 180ms ease;
+  white-space: nowrap;
+}
+
+.profile-floating-field--textarea > span {
+  top: 1.48rem;
+}
+
+.profile-floating-field:focus-within > span,
+.profile-floating-field.has-value > span {
+  top: 0;
+  color: rgb(34 211 238);
+  background: rgb(var(--color-surface-elevated));
+  font-size: 0.64rem;
+  transform: translateY(-50%);
+}
+
+.profile-floating-field.has-value:not(:focus-within) > span {
+  color: rgb(148 163 184);
+}
+
+.profile-floating-field:has(input:disabled) > span,
+.profile-floating-field:has(textarea:disabled) > span {
+  color: rgb(var(--color-muted) / 0.74);
 }
 
 .form-alert,
@@ -195,5 +257,87 @@
 
   .profile-form {
     grid-template-columns: 1fr;
+  }
+}
+
+.reward-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.75rem;
+}
+
+.reward-card {
+  display: grid;
+  gap: 0.7rem;
+  align-content: start;
+  min-width: 0;
+  border: 1px solid rgb(var(--color-border) / 0.68);
+  border-radius: 0.85rem;
+  background: rgb(var(--color-panel) / 0.38);
+  padding: 0.8rem;
+}
+
+.reward-card__head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 0.75rem;
+}
+
+.reward-card__head > div {
+  min-width: 0;
+}
+
+.reward-card strong {
+  display: block;
+  overflow: hidden;
+  color: rgb(var(--color-ink));
+  font-size: 0.9rem;
+  font-weight: 900;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.reward-card span {
+  display: block;
+  margin-top: 0.2rem;
+  color: rgb(var(--color-muted));
+  font-size: 0.78rem;
+  font-weight: 750;
+}
+
+.reward-card__action {
+  display: flex;
+  align-items: center;
+  gap: 0.55rem;
+}
+
+.reward-card input {
+  width: 100%;
+  min-width: 0;
+  height: 2.45rem;
+  border: 1px solid rgb(var(--color-input-border));
+  border-radius: var(--app-radius-input);
+  background: rgb(var(--color-input));
+  padding: 0 0.75rem;
+  color: rgb(var(--color-ink));
+  font-size: 0.82rem;
+  font-weight: 750;
+  outline: none;
+}
+
+.reward-card input:focus {
+  border-color: rgb(34 211 238 / 0.82);
+  box-shadow: 0 0 0 4px rgb(34 211 238 / 0.13);
+}
+
+@media (max-width: 860px) {
+  .reward-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .reward-card__action {
+    align-items: stretch;
+    flex-direction: column;
   }
 }

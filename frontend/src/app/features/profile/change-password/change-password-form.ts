@@ -4,7 +4,6 @@ import { Router } from '@angular/router';
 
 import { PermissionStore } from '@app/core/permissions/permission.store';
 import { ButtonComponent } from '@app/shared/components/app-button/app-button';
-import { CardComponent } from '@app/shared/components/app-card/app-card';
 import { EmptyStateComponent } from '@app/shared/components/app-empty-state/app-empty-state';
 import { PageHeaderComponent } from '@app/shared/components/app-page-header/app-page-header';
 import { PasswordInputComponent } from '@app/shared/components/password-input/password-input';
@@ -19,7 +18,6 @@ import { clearPasswordFormState } from '../services/profile-security';
   imports: [
     ReactiveFormsModule,
     ButtonComponent,
-    CardComponent,
     EmptyStateComponent,
     PageHeaderComponent,
     PasswordInputComponent,

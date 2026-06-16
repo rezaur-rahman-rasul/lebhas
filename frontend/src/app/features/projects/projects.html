@@ -1,252 +1,252 @@
-<div class="projects-page">
-  <app-page-header
-    eyebrow="WORKSPACE HIERARCHY"
-    title="Projects / Campaigns"
-    description="Manage campaign containers that inherit their product and brand relationship."
-  >
-    @if (canCreate()) {
-      @if (hasProductServices()) {
-        <app-button icon="plus" [testId]="'project-create-button'" (click)="openCreateDialog()">
-          Create Project / Campaign
-        </app-button>
-      } @else {
-        <a routerLink="/products-services" title="Create a product/service first">
-          <app-button icon="package-open" variant="secondary">Create a product/service first</app-button>
-        </a>
-      }
+<app-section-header
+  eyebrow="WORKSPACE HIERARCHY"
+  title="Projects / Campaigns"
+  description="Manage campaign containers that inherit their product and brand relationship."
+>
+  @if (canCreate()) {
+    @if (hasProductServices()) {
+      <app-button icon="plus" [testId]="'project-create-button'" (click)="openCreateDialog()">
+        Create Project / Campaign
+      </app-button>
+    } @else {
+      <a routerLink="/products-services" title="Create a product/service first">
+        <app-button icon="package-open" variant="secondary">Create a product/service first</app-button>
+      </a>
     }
-  </app-page-header>
+  }
+</app-section-header>
 
-  @if (!workspaceId()) {
-    <div class="projects-notice">
-      <app-empty-state
-        icon="building-2"
-        title="Select a workspace"
-        description="Choose an active workspace from the header before managing projects."
-      />
-    </div>
-  } @else if (!canView()) {
-    <div class="projects-notice">
-      <app-empty-state
-        icon="shield-alert"
-        title="Project access is restricted"
-        description="Your current role does not include project viewing permission in this workspace."
-      />
-    </div>
-  } @else {
-    <div class="projects-grid hierarchy-page-grid">
+@if (!workspaceId()) {
+  <div class="mt-6">
+    <app-empty-state
+      icon="building-2"
+      title="Select a workspace"
+      description="Choose an active workspace from the header before managing projects."
+    />
+  </div>
+} @else if (!canView()) {
+  <div class="mt-6">
+    <app-empty-state
+      icon="shield-alert"
+      title="Project access is restricted"
+      description="Your current role does not include project viewing permission in this workspace."
+    />
+  </div>
+} @else {
+  <div class="hierarchy-page-grid">
+    <app-card>
+      <div class="hierarchy-card-head">
+        <div>
+          <h2>Project roster</h2>
+          <p>{{ store.total() }} project campaigns in the active workspace</p>
+        </div>
+        <app-badge tone="blue">Product -> Project</app-badge>
+      </div>
+
+      @if (store.loading()) {
+        <div class="hierarchy-roster" aria-label="Loading projects">
+          @for (row of skeletonRows; track row) {
+            <div class="project-skeleton-row"></div>
+          }
+        </div>
+      } @else if (store.error()) {
+        <div class="mt-5">
+          <app-empty-state
+            icon="triangle-alert"
+            title="Projects could not be loaded"
+            [description]="store.error()!"
+          >
+            <app-button variant="secondary" icon="refresh-cw" (click)="retryProjects()">Retry</app-button>
+          </app-empty-state>
+        </div>
+      } @else if (projects().length === 0) {
+        <div class="mt-5">
+          <app-empty-state
+            icon="folder-kanban"
+            title="No projects yet"
+            description="Create the first project once a product or service is available."
+          >
+            @if (products().length === 0) {
+              <a routerLink="/products-services">
+                <app-button icon="package-open">Create a product/service first</app-button>
+              </a>
+            }
+          </app-empty-state>
+        </div>
+      } @else {
+        <div class="hierarchy-roster md:hidden">
+          @for (project of projects(); track project.id) {
+            <button
+              type="button"
+              class="hierarchy-list-card"
+              [class.is-active]="selectedProjectId() === project.id"
+              [attr.aria-current]="selectedProjectId() === project.id ? 'true' : null"
+              (click)="selectProject(project.id)"
+            >
+              <div class="hierarchy-list-main">
+                <div class="min-w-0">
+                  <strong>{{ project.name }}</strong>
+                  <p class="hierarchy-meta">{{ productName(project.productServiceId) }}</p>
+                </div>
+                <app-badge [tone]="project.status === 'ACTIVE' ? 'brand' : 'neutral'">
+                  {{ project.status }}
+                </app-badge>
+              </div>
+              <p class="hierarchy-meta mt-3">Platform: {{ project.targetPlatform || 'Multi-platform' }}</p>
+              <p class="hierarchy-meta">{{ project.campaignObjective || 'Objective pending' }}</p>
+              @if (!isProductLinked(project.productServiceId)) {
+                <p class="hierarchy-meta text-alert-600">Create a product/service first</p>
+              }
+            </button>
+          }
+        </div>
+
+        <div class="mt-5 hidden overflow-x-auto md:block">
+          <table class="hierarchy-table">
+            <thead>
+              <tr>
+                <th>Project / Campaign Name</th>
+                <th>Product / Service</th>
+                <th>Platform</th>
+                <th>Status</th>
+              </tr>
+            </thead>
+            <tbody>
+              @for (project of projects(); track project.id) {
+                <tr
+                  [class.is-active]="selectedProjectId() === project.id"
+                  tabindex="0"
+                  (click)="selectProject(project.id)"
+                  (keydown.enter)="selectProject(project.id)"
+                  (keydown.space)="selectProject(project.id)"
+                >
+                  <td>
+                    <strong class="text-ink">{{ project.name }}</strong>
+                    <p class="hierarchy-meta">{{ project.campaignObjective || 'Objective pending' }}</p>
+                  </td>
+                  <td>{{ productName(project.productServiceId) }}</td>
+                  <td>{{ project.targetPlatform || 'Multi-platform' }}</td>
+                  <td>
+                    <app-badge [tone]="project.status === 'ACTIVE' ? 'brand' : 'neutral'">
+                      {{ project.status }}
+                    </app-badge>
+                  </td>
+                </tr>
+              }
+            </tbody>
+          </table>
+        </div>
+      }
+    </app-card>
+
+    <div class="grid gap-5">
       <app-card>
         <div class="hierarchy-card-head">
           <div>
-            <h2>Project roster</h2>
-            <p>{{ store.total() }} project campaigns in the active workspace</p>
+            <h2>Project detail</h2>
+            <p>Campaign planning context linked to product and brand.</p>
           </div>
-          <app-badge tone="blue">Product -> Project</app-badge>
+          @if (selectedProject()) {
+            <app-badge [tone]="selectedProject()!.status === 'ACTIVE' ? 'brand' : 'neutral'">
+              {{ selectedProject()!.status }}
+            </app-badge>
+          }
         </div>
 
         @if (store.loading()) {
-          <div class="hierarchy-roster" aria-label="Loading projects">
-            @for (row of skeletonRows; track row) {
-              <div class="project-skeleton-row"></div>
+          <div class="hierarchy-detail">
+            <div class="project-skeleton-line w-40"></div>
+            <div class="project-skeleton-block"></div>
+            <div class="project-skeleton-panel"></div>
+          </div>
+        } @else if (selectedProject(); as project) {
+          <div class="hierarchy-detail">
+            <div>
+              <h3 class="hierarchy-detail-title">{{ project.name }}</h3>
+              <p class="hierarchy-meta mt-2">{{ projectDescription(project) }}</p>
+            </div>
+
+            <div class="hierarchy-field-grid">
+              <div class="hierarchy-field-card">
+                <span>Linked Brand</span>
+                <strong>{{ brandName(project.brandId) }}</strong>
+              </div>
+              <div class="hierarchy-field-card">
+                <span>Linked Product / Service</span>
+                <strong>{{ productName(project.productServiceId) }}</strong>
+              </div>
+              <div class="hierarchy-field-card">
+                <span>Target Platform</span>
+                <strong>{{ project.targetPlatform || 'Multi-platform' }}</strong>
+              </div>
+              <div class="hierarchy-field-card">
+                <span>Campaign Type</span>
+                <strong>{{ project.campaignType || 'General campaign' }}</strong>
+              </div>
+            </div>
+
+            <div class="hierarchy-field-card">
+              <span>Objective</span>
+              <strong>{{ project.campaignObjective || 'Pending' }}</strong>
+            </div>
+
+            @if (!isProductLinked(project.productServiceId)) {
+              <div class="project-warning-card">
+                <span>Product relationship missing</span>
+                <p>Guide this project back to a product/service before generating creatives.</p>
+                <a routerLink="/products-services">Create a product/service first</a>
+              </div>
             }
-          </div>
-        } @else if (store.error()) {
-          <div class="mt-5">
-            <app-empty-state
-              icon="triangle-alert"
-              title="Projects could not be loaded"
-              [description]="store.error()!"
-            >
-              <app-button variant="secondary" icon="refresh-cw" (click)="retryProjects()">Retry</app-button>
-            </app-empty-state>
-          </div>
-        } @else if (projects().length === 0) {
-          <div class="mt-5">
-            <app-empty-state
-              icon="folder-kanban"
-              title="No projects yet"
-              description="Create the first project once a product or service is available."
-            >
-              @if (products().length === 0) {
-                <a routerLink="/products-services">
-                  <app-button icon="package-open">Create a product/service first</app-button>
-                </a>
-              }
-            </app-empty-state>
+
+            <div class="hierarchy-actions">
+              <app-button
+                variant="secondary"
+                icon="pencil-line"
+                [disabled]="!canUpdate()"
+                [attr.title]="canUpdate() ? null : 'Project update permission required'"
+                (click)="canUpdate() && openEditDialog()"
+              >
+                Edit Project / Campaign
+              </app-button>
+              <app-button
+                variant="danger"
+                icon="trash-2"
+                [disabled]="!canUpdate()"
+                [attr.title]="canUpdate() ? null : 'Project delete permission required'"
+                (click)="canUpdate() && deleteSelected()"
+              >
+                Delete
+              </app-button>
+            </div>
           </div>
         } @else {
-          <div class="hierarchy-roster md:hidden">
-            @for (project of projects(); track project.id) {
-              <button
-                type="button"
-                class="hierarchy-list-card"
-                [class.is-active]="selectedProjectId() === project.id"
-                [attr.aria-current]="selectedProjectId() === project.id ? 'true' : null"
-                (click)="selectProject(project.id)"
-              >
-                <div class="hierarchy-list-main">
-                  <div class="min-w-0">
-                    <strong>{{ project.name }}</strong>
-                    <p class="hierarchy-meta">{{ productName(project.productServiceId) }}</p>
-                  </div>
-                  <app-badge [tone]="project.status === 'ACTIVE' ? 'brand' : 'neutral'">
-                    {{ project.status }}
-                  </app-badge>
-                </div>
-                <p class="hierarchy-meta mt-3">Platform: {{ project.targetPlatform || 'Multi-platform' }}</p>
-                @if (!isProductLinked(project.productServiceId)) {
-                  <p class="hierarchy-meta text-alert-600">Create a product/service first</p>
-                }
-              </button>
-            }
-          </div>
-
-          <div class="projects-table-wrap">
-            <table class="hierarchy-table">
-              <thead>
-                <tr>
-                  <th>Project / Campaign Name</th>
-                  <th>Product / Service</th>
-                  <th>Platform</th>
-                  <th>Status</th>
-                </tr>
-              </thead>
-              <tbody>
-                @for (project of projects(); track project.id) {
-                  <tr
-                    [class.is-active]="selectedProjectId() === project.id"
-                    tabindex="0"
-                    (click)="selectProject(project.id)"
-                    (keydown.enter)="selectProject(project.id)"
-                    (keydown.space)="selectProject(project.id)"
-                  >
-                    <td>
-                      <strong class="text-ink">{{ project.name }}</strong>
-                      <p class="hierarchy-meta">{{ project.campaignObjective || 'Objective pending' }}</p>
-                    </td>
-                    <td>{{ productName(project.productServiceId) }}</td>
-                    <td>{{ project.targetPlatform || 'Multi-platform' }}</td>
-                    <td>
-                      <app-badge [tone]="project.status === 'ACTIVE' ? 'brand' : 'neutral'">
-                        {{ project.status }}
-                      </app-badge>
-                    </td>
-                  </tr>
-                }
-              </tbody>
-            </table>
+          <div class="mt-5">
+            <app-empty-state
+              icon="mouse-pointer-click"
+              title="Select a project"
+              description="Project details will appear here."
+            />
           </div>
         }
       </app-card>
 
-      <aside class="projects-side">
-        <app-card>
-          <div class="hierarchy-card-head">
-            <div>
-              <h2>Project detail</h2>
-              <p>Campaign planning context linked to product and brand.</p>
-            </div>
-            @if (selectedProject()) {
-              <app-badge [tone]="selectedProject()!.status === 'ACTIVE' ? 'brand' : 'neutral'">
-                {{ selectedProject()!.status }}
-              </app-badge>
-            }
-          </div>
-
-          @if (store.loading()) {
-            <div class="hierarchy-detail">
-              <div class="project-skeleton-line w-40"></div>
-              <div class="project-skeleton-block"></div>
-              <div class="project-skeleton-panel"></div>
-            </div>
-          } @else if (selectedProject(); as project) {
-            <div class="hierarchy-detail">
-              <div>
-                <h3 class="hierarchy-detail-title">{{ project.name }}</h3>
-                <p class="hierarchy-meta mt-2">{{ projectDescription(project) }}</p>
-              </div>
-
-              <div class="hierarchy-field-grid">
-                <div class="hierarchy-field-card">
-                  <span>Linked Brand</span>
-                  <strong>{{ brandName(project.brandId) }}</strong>
-                </div>
-                <div class="hierarchy-field-card">
-                  <span>Linked Product / Service</span>
-                  <strong>{{ productName(project.productServiceId) }}</strong>
-                </div>
-                <div class="hierarchy-field-card">
-                  <span>Target Platform</span>
-                  <strong>{{ project.targetPlatform || 'Multi-platform' }}</strong>
-                </div>
-                <div class="hierarchy-field-card">
-                  <span>Campaign Type</span>
-                  <strong>{{ project.campaignType || 'General campaign' }}</strong>
-                </div>
-              </div>
-
-              <div class="hierarchy-field-card">
-                <span>Objective</span>
-                <strong>{{ project.campaignObjective || 'Pending' }}</strong>
-              </div>
-
-              @if (!isProductLinked(project.productServiceId)) {
-                <div class="project-warning-card">
-                  <span>Product relationship missing</span>
-                  <p>Guide this project back to a product/service before generating creatives.</p>
-                  <a routerLink="/products-services">Create a product/service first</a>
-                </div>
-              }
-
-              <div class="hierarchy-actions">
-                <app-button
-                  variant="secondary"
-                  icon="pencil"
-                  [disabled]="!canUpdate()"
-                  [attr.title]="canUpdate() ? null : 'Project update permission required'"
-                  (click)="canUpdate() && openEditDialog()"
-                >
-                  Edit Project / Campaign
-                </app-button>
-                <app-button
-                  variant="danger"
-                  icon="trash-2"
-                  [disabled]="!canUpdate()"
-                  [attr.title]="canUpdate() ? null : 'Project delete permission required'"
-                  (click)="canUpdate() && deleteSelected()"
-                >
-                  Delete
-                </app-button>
-              </div>
-            </div>
-          } @else {
-            <div class="mt-5">
-              <app-empty-state
-                icon="mouse-pointer-click"
-                title="Select a project"
-                description="Project details will appear here."
-              />
-            </div>
-          }
-        </app-card>
-
-        <app-card>
-          <div class="hierarchy-rule-card">
-            <p>RELATIONSHIP RULE</p>
-            <h2>Every project campaign must belong to a product or service</h2>
-            <p>This preserves the Workspace to Brand to Product/Service to Project/Campaign hierarchy before creative generation begins.</p>
-          </div>
-        </app-card>
-      </aside>
+      <app-card>
+        <div class="hierarchy-rule-card">
+          <p>RELATIONSHIP RULE</p>
+          <h2>Every project campaign must belong to a product or service</h2>
+          <p>This preserves the Workspace to Brand to Product/Service to Project/Campaign hierarchy before creative generation begins.</p>
+        </div>
+      </app-card>
     </div>
-  }
-</div>
+  </div>
+}
 
 <app-modal
   [open]="dialogMode() !== null"
   [title]="dialogMode() === 'create' ? 'Create project / campaign' : 'Edit project / campaign'"
   [description]="dialogMode() === 'create' ? 'Attach a project campaign to a product service before creative generation begins.' : 'Update the selected project campaign.'"
   panelClass="max-w-4xl"
+  contentClass="admin-modal-content"
   testId="project-form-modal"
   (closed)="closeDialog()"
 >

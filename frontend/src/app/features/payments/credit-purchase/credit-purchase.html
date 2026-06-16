@@ -129,6 +129,34 @@
               </div>
             </dl>
 
+            @if (paymentGateways().length > 0) {
+              <div class="mt-5">
+                <p class="text-sm font-semibold text-ink">Payment method</p>
+                <div class="mt-3 grid gap-2">
+                  @for (gateway of paymentGateways(); track gateway.id) {
+                    <button
+                      type="button"
+                      class="rounded-xl border px-4 py-3 text-left text-sm transition"
+                      [class.border-primary]="selectedGatewayCode() === gateway.code"
+                      [class.bg-primary-50]="selectedGatewayCode() === gateway.code"
+                      [class.text-primary]="selectedGatewayCode() === gateway.code"
+                      [class.border-border]="selectedGatewayCode() !== gateway.code"
+                      [class.bg-panel]="selectedGatewayCode() !== gateway.code"
+                      [class.text-ink]="selectedGatewayCode() !== gateway.code"
+                      (click)="selectGateway(gateway.code)"
+                    >
+                      <span class="font-semibold">{{ gateway.name }}</span>
+                      <span class="ml-2 text-xs uppercase text-muted">{{ gateway.providerType }}</span>
+                    </button>
+                  }
+                </div>
+              </div>
+            } @else {
+              <p class="mt-5 rounded-lg border border-amber-200 bg-amber-50 p-3 text-sm text-amber-800">
+                No payment gateway is enabled. Please ask the system owner to configure one.
+              </p>
+            }
+
             <app-button
               class="mt-5 block"
               type="button"

@@ -1,0 +1,36 @@
+.panel-form {
+  display: grid;
+  gap: 1rem;
+}
+
+label {
+  display: grid;
+  gap: 0.4rem;
+  color: rgb(var(--color-ink));
+}
+
+input,
+select,
+textarea {
+  border: 1px solid rgb(var(--color-border));
+  border-radius: 0.8rem;
+  background: rgb(var(--color-panel));
+  color: rgb(var(--color-ink));
+  padding: 0.75rem;
+}
+
+.actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 0.75rem;
+}
+
+small {
+  color: rgb(var(--color-red-600));
+}
+
+@media (max-width: 640px) {
+  .actions {
+    display: grid;
+  }
+}

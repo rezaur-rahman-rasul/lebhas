@@ -8,6 +8,7 @@ import com.lebhas.ai.domain.ProviderType;
 
 import java.math.BigDecimal;
 import java.time.Instant;
+import java.time.LocalDate;
 import java.util.List;
 import java.util.UUID;
 
@@ -26,6 +27,16 @@ public record MasterProviderView(
         String modelsEndpoint,
         String modelsEndpointAuth,
         String apiKeyQueryParam,
+        String sendSmsEndpoint,
+        String balanceEndpoint,
+        String requestMethod,
+        String senderId,
+        Integer otpLength,
+        Integer otpExpiryMinutes,
+        Integer resendCooldownSeconds,
+        Integer maxAttempts,
+        Boolean balanceMonitoringEnabled,
+        Boolean healthCheckEnabled,
         List<ProviderEnvironment> supportedEnvironments,
         boolean supportsSandbox,
         boolean supportsLive,
@@ -45,6 +56,16 @@ public record MasterProviderView(
         Integer priority,
         Integer rateLimitPerMinute,
         BigDecimal costMultiplier,
+        String maskedOpenAiAdminApiKey,
+        BigDecimal providerTopUpAmountUsd,
+        LocalDate providerTopUpDate,
+        BigDecimal providerManualBalanceUsd,
+        Instant lastCostSyncAt,
+        BigDecimal totalCostSpentUsd,
+        BigDecimal estimatedRemainingBalanceUsd,
+        BigDecimal estimatedInternalCredits,
+        Boolean costSyncEnabled,
+        String balanceHealth,
         String metadataJson,
         boolean secretsHidden,
         Instant credentialUpdatedAt,

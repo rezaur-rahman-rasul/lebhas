@@ -6,9 +6,12 @@ import com.lebhas.ai.application.dto.ProviderConnectionTestResult;
 import com.lebhas.ai.application.dto.ProviderCredentialSavedView;
 import com.lebhas.ai.application.dto.ProviderModelsJsonView;
 import com.lebhas.ai.application.dto.SaveProviderCredentialRequest;
+import com.lebhas.ai.application.dto.SmsProviderActionResult;
 import com.lebhas.ai.application.dto.TestProviderConnectionRequest;
+import com.lebhas.ai.application.dto.TestSmsProviderRequest;
 import com.lebhas.ai.application.dto.UpdateMasterProviderRequest;
 import com.lebhas.ai.application.dto.UpdateProviderStatusRequest;
+import com.lebhas.ai.credit.application.CreditValuePolicyService;
 import com.lebhas.ai.domain.AiProviderCredential;
 import com.lebhas.ai.domain.AiToolProvider;
 import com.lebhas.ai.domain.CredentialStatus;
@@ -27,6 +30,7 @@ import com.lebhas.creativesaas.common.exception.ErrorCode;
 import com.lebhas.creativesaas.messaging.kafka.KafkaTopicConstants;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.io.IOException;
@@ -40,6 +44,7 @@ import java.nio.charset.StandardCharsets;
 import java.time.Clock;
 import java.time.Duration;
 import java.time.Instant;
+import java.time.LocalDate;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -54,6 +59,7 @@ public class MasterProviderSettingsService {
     private final AiCredentialEncryptionService encryptionService;
     private final AssetEventPublisher eventPublisher;
     private final AuditLogService auditLogService;
+    private final ObjectProvider<CreditValuePolicyService> creditValuePolicyService;
     private final Clock clock;
     private final HttpClient httpClient;
     private final ObjectMapper objectMapper = new ObjectMapper();
@@ -70,6 +76,17 @@ public class MasterProviderSettingsService {
     private static final String PROVIDER_ENDPOINT_PATH_METADATA_KEY = "endpointPath";
     private static final String PROVIDER_ENDPOINT_AUTH_METADATA_KEY = "endpointAuth";
     private static final String PROVIDER_API_KEY_QUERY_PARAM_METADATA_KEY = "apiKeyQueryParam";
+    private static final String OPENAI_PROVIDER_CODE = "OPENAI";
+    private static final String SEND_SMS_ENDPOINT_METADATA_KEY = "sendSmsEndpoint";
+    private static final String BALANCE_ENDPOINT_METADATA_KEY = "balanceEndpoint";
+    private static final String REQUEST_METHOD_METADATA_KEY = "requestMethod";
+    private static final String SENDER_ID_METADATA_KEY = "senderId";
+    private static final String OTP_LENGTH_METADATA_KEY = "otpLength";
+    private static final String OTP_EXPIRY_MINUTES_METADATA_KEY = "otpExpiryMinutes";
+    private static final String RESEND_COOLDOWN_SECONDS_METADATA_KEY = "resendCooldownSeconds";
+    private static final String MAX_ATTEMPTS_METADATA_KEY = "maxAttempts";
+    private static final String BALANCE_MONITORING_ENABLED_METADATA_KEY = "balanceMonitoringEnabled";
+    private static final String HEALTH_CHECK_ENABLED_METADATA_KEY = "healthCheckEnabled";
 
     public MasterProviderSettingsService(
             AiToolProviderRepository providerRepository,
@@ -77,6 +94,7 @@ public class MasterProviderSettingsService {
             AiCredentialEncryptionService encryptionService,
             AssetEventPublisher eventPublisher,
             AuditLogService auditLogService,
+            ObjectProvider<CreditValuePolicyService> creditValuePolicyService,
             Clock clock
     ) {
         this.providerRepository = providerRepository;
@@ -84,6 +102,7 @@ public class MasterProviderSettingsService {
         this.encryptionService = encryptionService;
         this.eventPublisher = eventPublisher;
         this.auditLogService = auditLogService;
+        this.creditValuePolicyService = creditValuePolicyService;
         this.clock = clock;
         this.httpClient = HttpClient.newBuilder()
                 .connectTimeout(Duration.ofSeconds(10))
@@ -135,6 +154,16 @@ public class MasterProviderSettingsService {
                         request.modelsEndpoint(),
                         request.modelsEndpointAuth(),
                         request.apiKeyQueryParam(),
+                        request.sendSmsEndpoint(),
+                        request.balanceEndpoint(),
+                        request.requestMethod(),
+                        request.senderId(),
+                        request.otpLength(),
+                        request.otpExpiryMinutes(),
+                        request.resendCooldownSeconds(),
+                        request.maxAttempts(),
+                        request.balanceMonitoringEnabled(),
+                        request.healthCheckEnabled(),
                         request.metadataJson(),
                         request.costMultiplier()),
                 Map.of(),
@@ -146,6 +175,8 @@ public class MasterProviderSettingsService {
                 request.supportsSandbox(),
                 request.supportsLive(),
                 request.defaultEnvironment());
+        configureOpenAiCostTracking(provider, request.openAiAdminApiKey(), request.providerTopUpAmountUsd(),
+                request.providerTopUpDate(), request.providerManualBalanceUsd(), request.costSyncEnabled());
         AiToolProvider saved = providerRepository.save(provider);
         publish(KafkaTopicConstants.AI_PROVIDER_CREATED, saved, "provider.created");
         audit(saved, "provider.created", AuditActionType.CREATE, "Provider created");
@@ -155,6 +186,7 @@ public class MasterProviderSettingsService {
     public MasterProviderView updateProvider(UUID providerId, UpdateMasterProviderRequest request) {
         AiToolProvider provider = requireProvider(providerId);
         ProviderStatus status = request.status() == null ? provider.getStatus() : request.status();
+        ProviderType providerType = request.providerType() == null ? provider.getProviderType() : request.providerType();
         provider.updateSettings(
                 request.displayName(),
                 request.description(),
@@ -164,7 +196,7 @@ public class MasterProviderSettingsService {
                 request.defaultEnvironment());
         provider.update(
                 request.displayName(),
-                provider.getProviderType(),
+                providerType,
                 status,
                 status == ProviderStatus.ACTIVE,
                 supportedCapabilities(request.supportedCapabilities()),
@@ -178,10 +210,22 @@ public class MasterProviderSettingsService {
                         request.modelsEndpoint(),
                         request.modelsEndpointAuth(),
                         request.apiKeyQueryParam(),
+                        request.sendSmsEndpoint(),
+                        request.balanceEndpoint(),
+                        request.requestMethod(),
+                        request.senderId(),
+                        request.otpLength(),
+                        request.otpExpiryMinutes(),
+                        request.resendCooldownSeconds(),
+                        request.maxAttempts(),
+                        request.balanceMonitoringEnabled(),
+                        request.healthCheckEnabled(),
                         request.metadataJson(),
                         request.costMultiplier()),
                 provider.getQualityMetadata(),
                 rateLimitMetadata(request.priority(), request.rateLimitPerMinute()));
+        configureOpenAiCostTracking(provider, request.openAiAdminApiKey(), request.providerTopUpAmountUsd(),
+                request.providerTopUpDate(), request.providerManualBalanceUsd(), request.costSyncEnabled());
         AiToolProvider saved = providerRepository.save(provider);
         publish(KafkaTopicConstants.AI_PROVIDER_UPDATED, saved, "provider.updated");
         audit(saved, "provider.updated", AuditActionType.UPDATE, "Provider updated");
@@ -339,6 +383,74 @@ public class MasterProviderSettingsService {
         return credentialSavedView(provider, environment, saved.getCredentialStatus(), saved.isActive());
     }
 
+    public SmsProviderActionResult testSms(UUID providerId, TestSmsProviderRequest request) {
+        AiToolProvider provider = requireSmsProvider(providerId);
+        ProviderEnvironment environment = environment(request.environment());
+        validateEnvironment(provider, environment);
+        String secret = resolveConnectionSecret(provider.getId(), environment, new TestProviderConnectionRequest(environment, null));
+        String mobileNumber = AiToolProvider.normalizeRequired(request.mobileNumber(), "mobileNumber");
+        String message = AiToolProvider.normalizeNullable(request.message());
+        if (message == null) {
+            message = "Your Lebhas test OTP is 123456";
+        }
+        return runSmsRequest(provider, secret, "test-sms", smsSendParams(provider, secret, mobileNumber, message), SEND_SMS_ENDPOINT_METADATA_KEY);
+    }
+
+    public SmsProviderActionResult testSms(String providerKey, TestSmsProviderRequest request) {
+        return testSms(requireProvider(providerKey).getId(), request);
+    }
+
+    public SmsProviderActionResult sendOtp(String mobileNumber, String otp) {
+        AiToolProvider provider = providerRepository.findAllByEnabledTrueAndStatusAndDeletedFalseOrderByProviderNameAsc(ProviderStatus.ACTIVE).stream()
+                .filter(candidate -> providerTypeForSettings(candidate) == ProviderType.SMS)
+                .filter(candidate -> preferredCredential(candidate.getId(), null) != null)
+                .findFirst()
+                .orElseThrow(() -> new BusinessException(ErrorCode.BUSINESS_RULE_VIOLATION, "Active SMS provider is not configured"));
+        AiProviderCredential credential = preferredCredential(provider.getId(), null);
+        ProviderEnvironment environment = credential == null ? provider.getDefaultEnvironment() : credential.getEnvironment();
+        validateEnvironment(provider, environment);
+        String secret = resolveConnectionSecret(provider.getId(), environment, new TestProviderConnectionRequest(environment, null));
+        String normalizedMobileNumber = AiToolProvider.normalizeRequired(mobileNumber, "mobileNumber");
+        String normalizedOtp = AiToolProvider.normalizeRequired(otp, "otp");
+        SmsProviderActionResult result = runSmsRequest(
+                provider,
+                secret,
+                "otp-send",
+                smsSendParams(provider, secret, normalizedMobileNumber, "Your Lebhas OTP is " + normalizedOtp),
+                SEND_SMS_ENDPOINT_METADATA_KEY);
+        if (!result.success()) {
+            throw new BusinessException(ErrorCode.BUSINESS_RULE_VIOLATION, "OTP SMS could not be sent: " + result.message());
+        }
+        return result;
+    }
+
+    public SmsProviderActionResult checkSmsBalance(UUID providerId, TestProviderConnectionRequest request) {
+        AiToolProvider provider = requireSmsProvider(providerId);
+        ProviderEnvironment environment = environment(request.environment());
+        validateEnvironment(provider, environment);
+        String secret = resolveConnectionSecret(provider.getId(), environment, request);
+        return runSmsRequest(provider, secret, "balance-check", Map.of("api_key", secret), BALANCE_ENDPOINT_METADATA_KEY);
+    }
+
+    public SmsProviderActionResult checkSmsBalance(String providerKey, TestProviderConnectionRequest request) {
+        return checkSmsBalance(requireProvider(providerKey).getId(), request);
+    }
+
+    public SmsProviderActionResult checkProviderBalance(UUID providerId, TestProviderConnectionRequest request) {
+        AiToolProvider provider = requireProvider(providerId);
+        ProviderEnvironment environment = environment(request.environment());
+        validateEnvironment(provider, environment);
+        if (OPENAI_PROVIDER_CODE.equals(provider.getProviderCode())) {
+            return currentOpenAiEstimatedBalance(provider);
+        }
+        String secret = resolveConnectionSecret(provider.getId(), environment, request);
+        return runSmsRequest(provider, secret, "balance-check", Map.of("api_key", secret), BALANCE_ENDPOINT_METADATA_KEY);
+    }
+
+    public SmsProviderActionResult checkProviderBalance(String providerKey, TestProviderConnectionRequest request) {
+        return checkProviderBalance(requireProvider(providerKey).getId(), request);
+    }
+
     public void deleteProvider(UUID providerId) {
         AiToolProvider provider = requireProvider(providerId);
         provider.disable();
@@ -375,6 +487,16 @@ public class MasterProviderSettingsService {
                 metadataString(provider.getCostMetadata(), PROVIDER_MODELS_ENDPOINT_METADATA_KEY),
                 metadataString(provider.getCostMetadata(), PROVIDER_ENDPOINT_AUTH_METADATA_KEY),
                 metadataString(provider.getCostMetadata(), PROVIDER_API_KEY_QUERY_PARAM_METADATA_KEY),
+                metadataString(provider.getCostMetadata(), SEND_SMS_ENDPOINT_METADATA_KEY),
+                metadataString(provider.getCostMetadata(), BALANCE_ENDPOINT_METADATA_KEY),
+                metadataString(provider.getCostMetadata(), REQUEST_METHOD_METADATA_KEY),
+                metadataString(provider.getCostMetadata(), SENDER_ID_METADATA_KEY),
+                metadataInteger(provider.getCostMetadata(), OTP_LENGTH_METADATA_KEY, 6),
+                metadataInteger(provider.getCostMetadata(), OTP_EXPIRY_MINUTES_METADATA_KEY, 5),
+                metadataInteger(provider.getCostMetadata(), RESEND_COOLDOWN_SECONDS_METADATA_KEY, 60),
+                metadataInteger(provider.getCostMetadata(), MAX_ATTEMPTS_METADATA_KEY, 3),
+                metadataBoolean(provider.getCostMetadata(), BALANCE_MONITORING_ENABLED_METADATA_KEY, false),
+                metadataBoolean(provider.getCostMetadata(), HEALTH_CHECK_ENABLED_METADATA_KEY, true),
                 supportedEnvironments(provider),
                 provider.isSupportsSandbox(),
                 provider.isSupportsLive(),
@@ -394,11 +516,96 @@ public class MasterProviderSettingsService {
                 metadataInteger(provider.getRateLimitMetadata(), PRIORITY_METADATA_KEY, 100),
                 metadataInteger(provider.getRateLimitMetadata(), RATE_LIMIT_PER_MINUTE_METADATA_KEY, 60),
                 metadataDecimal(provider.getCostMetadata(), COST_MULTIPLIER_METADATA_KEY, BigDecimal.ONE),
+                maskedOpenAiAdminApiKey(provider),
+                provider.getProviderTopUpAmountUsd(),
+                provider.getProviderTopUpDate(),
+                provider.getProviderManualBalanceUsd(),
+                provider.getLastCostSyncAt(),
+                provider.getTotalCostSpentUsd(),
+                provider.getEstimatedRemainingBalanceUsd(),
+                estimatedInternalCredits(provider),
+                provider.isCostSyncEnabled(),
+                balanceHealth(provider),
                 metadataString(provider.getCostMetadata(), METADATA_JSON_KEY),
                 true,
                 credential == null ? null : credential.getUpdatedAt(),
                 provider.getCreatedAt(),
                 provider.getUpdatedAt());
+    }
+
+    private void configureOpenAiCostTracking(
+            AiToolProvider provider,
+            String rawAdminApiKey,
+            BigDecimal topUpAmountUsd,
+            LocalDate topUpDate,
+            BigDecimal manualBalanceUsd,
+            Boolean costSyncEnabled
+    ) {
+        String encryptedAdminKey = encryptionService.encryptNullable(rawAdminApiKey, provider.getOpenAiAdminApiKeyEncrypted());
+        provider.configureOpenAiCostTracking(encryptedAdminKey, topUpAmountUsd, topUpDate, manualBalanceUsd, costSyncEnabled);
+    }
+
+    private SmsProviderActionResult currentOpenAiEstimatedBalance(AiToolProvider provider) {
+        BigDecimal balance = provider.getEstimatedRemainingBalanceUsd();
+        Map<String, Object> response = new LinkedHashMap<>();
+        if (balance != null) {
+            response.put(AVAILABLE_CREDIT_BALANCE_METADATA_KEY, balance);
+            response.put("estimatedRemainingBalanceUsd", balance);
+            response.put("totalCostSpentUsd", provider.getTotalCostSpentUsd());
+            response.put("lastCostSyncAt", provider.getLastCostSyncAt());
+            response.put("currency", "USD");
+        }
+        return new SmsProviderActionResult(
+                provider.getProviderCode(),
+                balance != null,
+                "My Credit Balance",
+                null,
+                balance == null
+                        ? "OpenAI costs have not been synced. Use Sync Costs to calculate the estimated balance."
+                        : "Estimated provider balance: " + formatUsd(balance),
+                "https://api.openai.com/v1/organization/costs",
+                Map.copyOf(response),
+                clock.instant());
+    }
+
+    private String maskedOpenAiAdminApiKey(AiToolProvider provider) {
+        try {
+            String decrypted = encryptionService.decryptNullable(provider.getOpenAiAdminApiKeyEncrypted());
+            return decrypted == null ? null : encryptionService.maskNullable(decrypted, null);
+        } catch (RuntimeException exception) {
+            return "sk-admin-****";
+        }
+    }
+
+    private BigDecimal estimatedInternalCredits(AiToolProvider provider) {
+        BigDecimal balance = provider.getEstimatedRemainingBalanceUsd();
+        if (balance == null) {
+            return null;
+        }
+        try {
+            CreditValuePolicyService policyService = creditValuePolicyService == null ? null : creditValuePolicyService.getIfAvailable();
+            if (policyService == null) {
+                return null;
+            }
+            BigDecimal creditValueUsd = policyService.requireActivePolicy().getCreditUsdValue();
+            if (creditValueUsd == null || creditValueUsd.signum() <= 0) {
+                return null;
+            }
+            return balance.divide(creditValueUsd, 4, java.math.RoundingMode.FLOOR);
+        } catch (RuntimeException exception) {
+            return null;
+        }
+    }
+
+    private String balanceHealth(AiToolProvider provider) {
+        BigDecimal balance = provider.getEstimatedRemainingBalanceUsd();
+        if (balance == null) {
+            return "UNKNOWN";
+        }
+        if (balance.compareTo(new BigDecimal("10.00")) <= 0) {
+            return "LOW";
+        }
+        return "HEALTHY";
     }
 
     private ProviderCredentialSavedView credentialSavedView(
@@ -459,6 +666,16 @@ public class MasterProviderSettingsService {
             String modelsEndpoint,
             String modelsEndpointAuth,
             String apiKeyQueryParam,
+            String sendSmsEndpoint,
+            String balanceEndpoint,
+            String requestMethod,
+            String senderId,
+            Integer otpLength,
+            Integer otpExpiryMinutes,
+            Integer resendCooldownSeconds,
+            Integer maxAttempts,
+            Boolean balanceMonitoringEnabled,
+            Boolean healthCheckEnabled,
             String metadataJson,
             BigDecimal costMultiplier
     ) {
@@ -468,6 +685,16 @@ public class MasterProviderSettingsService {
         putIfPresent(metadata, PROVIDER_MODELS_ENDPOINT_METADATA_KEY, modelsEndpoint);
         putIfPresent(metadata, PROVIDER_ENDPOINT_AUTH_METADATA_KEY, modelsEndpointAuth);
         putIfPresent(metadata, PROVIDER_API_KEY_QUERY_PARAM_METADATA_KEY, apiKeyQueryParam);
+        putIfPresent(metadata, SEND_SMS_ENDPOINT_METADATA_KEY, sendSmsEndpoint);
+        putIfPresent(metadata, BALANCE_ENDPOINT_METADATA_KEY, balanceEndpoint);
+        putIfPresent(metadata, REQUEST_METHOD_METADATA_KEY, requestMethod);
+        putIfPresent(metadata, SENDER_ID_METADATA_KEY, senderId);
+        putIntegerIfPresent(metadata, OTP_LENGTH_METADATA_KEY, otpLength);
+        putIntegerIfPresent(metadata, OTP_EXPIRY_MINUTES_METADATA_KEY, otpExpiryMinutes);
+        putIntegerIfPresent(metadata, RESEND_COOLDOWN_SECONDS_METADATA_KEY, resendCooldownSeconds);
+        putIntegerIfPresent(metadata, MAX_ATTEMPTS_METADATA_KEY, maxAttempts);
+        putBooleanIfPresent(metadata, BALANCE_MONITORING_ENABLED_METADATA_KEY, balanceMonitoringEnabled);
+        putBooleanIfPresent(metadata, HEALTH_CHECK_ENABLED_METADATA_KEY, healthCheckEnabled);
         putIfPresent(metadata, METADATA_JSON_KEY, metadataJson);
         metadata.put(COST_MULTIPLIER_METADATA_KEY, normalizePositive(costMultiplier, BigDecimal.ONE, "Cost multiplier"));
         return Map.copyOf(metadata);
@@ -484,6 +711,18 @@ public class MasterProviderSettingsService {
         String normalized = AiToolProvider.normalizeNullable(value);
         if (normalized != null) {
             metadata.put(key, normalized);
+        }
+    }
+
+    private void putIntegerIfPresent(Map<String, Object> metadata, String key, Integer value) {
+        if (value != null) {
+            metadata.put(key, value);
+        }
+    }
+
+    private void putBooleanIfPresent(Map<String, Object> metadata, String key, Boolean value) {
+        if (value != null) {
+            metadata.put(key, value);
         }
     }
 
@@ -541,6 +780,17 @@ public class MasterProviderSettingsService {
         return defaultValue;
     }
 
+    private Boolean metadataBoolean(Map<String, Object> metadata, String key, boolean defaultValue) {
+        Object value = metadata == null ? null : metadata.get(key);
+        if (value instanceof Boolean booleanValue) {
+            return booleanValue;
+        }
+        if (value instanceof String stringValue && !stringValue.isBlank()) {
+            return Boolean.parseBoolean(stringValue.trim());
+        }
+        return defaultValue;
+    }
+
     private BigDecimal availableCreditBalance(Map<String, Object> metadata) {
         if (metadata == null || !metadata.containsKey(AVAILABLE_CREDIT_BALANCE_METADATA_KEY)) {
             return null;
@@ -564,7 +814,7 @@ public class MasterProviderSettingsService {
 
     private ProviderType providerTypeForSettings(AiToolProvider provider) {
         return switch (provider.getProviderType()) {
-            case PAYMENT, STORAGE, NOTIFICATION, AI -> provider.getProviderType();
+            case AI, SMS, EMAIL, STORAGE, PAYMENT, NOTIFICATION -> provider.getProviderType();
             default -> ProviderType.AI;
         };
     }
@@ -579,6 +829,14 @@ public class MasterProviderSettingsService {
         String normalized = byId.isPresent() ? "" : AiToolProvider.normalizeCode(providerKey, "providerKey");
         return byId.or(() -> providerRepository.findByProviderCodeAndDeletedFalse(normalized))
                 .orElseThrow(() -> new BusinessException(ErrorCode.RESOURCE_NOT_FOUND, "Provider not found"));
+    }
+
+    private AiToolProvider requireSmsProvider(UUID providerId) {
+        AiToolProvider provider = requireProvider(providerId);
+        if (providerTypeForSettings(provider) != ProviderType.SMS) {
+            throw new BusinessException(ErrorCode.VALIDATION_FAILED, "Provider is not an SMS provider");
+        }
+        return provider;
     }
 
     private Optional<UUID> parseUuid(String value) {
@@ -782,6 +1040,10 @@ public class MasterProviderSettingsService {
         return bearerJsonEndpoint("https://api.openai.com/v1/models", secret).request();
     }
 
+    private String formatUsd(BigDecimal value) {
+        return "$" + value.setScale(2, java.math.RoundingMode.HALF_UP).toPlainString();
+    }
+
     private Map<String, Object> parsedMetadataJson(AiToolProvider provider) {
         String metadataJson = metadataString(provider.getCostMetadata(), METADATA_JSON_KEY);
         if (metadataJson == null || metadataJson.isBlank()) {
@@ -815,6 +1077,160 @@ public class MasterProviderSettingsService {
         String separator = endpoint.contains("?") ? "&" : "?";
         return endpoint + separator + URLEncoder.encode(queryParam, StandardCharsets.UTF_8)
                 + "=" + URLEncoder.encode(value, StandardCharsets.UTF_8);
+    }
+
+    private SmsProviderActionResult runSmsRequest(
+            AiToolProvider provider,
+            String secret,
+            String action,
+            Map<String, String> params,
+            String endpointKey
+    ) {
+        Instant startedAt = clock.instant();
+        String endpoint = smsEndpoint(provider, endpointKey);
+        String method = Optional.ofNullable(metadataString(provider.getCostMetadata(), REQUEST_METHOD_METADATA_KEY))
+                .orElse("GET")
+                .trim()
+                .toUpperCase(java.util.Locale.ROOT);
+        try {
+            HttpRequest request = "POST".equals(method)
+                    ? smsPostRequest(endpoint, params)
+                    : smsGetRequest(endpoint, params);
+            HttpResponse<String> response = httpClient.send(request, HttpResponse.BodyHandlers.ofString());
+            Map<String, Object> responseBody = smsProviderResponseBody(response.body());
+            boolean success = smsProviderSuccess(provider, response.statusCode(), responseBody);
+            return new SmsProviderActionResult(
+                    provider.getProviderCode(),
+                    success,
+                    action,
+                    response.statusCode(),
+                    smsProviderMessage(success, response.statusCode(), responseBody),
+                    safeSmsEndpoint(endpoint, params),
+                    responseBody,
+                    startedAt);
+        } catch (IOException exception) {
+            return new SmsProviderActionResult(provider.getProviderCode(), false, action, null,
+                    "Provider could not be reached", safeSmsEndpoint(endpoint, params), Map.of(), startedAt);
+        } catch (InterruptedException exception) {
+            Thread.currentThread().interrupt();
+            return new SmsProviderActionResult(provider.getProviderCode(), false, action, null,
+                    "Provider request was interrupted", safeSmsEndpoint(endpoint, params), Map.of(), startedAt);
+        }
+    }
+
+    private Map<String, String> smsSendParams(AiToolProvider provider, String secret, String mobileNumber, String message) {
+        String senderId = metadataString(provider.getCostMetadata(), SENDER_ID_METADATA_KEY);
+        Map<String, String> params = new LinkedHashMap<>();
+        params.put("api_key", secret);
+        if (senderId != null) {
+            params.put("senderid", senderId);
+        }
+        if ("BULKSMSBD".equals(provider.getProviderCode())) {
+            params.put("type", "text");
+        }
+        params.put("number", mobileNumber);
+        params.put("message", message);
+        return params;
+    }
+
+    private Map<String, Object> smsProviderResponseBody(String body) {
+        Map<String, Object> response = new LinkedHashMap<>();
+        response.put("body", truncate(body == null ? "" : body, 1000));
+        if (body == null || body.isBlank()) {
+            return Map.copyOf(response);
+        }
+        try {
+            Map<String, Object> parsed = objectMapper.readValue(body, new TypeReference<>() {
+            });
+            response.putAll(parsed);
+        } catch (IOException ignored) {
+            // Some SMS balance APIs return plain text.
+        }
+        return Map.copyOf(response);
+    }
+
+    private boolean smsProviderSuccess(AiToolProvider provider, int httpStatus, Map<String, Object> responseBody) {
+        if (httpStatus < 200 || httpStatus >= 300) {
+            return false;
+        }
+        Object responseCode = responseBody.get("response_code");
+        if (responseCode == null) {
+            return true;
+        }
+        String successCode = smsSuccessCode(provider);
+        return successCode.equals(String.valueOf(responseCode).trim());
+    }
+
+    private String smsProviderMessage(boolean success, int httpStatus, Map<String, Object> responseBody) {
+        Object successMessage = responseBody.get("success_message");
+        Object errorMessage = responseBody.get("error_message");
+        if (success && successMessage != null && !String.valueOf(successMessage).isBlank()) {
+            return String.valueOf(successMessage);
+        }
+        if (!success && errorMessage != null && !String.valueOf(errorMessage).isBlank()) {
+            return String.valueOf(errorMessage);
+        }
+        return success ? "Provider request completed" : "Provider request failed with HTTP " + httpStatus;
+    }
+
+    private String smsSuccessCode(AiToolProvider provider) {
+        Map<String, Object> metadata = parsedMetadataJson(provider);
+        Object successCode = metadata.get("successCode");
+        return successCode == null || String.valueOf(successCode).isBlank() ? "202" : String.valueOf(successCode).trim();
+    }
+
+    private String smsEndpoint(AiToolProvider provider, String endpointKey) {
+        String baseUrl = metadataString(provider.getCostMetadata(), BASE_URL_METADATA_KEY);
+        String endpointPath = metadataString(provider.getCostMetadata(), endpointKey);
+        if (baseUrl == null || endpointPath == null) {
+            throw new BusinessException(ErrorCode.VALIDATION_FAILED, "Provider endpoint is not configured");
+        }
+        String endpoint = joinUrl(baseUrl, endpointPath);
+        validateProviderEndpoint(endpoint);
+        return endpoint;
+    }
+
+    private HttpRequest smsGetRequest(String endpoint, Map<String, String> params) {
+        String requestEndpoint = endpoint;
+        for (Map.Entry<String, String> entry : params.entrySet()) {
+            requestEndpoint = appendQueryParam(requestEndpoint, entry.getKey(), entry.getValue());
+        }
+        return HttpRequest.newBuilder(URI.create(requestEndpoint))
+                .timeout(Duration.ofSeconds(15))
+                .GET()
+                .build();
+    }
+
+    private HttpRequest smsPostRequest(String endpoint, Map<String, String> params) {
+        String body = formBody(params);
+        return HttpRequest.newBuilder(URI.create(endpoint))
+                .timeout(Duration.ofSeconds(15))
+                .header("Content-Type", "application/x-www-form-urlencoded")
+                .POST(HttpRequest.BodyPublishers.ofString(body))
+                .build();
+    }
+
+    private String formBody(Map<String, String> params) {
+        return params.entrySet().stream()
+                .map(entry -> URLEncoder.encode(entry.getKey(), StandardCharsets.UTF_8)
+                        + "=" + URLEncoder.encode(entry.getValue(), StandardCharsets.UTF_8))
+                .reduce((left, right) -> left + "&" + right)
+                .orElse("");
+    }
+
+    private String safeSmsEndpoint(String endpoint, Map<String, String> params) {
+        String safeEndpoint = endpoint;
+        for (Map.Entry<String, String> entry : params.entrySet()) {
+            safeEndpoint = appendQueryParam(safeEndpoint, entry.getKey(), "api_key".equals(entry.getKey()) ? "***" : entry.getValue());
+        }
+        return safeEndpoint;
+    }
+
+    private String truncate(String value, int maxLength) {
+        if (value == null || value.length() <= maxLength) {
+            return value;
+        }
+        return value.substring(0, maxLength) + "...";
     }
 
     private void validateProviderEndpoint(String endpoint) {

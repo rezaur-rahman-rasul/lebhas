@@ -6,6 +6,7 @@ import com.lebhas.creativesaas.common.exception.ErrorCode;
 import com.lebhas.creativesaas.profile.application.dto.ProfileImageUploadUrlRequest;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
+import org.springframework.web.multipart.MultipartFile;
 
 import java.util.List;
 import java.util.Locale;
@@ -45,6 +46,16 @@ public class ProfileImageValidationService {
             throw validation("fileName", "Profile image extension does not match the MIME type");
         }
         return new ValidatedProfileImageUpload(fileName, mimeType, request.fileSize(), storageExtension, maxFileSize);
+    }
+
+    public ValidatedProfileImageUpload validate(MultipartFile file) {
+        if (file == null || file.isEmpty()) {
+            throw validation("file", "Profile image file is required");
+        }
+        return validate(new ProfileImageUploadUrlRequest(
+                file.getOriginalFilename(),
+                file.getContentType(),
+                file.getSize()));
     }
 
     public void validateStoredObject(long contentLength, long expectedFileSize) {

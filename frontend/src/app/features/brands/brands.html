@@ -179,7 +179,8 @@
   [open]="dialogMode() !== null"
   [title]="dialogMode() === 'create' ? 'Create brand' : 'Edit brand'"
   [description]="dialogMode() === 'create' ? 'Add a brand profile for products, campaigns, and creative requests.' : 'Update the selected brand profile.'"
-  panelClass="max-w-4xl"
+  panelClass="max-w-5xl"
+  contentClass="admin-modal-content"
   testId="brand-form-modal"
   (closed)="closeDialog()"
 >
@@ -209,11 +210,28 @@
       <section class="admin-modal-section">
         <h3 class="admin-modal-section-title">Voice and visuals</h3>
         <div class="grid gap-4 sm:grid-cols-2">
-          <app-input label="Brand voice" placeholder="Confident and refined" [control]="form.controls.brandVoice" />
+          <app-input label="Slogan" placeholder="Create Ads Beyond Imagination" [control]="form.controls.brandVoice" />
           <app-input label="Preferred CTA" placeholder="Shop now" [control]="form.controls.preferredCta" />
           <app-input label="Primary color" placeholder="#0B8F68" [control]="form.controls.primaryColor" />
           <app-input label="Secondary color" placeholder="#2563EB" [control]="form.controls.secondaryColor" />
         </div>
+        <label class="brand-logo-upload-field">
+          <span>Upload logo</span>
+          <input
+            type="file"
+            accept="image/jpeg,image/jpg,image/png,image/svg+xml,image/webp,.jpg,.jpeg,.png,.svg,.webp"
+            (change)="onLogoSelected($event)"
+          />
+          <div class="brand-logo-upload-box">
+            <span>{{ selectedLogoFile()?.name || currentLogoAsset()?.originalFileName || 'Choose JPG, PNG, SVG, or WebP logo' }}</span>
+            @if (selectedLogoFile()) {
+              <button type="button" (click)="removeLogo()">Remove</button>
+            }
+          </div>
+        </label>
+        @if (logoError()) {
+          <span class="mt-2 block text-sm text-alert-600">{{ logoError() }}</span>
+        }
       </section>
 
       <section class="admin-modal-section">

@@ -16,8 +16,12 @@ public class UsageBillingKafkaEventConfiguration {
     }
 
     @Bean
-    UsageBillingEventProducer usageBillingEventProducer(KafkaTemplate<String, Object> kafkaTemplate, UsageBillingKafkaTopicNames topicNames) {
-        return new UsageBillingEventProducer(kafkaTemplate, topicNames);
+    UsageBillingEventProducer usageBillingEventProducer(
+            KafkaTemplate<String, Object> kafkaTemplate,
+            UsageBillingKafkaTopicNames topicNames,
+            KafkaMessagingProperties kafkaMessagingProperties
+    ) {
+        return new UsageBillingEventProducer(kafkaTemplate, topicNames, kafkaMessagingProperties);
     }
 
     @Bean

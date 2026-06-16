@@ -23,10 +23,22 @@
               <p class="mt-1 text-sm text-muted">The request is queued and waiting for a provider worker.</p>
             }
             @case ('PROCESSING') {
-              <p class="mt-1 text-sm text-muted">The provider is generating creative outputs.</p>
+              <p class="mt-1 text-sm text-muted">Preparing the generation pipeline.</p>
+            }
+            @case ('GENERATING') {
+              <p class="mt-1 text-sm text-muted">Generating creative with the AI provider.</p>
+            }
+            @case ('DOWNLOADING') {
+              <p class="mt-1 text-sm text-muted">Downloading the generated asset from the provider.</p>
+            }
+            @case ('UPLOADING') {
+              <p class="mt-1 text-sm text-muted">Uploading preview and download assets to secure storage.</p>
+            }
+            @case ('READY') {
+              <p class="mt-1 text-sm text-muted">Creative outputs are ready to preview and download.</p>
             }
             @case ('COMPLETED') {
-              <p class="mt-1 text-sm text-muted">Creative outputs are ready to review.</p>
+              <p class="mt-1 text-sm text-muted">Creative outputs are ready to preview and download.</p>
             }
             @case ('FAILED') {
               <p class="mt-1 text-sm text-muted">Generation failed. Review the message and retry when ready.</p>

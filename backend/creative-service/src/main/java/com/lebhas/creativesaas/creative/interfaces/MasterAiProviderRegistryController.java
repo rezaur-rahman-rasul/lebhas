@@ -2,6 +2,7 @@ package com.lebhas.creativesaas.creative.interfaces;
 
 import com.lebhas.ai.application.MasterAiProviderManagementService;
 import com.lebhas.ai.application.MasterAiProviderToolRegistryService;
+import com.lebhas.ai.application.OpenAiCostTrackingService;
 import com.lebhas.ai.application.MasterProviderSettingsService;
 import com.lebhas.ai.application.dto.CreateMasterProviderRequest;
 import com.lebhas.ai.application.dto.AiProviderCommand;
@@ -12,6 +13,7 @@ import com.lebhas.ai.application.dto.CreativeToolCommand;
 import com.lebhas.ai.application.dto.CreativeToolView;
 import com.lebhas.ai.application.dto.MasterProviderView;
 import com.lebhas.ai.application.dto.MasterMonitoringResponse;
+import com.lebhas.ai.application.dto.OpenAiCostSyncResult;
 import com.lebhas.ai.application.dto.ProviderHealthSnapshotView;
 import com.lebhas.ai.application.dto.ProviderHealthSummary;
 import com.lebhas.ai.application.dto.ProviderRoutingPolicyCommand;
@@ -20,12 +22,18 @@ import com.lebhas.ai.application.dto.ProviderConnectionTestResult;
 import com.lebhas.ai.application.dto.ProviderCredentialSavedView;
 import com.lebhas.ai.application.dto.ProviderModelsJsonView;
 import com.lebhas.ai.application.dto.SaveProviderCredentialRequest;
+import com.lebhas.ai.application.dto.SmsProviderActionResult;
 import com.lebhas.ai.application.dto.TestProviderConnectionRequest;
+import com.lebhas.ai.application.dto.TestSmsProviderRequest;
 import com.lebhas.ai.application.dto.UpdateMasterProviderRequest;
 import com.lebhas.ai.application.dto.UpdateProviderStatusRequest;
 import com.lebhas.ai.credit.application.MasterCreditMonitoringService;
+import com.lebhas.ai.credit.application.CreditValuePolicyService;
 import com.lebhas.ai.credit.application.ProviderCreditExchangePolicyService;
 import com.lebhas.ai.credit.application.ProviderCreditPoolService;
+import com.lebhas.ai.credit.application.dto.CreditValuePolicyCommand;
+import com.lebhas.ai.credit.application.dto.CreditValuePolicyPreviewView;
+import com.lebhas.ai.credit.application.dto.CreditValuePolicyView;
 import com.lebhas.ai.credit.application.dto.MasterCreditOverviewView;
 import com.lebhas.ai.credit.application.dto.MasterWorkspaceCreditView;
 import com.lebhas.ai.credit.application.dto.ProviderCreditExchangePolicyCommand;
@@ -69,23 +77,29 @@ public class MasterAiProviderRegistryController {
     private final MasterAiProviderManagementService providerService;
     private final MasterAiProviderToolRegistryService registryService;
     private final MasterProviderSettingsService providerSettingsService;
+    private final OpenAiCostTrackingService openAiCostTrackingService;
     private final ProviderCreditPoolService providerCreditPoolService;
     private final ProviderCreditExchangePolicyService providerCreditExchangePolicyService;
+    private final CreditValuePolicyService creditValuePolicyService;
     private final MasterCreditMonitoringService masterCreditMonitoringService;
 
     public MasterAiProviderRegistryController(
             MasterAiProviderManagementService providerService,
             MasterAiProviderToolRegistryService registryService,
             MasterProviderSettingsService providerSettingsService,
+            OpenAiCostTrackingService openAiCostTrackingService,
             ProviderCreditPoolService providerCreditPoolService,
             ProviderCreditExchangePolicyService providerCreditExchangePolicyService,
+            CreditValuePolicyService creditValuePolicyService,
             MasterCreditMonitoringService masterCreditMonitoringService
     ) {
         this.providerService = providerService;
         this.registryService = registryService;
         this.providerSettingsService = providerSettingsService;
+        this.openAiCostTrackingService = openAiCostTrackingService;
         this.providerCreditPoolService = providerCreditPoolService;
         this.providerCreditExchangePolicyService = providerCreditExchangePolicyService;
+        this.creditValuePolicyService = creditValuePolicyService;
         this.masterCreditMonitoringService = masterCreditMonitoringService;
     }
 
@@ -93,13 +107,15 @@ public class MasterAiProviderRegistryController {
     @PreAuthorize("hasRole('MASTER')")
     @Operation(summary = "List configurable providers")
     public ApiResponse<List<MasterProviderView>> listConfigurableProviders(
+            @RequestParam(required = false) ProviderType category,
             @RequestParam(required = false) ProviderType type,
             @RequestParam(required = false) ProviderStatus status,
             @RequestParam(required = false) ProviderEnvironment environment
     ) {
+        ProviderType requestedType = type == null ? category : type;
         return ApiResponse.success(
                 "Providers loaded",
-                providerSettingsService.listProviders(type, status, environment));
+                providerSettingsService.listProviders(requestedType, status, environment));
     }
 
     @PostMapping("/providers")
@@ -162,6 +178,50 @@ public class MasterAiProviderRegistryController {
         return ApiResponse.success(
                 "Provider models JSON loaded",
                 providerSettingsService.fetchModelsJson(providerId, request));
+    }
+
+    @PostMapping("/providers/{providerId}/test-sms")
+    @PreAuthorize("hasRole('MASTER')")
+    @Operation(summary = "Send a test SMS through a configurable SMS provider")
+    public ApiResponse<SmsProviderActionResult> testConfigurableSmsProvider(
+            @PathVariable String providerId,
+            @Valid @RequestBody TestSmsProviderRequest request
+    ) {
+        return ApiResponse.success(
+                "SMS provider test completed",
+                providerSettingsService.testSms(providerId, request));
+    }
+
+    @PostMapping("/providers/{providerId}/sms-balance")
+    @PreAuthorize("hasRole('MASTER')")
+    @Operation(summary = "Check configurable SMS provider balance")
+    public ApiResponse<SmsProviderActionResult> checkConfigurableSmsProviderBalance(
+            @PathVariable String providerId,
+            @Valid @RequestBody TestProviderConnectionRequest request
+    ) {
+        return ApiResponse.success(
+                "SMS provider balance checked",
+                providerSettingsService.checkSmsBalance(providerId, request));
+    }
+
+    @PostMapping("/providers/{providerId}/balance")
+    @PreAuthorize("hasRole('MASTER')")
+    @Operation(summary = "Check configurable provider balance")
+    public ApiResponse<SmsProviderActionResult> checkConfigurableProviderBalance(
+            @PathVariable String providerId,
+            @Valid @RequestBody TestProviderConnectionRequest request
+    ) {
+        return ApiResponse.success(
+                "Provider balance checked",
+                providerSettingsService.checkProviderBalance(providerId, request));
+    }
+
+    @PostMapping("/providers/{providerId}/sync-costs")
+    @PreAuthorize("hasRole('MASTER')")
+    @Operation(summary = "Sync OpenAI provider costs from the Organization Costs API")
+    public ApiResponse<OpenAiCostSyncResult> syncOpenAiProviderCosts(@PathVariable UUID providerId) {
+        OpenAiCostSyncResult result = openAiCostTrackingService.syncCosts(providerId);
+        return ApiResponse.success(result.success() ? "OpenAI costs synced" : result.message(), result);
     }
 
     @DeleteMapping("/providers/{providerId}/credentials")
@@ -438,6 +498,27 @@ public class MasterAiProviderRegistryController {
     @Operation(summary = "Get Master credit overview")
     public ApiResponse<MasterCreditOverviewView> getMasterCreditOverview() {
         return ApiResponse.success("Master credit overview loaded", masterCreditMonitoringService.overview());
+    }
+
+    @GetMapping("/monetization/credit-value-policy")
+    @PreAuthorize("hasRole('MASTER')")
+    @Operation(summary = "Get credit value and free signup policy")
+    public ApiResponse<CreditValuePolicyView> getCreditValuePolicy() {
+        return ApiResponse.success("Credit value policy loaded", creditValuePolicyService.getActivePolicyView());
+    }
+
+    @PutMapping("/monetization/credit-value-policy")
+    @PreAuthorize("hasRole('MASTER')")
+    @Operation(summary = "Save credit value and free signup policy")
+    public ApiResponse<CreditValuePolicyView> saveCreditValuePolicy(@Valid @RequestBody CreditValuePolicyCommand request) {
+        return ApiResponse.success("Credit value policy saved", creditValuePolicyService.savePolicy(request));
+    }
+
+    @PostMapping("/monetization/credit-value-policy/preview")
+    @PreAuthorize("hasRole('MASTER')")
+    @Operation(summary = "Preview credit value and free signup policy")
+    public ApiResponse<CreditValuePolicyPreviewView> previewCreditValuePolicy(@Valid @RequestBody CreditValuePolicyCommand request) {
+        return ApiResponse.success("Credit value policy preview calculated", creditValuePolicyService.preview(request));
     }
 
     @GetMapping("/workspaces/{workspaceId}/credits")

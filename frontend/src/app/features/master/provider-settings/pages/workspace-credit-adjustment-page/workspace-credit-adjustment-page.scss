@@ -1,0 +1,100 @@
+.adjustment-layout {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(22rem, 0.42fr);
+  gap: 1rem;
+  margin-top: 1.5rem;
+}
+
+.adjustment-panel,
+.review-panel {
+  border: 1px solid rgb(var(--color-border));
+  border-radius: 1.1rem;
+  background: rgb(var(--color-surface-elevated));
+  padding: 1.2rem;
+  color: rgb(var(--color-ink));
+}
+
+.adjustment-panel {
+  display: grid;
+  gap: 1rem;
+}
+
+.field {
+  display: grid;
+  gap: 0.45rem;
+}
+
+label,
+.review-panel p,
+dt {
+  color: rgb(var(--color-muted));
+  font-size: 0.76rem;
+  font-weight: 850;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+input,
+select,
+textarea {
+  width: 100%;
+  border: 1px solid rgb(var(--color-border));
+  border-radius: 0.85rem;
+  background: rgb(var(--color-panel));
+  color: rgb(var(--color-ink));
+  padding: 0.8rem 0.9rem;
+  outline: none;
+}
+
+input:focus,
+select:focus,
+textarea:focus {
+  border-color: rgb(var(--color-accent-purple));
+  box-shadow: 0 0 0 4px rgb(var(--color-accent-purple) / 0.14);
+}
+
+small {
+  color: rgb(var(--color-red-600));
+  font-weight: 700;
+}
+
+.actions {
+  display: flex;
+  justify-content: flex-end;
+}
+
+.review-panel h2 {
+  margin: 0.35rem 0 1.1rem;
+  font-size: 1.35rem;
+  font-weight: 900;
+}
+
+dl {
+  display: grid;
+  gap: 0.9rem;
+}
+
+dd {
+  margin: 0.25rem 0 0;
+  color: rgb(var(--color-ink));
+  font-weight: 800;
+  overflow-wrap: anywhere;
+}
+
+dd.negative {
+  color: rgb(var(--color-red-600));
+}
+
+.review-panel span {
+  display: block;
+  margin-top: 1.2rem;
+  color: rgb(var(--color-muted));
+  font-size: 0.9rem;
+  line-height: 1.6;
+}
+
+@media (max-width: 900px) {
+  .adjustment-layout {
+    grid-template-columns: 1fr;
+  }
+}

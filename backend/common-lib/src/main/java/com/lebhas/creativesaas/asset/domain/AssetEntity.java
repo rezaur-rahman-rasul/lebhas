@@ -195,6 +195,7 @@ public class AssetEntity extends TenantAwareEntity {
             StorageProvider storageProvider,
             String bucket,
             String objectKey,
+            AssetFileType fileType,
             String mimeType,
             String fileExtension,
             long fileSize,
@@ -218,6 +219,7 @@ public class AssetEntity extends TenantAwareEntity {
                 metadataJson,
                 storageProvider);
         asset.storedFileName = normalizeNullable(safeFileName);
+        asset.fileType = fileType;
         asset.mimeType = normalizeNullable(mimeType);
         asset.fileExtension = normalizeNullable(fileExtension);
         asset.fileSize = Math.max(fileSize, 0);

@@ -29,16 +29,88 @@ public class AiCreativePersistenceService {
     }
 
     public CreativeContext context(AiCreativeGenerateRequest request) {
-        String brandName = lookupName("platform.brands", request.brandId());
-        String productName = request.productServiceId() == null ? null : lookupName("platform.product_services", request.productServiceId());
-        if (productName == null && request.productServiceId() != null) {
-            productName = lookupName("platform.products", request.productServiceId());
+        Map<String, Object> brand = loadRow("platform.brands", request.brandId());
+        Map<String, Object> product = request.productServiceId() == null ? Map.of() : loadRow("platform.product_services", request.productServiceId());
+        if (product.isEmpty() && request.productServiceId() != null) {
+            product = loadRow("platform.products", request.productServiceId());
         }
-        String campaignName = request.campaignId() == null ? null : lookupName("platform.projects", request.campaignId());
-        if (campaignName == null && request.campaignId() != null) {
-            campaignName = lookupName("platform.campaigns", request.campaignId());
+        Map<String, Object> campaign = request.campaignId() == null ? Map.of() : loadRow("platform.project_campaigns", request.campaignId());
+        if (campaign.isEmpty() && request.campaignId() != null) {
+            campaign = loadRow("platform.projects", request.campaignId());
         }
-        return new CreativeContext(brandName, productName, campaignName);
+        if (campaign.isEmpty() && request.campaignId() != null) {
+            campaign = loadRow("platform.campaigns", request.campaignId());
+        }
+
+        String brandName = string(brand.get("name"));
+        String productName = firstNonBlank(string(product.get("name")), request.productDescription());
+        String campaignName = string(campaign.get("name"));
+        String language = firstNonBlank(
+                request.language(),
+                string(campaign.get("language")),
+                string(campaign.get("languagePreference")),
+                string(brand.get("languagePreference")));
+        String platform = firstNonBlank(
+                name(request.platform()),
+                string(campaign.get("targetPlatform")));
+        String preferredCta = request.includeCta() != null && !request.includeCta()
+                ? null
+                : firstNonBlank(
+                        request.cta(),
+                        string(campaign.get("cta")),
+                        string(campaign.get("preferredCta")),
+                        string(brand.get("preferredCta")));
+        String audience = firstNonBlank(
+                request.targetAudience(),
+                string(campaign.get("targetAudience")),
+                string(product.get("targetAudience")),
+                string(brand.get("targetAudience")));
+        String campaignObjective = firstNonBlank(
+                request.campaignObjective(),
+                string(campaign.get("campaignObjective")),
+                string(campaign.get("description")),
+                string(product.get("description")));
+        String sellingPoints = firstNonBlank(
+                string(product.get("sellingPoints")),
+                string(product.get("benefits")),
+                string(product.get("positioning")),
+                string(product.get("description")));
+        List<String> colors = new ArrayList<>();
+        addIfPresent(colors, string(brand.get("primaryColor")));
+        addIfPresent(colors, string(brand.get("secondaryColor")));
+
+        Map<String, Object> creativeRequest = new LinkedHashMap<>();
+        creativeRequest.put("campaignIdea", request.campaignIdea());
+        creativeRequest.put("headline", request.headline());
+        creativeRequest.put("subheadline", request.subheadline());
+        creativeRequest.put("offerText", request.offerText());
+        creativeRequest.put("cta", request.cta());
+        creativeRequest.put("includeCta", request.includeCta());
+        creativeRequest.put("platform", name(request.platform()));
+        creativeRequest.put("creativeType", name(request.creativeType()));
+        creativeRequest.put("tone", name(request.tone()));
+        creativeRequest.put("quality", name(request.modelQuality()));
+
+        return new CreativeContext(
+                brandName,
+                productName,
+                campaignName,
+                Map.copyOf(removeEmpty(brand)),
+                Map.copyOf(removeEmpty(product)),
+                Map.copyOf(removeEmpty(campaign)),
+                Map.copyOf(removeEmpty(creativeRequest)),
+                language,
+                platform,
+                name(request.creativeType()),
+                name(request.tone()),
+                firstNonBlank(name(request.quality()), name(request.modelQuality())),
+                List.copyOf(colors),
+                string(brand.get("logo")),
+                string(brand.get("slogan")),
+                audience,
+                campaignObjective,
+                sellingPoints,
+                preferredCta);
     }
 
     public UUID createPromptRequest(
@@ -91,6 +163,14 @@ public class AiCreativePersistenceService {
         return id;
     }
 
+    public void markJobStatus(UUID jobId, String status) {
+        jdbc.update("""
+                UPDATE platform.creative_generation_jobs
+                SET status = ?, completed_at = CASE WHEN ? IN ('READY', 'COMPLETED', 'FAILED', 'CANCELLED') THEN NOW() ELSE completed_at END
+                WHERE id = ?
+                """, status, status, jobId);
+    }
+
     @SuppressWarnings("unchecked")
     public void createLayers(UUID jobId, GenerationMode mode, String model, Map<String, Object> plan) {
         Object rawLayers = plan.get("layers");
@@ -134,26 +214,65 @@ public class AiCreativePersistenceService {
                 finalPrompt, promptRequestId);
     }
 
-    public void completeJob(UUID jobId, String r2ObjectKey, String fileUrl, BigDecimal creditUsed) {
+    public void completeJob(
+            UUID jobId,
+            UUID generatedAssetId,
+            String r2ObjectKey,
+            String previewUrl,
+            String downloadUrl,
+            BigDecimal creditUsed
+    ) {
         jdbc.update("""
                 UPDATE platform.creative_generation_jobs
-                SET status = 'COMPLETED', final_output_asset_id = ?, file_url = ?, actual_credit_used = ?, completed_at = NOW()
+                SET status = 'READY',
+                    final_output_asset_id = ?,
+                    file_url = ?,
+                    r2_object_key = ?,
+                    preview_url = ?,
+                    download_url = ?,
+                    actual_credit_used = ?,
+                    completed_at = NOW()
                 WHERE id = ?
-                """, r2ObjectKey, fileUrl, creditUsed, jobId);
+                """, generatedAssetId.toString(), previewUrl, r2ObjectKey, previewUrl, downloadUrl, creditUsed, jobId);
     }
 
-    public void saveGeneratedVersion(UUID promptRequestId, UUID jobId, AiCreativeGenerateRequest request, String promptTitle, String r2ObjectKey, String fileUrl, BigDecimal creditUsed) {
+    public void saveGeneratedVersion(
+            UUID promptRequestId,
+            UUID jobId,
+            AiCreativeGenerateRequest request,
+            String promptTitle,
+            UUID generatedAssetId,
+            String r2ObjectKey,
+            String previewUrl,
+            String downloadUrl,
+            BigDecimal creditUsed,
+            Integer width,
+            Integer height,
+            Long fileSize,
+            String mimeType,
+            String model,
+            String metadata
+    ) {
         jdbc.update("""
                 INSERT INTO platform.generated_versions (
                     id, workspace_id, creative_request_id, project_campaign_id, version_number, version_name,
                     prompt_request_id, generation_job_id, brand_id, product_service_id, campaign_id,
-                    prompt_title, file_url, r2_object_key, credit_used, generation_status, approval_status, status,
+                    prompt_title, file_url, r2_object_key, credit_used,
+                    generated_asset_id, asset_id, preview_url, download_url, storage_key, file_size, mime_type,
+                    width, height, generation_provider, generation_model, generated_by_provider, generated_by_model,
+                    generation_metadata, generation_status, approval_status, status,
                     created_at, updated_at
-                ) VALUES (?, ?, ?, ?, 1, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'COMPLETED', 'NOT_SUBMITTED', 'ACTIVE', NOW(), NOW())
+                ) VALUES (?, ?, ?, ?, 1, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?,
+                    ?, ?, ?, ?, ?, ?, ?,
+                    ?, ?, 'OPENAI', ?, 'OPENAI', ?,
+                    CAST(? AS jsonb), 'READY', 'NOT_SUBMITTED', 'ACTIVE',
+                    NOW(), NOW())
                 """,
-                UUID.randomUUID(), request.workspaceId(), promptRequestId, request.campaignId(), promptTitle,
+                UUID.randomUUID(), request.workspaceId(), null, request.campaignId(), promptTitle,
                 promptRequestId, jobId, request.brandId(), request.productServiceId(), request.campaignId(),
-                promptTitle, fileUrl, r2ObjectKey, creditUsed);
+                promptTitle, previewUrl, r2ObjectKey, creditUsed,
+                generatedAssetId, generatedAssetId, previewUrl, downloadUrl, r2ObjectKey, fileSize, mimeType,
+                width, height, model, model, metadata);
     }
 
     public void failJob(UUID jobId, String errorMessage) {
@@ -214,6 +333,64 @@ public class AiCreativePersistenceService {
         }
     }
 
+    private Map<String, Object> loadRow(String table, UUID id) {
+        if (id == null) {
+            return Map.of();
+        }
+        try {
+            return normalizeRow(jdbc.queryForMap("SELECT * FROM " + table + " WHERE id = ? AND is_deleted = FALSE", id));
+        } catch (EmptyResultDataAccessException | org.springframework.jdbc.BadSqlGrammarException ignored) {
+            return Map.of();
+        }
+    }
+
+    private Map<String, Object> normalizeRow(Map<String, Object> row) {
+        Map<String, Object> normalized = new LinkedHashMap<>();
+        row.forEach((key, value) -> {
+            Object clean = cleanValue(value);
+            if (clean != null && !(clean instanceof String text && text.isBlank())) {
+                normalized.put(toCamelCase(key), clean);
+            }
+        });
+        return normalized;
+    }
+
+    private Object cleanValue(Object value) {
+        if (value == null) {
+            return null;
+        }
+        if (value instanceof Timestamp timestamp) {
+            return timestamp.toInstant().toString();
+        }
+        if (value instanceof java.time.temporal.TemporalAccessor) {
+            return String.valueOf(value);
+        }
+        if (value instanceof UUID uuid) {
+            return uuid.toString();
+        }
+        if (value instanceof String text) {
+            return text.trim().isEmpty() ? null : text.trim();
+        }
+        return value;
+    }
+
+    private String toCamelCase(String key) {
+        if (key == null || !key.contains("_")) {
+            return key;
+        }
+        StringBuilder builder = new StringBuilder();
+        boolean upper = false;
+        for (char item : key.toCharArray()) {
+            if (item == '_') {
+                upper = true;
+                continue;
+            }
+            builder.append(upper ? Character.toUpperCase(item) : Character.toLowerCase(item));
+            upper = false;
+        }
+        return builder.toString();
+    }
+
     private Map<String, Object> fixedRules(AiCreativeGenerateRequest request, String aspectRatio) {
         Map<String, Object> rules = new LinkedHashMap<>();
         rules.put("market", "Bangladesh");
@@ -230,6 +407,21 @@ public class AiCreativePersistenceService {
         rules.put("aspectRatio", aspectRatio);
         rules.put("language", request.language());
         rules.put("tone", name(request.tone()));
+        boolean banglaTypographyRequired = isBanglaLanguage(request.language())
+                || containsBangla(request.headline())
+                || containsBangla(request.subheadline())
+                || containsBangla(request.offerText())
+                || containsBangla(request.cta());
+        rules.put("banglaTypographyRequired", banglaTypographyRequired);
+        if (banglaTypographyRequired) {
+            rules.put("doNotTrustAiGeneratedBanglaText", true);
+            rules.put("finalBanglaTextRenderedByBackend", true);
+            rules.put("unicodeNormalization", "NFC");
+            rules.put("requiresConjunctIntegrity", true);
+            rules.put("requiresOpenTypeBanglaFont", true);
+            rules.put("textSafeEmptyRegionsOnlyInImagePrompt", true);
+            rules.put("minimumCtaReadable", true);
+        }
         return rules;
     }
 
@@ -238,6 +430,22 @@ public class AiCreativePersistenceService {
         variables.put("brandName", context.brandName());
         variables.put("productServiceName", context.productServiceName());
         variables.put("campaignName", context.campaignName());
+        variables.put("brand", context.brand());
+        variables.put("productService", context.productService());
+        variables.put("campaign", context.campaign());
+        variables.put("creativeRequest", context.creativeRequest());
+        variables.put("inheritedLanguage", context.language());
+        variables.put("inheritedPlatform", context.platform());
+        variables.put("inheritedCreativeType", context.creativeType());
+        variables.put("inheritedTone", context.tone());
+        variables.put("inheritedQuality", context.quality());
+        variables.put("brandColors", context.colors());
+        variables.put("logo", context.logo());
+        variables.put("slogan", context.slogan());
+        variables.put("audience", context.audience());
+        variables.put("inheritedCampaignObjective", context.campaignObjective());
+        variables.put("sellingPoints", context.sellingPoints());
+        variables.put("preferredCTA", context.preferredCTA());
         variables.put("platform", name(request.platform()));
         variables.put("creativeType", name(request.creativeType()));
         variables.put("size", size);
@@ -258,10 +466,37 @@ public class AiCreativePersistenceService {
         return variables;
     }
 
+    private Map<String, Object> removeEmpty(Map<String, Object> source) {
+        Map<String, Object> cleaned = new LinkedHashMap<>();
+        source.forEach((key, value) -> {
+            if (value != null && (!(value instanceof String text) || !text.isBlank())) {
+                cleaned.put(key, value);
+            }
+        });
+        return cleaned;
+    }
+
+    private void addIfPresent(List<String> values, String value) {
+        if (value != null && !value.isBlank()) {
+            values.add(value.trim());
+        }
+    }
+
+    private String firstNonBlank(String... values) {
+        for (String value : values) {
+            if (value != null && !value.isBlank()) {
+                return value.trim();
+            }
+        }
+        return null;
+    }
+
     private Map<String, Object> imageInputs(AiCreativeGenerateRequest request) {
         Map<String, Object> imageInputs = new LinkedHashMap<>();
         imageInputs.put("existingAssetId", request.existingAssetId());
         imageInputs.put("hasExistingAsset", request.existingAssetId() != null);
+        imageInputs.put("logoAssetId", request.logoAssetId());
+        imageInputs.put("hasLogoAsset", request.logoAssetId() != null);
         return imageInputs;
     }
 
@@ -293,9 +528,28 @@ public class AiCreativePersistenceService {
             case "IMAGE_GENERATION" -> "Generating creative";
             case "IMAGE_EDIT" -> "Editing product image";
             case "IMAGE_DECODE" -> "Preparing output";
+            case "TEXT_OVERLAY" -> "Rendering real Bangla typography";
+            case "TYPOGRAPHY_VALIDATION" -> "Validating Bangla typography";
             case "R2_UPLOAD" -> "Saving creative";
             default -> layerKey.replace('_', ' ').toLowerCase();
         };
+    }
+
+    private boolean isBanglaLanguage(String language) {
+        if (language == null) {
+            return false;
+        }
+        String normalized = language.trim().toLowerCase();
+        return normalized.equals("bn")
+                || normalized.equals("bangla")
+                || normalized.equals("bengali")
+                || normalized.contains("বাংলা")
+                || normalized.contains("bangla")
+                || normalized.contains("bengali");
+    }
+
+    private boolean containsBangla(String value) {
+        return value != null && value.codePoints().anyMatch(codePoint -> codePoint >= 0x0980 && codePoint <= 0x09FF);
     }
 
     private String name(Enum<?> value) {
@@ -324,6 +578,26 @@ public class AiCreativePersistenceService {
         return timestamp == null ? null : timestamp.toInstant();
     }
 
-    public record CreativeContext(String brandName, String productServiceName, String campaignName) {
+    public record CreativeContext(
+            String brandName,
+            String productServiceName,
+            String campaignName,
+            Map<String, Object> brand,
+            Map<String, Object> productService,
+            Map<String, Object> campaign,
+            Map<String, Object> creativeRequest,
+            String language,
+            String platform,
+            String creativeType,
+            String tone,
+            String quality,
+            List<String> colors,
+            String logo,
+            String slogan,
+            String audience,
+            String campaignObjective,
+            String sellingPoints,
+            String preferredCTA
+    ) {
     }
 }

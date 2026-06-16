@@ -23,6 +23,7 @@ import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
@@ -84,6 +85,25 @@ public class GeneratedVersionController {
     ) {
         return ApiResponse.success(day5ApiMapper.toGeneratedVersionResponses(
                 generatedVersionQueryService.listByCreativeRequest(workspaceId, creativeRequestId)));
+    }
+
+    @GetMapping("/generated-versions")
+    @PreAuthorize("hasAuthority('WORKSPACE_VIEW')")
+    @Operation(
+            summary = "List generated versions for a workspace",
+            responses = @io.swagger.v3.oas.annotations.responses.ApiResponse(
+                    responseCode = "200",
+                    description = "Generated versions returned",
+                    content = @Content(array = @ArraySchema(schema = @Schema(implementation = GeneratedVersionResponse.class)))))
+    public ApiResponse<List<GeneratedVersionResponse>> listWorkspaceGeneratedVersions(
+            @PathVariable UUID workspaceId,
+            @RequestParam(required = false) String status,
+            @RequestParam(required = false) String creativeType,
+            @RequestParam(required = false) String platform,
+            @RequestParam(required = false) String search
+    ) {
+        return ApiResponse.success(day5ApiMapper.toGeneratedVersionResponses(
+                generatedVersionQueryService.listByWorkspace(workspaceId, status, creativeType, platform, search)));
     }
 
     @GetMapping("/generated-versions/{generatedVersionId}")

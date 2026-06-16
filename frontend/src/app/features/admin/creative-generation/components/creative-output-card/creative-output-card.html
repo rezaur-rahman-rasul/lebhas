@@ -5,11 +5,14 @@
       class="group relative aspect-[4/3] w-full overflow-hidden rounded-lg border border-border bg-slate-100"
       (click)="detailRequested.emit(output())"
     >
-      @if (isImageFormat(output().outputFormat) && output().previewUrl) {
+      @if (isImageFormat(output().outputFormat) && isOutputReady() && output().previewUrl) {
         <img class="h-full w-full object-cover transition group-hover:scale-[1.02]" [src]="output().previewUrl!" [alt]="output().headline || 'Creative output preview'" />
       } @else {
-        <div class="grid h-full place-items-center text-slate-500">
-          <app-icon [name]="isImageFormat(output().outputFormat) ? 'image' : 'video'" [size]="32" />
+        <div class="grid h-full place-items-center px-4 text-center text-slate-500">
+          <div>
+            <app-icon [name]="isImageFormat(output().outputFormat) ? 'image' : 'video'" [size]="32" />
+            <p class="mt-2 text-sm">{{ finalizingLabel() }}</p>
+          </div>
         </div>
       }
       <span class="absolute left-3 top-3">
@@ -46,10 +49,10 @@
     </dl>
 
     <div class="flex flex-wrap gap-2">
-      <app-button size="sm" variant="secondary" icon="eye" (click)="previewRequested.emit(output())">
+      <app-button size="sm" variant="secondary" icon="eye" [disabled]="!output().generatedAssetId" (click)="previewRequested.emit(output())">
         Preview
       </app-button>
-      @if (canDownload()) {
+      @if (canDownload() && isOutputReady() && output().downloadUrl) {
         <app-button size="sm" variant="secondary" icon="download" (click)="downloadRequested.emit(output())">
           Download
         </app-button>

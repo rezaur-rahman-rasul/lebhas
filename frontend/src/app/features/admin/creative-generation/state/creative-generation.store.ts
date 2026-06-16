@@ -5,12 +5,14 @@ import { firstValueFrom } from 'rxjs';
 import { normalizeHttpError } from '@app/core/api/http-error';
 import { SKIP_ERROR_TOAST } from '@app/core/auth/auth-request-context';
 import { CurrentUserStore } from '@app/core/auth/current-user.store';
+import { PermissionStore } from '@app/core/permissions/permission.store';
 import { NotificationStateService } from '@app/core/state/notification-state.service';
 import { WorkspaceStore } from '@app/core/workspace/workspace.store';
 import { Asset, DEFAULT_ASSET_FILTERS } from '@app/features/admin/assets/models/asset.models';
 import { AssetService } from '@app/features/admin/assets/services/asset.service';
 import { BrandProfile } from '@app/features/admin/workspace/models/brand-profile.models';
 import { BrandProfileService } from '@app/features/admin/workspace/services/brand-profile.service';
+import { GeneratedVersionStore } from '@app/features/generated-versions/generated-version.store';
 import {
   DEFAULT_PROMPT_HISTORY_FILTERS,
   DEFAULT_PROMPT_HISTORY_PAGINATION,
@@ -59,7 +61,9 @@ export class CreativeGenerationStore {
   private readonly assetService = inject(AssetService);
   private readonly brandProfileService = inject(BrandProfileService);
   private readonly promptService = inject(PromptService);
+  private readonly permissions = inject(PermissionStore);
   private readonly workspace = inject(WorkspaceStore);
+  private readonly generatedVersionStore = inject(GeneratedVersionStore);
 
   private readonly generationRequestsSignal = signal<readonly CreativeGenerationRequest[]>([]);
   private readonly selectedRequestSignal = signal<CreativeGenerationRequest | null>(null);
@@ -90,6 +94,7 @@ export class CreativeGenerationStore {
   private pollingAttempts = 0;
   private pollingRequestId: string | null = null;
   private pollingMode: 'legacy' | 'ai-progress' = 'legacy';
+  private activeAiPayload: AiCreativeGenerateRequest | null = null;
 
   readonly generationRequests = this.generationRequestsSignal.asReadonly();
   readonly selectedRequest = this.selectedRequestSignal.asReadonly();
@@ -303,7 +308,9 @@ export class CreativeGenerationStore {
       this.handleFailure(error);
       return false;
     } finally {
-      this.generationLoadingSignal.set(false);
+      if (!this.pollingRequestId) {
+        this.generationLoadingSignal.set(false);
+      }
     }
   }
 
@@ -327,7 +334,6 @@ export class CreativeGenerationStore {
       this.generationRequestsSignal.update((items) => upsertRequest(items, request));
       this.setSelectedRequest(request);
       this.creativeOutputsSignal.set(outputs);
-      this.selectedOutputSignal.set(outputs[0] ?? null);
       this.generationErrorSignal.set(null);
       this.notifications.success(
         outputs.length > 0 ? 'Generation completed' : 'Generation queued',
@@ -336,6 +342,7 @@ export class CreativeGenerationStore {
           : 'The campaign creative request is now being processed.',
       );
       await this.workspace.refreshActiveContext();
+      void this.generatedVersionStore.load();
       if (outputs.length === 0) {
         this.startPolling(request.id);
       }
@@ -344,12 +351,15 @@ export class CreativeGenerationStore {
       this.handleFailure(error);
       return false;
     } finally {
-      this.generationLoadingSignal.set(false);
+      if (!this.pollingRequestId) {
+        this.generationLoadingSignal.set(false);
+      }
     }
   }
 
   async submitAiCreative(payload: AiCreativeGenerateRequest): Promise<boolean> {
     try {
+      this.activeAiPayload = payload;
       this.generationLoadingSignal.set(true);
       this.generationErrorSignal.set(null);
       this.campaignPipelineSignal.set(mapAiProgressToPipeline({
@@ -369,15 +379,17 @@ export class CreativeGenerationStore {
       this.generationRequestsSignal.update((items) => upsertRequest(items, request));
       this.setSelectedRequest(request);
       this.creativeOutputsSignal.set(output ? [output] : []);
-      this.selectedOutputSignal.set(output);
       this.generationErrorSignal.set(result.errorMessage ?? null);
 
       await this.refreshAiProgress(result.creativeId);
       await this.workspace.refreshActiveContext();
+      void this.generatedVersionStore.load();
 
-      if (result.status === 'COMPLETED') {
+      if (result.status === 'READY' || result.status === 'COMPLETED') {
+        this.activeAiPayload = null;
         this.notifications.success('Generation completed', 'The creative preview is ready.');
       } else if (result.status === 'FAILED') {
+        this.activeAiPayload = null;
         this.generationErrorSignal.set(result.errorMessage ?? 'Creative generation failed. Please try again.');
         this.notifications.error('Generation failed', this.generationErrorSignal() ?? 'Creative generation failed.');
       } else {
@@ -390,7 +402,9 @@ export class CreativeGenerationStore {
       this.handleFailure(error);
       return false;
     } finally {
-      this.generationLoadingSignal.set(false);
+      if (!this.pollingRequestId) {
+        this.generationLoadingSignal.set(false);
+      }
     }
   }
 
@@ -509,7 +523,9 @@ export class CreativeGenerationStore {
     } catch (error) {
       this.handleFailure(error);
     } finally {
-      this.generationLoadingSignal.set(false);
+      if (!this.pollingRequestId) {
+        this.generationLoadingSignal.set(false);
+      }
     }
   }
 
@@ -583,9 +599,13 @@ export class CreativeGenerationStore {
       return null;
     }
 
-    if (output.previewUrl) {
+    const existingPreviewUrl = firstNonBlank(output.previewUrl, output.downloadUrl);
+    if (existingPreviewUrl) {
       this.generationErrorSignal.set(null);
-      return output.previewUrl;
+      if (!output.previewUrl) {
+        this.patchOutput(output.id, { previewUrl: existingPreviewUrl });
+      }
+      return existingPreviewUrl;
     }
 
     try {
@@ -635,9 +655,11 @@ export class CreativeGenerationStore {
 
   startPolling(requestId: string): void {
     this.stopPolling();
+    this.generationLoadingSignal.set(true);
     this.pollingMode = 'legacy';
     this.pollingRequestId = requestId;
     this.pollingAttempts = 0;
+    void this.pollOnce();
     this.pollingTimer = setInterval(() => {
       void this.pollOnce();
     }, POLL_INTERVAL_MS);
@@ -645,9 +667,11 @@ export class CreativeGenerationStore {
 
   startAiProgressPolling(creativeId: string): void {
     this.stopPolling();
+    this.generationLoadingSignal.set(true);
     this.pollingMode = 'ai-progress';
     this.pollingRequestId = creativeId;
     this.pollingAttempts = 0;
+    void this.pollOnce();
     this.pollingTimer = setInterval(() => {
       void this.pollOnce();
     }, 2000);
@@ -660,6 +684,7 @@ export class CreativeGenerationStore {
     this.pollingTimer = null;
     this.pollingRequestId = null;
     this.pollingAttempts = 0;
+    this.generationLoadingSignal.set(false);
   }
 
   private async pollOnce(): Promise<void> {
@@ -679,7 +704,14 @@ export class CreativeGenerationStore {
     try {
       if (this.pollingMode === 'ai-progress') {
         const progress = await this.refreshAiProgress(requestId);
-        if (!progress || progress.status === 'COMPLETED' || progress.status === 'FAILED') {
+        if (!progress || progress.status === 'READY' || progress.status === 'COMPLETED' || progress.status === 'FAILED') {
+          if (progress?.status === 'READY' || progress?.status === 'COMPLETED') {
+            await this.fetchAiGeneratedVariations(requestId);
+            this.notifications.success('Generation completed', 'The creative preview is ready.');
+          } else if (progress?.status === 'FAILED') {
+            this.notifications.error('Generation failed', this.generationErrorSignal() ?? 'Creative generation failed.');
+          }
+          this.activeAiPayload = null;
           this.stopPolling();
         }
         return;
@@ -727,6 +759,30 @@ export class CreativeGenerationStore {
     this.generationErrorSignal.set(null);
   }
 
+  private async fetchAiGeneratedVariations(creativeId: string): Promise<void> {
+    try {
+      const variations = await firstValueFrom(
+        this.generationService.getGeneratedVariations(creativeId, this.requestContext()),
+      );
+      const payload = this.activeAiPayload;
+      const outputs = variations
+        .map((variation) => {
+          const request = this.selectedRequestSignal()?.id === variation.creativeId
+            ? this.selectedRequestSignal()!
+            : mapAiCreativeResponseToGenerationRequest(variation, payload ?? fallbackAiPayload(variation));
+          return mapAiCreativeResponseToOutput(variation, request, payload ?? fallbackAiPayload(variation));
+        })
+        .filter((output): output is CreativeOutput => output !== null);
+
+      if (outputs.length > 0) {
+        this.creativeOutputsSignal.set(outputs);
+      }
+      this.generationErrorSignal.set(null);
+    } catch {
+      // Keep the existing output if the variations endpoint is not yet consistent.
+    }
+  }
+
   private async fetchCampaignPipeline(workspaceId: string, requestId: string): Promise<void> {
     try {
       const pipeline = await firstValueFrom(
@@ -766,17 +822,21 @@ export class CreativeGenerationStore {
 
     return Promise.all(
       outputs.map(async (output) => {
-        if (!output.generatedAssetId || output.previewUrl) {
+        if (!output.generatedAssetId || (output.previewUrl && output.downloadUrl)) {
           return output;
         }
 
         const [preview, download] = await Promise.all([
-          firstValueFrom(
-            this.assetService.getPreviewUrl(workspaceId, output.generatedAssetId, this.requestContext()),
-          ).catch(() => null),
-          firstValueFrom(
-            this.assetService.getDownloadUrl(workspaceId, output.generatedAssetId, this.requestContext()),
-          ).catch(() => null),
+          output.previewUrl
+            ? Promise.resolve(null)
+            : firstValueFrom(
+                this.assetService.getPreviewUrl(workspaceId, output.generatedAssetId, this.requestContext()),
+              ).catch(() => null),
+          output.downloadUrl
+            ? Promise.resolve(null)
+            : firstValueFrom(
+                this.assetService.getDownloadUrl(workspaceId, output.generatedAssetId, this.requestContext()),
+              ).catch(() => null),
         ]);
 
         return {
@@ -800,6 +860,11 @@ export class CreativeGenerationStore {
   }
 
   private async fetchPromptHistory(workspaceId: string): Promise<void> {
+    if (!this.permissions.canViewPromptHistory()) {
+      this.promptHistorySignal.set([]);
+      return;
+    }
+
     try {
       const result = await firstValueFrom(
         this.promptService.listHistory(
@@ -1019,14 +1084,46 @@ function mapCampaignResultToGenerationRequest(
   };
 }
 
+interface GeneratedVersionAssetLike {
+  readonly id?: string | null;
+  readonly previewUrl?: string | null;
+  readonly signedPreviewUrl?: string | null;
+  readonly publicPreviewUrl?: string | null;
+  readonly thumbnailUrl?: string | null;
+  readonly downloadUrl?: string | null;
+  readonly signedDownloadUrl?: string | null;
+  readonly publicDownloadUrl?: string | null;
+  readonly publicUrl?: string | null;
+  readonly url?: string | null;
+  readonly r2ObjectKey?: string | null;
+  readonly storageKey?: string | null;
+  readonly fileSize?: number | null;
+  readonly width?: number | null;
+  readonly height?: number | null;
+}
+
 function mapCampaignGeneratedVersionsToOutputs(
   versions: readonly {
     readonly id: string;
     readonly workspaceId: string;
     readonly creativeRequestId: string;
     readonly assetId: string | null;
+    readonly generatedAssetId?: string | null;
+    readonly r2ObjectKey?: string | null;
     readonly previewUrl?: string | null;
+    readonly signedPreviewUrl?: string | null;
+    readonly publicPreviewUrl?: string | null;
     readonly thumbnailUrl?: string | null;
+    readonly downloadUrl?: string | null;
+    readonly signedDownloadUrl?: string | null;
+    readonly publicDownloadUrl?: string | null;
+    readonly url?: string | null;
+    readonly width?: number | null;
+    readonly height?: number | null;
+    readonly fileSize?: number | null;
+    readonly asset?: GeneratedVersionAssetLike | null;
+    readonly generatedAsset?: GeneratedVersionAssetLike | null;
+    readonly urls?: Readonly<Record<string, unknown>> | null;
     readonly versionNumber: number;
     readonly versionName: string;
     readonly generationStatus: string;
@@ -1037,33 +1134,82 @@ function mapCampaignGeneratedVersionsToOutputs(
   request: CreativeGenerationRequest,
   payload: CreateCampaignCreativeRequest,
 ): readonly CreativeOutput[] {
-  return versions.map((version) => ({
-    id: version.id,
-    workspaceId: version.workspaceId,
-    requestId: version.creativeRequestId,
-    generatedAssetId: version.assetId,
-    creativeType: request.creativeType,
-    platform: payload.platform,
-    outputFormat: 'PNG',
-    width: null,
-    height: null,
-    duration: null,
-    fileSize: null,
-    previewUrl: version.previewUrl ?? version.thumbnailUrl ?? null,
-    downloadUrl: null,
-    caption: null,
-    headline: version.versionName || `Generated creative ${version.versionNumber}`,
-    ctaText: payload.cta ?? null,
-    metadata: {
-      generationStatus: version.generationStatus,
-      imageCreativeFormat: payload.creativeFormat,
-      qualityMode: payload.qualityMode,
-      stylePreset: payload.stylePreset,
-    },
-    status: version.generationStatus === 'FAILED' ? 'FAILED' : 'COMPLETED',
-    createdAt: version.createdAt,
-    updatedAt: version.updatedAt,
-  }));
+  return versions.map((version) => {
+    const generatedAsset = version.generatedAsset ?? null;
+    const asset = version.asset ?? null;
+    const generatedAssetId = firstNonBlank(
+      version.generatedAssetId,
+      version.assetId,
+      generatedAsset?.id,
+      asset?.id,
+    );
+    const previewUrl = firstNonBlank(
+      version.previewUrl,
+      version.signedPreviewUrl,
+      version.publicPreviewUrl,
+      generatedAsset?.previewUrl,
+      generatedAsset?.signedPreviewUrl,
+      generatedAsset?.publicPreviewUrl,
+      asset?.previewUrl,
+      asset?.signedPreviewUrl,
+      asset?.publicPreviewUrl,
+      readStringField(version.urls, 'preview'),
+      version.thumbnailUrl,
+      generatedAsset?.thumbnailUrl,
+      asset?.thumbnailUrl,
+      version.url,
+      generatedAsset?.url,
+      asset?.url,
+    );
+    const downloadUrl = firstNonBlank(
+      version.downloadUrl,
+      version.signedDownloadUrl,
+      version.publicDownloadUrl,
+      generatedAsset?.downloadUrl,
+      generatedAsset?.signedDownloadUrl,
+      generatedAsset?.publicDownloadUrl,
+      asset?.downloadUrl,
+      asset?.signedDownloadUrl,
+      asset?.publicDownloadUrl,
+      readStringField(version.urls, 'download'),
+      generatedAsset?.publicUrl,
+      asset?.publicUrl,
+    );
+    const fileSize = firstFiniteNumber(version.fileSize, generatedAsset?.fileSize, asset?.fileSize);
+    const status = mapGeneratedVersionStatus(version.generationStatus, Boolean(generatedAssetId || previewUrl));
+
+    return {
+      id: version.id,
+      workspaceId: version.workspaceId,
+      requestId: version.creativeRequestId,
+      generatedAssetId,
+      creativeType: request.creativeType,
+      platform: payload.platform,
+      outputFormat: 'PNG',
+      width: firstFiniteNumber(version.width, generatedAsset?.width, asset?.width),
+      height: firstFiniteNumber(version.height, generatedAsset?.height, asset?.height),
+      duration: null,
+      fileSize,
+      previewUrl,
+      downloadUrl,
+      caption: null,
+      headline: version.versionName || `Generated creative ${version.versionNumber}`,
+      ctaText: payload.cta ?? null,
+      metadata: {
+        generationStatus: version.generationStatus,
+        generatedAssetId,
+        r2ObjectKey: firstNonBlank(version.r2ObjectKey, generatedAsset?.r2ObjectKey, generatedAsset?.storageKey, asset?.r2ObjectKey, asset?.storageKey),
+        fileSize,
+        imageCreativeFormat: payload.creativeFormat,
+        qualityMode: payload.qualityMode,
+        stylePreset: payload.stylePreset,
+        cta: payload.cta ?? 'Not generated',
+      },
+      status,
+      createdAt: version.createdAt,
+      updatedAt: version.updatedAt,
+    };
+  });
 }
 
 function mapAiCreativeResponseToGenerationRequest(
@@ -1105,7 +1251,7 @@ function mapAiCreativeResponseToGenerationRequest(
     aiModel: response.model,
     requestedAt: createdAt,
     startedAt: createdAt,
-    completedAt: response.completedAt ?? (response.status === 'COMPLETED' ? updatedAt : null),
+    completedAt: response.completedAt ?? (response.status === 'READY' || response.status === 'COMPLETED' ? updatedAt : null),
     failedAt: response.status === 'FAILED' ? updatedAt : null,
     errorMessage: response.errorMessage ?? null,
     createdAt,
@@ -1118,43 +1264,148 @@ function mapAiCreativeResponseToOutput(
   request: CreativeGenerationRequest,
   payload: AiCreativeGenerateRequest,
 ): CreativeOutput | null {
-  if (!response.fileUrl && response.status !== 'COMPLETED') {
+  const generatedAsset = response.generatedAsset ?? null;
+  const asset = response.asset ?? null;
+  const generatedAssetId = firstNonBlank(
+    response.generatedAssetId,
+    response.assetId,
+    readStringField(generatedAsset, 'id'),
+    readStringField(asset, 'id'),
+  );
+  const previewUrl = firstNonBlank(
+    response.signedPreviewUrl,
+    response.fileUrl,
+    response.publicPreviewUrl,
+    readStringField(generatedAsset, 'previewUrl'),
+    readStringField(generatedAsset, 'signedPreviewUrl'),
+    readStringField(generatedAsset, 'publicPreviewUrl'),
+    readStringField(asset, 'previewUrl'),
+    readStringField(asset, 'signedPreviewUrl'),
+    readStringField(asset, 'publicPreviewUrl'),
+    readStringField(response.urls, 'preview'),
+    response.thumbnailUrl,
+    response.downloadUrl,
+  );
+  const isReadyResponse = response.status === 'READY' || response.status === 'COMPLETED';
+  if (!previewUrl && !generatedAssetId && !isReadyResponse) {
     return null;
   }
 
   const createdAt = response.createdAt || new Date().toISOString();
   const updatedAt = response.completedAt ?? createdAt;
   const [width, height] = response.size.split('x').map((item) => Number(item));
+  const fileSize = firstFiniteNumber(
+    response.fileSize,
+    readNumberField(generatedAsset, 'fileSize'),
+    readNumberField(asset, 'fileSize'),
+  );
   return {
     id: response.creativeId,
     workspaceId: response.workspaceId,
     requestId: response.creativeId,
-    generatedAssetId: null,
+    generatedAssetId,
     creativeType: request.creativeType,
     platform: request.platform,
     outputFormat: request.outputFormat,
-    width: Number.isFinite(width) ? width : null,
-    height: Number.isFinite(height) ? height : null,
+    width: firstFiniteNumber(response.width, readNumberField(generatedAsset, 'width'), readNumberField(asset, 'width'), width),
+    height: firstFiniteNumber(response.height, readNumberField(generatedAsset, 'height'), readNumberField(asset, 'height'), height),
     duration: null,
-    fileSize: null,
-    previewUrl: response.fileUrl ?? response.thumbnailUrl ?? null,
-    downloadUrl: response.fileUrl ?? null,
+    fileSize,
+    previewUrl,
+    downloadUrl: firstNonBlank(
+      response.downloadUrl,
+      response.signedDownloadUrl,
+      response.publicDownloadUrl,
+      readStringField(generatedAsset, 'downloadUrl'),
+      readStringField(generatedAsset, 'signedDownloadUrl'),
+      readStringField(generatedAsset, 'publicDownloadUrl'),
+      readStringField(asset, 'downloadUrl'),
+      readStringField(asset, 'signedDownloadUrl'),
+      readStringField(asset, 'publicDownloadUrl'),
+      readStringField(response.urls, 'download'),
+      response.fileUrl,
+    ),
     caption: payload.campaignIdea ?? null,
     headline: payload.headline ?? payload.campaignIdea ?? 'Generated creative',
     ctaText: payload.cta ?? null,
     metadata: {
       aiCreative: true,
+      generatedAssetId,
+      fileSize,
+      r2ObjectKey: firstNonBlank(
+        response.r2ObjectKey,
+        readStringField(generatedAsset, 'r2ObjectKey'),
+        readStringField(generatedAsset, 'storageKey'),
+        readStringField(asset, 'r2ObjectKey'),
+        readStringField(asset, 'storageKey'),
+      ),
       provider: response.provider,
       model: response.model,
       quality: response.quality,
       background: response.background,
       generationMode: response.generationMode,
       creditUsed: response.creditUsed ?? null,
+      cta: payload.cta ?? 'Not generated',
     },
-    status: mapAiStatusToGenerationStatus(response.status),
+    status: isReadyResponse && (!generatedAssetId || !previewUrl)
+      ? 'PROCESSING'
+      : mapAiStatusToGenerationStatus(response.status),
     createdAt,
     updatedAt,
   };
+}
+
+function fallbackAiPayload(response: AiCreativeResponse): AiCreativeGenerateRequest {
+  return {
+    workspaceId: response.workspaceId,
+    brandId: response.brandId,
+    productServiceId: response.productServiceId ?? undefined,
+    campaignId: response.campaignId ?? undefined,
+    platform: response.platform,
+    language: response.language,
+    creativeType: response.creativeType,
+    tone: response.tone,
+    modelQuality: response.modelQuality,
+    versions: response.requestedVersions,
+    size: response.size,
+    quality: response.quality,
+    outputFormat: response.outputFormat,
+    background: response.background,
+    noHumanModel: true,
+    cta: null,
+  };
+}
+
+function firstNonBlank(...values: readonly (string | null | undefined)[]): string | null {
+  return values.find((value): value is string => typeof value === 'string' && value.trim().length > 0)?.trim() ?? null;
+}
+
+function firstFiniteNumber(...values: readonly (number | null | undefined)[]): number | null {
+  return values.find((value): value is number => typeof value === 'number' && Number.isFinite(value)) ?? null;
+}
+
+function readStringField(source: Readonly<Record<string, unknown>> | null | undefined, key: string): string | null {
+  const value = source?.[key];
+  return typeof value === 'string' && value.trim().length > 0 ? value.trim() : null;
+}
+
+function readNumberField(source: Readonly<Record<string, unknown>> | null | undefined, key: string): number | null {
+  const value = source?.[key];
+  return typeof value === 'number' && Number.isFinite(value) ? value : null;
+}
+
+function mapGeneratedVersionStatus(generationStatus: string, hasGeneratedAsset: boolean): CreativeGenerationStatus {
+  const normalized = generationStatus.trim().toUpperCase();
+  if (normalized === 'FAILED') {
+    return 'FAILED';
+  }
+  if ((normalized === 'COMPLETED' || normalized === 'READY') && hasGeneratedAsset) {
+    return 'READY';
+  }
+  if (normalized === 'GENERATING' || normalized === 'DOWNLOADING' || normalized === 'UPLOADING') {
+    return normalized;
+  }
+  return 'PROCESSING';
 }
 
 function mapAiProgressToPipeline(progress: CreativeProgressResponse): CreativePipelineRun {
@@ -1171,7 +1422,7 @@ function mapAiProgressToPipeline(progress: CreativeProgressResponse): CreativePi
     failureReason: progress.layers.find((layer) => layer.status === 'FAILED')?.errorMessage ?? null,
     createdAt: timestamp,
     updatedAt: timestamp,
-    completedAt: progress.status === 'COMPLETED' || progress.status === 'FAILED' ? timestamp : null,
+    completedAt: progress.status === 'READY' || progress.status === 'COMPLETED' || progress.status === 'FAILED' ? timestamp : null,
     layers: progress.layers.map((layer) => ({
       id: `${progress.creativeId}:${layer.sequenceNo}:${layer.layerKey}`,
       sequence: layer.sequenceNo,
@@ -1203,8 +1454,10 @@ function defaultAiProgressLayers(): CreativeProgressResponse['layers'] {
 
 function mapAiStatusToGenerationStatus(status: AiCreativeResponse['status']): CreativeGenerationStatus {
   switch (status) {
+    case 'READY':
+      return 'READY';
     case 'COMPLETED':
-      return 'COMPLETED';
+      return 'READY';
     case 'FAILED':
       return 'FAILED';
     case 'REQUESTED':
@@ -1213,11 +1466,18 @@ function mapAiStatusToGenerationStatus(status: AiCreativeResponse['status']): Cr
     case 'STARTED':
     case 'PROCESSING':
       return 'PROCESSING';
+    case 'GENERATING':
+      return 'GENERATING';
+    case 'DOWNLOADING':
+      return 'DOWNLOADING';
+    case 'UPLOADING':
+      return 'UPLOADING';
   }
 }
 
 function mapAiStatusToPipelineStatus(status: AiCreativeResponse['status']): CreativePipelineRun['status'] {
   switch (status) {
+    case 'READY':
     case 'COMPLETED':
       return 'COMPLETED';
     case 'FAILED':
@@ -1227,6 +1487,9 @@ function mapAiStatusToPipelineStatus(status: AiCreativeResponse['status']): Crea
       return 'PLANNED';
     case 'STARTED':
     case 'PROCESSING':
+    case 'GENERATING':
+    case 'DOWNLOADING':
+    case 'UPLOADING':
       return 'PROCESSING';
   }
 }

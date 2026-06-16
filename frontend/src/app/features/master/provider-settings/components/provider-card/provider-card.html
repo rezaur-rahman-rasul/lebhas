@@ -16,29 +16,78 @@
     <app-provider-status-badge [active]="provider().active" />
   </div>
   <div class="capabilities" aria-label="Provider capabilities">
-    @if (provider().supportsImage) {<span><app-icon name="image" [size]="14" />Image</span>}
-    @if (provider().supportsText) {<span><app-icon name="text" [size]="14" />Text</span>}
-    @if (provider().supportsVideo) {<span><app-icon name="video" [size]="14" />Video</span>}
-    @if (provider().supportsVoice) {<span><app-icon name="mic" [size]="14" />Audio</span>}
+    @if (isSmsProvider(provider())) {
+      @if (provider().supportsOtp) {<span><app-icon name="lock-keyhole" [size]="14" />OTP</span>}
+      @if (provider().supportsNotificationSms) {<span><app-icon name="bell" [size]="14" />Notification</span>}
+      @if (provider().supportsMarketingSms) {<span><app-icon name="megaphone" [size]="14" />Marketing</span>}
+    } @else {
+      @if (provider().supportsImage) {<span><app-icon name="image" [size]="14" />Image</span>}
+      @if (provider().supportsText) {<span><app-icon name="file-text" [size]="14" />Text</span>}
+      @if (provider().supportsVideo) {<span><app-icon name="video" [size]="14" />Video</span>}
+      @if (provider().supportsVoice) {<span><app-icon name="mic" [size]="14" />Audio</span>}
+    }
   </div>
   <dl class="provider-meta">
-    <div><dt>Health</dt><dd>{{ provider().healthStatus || 'UNKNOWN' }}</dd></div>
-    <div><dt>Model</dt><dd>{{ provider().defaultModel || 'Not set' }}</dd></div>
+    <div class="health-cell">
+      <dt>Health</dt>
+      <dd>{{ provider().healthStatus || 'UNKNOWN' }}</dd>
+      @if (provider().lastTestMessage) {
+        <small>{{ provider().lastTestMessage }}</small>
+      }
+    </div>
+    @if (isSmsProvider(provider())) {
+      <div><dt>Sender ID</dt><dd>{{ provider().senderId || 'Not set' }}</dd></div>
+      <div><dt>Send endpoint</dt><dd>{{ provider().sendSmsEndpoint || 'Not set' }}</dd></div>
+      <div><dt>Balance endpoint</dt><dd>{{ provider().balanceEndpoint || 'Not set' }}</dd></div>
+      <div><dt>OTP length</dt><dd>{{ provider().otpLength || 6 }}</dd></div>
+      <div>
+        <dt>Balance</dt>
+        <dd>{{ smsBalanceLabel(balanceResult()) }}</dd>
+        @if (balanceResult()?.message) {
+          <small>{{ balanceResult()?.message }}</small>
+        }
+      </div>
+    } @else {
+      <div><dt>Model</dt><dd>{{ provider().defaultModel || 'Not set' }}</dd></div>
+    }
     <div><dt>Rate limit</dt><dd>{{ provider().rateLimitPerMinute || 60 }}/min</dd></div>
     <div><dt>Priority</dt><dd>{{ provider().priority || 100 }}</dd></div>
-    <div><dt>Cost</dt><dd>{{ provider().costMultiplier || 1 }}x</dd></div>
+    @if (!isSmsProvider(provider())) {
+      <div><dt>Cost</dt><dd>{{ provider().costMultiplier || 1 }}x</dd></div>
+<!--      <div><dt>My Credit Balance</dt><dd>{{ creditBalanceLabel(provider()) }}</dd></div>-->
+      @if (isOpenAiProvider(provider())) {
+        <div><dt>Top-Up</dt><dd>{{ moneyLabel(provider().providerTopUpAmountUsd) }}</dd></div>
+        <div><dt>Spent</dt><dd>{{ moneyLabel(provider().totalCostSpentUsd) }}</dd></div>
+        <div><dt>My Credit Balance</dt><dd>{{ moneyLabel(provider().estimatedRemainingBalanceUsd) }}</dd></div>
+        <div><dt>Internal Credits</dt><dd>{{ creditsLabel(provider().estimatedInternalCredits) }}</dd></div>
+        <div><dt>Last Sync</dt><dd>{{ dateTimeLabel(provider().lastCostSyncAt) }}</dd></div>
+        <div><dt>Balance Health</dt><dd>{{ provider().balanceHealth || 'UNKNOWN' }}</dd></div>
+      }
+    }
     <div><dt>API key</dt><dd>{{ provider().maskedApiKey || 'Not saved' }}</dd></div>
   </dl>
   <div class="actions">
-    <app-button type="button" size="sm" (click)="testProvider.emit(provider()); $event.stopPropagation()">Test Connection</app-button>
-    @if (canShowModelsJson(provider())) {
-      <app-button type="button" variant="secondary" size="sm" (click)="viewModelsJson.emit(provider()); $event.stopPropagation()">Models JSON</app-button>
+    @if (isSmsProvider(provider())) {
+      <app-button type="button" variant="secondary" size="sm" (click)="testSms.emit(provider()); $event.stopPropagation()">Test SMS</app-button>
+      <app-button type="button" variant="secondary" size="sm" (click)="checkSmsBalance.emit(provider()); $event.stopPropagation()">Balance Check</app-button>
+      <span title="SMS logs will appear after SMS audit logging is enabled.">
+        <app-button type="button" variant="secondary" size="sm" [disabled]="true">View SMS Logs</app-button>
+      </span>
+    } @else {
+      <app-button type="button" size="sm" (click)="testProvider.emit(provider()); $event.stopPropagation()">Test Connection</app-button>
+      @if (isOpenAiProvider(provider())) {
+        <app-button type="button" variant="secondary" size="sm" (click)="syncCosts.emit(provider()); $event.stopPropagation()">Sync Costs</app-button>
+      }
+      @if (canShowModelsJson(provider())) {
+        <app-button type="button" variant="secondary" size="sm" (click)="viewModelsJson.emit(provider()); $event.stopPropagation()">Models JSON</app-button>
+      }
     }
-    <app-button type="button" variant="secondary" size="sm" (click)="configureCredentials.emit(provider()); $event.stopPropagation()">Rotate Key</app-button>
     <app-button type="button" variant="secondary" size="sm" (click)="editProvider.emit(provider()); $event.stopPropagation()">Edit Provider</app-button>
     <app-button type="button" variant="secondary" size="sm" (click)="toggleProvider.emit(provider()); $event.stopPropagation()">{{ provider().active ? 'Disable' : 'Enable' }}</app-button>
     <app-button type="button" variant="danger" size="sm" (click)="deleteProvider.emit(provider()); $event.stopPropagation()">Delete</app-button>
-    <app-button type="button" variant="secondary" size="sm" (click)="viewCreditPool.emit(provider()); $event.stopPropagation()">View Credit Pool</app-button>
-    <app-button type="button" variant="secondary" size="sm" (click)="exchangePolicy.emit(provider()); $event.stopPropagation()">Exchange Policy</app-button>
+    @if (!isSmsProvider(provider())) {
+      <app-button type="button" variant="secondary" size="sm" (click)="viewCreditPool.emit(provider()); $event.stopPropagation()">View Credit Pool</app-button>
+      <app-button type="button" variant="secondary" size="sm" (click)="exchangePolicy.emit(provider()); $event.stopPropagation()">Exchange Policy</app-button>
+    }
   </div>
 </article>

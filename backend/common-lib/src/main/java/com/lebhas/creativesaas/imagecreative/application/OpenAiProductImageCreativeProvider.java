@@ -84,7 +84,7 @@ public class OpenAiProductImageCreativeProvider implements ProductImageCreativeP
         }
         List<ProductImageCreativeProviderOutput> outputs = new ArrayList<>();
         for (int index = 1; index <= count; index++) {
-            OpenAiImageResult result = requestImage(openAi, apiKey, model, context, index, productImage);
+            OpenAiImageResult result = requestImage(openAi, apiKey, model, context, index, productImage, null);
             String objectKey = "image-creatives/%s/%s/%s-v%s.png".formatted(
                     context.project().getWorkspaceId(),
                     context.project().getId(),
@@ -142,18 +142,20 @@ public class OpenAiProductImageCreativeProvider implements ProductImageCreativeP
             String model,
             ProductImageCreativeContext context,
             int variant,
-            byte[] productImage
+            byte[] productImage,
+            byte[] logoImage
     ) {
         String responseBody;
         try {
             String boundary = "lebhas-openai-" + UUID.randomUUID();
-            HttpRequest request = HttpRequest.newBuilder(resolveEditUri(openAi))
+            HttpRequest.Builder requestBuilder = HttpRequest.newBuilder(resolveEditUri(openAi))
                     .timeout(properties.getRequestTimeout())
                     .header("Authorization", "Bearer " + apiKey)
-                    .header("Content-Type", "multipart/form-data; boundary=" + boundary)
-                    .headers(optionalHeader("OpenAI-Organization", openAi.getOrganization()))
-                    .headers(optionalHeader("OpenAI-Project", openAi.getProject()))
-                    .POST(buildMultipartBody(boundary, model, context, variant, productImage))
+                    .header("Content-Type", "multipart/form-data; boundary=" + boundary);
+            addOptionalHeader(requestBuilder, "OpenAI-Organization", openAi.getOrganization());
+            addOptionalHeader(requestBuilder, "OpenAI-Project", openAi.getProject());
+            HttpRequest request = requestBuilder
+                    .POST(buildMultipartBody(boundary, model, context, variant, productImage, logoImage))
                     .build();
             HttpResponse<String> response = httpClient.send(request, HttpResponse.BodyHandlers.ofString());
             responseBody = response.body();
@@ -177,7 +179,8 @@ public class OpenAiProductImageCreativeProvider implements ProductImageCreativeP
             String model,
             ProductImageCreativeContext context,
             int variant,
-            byte[] productImage
+            byte[] productImage,
+            byte[] logoImage
     ) {
         List<byte[]> parts = new ArrayList<>();
         addTextPart(parts, boundary, "model", model);
@@ -190,13 +193,24 @@ public class OpenAiProductImageCreativeProvider implements ProductImageCreativeP
         } else {
             addTextPart(parts, boundary, "response_format", "b64_json");
         }
+        boolean hasLogoImage = context.logoAsset() != null && logoImage != null && logoImage.length > 0;
+        String imageFieldName = hasLogoImage ? "image[]" : "image";
         addFilePart(
                 parts,
                 boundary,
-                "image",
+                imageFieldName,
                 context.productAsset().getOriginalFileName(),
                 context.productAsset().getMimeType(),
                 productImage);
+        if (hasLogoImage) {
+            addFilePart(
+                    parts,
+                    boundary,
+                    "image[]",
+                    context.logoAsset().getOriginalFileName(),
+                    context.logoAsset().getMimeType(),
+                    logoImage);
+        }
         parts.add(("--" + boundary + "--\r\n").getBytes(StandardCharsets.UTF_8));
         return HttpRequest.BodyPublishers.ofByteArrays(parts);
     }
@@ -206,33 +220,136 @@ public class OpenAiProductImageCreativeProvider implements ProductImageCreativeP
     }
 
     private String buildPrompt(ProductImageCreativeContext context, int variant) {
-        String productName = context.product() == null || context.product().getName() == null
-                ? "the uploaded product"
-                : context.product().getName();
-        String cta = StringUtils.hasText(context.request().cta()) ? context.request().cta().trim() : "Shop Now";
+        CreativeGenerationContext generationContext = context.generationContext() == null
+                ? CreativeGenerationContext.from(context.project(), context.brand(), context.product(), context.productAsset(), context.request())
+                : context.generationContext();
+        String productName = promptSafe(context, value(generationContext.productService(), "name", "the uploaded product"), "the uploaded product");
+        String brandName = promptSafe(context, value(generationContext.brand(), "name", "the selected brand"), "the selected brand");
+        String campaignName = promptSafe(context, value(generationContext.campaign(), "name", "campaign creative"), "campaign creative");
+        String ctaInstruction = "CTA: backend overlay only. Do not render CTA text, CTA buttons, readable words, labels, prices, offers, or invented text in the AI image.";
         return """
-                Create a polished ecommerce campaign creative.
+                Create a polished ecommerce campaign creative using the full Lebhas hierarchy context.
+                Brand context:
+                - Brand: %s
+                - Business type: %s
+                - Industry: %s
+                - Audience: %s
+                - Brand voice: %s
+                - Brand colors: %s
+                - Website/socials: %s
+
+                Product/service context:
                 Product: %s
-                Campaign idea: %s
-                Platform: %s
-                Format: %s
-                Language: %s
-                Style preset: %s
-                Background style: %s
-                CTA: %s
+                - Category: %s
+                - Description: %s
+                - Selling points / benefits: %s
+
+                Campaign context:
+                - Campaign: %s
+                - Campaign description: %s
+                - Campaign objective: %s
+                - Campaign type: %s
+                - Target platform: %s
+
+                User prompt / campaign idea:
+                %s
+
+                Creative settings:
+                - Platform: %s
+                - Format: %s
+                - Language: %s
+                - Tone/style preset: %s
+                - Quality: %s
+                - Background style: %s
+                %s
                 Variant: %s
                 Use the uploaded product image as the primary visual subject. Preserve the product's identity, shape, and key details.
-                Keep text minimal and readable.
+                Apply brand colors when they are available. Highlight the inherited selling points and campaign objective.
+                Do not render any readable text, letters, words, labels, CTA, prices, offer badges, watermarks, or template text.
+                Leave clean safe zones for Lebhas internal typography and logo overlay.
+                %s
+                %s
                 """.formatted(
+                brandName,
+                value(generationContext.brand(), "businessType", "Not specified"),
+                value(generationContext.brand(), "industry", "Not specified"),
+                promptSafe(context, generationContext.audience(), "Not specified"),
+                promptSafe(context, value(generationContext.brand(), "brandVoice", "Not specified"), "Not specified"),
+                generationContext.colors().isEmpty() ? "Not specified" : String.join(", ", generationContext.colors()),
+                compactSocials(generationContext.brand()),
                 productName,
-                context.request().sourcePrompt(),
-                context.request().platform(),
-                context.request().creativeFormat(),
-                context.request().language(),
-                context.request().stylePreset() == null ? "default" : context.request().stylePreset(),
-                context.request().backgroundStyle() == null ? "default" : context.request().backgroundStyle(),
-                cta,
-                variant);
+                promptSafe(context, value(generationContext.productService(), "category", "Not specified"), "Not specified"),
+                promptSafe(context, value(generationContext.productService(), "description", "Not specified"), "Not specified"),
+                promptSafe(context, generationContext.sellingPoints(), "Not specified"),
+                campaignName,
+                promptSafe(context, value(generationContext.campaign(), "description", "Not specified"), "Not specified"),
+                promptSafe(context, generationContext.campaignObjective(), "Not specified"),
+                promptSafe(context, value(generationContext.campaign(), "campaignType", "Not specified"), "Not specified"),
+                safe(generationContext.platform(), "Not specified"),
+                promptDirection(context, generationContext),
+                safe(generationContext.platform(), "Not specified"),
+                safe(generationContext.creativeType(), "Not specified"),
+                safe(generationContext.language(), "English"),
+                safe(generationContext.tone(), "default"),
+                safe(generationContext.quality(), "default"),
+                value(generationContext.creativeRequest(), "backgroundStyle", "default"),
+                ctaInstruction,
+                variant,
+                adaptiveLogoInstruction(context),
+                "Typography and logo placement are handled by Lebhas after generation. Create an image-only visual.");
+    }
+
+    private String adaptiveLogoInstruction(ProductImageCreativeContext context) {
+        return "Brand logo is handled by Lebhas after generation. Do not place, draw, imitate, or reserve a logo inside the AI image.";
+    }
+
+    private String promptDirection(ProductImageCreativeContext context, CreativeGenerationContext generationContext) {
+        if (context.request().language() != null && "BANGLA".equalsIgnoreCase(context.request().language().name())) {
+            return "Premium Bangladesh-market product advertising composition. Leave sufficient empty space for text placement. Do not include any text, letters, words, typography, Bangla characters, English characters, logos, or watermarks. Generate visual elements only.";
+        }
+        String prompt = value(generationContext.creativeRequest(), "prompt", "Use inherited hierarchy context.");
+        return containsBangla(prompt)
+                ? "Premium Bangladesh-market product advertising composition. Do not render prompt text in the image."
+                : prompt;
+    }
+
+    private String promptSafe(ProductImageCreativeContext context, String value, String fallback) {
+        String safeValue = safe(value, fallback);
+        if (context.request().language() != null
+                && "BANGLA".equalsIgnoreCase(context.request().language().name())
+                && containsBangla(safeValue)) {
+            return "Backend text context only; do not render as visible text";
+        }
+        return containsBangla(safeValue)
+                ? "Backend text context only; do not render as visible text"
+                : safeValue;
+    }
+
+    private boolean containsBangla(String value) {
+        return value != null && value.codePoints().anyMatch(codePoint -> codePoint >= 0x0980 && codePoint <= 0x09FF);
+    }
+
+    private String value(Map<String, Object> source, String key, String fallback) {
+        if (source == null) {
+            return fallback;
+        }
+        Object value = source.get(key);
+        return value == null || !StringUtils.hasText(String.valueOf(value)) ? fallback : String.valueOf(value).trim();
+    }
+
+    private String safe(String value, String fallback) {
+        return StringUtils.hasText(value) ? value.trim() : fallback;
+    }
+
+    private String compactSocials(Map<String, Object> brand) {
+        if (brand == null || brand.isEmpty()) {
+            return "Not specified";
+        }
+        List<String> values = List.of("website", "facebookUrl", "instagramUrl", "linkedinUrl", "tiktokUrl").stream()
+                .map(key -> value(brand, key, null))
+                .filter(StringUtils::hasText)
+                .toList();
+        return values.isEmpty() ? "Not specified" : String.join(", ", values);
     }
 
     private String resolveOpenAiSize(ProductImageCreativeContext context) {
@@ -305,11 +422,10 @@ public class OpenAiProductImageCreativeProvider implements ProductImageCreativeP
         }
     }
 
-    private String[] optionalHeader(String name, String value) {
-        if (!StringUtils.hasText(value)) {
-            return new String[0];
+    private void addOptionalHeader(HttpRequest.Builder builder, String name, String value) {
+        if (StringUtils.hasText(value)) {
+            builder.header(name, value.trim());
         }
-        return new String[]{name, value.trim()};
     }
 
     private void addTextPart(List<byte[]> parts, String boundary, String name, String value) {

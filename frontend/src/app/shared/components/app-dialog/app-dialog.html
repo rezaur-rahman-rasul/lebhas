@@ -1,5 +1,5 @@
 @if (open()) {
-  <div class="fixed inset-0 z-50 flex items-end justify-center p-2 sm:items-center sm:p-6">
+  <div #overlay class="fixed inset-0 z-[9999] overflow-hidden">
     <button
       type="button"
       class="absolute inset-0 bg-slate-950/70 backdrop-blur-sm"
@@ -8,42 +8,44 @@
       (click)="closeFromBackdrop()"
     ></button>
 
-    <section
-      #panel
-      [class]="panelClasses()"
-      role="dialog"
-      tabindex="-1"
-      [attr.aria-modal]="true"
-      [attr.aria-label]="title() ? null : ariaLabel()"
-      [attr.aria-labelledby]="title() ? titleId : null"
-      [attr.aria-describedby]="description() ? descriptionId : null"
-      [attr.data-testid]="testId() || null"
-    >
-      <button
-        type="button"
-        class="absolute right-4 top-4 z-10 inline-flex h-10 w-10 items-center justify-center rounded-full border border-border bg-surface/80 text-muted transition hover:bg-panel hover:text-ink focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500 focus-visible:ring-offset-2 focus-visible:ring-offset-canvas"
-        aria-label="Close modal"
-        (click)="closed.emit()"
+    <div class="relative flex h-[100dvh] max-h-[100dvh] items-center justify-center overflow-hidden p-4">
+      <section
+        #panel
+        [class]="panelClasses()"
+        role="dialog"
+        tabindex="-1"
+        [attr.aria-modal]="true"
+        [attr.aria-label]="title() ? null : ariaLabel()"
+        [attr.aria-labelledby]="title() ? titleId : null"
+        [attr.aria-describedby]="description() ? descriptionId : null"
+        [attr.data-testid]="testId() || null"
       >
-        <app-icon name="x" [size]="18" />
-      </button>
+        <button
+          type="button"
+          class="absolute right-4 top-4 z-20 inline-flex h-10 w-10 items-center justify-center rounded-full border border-border bg-surface/80 text-muted transition hover:bg-panel hover:text-ink focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500 focus-visible:ring-offset-2 focus-visible:ring-offset-canvas"
+          aria-label="Close modal"
+          (click)="closed.emit()"
+        >
+          <app-icon name="x" [size]="18" />
+        </button>
 
-      @if (title() || description()) {
-        <header class="sticky top-0 z-10 shrink-0 space-y-2 border-b border-border bg-surface-elevated px-5 pb-5 pt-5 sm:px-6">
-          @if (title()) {
-            <h2 [id]="titleId" class="pr-12 text-xl font-semibold text-ink">{{ title() }}</h2>
-          }
-          @if (description()) {
-            <p [id]="descriptionId" class="max-w-2xl pr-12 text-sm leading-6 text-muted">
-              {{ description() }}
-            </p>
-          }
-        </header>
-      }
+        @if (title() || description()) {
+          <header class="shrink-0 space-y-2 border-b border-border bg-surface-elevated px-5 pb-5 pt-5 sm:px-6">
+            @if (title()) {
+              <h2 [id]="titleId" class="pr-12 text-xl font-semibold text-ink">{{ title() }}</h2>
+            }
+            @if (description()) {
+              <p [id]="descriptionId" class="max-w-2xl pr-12 text-sm leading-6 text-muted">
+                {{ description() }}
+              </p>
+            }
+          </header>
+        }
 
-      <div [class]="contentPaddingClasses()">
-        <ng-content />
-      </div>
-    </section>
+        <div [class]="contentPaddingClasses()">
+          <ng-content />
+        </div>
+      </section>
+    </div>
   </div>
 }

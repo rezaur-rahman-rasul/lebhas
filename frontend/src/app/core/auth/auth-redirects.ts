@@ -6,7 +6,7 @@ export function getDefaultRouteForRole(role: UserRole | string | null | undefine
       return '/master/dashboard';
     case 'ADMIN':
     case 'CREW':
-      return '/dashboard';
+      return '/creative-generator';
     default:
       return '/dashboard';
   }

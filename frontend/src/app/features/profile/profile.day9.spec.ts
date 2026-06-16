@@ -142,6 +142,7 @@ function configureProfileStore(options: { readonly allowed?: boolean } = {}) {
   const api = {
     getMyProfile: vi.fn().mockResolvedValue(profile),
     updateMyProfile: vi.fn().mockResolvedValue({ ...profile, displayName: 'Updated Profile' }),
+    updateMyProfileWithImage: vi.fn().mockResolvedValue(profileWithImage),
     updateMySettings: vi.fn().mockResolvedValue({
       ...profile.settings,
       preferredLanguage: PreferredLanguage.Both,
@@ -154,7 +155,7 @@ function configureProfileStore(options: { readonly allowed?: boolean } = {}) {
       expiresAt: '2026-05-27T09:00:00Z',
     }),
     uploadProfileImageToSignedUrl: vi.fn().mockImplementation(
-      (_url: string, _file: File, onProgress: (progress: number) => void) => {
+      (_url: string, _file: File, _method: string, onProgress: (progress: number) => void) => {
         onProgress(55);
         return Promise.resolve();
       },
@@ -306,21 +307,37 @@ describe('Profile Management Batch 9 store and API behavior', () => {
     expect(JSON.stringify(store.profile())).not.toContain('NewPassword123!');
   });
 
-  it('uploads profile images through signed URL flow and updates avatar state', async () => {
+  it('keeps selected profile image previews local and uploads only with profile save', async () => {
     const { store, api } = configureProfileStore();
     const file = new File(['profile'], 'profile.webp', { type: 'image/webp' });
 
-    await store.uploadProfileImage(file);
+    const staged = await store.uploadProfileImage(file);
 
-    expect(api.requestProfileImageUploadUrl).toHaveBeenCalledWith({
-      fileName: 'profile.webp',
-      contentType: 'image/webp',
-      fileSizeBytes: file.size,
-    });
-    expect(api.uploadProfileImageToSignedUrl).toHaveBeenCalled();
-    expect(api.confirmProfileImageUpload).toHaveBeenCalledWith({
-      uploadSessionId: 'upload-session-1',
-    });
+    expect(staged.ok).toBe(true);
+    expect(api.requestProfileImageUploadUrl).not.toHaveBeenCalled();
+    expect(api.uploadProfileImageToSignedUrl).not.toHaveBeenCalled();
+    expect(api.confirmProfileImageUpload).not.toHaveBeenCalled();
+    expect(store.profileImageUrl()).toBeNull();
+
+    await store.updateMyProfile({
+      firstName: 'Updated',
+      lastName: 'Profile',
+      displayName: 'Updated Profile',
+      phoneNumber: null,
+      jobTitle: null,
+      timezone: 'Asia/Dhaka',
+      locale: 'en-US',
+    }, file);
+
+    expect(api.updateMyProfileWithImage).toHaveBeenCalledWith({
+      firstName: 'Updated',
+      lastName: 'Profile',
+      displayName: 'Updated Profile',
+      phoneNumber: null,
+      jobTitle: null,
+      timezone: 'Asia/Dhaka',
+      locale: 'en-US',
+    }, file);
     expect(store.imageUploadProgress()).toBe(100);
     expect(store.profileImageUrl()).toBe('https://cdn.example.test/profile/user-1.webp');
   });
@@ -404,7 +421,7 @@ describe('Profile Management Batch 9 UI and source coverage', () => {
     expect(topbar).toContain('My Profile');
     expect(source).toContain("await this.navigateTo('/profile')");
     expect(source).toContain('this.profileStore.displayName()');
-    expect(source).toContain('this.profileStore.profileImageUrl');
+    expect(source).toContain('this.profileStore.savedProfileImageUrl');
   });
 
   it('validates firstName and submits profile update from the edit profile form', () => {

@@ -40,7 +40,9 @@ export class UserProfileDropdownComponent {
   protected readonly workspaceName = this.workspaceStore.workspaceLabel;
   protected readonly displayName = computed(() => this.profileStore.displayName() || this.userStore.displayName() || 'User');
   protected readonly displayEmail = computed(() => this.userStore.currentUser()?.email || 'Email unavailable');
-  protected readonly avatarUrl = this.profileStore.profileImageUrl;
+  protected readonly avatarUrl = computed(
+    () => this.userStore.currentUser()?.profileImageUrl ?? this.profileStore.savedProfileImageUrl(),
+  );
 
   constructor() {
     effect(() => {

@@ -105,6 +105,10 @@ interface CreativeOutputDto {
   readonly duration: number | null;
   readonly fileSize: number | null;
   readonly previewUrl: string | null;
+  readonly signedPreviewUrl?: string | null;
+  readonly publicPreviewUrl?: string | null;
+  readonly thumbnailUrl?: string | null;
+  readonly url?: string | null;
   readonly downloadUrl: string | null;
   readonly caption: string | null;
   readonly headline: string | null;
@@ -140,7 +144,8 @@ interface CreateCreativeGenerationRequestDto {
 interface CreateCampaignCreativeRequestDto {
   readonly promptDraftId: string | null;
   readonly sourcePrompt: string;
-  readonly productAssetId: string;
+  readonly productAssetId: string | null;
+  readonly logoAssetId?: string | null;
   readonly creativeFormat: ImageCreativeFormat;
   readonly platform: PromptPlatform;
   readonly language: Exclude<PromptLanguage, 'MIXED'>;
@@ -148,7 +153,12 @@ interface CreateCampaignCreativeRequestDto {
   readonly requestedVersionCount: number;
   readonly stylePreset: string | null;
   readonly backgroundStyle: string | null;
+  readonly headline?: string | null;
+  readonly subheadline?: string | null;
+  readonly offerText?: string | null;
   readonly cta: string | null;
+  readonly includeCta?: boolean;
+  readonly includeTypography?: boolean;
 }
 
 interface ImageCreativeGenerationDto {
@@ -191,8 +201,22 @@ interface GeneratedVersionDto {
   readonly versionName: string;
   readonly storageFileId: string | null;
   readonly assetId: string | null;
+  readonly generatedAssetId?: string | null;
+  readonly r2ObjectKey?: string | null;
   readonly previewUrl: string | null;
+  readonly signedPreviewUrl?: string | null;
+  readonly publicPreviewUrl?: string | null;
   readonly thumbnailUrl: string | null;
+  readonly downloadUrl?: string | null;
+  readonly signedDownloadUrl?: string | null;
+  readonly publicDownloadUrl?: string | null;
+  readonly url?: string | null;
+  readonly width?: number | null;
+  readonly height?: number | null;
+  readonly fileSize?: number | null;
+  readonly asset?: Readonly<Record<string, unknown>> | null;
+  readonly generatedAsset?: Readonly<Record<string, unknown>> | null;
+  readonly urls?: Readonly<Record<string, unknown>> | null;
   readonly generationStatus: string;
   readonly approvalStatus: string;
   readonly status: string;
@@ -364,11 +388,7 @@ export class CreativeGenerationService {
         mapCampaignCreativeRequest(payload),
         { context },
       )
-      .pipe(map(({ data }) => ({
-        generation: data.generation,
-        generatedVersions: data.generatedVersions,
-        pipeline: data.pipeline ? mapCreativePipelineRun(data.pipeline) : null,
-      })));
+      .pipe(map(({ data }) => mapCampaignCreativeResult(data)));
   }
 
   getCampaignCreativeReadiness(
@@ -463,7 +483,7 @@ export class CreativeGenerationService {
         `/api/v1/workspaces/${workspaceId}/creative-generations/${requestId}/outputs`,
         { context },
       )
-      .pipe(map(({ data }) => data.map(mapCreativeOutput)));
+      .pipe(map(({ data }) => extractArray<CreativeOutputDto>(data, ['outputs', 'content', 'items']).map(mapCreativeOutput)));
   }
 
   retryGeneration(workspaceId: string, requestId: string, context?: HttpContext) {
@@ -574,7 +594,27 @@ export function mapGenerationJobsFromRequest(source: CreativeGenerationRequest):
   ];
 }
 
+function mapCampaignCreativeResult(source: unknown): {
+  readonly generation: ImageCreativeGenerationDto;
+  readonly generatedVersions: readonly GeneratedVersionDto[];
+  readonly pipeline: CreativePipelineRun | null;
+} {
+  const record = unwrapRecord(source);
+  return {
+    generation: readRecordValue<ImageCreativeGenerationDto>(record, 'generation')!,
+    generatedVersions: extractArray<GeneratedVersionDto>(record, ['generatedVersions', 'versions', 'content', 'items']),
+    pipeline: isRecord(record['pipeline']) ? mapCreativePipelineRun(record['pipeline'] as unknown as CreativePipelineRunDto) : null,
+  };
+}
+
 function mapCreativeOutput(source: CreativeOutputDto): CreativeOutput {
+  const previewUrl = firstNonBlank(
+    source.previewUrl,
+    source.signedPreviewUrl,
+    source.publicPreviewUrl,
+    source.thumbnailUrl,
+    source.url,
+  );
   return {
     id: source.id,
     workspaceId: source.workspaceId,
@@ -587,7 +627,7 @@ function mapCreativeOutput(source: CreativeOutputDto): CreativeOutput {
     height: source.height,
     duration: source.duration,
     fileSize: source.fileSize,
-    previewUrl: source.previewUrl,
+    previewUrl,
     downloadUrl: source.downloadUrl,
     caption: source.caption,
     headline: source.headline,
@@ -637,7 +677,8 @@ function mapCampaignCreativeRequest(
   return {
     promptDraftId: payload.promptDraftId,
     sourcePrompt: payload.sourcePrompt.trim(),
-    productAssetId: payload.productAssetId,
+    productAssetId: payload.productAssetId || null,
+    logoAssetId: payload.logoAssetId || null,
     creativeFormat: payload.creativeFormat,
     platform: payload.platform,
     language: payload.language,
@@ -645,7 +686,12 @@ function mapCampaignCreativeRequest(
     requestedVersionCount: payload.requestedVersionCount,
     stylePreset: payload.stylePreset,
     backgroundStyle: payload.backgroundStyle,
+    headline: payload.headline ?? null,
+    subheadline: payload.subheadline ?? null,
+    offerText: payload.offerText ?? null,
     cta: payload.cta,
+    includeCta: payload.includeCta,
+    includeTypography: payload.includeTypography,
   };
 }
 
@@ -670,6 +716,9 @@ function mapAiCreativeGenerateFormData(payload: AiCreativeGenerateRequest): Form
   appendFormData(formData, 'productDescription', payload.productDescription ?? payload.campaignIdea);
   appendFormData(formData, 'campaignObjective', payload.campaignObjective);
   appendFormData(formData, 'cta', payload.cta);
+  appendFormData(formData, 'includeCta', payload.includeCta);
+  appendFormData(formData, 'includeLogo', payload.includeLogo);
+  appendFormData(formData, 'includeTypography', payload.includeTypography);
   appendFormData(formData, 'versions', payload.versions);
   appendFormData(formData, 'size', payload.size);
   appendFormData(formData, 'quality', payload.quality);
@@ -677,12 +726,13 @@ function mapAiCreativeGenerateFormData(payload: AiCreativeGenerateRequest): Form
   appendFormData(formData, 'background', payload.background);
   appendFormData(formData, 'noHumanModel', payload.noHumanModel);
   appendFormData(formData, 'existingAssetId', payload.existingAssetId);
+  appendFormData(formData, 'logoAssetId', payload.logoAssetId);
   appendFormData(formData, 'backgroundPrompt', payload.backgroundPrompt);
 
   if (payload.productImage) {
     formData.append('productImage', payload.productImage);
   }
-  if (payload.logoImage) {
+  if (payload.includeLogo !== false && payload.logoImage) {
     formData.append('logoImage', payload.logoImage);
   }
   if (payload.referenceImage) {
@@ -808,4 +858,58 @@ function mapOutputUrl(source: CreativeOutputUrlDto): CreativeOutputUrl {
     url: source.url,
     expiresAt: source.expiresAt,
   };
+}
+
+function unwrapRecord(source: unknown): Readonly<Record<string, unknown>> {
+  if (!isRecord(source)) {
+    return {};
+  }
+  if (isRecord(source['data'])) {
+    return unwrapRecord(source['data']);
+  }
+  return source;
+}
+
+function extractArray<T>(source: unknown, keys: readonly string[]): readonly T[] {
+  if (Array.isArray(source)) {
+    return source as readonly T[];
+  }
+  if (!isRecord(source)) {
+    return [];
+  }
+  if (Array.isArray(source['data'])) {
+    return source['data'] as readonly T[];
+  }
+  if (isRecord(source['data'])) {
+    const nested = extractArray<T>(source['data'], keys);
+    if (nested.length > 0) {
+      return nested;
+    }
+  }
+  for (const key of keys) {
+    const value = source[key];
+    if (Array.isArray(value)) {
+      return value as readonly T[];
+    }
+    if (isRecord(value)) {
+      const nested = extractArray<T>(value, keys);
+      if (nested.length > 0) {
+        return nested;
+      }
+    }
+  }
+  return [];
+}
+
+function readRecordValue<T>(source: Readonly<Record<string, unknown>>, key: string): T | null {
+  const value = source[key];
+  return value === undefined || value === null ? null : value as T;
+}
+
+function firstNonBlank(...values: readonly (string | null | undefined)[]): string | null {
+  return values.find((value): value is string => typeof value === 'string' && value.trim().length > 0)?.trim() ?? null;
+}
+
+function isRecord(value: unknown): value is Readonly<Record<string, unknown>> {
+  return typeof value === 'object' && value !== null && !Array.isArray(value);
 }

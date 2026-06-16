@@ -63,15 +63,16 @@ public class DeterministicProductImageCreativeProvider implements ProductImageCr
             graphics.setColor(new Color(226, 232, 240, 230));
             drawWrapped(graphics, context.request().sourcePrompt(), margin, height / 2 - 40, width - margin * 2, Math.max(36, width / 32 + 10));
 
-            graphics.setColor(new Color(236, 72, 153));
-            int ctaHeight = Math.max(72, height / 13);
-            int ctaWidth = Math.min(width - margin * 2, Math.max(300, width / 3));
-            int ctaY = height - margin - ctaHeight;
-            graphics.fillRoundRect(margin, ctaY, ctaWidth, ctaHeight, 34, 34);
-            graphics.setColor(Color.WHITE);
-            graphics.setFont(new Font(Font.SANS_SERIF, Font.BOLD, Math.max(28, width / 34)));
-            String cta = context.request().cta() == null || context.request().cta().isBlank() ? "Shop Now" : context.request().cta();
-            graphics.drawString(cta, margin + 34, ctaY + ctaHeight / 2 + Math.max(10, width / 90));
+            if (context.request().cta() != null && !context.request().cta().isBlank()) {
+                graphics.setColor(new Color(236, 72, 153));
+                int ctaHeight = Math.max(72, height / 13);
+                int ctaWidth = Math.min(width - margin * 2, Math.max(300, width / 3));
+                int ctaY = height - margin - ctaHeight;
+                graphics.fillRoundRect(margin, ctaY, ctaWidth, ctaHeight, 34, 34);
+                graphics.setColor(Color.WHITE);
+                graphics.setFont(new Font(Font.SANS_SERIF, Font.BOLD, Math.max(28, width / 34)));
+                graphics.drawString(context.request().cta().trim(), margin + 34, ctaY + ctaHeight / 2 + Math.max(10, width / 90));
+            }
 
             graphics.setFont(new Font(Font.SANS_SERIF, Font.BOLD, Math.max(20, width / 54)));
             graphics.setColor(new Color(255, 255, 255, 175));

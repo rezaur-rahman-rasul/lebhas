@@ -30,7 +30,7 @@ public class AssetFileValidationService {
 
     private static final Set<String> IMAGE_EXTENSIONS = Set.of("jpg", "jpeg", "png", "webp");
     private static final Set<String> VIDEO_EXTENSIONS = Set.of("mp4", "mov");
-    private static final Set<String> LOGO_EXTENSIONS = Set.of("png", "svg", "webp");
+    private static final Set<String> LOGO_EXTENSIONS = Set.of("jpg", "jpeg", "png", "svg", "webp");
     private static final Set<String> OTHER_EXTENSIONS = Set.of("jpg", "jpeg", "png", "webp", "mp4", "mov");
     private static final Set<String> DANGEROUS_EXTENSIONS = Set.of(
             "exe", "bat", "cmd", "com", "msi", "ps1", "php", "jsp", "sh", "jar", "js", "html", "svgz", "hta", "scr");
@@ -53,7 +53,7 @@ public class AssetFileValidationService {
                 assetServiceProperties.getMaxVideoSizeBytes());
         ValidationRule logoRule = new ValidationRule(
                 LOGO_EXTENSIONS,
-                Set.of("image/png", "image/webp", SVG_MIME_TYPE),
+                Set.of("image/jpeg", "image/png", "image/webp", SVG_MIME_TYPE),
                 assetServiceProperties.getMaxLogoSizeBytes());
         ValidationRule otherRule = new ValidationRule(
                 OTHER_EXTENSIONS,

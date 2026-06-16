@@ -119,7 +119,7 @@ export class MasterAiOperationsPage {
   protected readonly title = computed(() => {
     switch (this.mode()) {
       case 'provider-settings':
-        return 'Provider Settings';
+        return 'Provider Management';
       case 'layer-analytics':
         return 'Layer Analytics';
       case 'ai-cost-usage':
@@ -133,7 +133,7 @@ export class MasterAiOperationsPage {
   protected readonly description = computed(() => {
     switch (this.mode()) {
       case 'provider-settings':
-        return 'Manage provider status and credential updates without exposing saved secrets.';
+        return 'Manage provider status, categories, and credential updates without exposing saved secrets.';
       case 'layer-analytics':
         return 'Track layer usage, cost, duration, failure count, quality score, and trend.';
       case 'ai-cost-usage':
@@ -379,7 +379,7 @@ export class MasterAiOperationsPage {
   });
 
   protected readonly navItems = [
-    { label: 'Provider Settings', route: '/master/provider-settings' },
+    { label: 'Provider Management', route: '/master/provider-management' },
     { label: 'Provider Health', route: '/master/provider-health' },
     { label: 'Layer Analytics', route: '/master/layer-analytics' },
     { label: 'AI Cost Usage', route: '/master/ai-cost-usage' },

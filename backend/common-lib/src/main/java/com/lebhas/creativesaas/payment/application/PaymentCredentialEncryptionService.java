@@ -13,7 +13,7 @@ import java.security.SecureRandom;
 import java.util.Base64;
 
 @Component
-class PaymentCredentialEncryptionService {
+public class PaymentCredentialEncryptionService {
 
     private static final String KEY_PROPERTY = "payments.credentials.encryption-key";
     private static final String KEY_ENV = "PAYMENT_CREDENTIAL_ENCRYPTION_KEY";
@@ -28,7 +28,7 @@ class PaymentCredentialEncryptionService {
         this.environment = environment;
     }
 
-    String encryptNullable(String rawValue, String existingEncryptedValue) {
+    public String encryptNullable(String rawValue, String existingEncryptedValue) {
         if (rawValue == null) {
             return existingEncryptedValue;
         }
@@ -49,6 +49,31 @@ class PaymentCredentialEncryptionService {
             throw exception;
         } catch (Exception exception) {
             throw new BusinessException(ErrorCode.INTERNAL_ERROR, "Payment credential encryption failed");
+        }
+    }
+
+    public String decryptNullable(String encryptedValue) {
+        if (encryptedValue == null || encryptedValue.isBlank()) {
+            return null;
+        }
+        String normalized = encryptedValue.trim();
+        if (!normalized.startsWith(PREFIX)) {
+            throw new BusinessException(ErrorCode.BUSINESS_RULE_VIOLATION, "Payment credential format is unsupported");
+        }
+        try {
+            String[] parts = normalized.substring(PREFIX.length()).split(":", 2);
+            if (parts.length != 2) {
+                throw new BusinessException(ErrorCode.BUSINESS_RULE_VIOLATION, "Payment credential format is invalid");
+            }
+            byte[] iv = Base64.getDecoder().decode(parts[0]);
+            byte[] cipherText = Base64.getDecoder().decode(parts[1]);
+            Cipher cipher = Cipher.getInstance("AES/GCM/NoPadding");
+            cipher.init(Cipher.DECRYPT_MODE, new SecretKeySpec(encryptionKey(), "AES"), new GCMParameterSpec(TAG_BITS, iv));
+            return new String(cipher.doFinal(cipherText), StandardCharsets.UTF_8);
+        } catch (BusinessException exception) {
+            throw exception;
+        } catch (Exception exception) {
+            throw new BusinessException(ErrorCode.INTERNAL_ERROR, "Payment credential decryption failed");
         }
     }
 

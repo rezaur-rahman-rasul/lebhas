@@ -28,7 +28,7 @@ interface WorkflowStep extends IconCard {
 
 interface PlatformBadge {
   readonly name: string;
-  readonly shortLabel: string;
+  readonly icon: string;
   readonly accentClass: string;
 }
 
@@ -120,20 +120,19 @@ interface HomeCopy {
     readonly subtitle: string;
   };
   readonly footer: {
-    readonly slogan: string;
     readonly note: string;
   };
 }
 
 const PLATFORMS: readonly PlatformBadge[] = [
-  { name: 'Facebook', shortLabel: 'f', accentClass: 'platform-facebook' },
-  { name: 'Instagram', shortLabel: 'ig', accentClass: 'platform-instagram' },
-  { name: 'TikTok', shortLabel: 'tk', accentClass: 'platform-tiktok' },
-  { name: 'LinkedIn', shortLabel: 'in', accentClass: 'platform-linkedin' },
-  { name: 'YouTube Shorts', shortLabel: 'yt', accentClass: 'platform-youtube' },
-  { name: 'Google Ads', shortLabel: 'g', accentClass: 'platform-google' },
-  { name: 'Marketplace', shortLabel: 'm', accentClass: 'platform-market' },
-  { name: 'And more', shortLabel: '+', accentClass: 'platform-more' },
+  { name: 'Facebook', icon: 'facebook', accentClass: 'platform-facebook' },
+  { name: 'Instagram', icon: 'instagram', accentClass: 'platform-instagram' },
+  { name: 'TikTok', icon: 'tiktok', accentClass: 'platform-tiktok' },
+  { name: 'LinkedIn', icon: 'linkedin', accentClass: 'platform-linkedin' },
+  { name: 'YouTube Shorts', icon: 'youtube-shorts', accentClass: 'platform-youtube' },
+  { name: 'Google Ads', icon: 'google-ads', accentClass: 'platform-google' },
+  { name: 'Marketplace', icon: 'marketplace', accentClass: 'platform-market' },
+  { name: 'And more', icon: 'more', accentClass: 'platform-more' },
 ];
 
 const CONVERSION_EXAMPLES: readonly ConversionExample[] = [
@@ -207,9 +206,9 @@ const EN_COPY: HomeCopy = {
     highlight: 'Ready-to-Publish Ads',
     description:
       'Lebhas helps brands, agencies, and marketing teams generate campaign creatives, captions, ad copy, hashtags, and platform-ready assets from one workspace.',
-    primaryCta: 'Start Creating',
+    primaryCta: 'Get Started',
     secondaryCta: 'See How It Works',
-    proofChips: ['No design skill needed', 'Bangla + English', 'Brand-safe outputs', 'Multi-platform ready'],
+    proofChips: ['No design skill needed', 'Brand-safe outputs', 'Multi-platform ready'],
     rawProduct: 'Raw Product',
     rawBadge: 'Product image',
     aiProcessing: 'AI Processing',
@@ -289,7 +288,6 @@ const EN_COPY: HomeCopy = {
     subtitle: 'Start with one product image and build campaign-ready creative assets in minutes.',
   },
   footer: {
-    slogan: 'Create Ads Beyond Imagination',
     note: 'Built for brands, agencies, and marketing teams.',
   },
 };
@@ -313,7 +311,7 @@ const BN_COPY: HomeCopy = {
     highlight: 'রেডি-টু-পাবলিশ বিজ্ঞাপন',
     description:
       'Lebhas ব্র্যান্ড, এজেন্সি ও মার্কেটিং টিমকে এক ওয়ার্কস্পেস থেকে ক্যাম্পেইন ক্রিয়েটিভ, ক্যাপশন, অ্যাড কপি, হ্যাশট্যাগ ও প্ল্যাটফর্ম-রেডি অ্যাসেট তৈরি করতে সাহায্য করে।',
-    primaryCta: 'ক্রিয়েটিভ শুরু করুন',
+    primaryCta: 'শুরু করুন',
     secondaryCta: 'কীভাবে কাজ করে দেখুন',
     proofChips: ['ডিজাইন স্কিল ছাড়াই', 'বাংলা + ইংরেজি', 'ব্র্যান্ড-সেফ আউটপুট', 'মাল্টি-প্ল্যাটফর্ম রেডি'],
   },
@@ -388,7 +386,6 @@ export class HomeComponent {
   protected readonly activeConversionIndex = signal(0);
 
   protected readonly copy = computed(() => HOME_COPY[this.language()]);
-  protected readonly conversionExamples = CONVERSION_EXAMPLES;
   protected readonly activeConversion = computed(
     () => CONVERSION_EXAMPLES[this.activeConversionIndex() % CONVERSION_EXAMPLES.length],
   );
@@ -418,10 +415,6 @@ export class HomeComponent {
     }, CONVERSION_ROTATION_MS);
 
     this.destroyRef.onDestroy(() => globalThis.clearInterval(conversionTimer));
-  }
-
-  protected selectConversion(index: number): void {
-    this.activeConversionIndex.set(index);
   }
 
   private nextConversion(): void {
@@ -490,5 +483,18 @@ export class HomeComponent {
       behavior: 'smooth',
       block: 'start',
     });
+  }
+
+  protected platformIconPath(icon: string): string {
+    return `/assets/icons/platforms/${icon || 'more'}.svg`;
+  }
+
+  protected useFallbackPlatformIcon(event: Event): void {
+    const image = event.target as HTMLImageElement | null;
+    const fallbackPath = this.platformIconPath('more');
+
+    if (image && !image.src.endsWith(fallbackPath)) {
+      image.src = fallbackPath;
+    }
   }
 }

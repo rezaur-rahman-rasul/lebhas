@@ -12,5 +12,10 @@ export const AUDIT_ROUTES: Routes = [
   {
     path: 'master/users-admins',
     loadComponent: () => import('./logs/audit-logs').then((m) => m.AuditLogsPage),
+    data: {
+      title: 'Users / Admins',
+      eyebrow: 'Master access',
+      description: 'Review admin and user activity across the system with audit filters.',
+    },
   },
 ];

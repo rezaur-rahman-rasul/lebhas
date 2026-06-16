@@ -1,8 +1,8 @@
-<aside class="rounded-2xl border border-white/10 bg-slate-950/70 p-4 shadow-2xl shadow-black/20">
+<aside class="rounded-2xl border border-border bg-panel p-4 shadow-sm dark:border-white/10 dark:bg-slate-950/70 dark:shadow-2xl dark:shadow-black/20">
   <div class="flex items-center justify-between gap-3">
     <div>
-      <h2 class="text-base font-semibold text-white">Folders</h2>
-      <p class="mt-1 text-sm text-slate-400">Keep raw, product, and brand assets organized.</p>
+      <h2 class="text-base font-semibold text-ink dark:text-white">Folders</h2>
+      <p class="mt-1 text-sm text-muted dark:text-slate-400">Keep raw, product, and brand assets organized.</p>
     </div>
 
     @if (canManageFolders()) {
@@ -18,8 +18,10 @@
       class="flex w-full items-center justify-between rounded-xl px-3 py-2.5 text-left text-sm font-medium transition"
       [class.bg-brand-500]="selectedFolder() === 'all'"
       [class.text-slate-950]="selectedFolder() === 'all'"
-      [class.text-slate-200]="selectedFolder() !== 'all'"
+      [class.text-ink]="selectedFolder() !== 'all'"
+      [class.dark:text-slate-200]="selectedFolder() !== 'all'"
       [class.hover:bg-white]="selectedFolder() !== 'all'"
+      [class.dark:hover:bg-white]="selectedFolder() !== 'all'"
       [class.hover:text-slate-950]="selectedFolder() !== 'all'"
       (click)="folderSelected.emit('all')"
     >
@@ -35,8 +37,10 @@
       class="flex w-full items-center justify-between rounded-xl px-3 py-2.5 text-left text-sm font-medium transition"
       [class.bg-brand-500]="selectedFolder() === 'uncategorized'"
       [class.text-slate-950]="selectedFolder() === 'uncategorized'"
-      [class.text-slate-200]="selectedFolder() !== 'uncategorized'"
+      [class.text-ink]="selectedFolder() !== 'uncategorized'"
+      [class.dark:text-slate-200]="selectedFolder() !== 'uncategorized'"
       [class.hover:bg-white]="selectedFolder() !== 'uncategorized'"
+      [class.dark:hover:bg-white]="selectedFolder() !== 'uncategorized'"
       [class.hover:text-slate-950]="selectedFolder() !== 'uncategorized'"
       (click)="folderSelected.emit('uncategorized')"
     >
@@ -49,14 +53,14 @@
   </div>
 
   @if (showCreateForm()) {
-    <form class="mt-4 space-y-3 rounded-2xl border border-white/10 bg-black/20 p-4" [formGroup]="createForm" (ngSubmit)="createFolder()">
+    <form class="mt-4 space-y-3 rounded-2xl border border-border bg-surface p-4 dark:border-white/10 dark:bg-black/20" [formGroup]="createForm" (ngSubmit)="createFolder()">
       <div>
-        <label class="mb-2 block text-sm font-medium text-slate-200" for="newFolderName">Folder name</label>
+        <label class="mb-2 block text-sm font-medium text-ink dark:text-slate-200" for="newFolderName">Folder name</label>
         <input
           id="newFolderName"
           type="text"
           formControlName="name"
-          class="h-11 w-full rounded-lg border border-white/10 bg-slate-900/80 px-3 text-sm text-white outline-none transition focus:border-brand-400 focus:ring-2 focus:ring-brand-400/20"
+          class="h-11 w-full rounded-lg border border-border bg-white px-3 text-sm font-medium text-ink outline-none transition focus:border-brand-500 focus:ring-2 focus:ring-brand-100 dark:border-white/10 dark:bg-slate-900/80 dark:text-white dark:focus:border-brand-400 dark:focus:ring-brand-400/20"
         />
         @if (createForm.controls.name.touched && createForm.controls.name.errors?.['required']) {
           <p class="mt-2 text-sm text-alert-600">Folder name is required.</p>
@@ -64,12 +68,12 @@
       </div>
 
       <div>
-        <label class="mb-2 block text-sm font-medium text-slate-200" for="newFolderDescription">Description</label>
+        <label class="mb-2 block text-sm font-medium text-ink dark:text-slate-200" for="newFolderDescription">Description</label>
         <textarea
           id="newFolderDescription"
           rows="3"
           formControlName="description"
-          class="w-full rounded-lg border border-white/10 bg-slate-900/80 px-3 py-3 text-sm text-white outline-none transition focus:border-brand-400 focus:ring-2 focus:ring-brand-400/20"
+          class="w-full rounded-lg border border-border bg-white px-3 py-3 text-sm font-medium text-ink outline-none transition focus:border-brand-500 focus:ring-2 focus:ring-brand-100 dark:border-white/10 dark:bg-slate-900/80 dark:text-white dark:focus:border-brand-400 dark:focus:ring-brand-400/20"
         ></textarea>
       </div>
 
@@ -84,30 +88,30 @@
     @if (hasFolders()) {
       <div class="space-y-2">
         @for (folder of folders(); track folder.id) {
-          <div class="rounded-2xl border border-white/10 bg-white/[0.03]">
+          <div class="rounded-2xl border border-border bg-surface dark:border-white/10 dark:bg-white/[0.03]">
             @if (editingFolderId() === folder.id) {
               <form class="space-y-3 p-4" [formGroup]="editForm" (ngSubmit)="saveRename(folder.id)">
                 <div>
-                  <label class="mb-2 block text-sm font-medium text-slate-200" [for]="'folderName-' + folder.id">
+                  <label class="mb-2 block text-sm font-medium text-ink dark:text-slate-200" [for]="'folderName-' + folder.id">
                     Folder name
                   </label>
                   <input
                     [id]="'folderName-' + folder.id"
                     type="text"
                     formControlName="name"
-                    class="h-11 w-full rounded-lg border border-white/10 bg-slate-900/80 px-3 text-sm text-white outline-none transition focus:border-brand-400 focus:ring-2 focus:ring-brand-400/20"
+                    class="h-11 w-full rounded-lg border border-border bg-white px-3 text-sm font-medium text-ink outline-none transition focus:border-brand-500 focus:ring-2 focus:ring-brand-100 dark:border-white/10 dark:bg-slate-900/80 dark:text-white dark:focus:border-brand-400 dark:focus:ring-brand-400/20"
                   />
                 </div>
 
                 <div>
-                  <label class="mb-2 block text-sm font-medium text-slate-200" [for]="'folderDescription-' + folder.id">
+                  <label class="mb-2 block text-sm font-medium text-ink dark:text-slate-200" [for]="'folderDescription-' + folder.id">
                     Description
                   </label>
                   <textarea
                     [id]="'folderDescription-' + folder.id"
                     rows="3"
                     formControlName="description"
-                    class="w-full rounded-lg border border-white/10 bg-slate-900/80 px-3 py-3 text-sm text-white outline-none transition focus:border-brand-400 focus:ring-2 focus:ring-brand-400/20"
+                    class="w-full rounded-lg border border-border bg-white px-3 py-3 text-sm font-medium text-ink outline-none transition focus:border-brand-500 focus:ring-2 focus:ring-brand-100 dark:border-white/10 dark:bg-slate-900/80 dark:text-white dark:focus:border-brand-400 dark:focus:ring-brand-400/20"
                   ></textarea>
                 </div>
 
@@ -120,7 +124,7 @@
               <div class="flex items-start gap-3 px-3 py-3">
                 <button
                   type="button"
-                  class="flex min-w-0 flex-1 items-center gap-2 rounded-xl px-2 py-1 text-left text-sm font-medium text-slate-200 transition hover:bg-white hover:text-slate-950"
+                  class="flex min-w-0 flex-1 items-center gap-2 rounded-xl px-2 py-1 text-left text-sm font-medium text-ink transition hover:bg-white hover:text-slate-950 dark:text-slate-200 dark:hover:bg-white"
                   (click)="folderSelected.emit(folder.id)"
                 >
                   <app-icon name="folder-open" [size]="16" />
@@ -131,7 +135,7 @@
                   <div class="flex shrink-0 items-center gap-1">
                     <button
                       type="button"
-                      class="rounded-md p-2 text-slate-400 transition hover:bg-white hover:text-slate-950"
+                      class="rounded-md p-2 text-muted transition hover:bg-white hover:text-slate-950 dark:text-slate-400 dark:hover:bg-white"
                       (click)="beginRename(folder)"
                       aria-label="Rename folder"
                     >
@@ -139,7 +143,7 @@
                     </button>
                     <button
                       type="button"
-                      class="rounded-md p-2 text-slate-400 transition hover:bg-red-500/10 hover:text-red-300"
+                      class="rounded-md p-2 text-muted transition hover:bg-red-50 hover:text-red-700 dark:text-slate-400 dark:hover:bg-red-500/10 dark:hover:text-red-300"
                       (click)="folderDeleted.emit(folder.id)"
                       aria-label="Delete folder"
                     >
@@ -150,16 +154,16 @@
               </div>
 
               @if (folder.description) {
-                <p class="px-5 pb-4 text-sm leading-6 text-slate-400">{{ folder.description }}</p>
+                <p class="px-5 pb-4 text-sm leading-6 text-muted dark:text-slate-400">{{ folder.description }}</p>
               }
             }
           </div>
         }
       </div>
     } @else {
-      <div class="rounded-2xl border border-dashed border-white/10 bg-white/[0.03] px-4 py-6 text-center">
-        <p class="text-sm font-medium text-white">No folders yet</p>
-        <p class="mt-1 text-sm text-slate-400">Create folders for logos, products, and campaign source files.</p>
+      <div class="rounded-2xl border border-dashed border-border bg-surface px-4 py-6 text-center dark:border-white/10 dark:bg-white/[0.03]">
+        <p class="text-sm font-medium text-ink dark:text-white">No folders yet</p>
+        <p class="mt-1 text-sm text-muted dark:text-slate-400">Create folders for logos, products, and campaign source files.</p>
       </div>
     }
   </div>

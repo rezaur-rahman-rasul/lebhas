@@ -332,6 +332,7 @@ class Day13ProductImageCreativeUnitTest {
                 null,
                 "Create an Eid catalog product image creative",
                 productAssetId,
+                null,
                 ImageCreativeFormat.FACEBOOK_SQUARE,
                 PromptPlatform.FACEBOOK,
                 PromptLanguage.ENGLISH,
@@ -339,7 +340,12 @@ class Day13ProductImageCreativeUnitTest {
                 versionCount,
                 "Premium",
                 "Studio",
-                "Shop now");
+                null,
+                null,
+                null,
+                "Shop now",
+                true,
+                true);
     }
 
     private WorkspacePlanContextView plan(Set<String> toolCodes, boolean premiumAllowed, Integer maxVersions) {

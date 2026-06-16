@@ -276,6 +276,46 @@ public class BrandService {
     }
 
     @Transactional
+    public BrandEntity createDefaultOnboardingBrand(UUID workspaceId, UUID ownerUserId, String brandName) {
+        return brandRepository.findFirstByWorkspaceIdAndDeletedFalseOrderByCreatedAtAsc(workspaceId)
+                .map(existing -> {
+                    existing.update(
+                            brandName,
+                            existing.getBusinessType(),
+                            existing.getIndustry(),
+                            existing.getTargetAudience(),
+                            existing.getBrandVoice(),
+                            existing.getPreferredCta(),
+                            existing.getPrimaryColor(),
+                            existing.getSecondaryColor(),
+                            existing.getWebsite(),
+                            existing.getFacebookUrl(),
+                            existing.getInstagramUrl(),
+                            existing.getLinkedinUrl(),
+                            existing.getTiktokUrl(),
+                            existing.getLanguagePreference());
+                    return brandRepository.save(existing);
+                })
+                .orElseGet(() -> brandRepository.save(BrandEntity.create(
+                        workspaceId,
+                        ownerUserId,
+                        brandName,
+                        null,
+                        null,
+                        null,
+                        null,
+                        null,
+                        null,
+                        null,
+                        null,
+                        null,
+                        null,
+                        null,
+                        null,
+                        null)));
+    }
+
+    @Transactional
     public BrandEntity syncPrimaryBrand(
             WorkspaceEntity workspace,
             String name,

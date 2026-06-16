@@ -37,7 +37,7 @@
             <div class="form-alert success">{{ settingsSaved() }}</div>
           }
 
-          <label>
+          <label class="settings-floating-field has-value">
             <span>Language preference</span>
             <select formControlName="preferredLanguage">
               @for (language of languages; track language) {
@@ -46,7 +46,7 @@
             </select>
           </label>
 
-          <label>
+          <label class="settings-floating-field has-value">
             <span>Theme preference</span>
             <select formControlName="themePreference">
               @for (themeOption of themes; track themeOption) {

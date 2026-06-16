@@ -319,6 +319,9 @@ export class AssetService {
           tags: payload.tags,
           metadata: payload.metadata,
         },
+        {
+          context: new HttpContext().set(SKIP_ERROR_TOAST, true),
+        },
       )
       .pipe(
         switchMap(({ data }) => {
@@ -360,6 +363,9 @@ export class AssetService {
                     assetId: data.assetId,
                     uploadReferenceId: data.uploadReferenceId,
                     checksum: null,
+                  },
+                  {
+                    context: new HttpContext().set(SKIP_ERROR_TOAST, true),
                   },
                 )
                 .pipe(map((response) => ({ kind: 'completed', asset: mapAsset(response.data) }) as const));
@@ -422,7 +428,7 @@ function mapAsset(source: AssetResponseDto): Asset {
     folderId: source.folderId,
     originalFileName: source.originalFileName,
     storedFileName: source.storedFileName,
-    fileType: source.fileType,
+    fileType: resolveAssetFileType(source),
     mimeType: source.mimeType,
     fileExtension: source.fileExtension,
     fileSize: source.fileSize,
@@ -524,6 +530,24 @@ function buildAssetListParams(filters: AssetFilter, page: number, size: number) 
     sortBy: mapSortField(filters.sortBy),
     direction: filters.direction.toUpperCase(),
   };
+}
+
+function resolveAssetFileType(source: AssetResponseDto): AssetFileType {
+  if (source.fileType) {
+    return source.fileType;
+  }
+  const mimeType = source.mimeType?.trim().toLowerCase() ?? '';
+  const extension = source.fileExtension?.trim().toLowerCase() ?? '';
+  if (mimeType === 'image/svg+xml' || extension === 'svg') {
+    return 'VECTOR_IMAGE';
+  }
+  if (
+    mimeType.startsWith('video/') ||
+    ['mp4', 'mov', 'm4v', 'webm'].includes(extension)
+  ) {
+    return 'VIDEO';
+  }
+  return 'IMAGE';
 }
 
 function isRealAsset(asset: Asset): boolean {

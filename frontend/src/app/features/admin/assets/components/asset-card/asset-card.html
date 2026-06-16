@@ -8,11 +8,13 @@
       <div class="aspect-[5/4]">
         @switch (asset().fileType) {
           @case ('VIDEO') {
-            @if (asset().thumbnailUrl || asset().previewUrl) {
+            @if (resolvedPreviewUrl() && !previewLoadFailed()) {
               <img
-                [src]="asset().thumbnailUrl || asset().previewUrl || ''"
+                [src]="resolvedPreviewUrl()!"
                 [alt]="asset().originalFileName"
                 class="h-full w-full object-cover"
+                (load)="markPreviewLoaded()"
+                (error)="markPreviewFailed()"
               />
             } @else {
               <div class="grid h-full place-items-center bg-slate-900 text-white">
@@ -32,11 +34,13 @@
             </div>
           }
           @default {
-            @if (asset().thumbnailUrl || asset().previewUrl || asset().publicUrl) {
+            @if (resolvedPreviewUrl() && !previewLoadFailed()) {
               <img
-                [src]="asset().thumbnailUrl || asset().previewUrl || asset().publicUrl || ''"
+                [src]="resolvedPreviewUrl()!"
                 [alt]="asset().originalFileName"
                 class="h-full w-full object-cover"
+                (load)="markPreviewLoaded()"
+                (error)="markPreviewFailed()"
               />
             } @else {
               <div class="grid h-full place-items-center bg-slate-900 text-slate-400">
@@ -64,37 +68,37 @@
         <div class="min-w-0">
           <button
             type="button"
-            class="block max-w-full truncate text-left text-sm font-semibold text-white hover:text-brand-300"
+            class="block max-w-full truncate text-left text-sm font-semibold text-ink hover:text-brand-700 dark:text-white dark:hover:text-brand-300"
             (click)="detailRequested.emit(asset())"
           >
             {{ asset().originalFileName }}
           </button>
-          <p class="mt-1 text-xs text-slate-400">
+          <p class="mt-1 text-xs text-muted">
             {{ assetCategoryLabel(asset().assetCategory) }}
           </p>
         </div>
 
-        <span class="rounded-full border border-white/10 bg-white/[0.06] px-2 py-0.5 text-[10px] font-semibold uppercase tracking-[0.12em] text-slate-300">
+        <span class="rounded-full border border-border bg-panel px-2 py-0.5 text-[10px] font-semibold uppercase tracking-[0.12em] text-muted dark:border-white/10 dark:bg-white/[0.06] dark:text-slate-300">
           {{ asset().fileExtension }}
         </span>
       </div>
 
       <dl class="mt-3 grid grid-cols-2 gap-2 text-xs">
         <div>
-          <dt class="text-[10px] uppercase tracking-[0.12em] text-slate-500">Type</dt>
-          <dd class="mt-0.5 font-medium text-slate-100">{{ assetFileTypeLabel(asset().fileType) }}</dd>
+          <dt class="text-[10px] uppercase tracking-[0.12em] text-muted">Type</dt>
+          <dd class="mt-0.5 font-medium text-ink">{{ assetFileTypeLabel(asset().fileType) }}</dd>
         </div>
         <div>
-          <dt class="text-[10px] uppercase tracking-[0.12em] text-slate-500">Size</dt>
-          <dd class="mt-0.5 font-medium text-slate-100">{{ formatFileSize(asset().fileSize) }}</dd>
+          <dt class="text-[10px] uppercase tracking-[0.12em] text-muted">Size</dt>
+          <dd class="mt-0.5 font-medium text-ink">{{ formatFileSize(asset().fileSize) }}</dd>
         </div>
         <div>
-          <dt class="text-[10px] uppercase tracking-[0.12em] text-slate-500">Created</dt>
-          <dd class="mt-0.5 font-medium text-slate-100">{{ asset().createdAt | date: 'd MMM y' }}</dd>
+          <dt class="text-[10px] uppercase tracking-[0.12em] text-muted">Created</dt>
+          <dd class="mt-0.5 font-medium text-ink">{{ asset().createdAt | date: 'd MMM y' }}</dd>
         </div>
         <div>
-          <dt class="text-[10px] uppercase tracking-[0.12em] text-slate-500">Tags</dt>
-          <dd class="mt-0.5 font-medium text-slate-100">{{ asset().tags.length || 0 }}</dd>
+          <dt class="text-[10px] uppercase tracking-[0.12em] text-muted">Tags</dt>
+          <dd class="mt-0.5 font-medium text-ink">{{ asset().tags.length || 0 }}</dd>
         </div>
       </dl>
 

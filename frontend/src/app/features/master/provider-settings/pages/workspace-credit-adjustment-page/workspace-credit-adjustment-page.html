@@ -1,0 +1,109 @@
+<app-page-header
+  eyebrow="MONETIZATION"
+  title="Credit Adjustments"
+  description="Add or reduce workspace credits for refunds, accidental corrections, and approved special cases."
+/>
+
+<section class="adjustment-layout">
+  <form class="adjustment-panel" [formGroup]="form" (ngSubmit)="submit()">
+    <div class="field">
+      <label for="workspaceId">Workspace</label>
+      <select id="workspaceId" formControlName="workspaceId">
+        <option value="">Select workspace</option>
+        @for (item of workspace.workspaces(); track item.id) {
+          <option [value]="item.id">{{ item.name || item.id }}</option>
+        }
+      </select>
+      @if (form.controls.workspaceId.touched && form.controls.workspaceId.invalid) {
+        <small role="alert">Workspace is required.</small>
+      }
+    </div>
+
+    <div class="field">
+      <label for="mode">Adjustment</label>
+      <select id="mode" formControlName="mode">
+        <option value="ADD">Add credits</option>
+        <option value="DEDUCT">Reduce credits</option>
+      </select>
+    </div>
+
+    <div class="field">
+      <label for="amount">Credit amount</label>
+      <input id="amount" type="number" min="0.0001" step="0.01" formControlName="amount" />
+      @if (form.controls.amount.touched && form.controls.amount.invalid) {
+        <small role="alert">Enter an amount greater than zero.</small>
+      }
+    </div>
+
+    <div class="field">
+      <label for="reason">Reason type</label>
+      <select id="reason" formControlName="reason">
+        @for (reason of reasonOptions; track reason.value) {
+          <option [value]="reason.value">{{ reason.label }}</option>
+        }
+      </select>
+    </div>
+
+    <div class="field">
+      <label for="note">Reason note</label>
+      <textarea id="note" rows="5" formControlName="note" placeholder="Example: Refund approved for failed payment callback."></textarea>
+      @if (form.controls.note.touched && form.controls.note.invalid) {
+        <small role="alert">A reason note is required.</small>
+      }
+    </div>
+
+    <div class="actions">
+      <app-button type="submit" [loading]="credits.adjusting()">Submit adjustment</app-button>
+    </div>
+  </form>
+
+  <aside class="review-panel">
+    <p>Review</p>
+    <h2>{{ selectedWorkspace()?.name || 'No workspace selected' }}</h2>
+    <dl>
+      <div>
+        <dt>Workspace ID</dt>
+        <dd>{{ form.controls.workspaceId.value || '--' }}</dd>
+      </div>
+      <div>
+        <dt>Signed adjustment</dt>
+        <dd [class.negative]="signedAmount() < 0">{{ signedAmount() | number: '1.0-2' }} credits</dd>
+      </div>
+      <div>
+        <dt>Existing available credits</dt>
+        <dd>
+          @if (credits.loading()) {
+            Loading...
+          } @else if (credits.workspaceCreditAccount(); as account) {
+            {{ account.availableCredits | number: '1.0-2' }} credits
+          } @else {
+            Not loaded
+          }
+        </dd>
+      </div>
+      <div>
+        <dt>Reserved credits</dt>
+        <dd>{{ credits.workspaceCreditAccount()?.reservedCredits ?? 0 | number: '1.0-2' }} credits</dd>
+      </div>
+      <div>
+        <dt>Used credits</dt>
+        <dd>{{ credits.workspaceCreditAccount()?.usedCredits ?? 0 | number: '1.0-2' }} credits</dd>
+      </div>
+      <div>
+        <dt>Projected available after submit</dt>
+        <dd [class.negative]="(projectedAvailableCredits() ?? 0) < 0">
+          @if (projectedAvailableCredits() === null) {
+            --
+          } @else {
+            {{ projectedAvailableCredits() | number: '1.0-2' }} credits
+          }
+        </dd>
+      </div>
+      <div>
+        <dt>Current top-bar workspace</dt>
+        <dd>{{ workspace.workspaceLabel() }}</dd>
+      </div>
+    </dl>
+    <span>Every submitted adjustment is sent through the MASTER credit API and recorded in the backend ledger/audit flow.</span>
+  </aside>
+</section>

@@ -5,6 +5,10 @@ public enum CreativeStatus {
     PLANNING,
     STARTED,
     PROCESSING,
+    GENERATING,
+    DOWNLOADING,
+    UPLOADING,
+    READY,
     COMPLETED,
     FAILED
 }

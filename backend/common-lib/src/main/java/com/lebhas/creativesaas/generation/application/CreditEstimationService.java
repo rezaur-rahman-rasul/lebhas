@@ -1,7 +1,9 @@
 package com.lebhas.creativesaas.generation.application;
 
+import com.lebhas.ai.credit.application.CreditValuePolicyService;
 import com.lebhas.creativesaas.generation.domain.CreativeGenerationRequestEntity;
 import com.lebhas.creativesaas.generation.domain.CreativeType;
+import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.stereotype.Service;
 
 import java.math.BigDecimal;
@@ -10,8 +12,11 @@ import java.math.RoundingMode;
 @Service
 public class CreditEstimationService {
 
-    private static final BigDecimal IMAGE_GENERATION_COST = new BigDecimal("1.0000");
-    private static final BigDecimal VIDEO_GENERATION_COST = new BigDecimal("3.0000");
+    private final ObjectProvider<CreditValuePolicyService> creditValuePolicyServiceProvider;
+
+    public CreditEstimationService(ObjectProvider<CreditValuePolicyService> creditValuePolicyServiceProvider) {
+        this.creditValuePolicyServiceProvider = creditValuePolicyServiceProvider;
+    }
 
     public BigDecimal estimate(CreativeGenerationContext context) {
         return estimate(context == null ? null : context.creativeType());
@@ -22,10 +27,19 @@ public class CreditEstimationService {
     }
 
     public BigDecimal estimate(CreativeType creativeType) {
-        if (creativeType == null) {
-            return IMAGE_GENERATION_COST;
+        return calculatePolicyCost(1);
+    }
+
+    public BigDecimal estimate(CreativeType creativeType, int requestedVersions) {
+        return calculatePolicyCost(requestedVersions);
+    }
+
+    private BigDecimal calculatePolicyCost(int requestedVersions) {
+        CreditValuePolicyService policyService = creditValuePolicyServiceProvider.getIfAvailable();
+        if (policyService == null) {
+            return BigDecimal.ZERO.setScale(4, RoundingMode.HALF_UP);
         }
-        return creativeType.isVideo() ? VIDEO_GENERATION_COST : IMAGE_GENERATION_COST;
+        return policyService.calculateCreativeCreditCost(null, requestedVersions).setScale(4, RoundingMode.HALF_UP);
     }
 
     public BigDecimal normalize(BigDecimal amount) {

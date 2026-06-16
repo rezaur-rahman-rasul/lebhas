@@ -7,11 +7,13 @@
     >
       <div class="aspect-[4/3]">
         @if (isVideoAsset(asset())) {
-            @if (asset().thumbnailUrl || asset().previewUrl) {
+            @if (resolvedPreviewUrl() && !previewLoadFailed()) {
               <img
-                [src]="asset().thumbnailUrl || asset().previewUrl || ''"
+                [src]="resolvedPreviewUrl()!"
                 [alt]="asset().displayName"
                 class="h-full w-full object-cover"
+                (load)="markPreviewLoaded()"
+                (error)="markPreviewFailed()"
               />
             } @else {
               <div class="grid h-full place-items-center bg-slate-900 text-white">
@@ -30,11 +32,13 @@
               </div>
             </div>
           } @else {
-            @if (asset().thumbnailUrl || asset().previewUrl) {
+            @if (resolvedPreviewUrl() && !previewLoadFailed()) {
               <img
-                [src]="asset().thumbnailUrl || asset().previewUrl || ''"
+                [src]="resolvedPreviewUrl()!"
                 [alt]="asset().displayName"
                 class="h-full w-full object-cover"
+                (load)="markPreviewLoaded()"
+                (error)="markPreviewFailed()"
               />
             } @else {
               <div class="grid h-full place-items-center bg-slate-50 text-slate-500 dark:bg-slate-950">

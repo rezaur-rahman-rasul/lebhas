@@ -13,13 +13,11 @@ import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.ModelAttribute;
 import org.springframework.web.bind.annotation.PathVariable;
-import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
 import java.util.UUID;
 
 @RestController
-@RequestMapping("/api/v1/workspaces/{workspaceId}/projects/{projectId}/prompts/history")
 @Tag(name = "Prompt History")
 @SecurityRequirement(name = "bearerAuth")
 public class PromptHistoryController {
@@ -30,15 +28,43 @@ public class PromptHistoryController {
         this.promptHistoryService = promptHistoryService;
     }
 
-    @GetMapping
+    @GetMapping("/api/v1/workspaces/{workspaceId}/projects/{projectId}/prompts/history")
     @PreAuthorize("hasAnyAuthority('PROMPT_HISTORY_VIEW','PROMPT_TEMPLATE_MANAGE')")
     @Operation(summary = "List prompt history for a project")
-    public ApiResponse<PagedResult<PromptHistoryView>> listHistory(
+    public ApiResponse<PagedResult<PromptHistoryView>> listProjectHistory(
             @PathVariable UUID workspaceId,
             @PathVariable UUID projectId,
             @Valid @ModelAttribute PromptHistoryListRequest request
     ) {
-        return ApiResponse.success(promptHistoryService.listHistory(new PromptHistoryFilter(
+        return ApiResponse.success(list(workspaceId, projectId, request));
+    }
+
+    @GetMapping("/api/v1/workspaces/{workspaceId}/prompt-history")
+    @PreAuthorize("hasAnyAuthority('PROMPT_HISTORY_VIEW','PROMPT_TEMPLATE_MANAGE')")
+    @Operation(summary = "List prompt history for a workspace")
+    public ApiResponse<PagedResult<PromptHistoryView>> listWorkspaceHistory(
+            @PathVariable UUID workspaceId,
+            @Valid @ModelAttribute PromptHistoryListRequest request
+    ) {
+        return ApiResponse.success(list(workspaceId, null, request));
+    }
+
+    @GetMapping("/api/v1/workspaces/{workspaceId}/prompt-history/{historyId}")
+    @PreAuthorize("hasAnyAuthority('PROMPT_HISTORY_VIEW','PROMPT_TEMPLATE_MANAGE')")
+    @Operation(summary = "Get prompt history detail")
+    public ApiResponse<PromptHistoryView> getHistory(
+            @PathVariable UUID workspaceId,
+            @PathVariable UUID historyId
+    ) {
+        return ApiResponse.success(promptHistoryService.getHistory(workspaceId, null, historyId));
+    }
+
+    private PagedResult<PromptHistoryView> list(
+            UUID workspaceId,
+            UUID projectId,
+            PromptHistoryListRequest request
+    ) {
+        return promptHistoryService.listHistory(new PromptHistoryFilter(
                 workspaceId,
                 projectId,
                 request.getUserId(),
@@ -49,6 +75,6 @@ public class PromptHistoryController {
                 request.getCreatedFrom(),
                 request.getCreatedTo(),
                 request.getPage() == null ? 0 : request.getPage(),
-                request.getSize() == null ? 20 : request.getSize())));
+                request.getSize() == null ? 20 : request.getSize()));
     }
 }

@@ -1,10 +1,10 @@
 .insufficient {
   display: grid;
-  gap: 0.42rem;
+  gap: 0.48rem;
   border: 1px solid rgb(var(--color-border) / 0.68);
   border-radius: 0.95rem;
   background:
-    linear-gradient(180deg, rgb(var(--color-red-600) / 0.08), rgb(var(--color-panel) / 0.36));
+    linear-gradient(180deg, rgb(248 113 113 / 0.08), rgb(var(--color-panel) / 0.38));
   padding: 0.82rem;
   color: rgb(var(--color-ink));
   font-size: 0.8rem;
@@ -13,32 +13,90 @@
 .insufficient p {
   margin: 0;
   color: rgb(248 113 113);
-  font-size: 0.66rem;
+  font-size: 0.64rem;
   font-weight: 850;
-  text-transform: uppercase;
   letter-spacing: 0.1em;
+  text-transform: uppercase;
 }
 
 .insufficient h2 {
   margin: 0;
-  font-size: 0.92rem;
+  font-size: 0.9rem;
   line-height: 1.25;
 }
 
-.insufficient span {
+.insufficient > span {
   color: rgb(var(--color-muted));
-  font-size: 0.78rem;
-  line-height: 1.4;
+  font-size: 0.76rem;
+  line-height: 1.45;
 }
 
-.insufficient div {
+.insufficient-actions {
   display: grid;
-  grid-template-columns: 1fr;
-  gap: 0.5rem;
-  margin-top: 0.42rem;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  gap: 0.48rem;
+  margin-top: 0.38rem;
 }
 
-.insufficient app-button {
-  display: block;
-  width: 100%;
+.credit-action,
+.credit-support-action {
+  min-width: 0;
+  border: 0;
+  border-radius: 0.65rem;
+  font: inherit;
+  font-size: 0.76rem;
+  font-weight: 850;
+  line-height: 1;
+  cursor: pointer;
+  transition:
+    background 160ms ease,
+    border-color 160ms ease,
+    color 160ms ease,
+    transform 160ms ease;
+}
+
+.credit-action {
+  min-height: 2.25rem;
+  padding: 0 0.7rem;
+}
+
+.credit-action:hover,
+.credit-support-action:hover {
+  transform: translateY(-1px);
+}
+
+.credit-action:focus-visible,
+.credit-support-action:focus-visible {
+  outline: 2px solid rgb(34 211 238 / 0.72);
+  outline-offset: 2px;
+}
+
+.credit-action--primary {
+  background: linear-gradient(135deg, rgb(124 58 237), rgb(236 72 153));
+  color: #fff;
+  box-shadow: 0 0.7rem 1.4rem rgb(124 58 237 / 0.2);
+}
+
+.credit-action--secondary {
+  border: 1px solid rgb(var(--color-border) / 0.86);
+  background: rgb(var(--color-panel) / 0.58);
+  color: rgb(var(--color-ink));
+}
+
+.credit-action--secondary:hover {
+  border-color: rgb(34 211 238 / 0.5);
+  background: rgb(var(--color-muted) / 0.1);
+}
+
+.credit-support-action {
+  grid-column: 1 / -1;
+  justify-self: start;
+  min-height: 1.9rem;
+  background: transparent;
+  color: rgb(var(--color-muted));
+  padding: 0 0.15rem;
+}
+
+.credit-support-action:hover {
+  color: rgb(34 211 238);
 }

@@ -12,4 +12,6 @@ public interface BrandRepository extends TenantAwareRepository<BrandEntity> {
     List<BrandEntity> findAllByWorkspaceIdAndDeletedFalseOrderByCreatedAtDesc(UUID workspaceId);
 
     Optional<BrandEntity> findFirstByWorkspaceIdAndDeletedFalseOrderByCreatedAtAsc(UUID workspaceId);
+
+    Optional<BrandEntity> findFirstByWorkspaceIdAndNameIgnoreCaseAndDeletedFalse(UUID workspaceId, String name);
 }

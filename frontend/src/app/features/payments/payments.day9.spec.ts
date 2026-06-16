@@ -624,7 +624,7 @@ describe('Day 9 routes, guards, and navigation', () => {
     expect(navigation).toContain("label: 'Payment History'");
     expect(navigation).toContain("label: 'Invoices'");
     expect(navigation).toContain("label: 'Payment Providers'");
-    expect(navigation).toContain("label: 'Provider Settings'");
+    expect(navigation).toContain("label: 'Provider Management'");
     expect(navigation).toContain("label: 'Credit Packages'");
     expect(navigation).toContain("label: 'Payment Transactions'");
     expect(navigation).toContain("roles: ['ADMIN', 'CREW']");

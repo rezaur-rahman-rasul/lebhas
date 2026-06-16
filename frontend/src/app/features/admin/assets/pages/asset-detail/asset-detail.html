@@ -55,8 +55,14 @@
           <div class="aspect-[16/10]">
             @switch (asset()!.fileType) {
               @case ('VIDEO') {
-                @if (previewUrl()) {
-                  <video [src]="previewUrl()!" controls class="h-full w-full bg-slate-950 object-contain"></video>
+                @if (resolvedPreviewUrl()) {
+                  <video
+                    [src]="resolvedPreviewUrl()!"
+                    controls
+                    class="h-full w-full bg-slate-950 object-contain"
+                    (loadeddata)="markPreviewLoaded()"
+                    (error)="markPreviewFailed()"
+                  ></video>
                 } @else {
                   <div class="grid h-full place-items-center bg-slate-950 text-white">
                     <div class="text-center">
@@ -67,11 +73,13 @@
                 }
               }
               @default {
-                @if (previewUrl() || asset()!.thumbnailUrl || asset()!.previewUrl || asset()!.publicUrl) {
+                @if (resolvedPreviewUrl()) {
                   <img
-                    [src]="previewUrl() || asset()!.thumbnailUrl || asset()!.previewUrl || asset()!.publicUrl || ''"
+                    [src]="resolvedPreviewUrl()!"
                     [alt]="asset()!.originalFileName"
                     class="h-full w-full object-contain"
+                    (load)="markPreviewLoaded()"
+                    (error)="markPreviewFailed()"
                   />
                 } @else {
                   <div class="grid h-full place-items-center bg-slate-100 text-slate-500">

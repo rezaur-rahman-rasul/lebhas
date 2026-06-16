@@ -2,7 +2,13 @@ package com.lebhas.creativesaas.usage.domain;
 
 public enum CreditLedgerTransactionType {
     PURCHASE,
+    CREDIT_PURCHASE,
     FREE_SIGNUP_CREDIT_GRANTED,
+    FREE_SIGNUP_GRANT,
+    PROFILE_REWARD,
+    PROFILE_REWARD_EMAIL,
+    PROFILE_REWARD_FACEBOOK,
+    PROFILE_REWARD_INSTAGRAM,
     RESERVE,
     FINALIZE,
     REFUND,

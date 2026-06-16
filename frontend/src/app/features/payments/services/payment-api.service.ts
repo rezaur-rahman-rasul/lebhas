@@ -125,7 +125,7 @@ export class PaymentApiService {
     workspaceId: string,
     payload: SubscriptionPurchasePayload,
   ): Promise<PaymentSessionResponse> {
-    return this.post<PaymentSessionResponse, SubscriptionPurchasePayload>(
+    return this.postPaymentSession<SubscriptionPurchasePayload>(
       ApiEndpoints.billing.purchaseSubscription(workspaceId),
       payload,
     );
@@ -135,7 +135,7 @@ export class PaymentApiService {
     workspaceId: string,
     payload: SubscriptionUpgradePayload,
   ): Promise<PaymentSessionResponse> {
-    return this.post<PaymentSessionResponse, SubscriptionUpgradePayload>(
+    return this.postPaymentSession<SubscriptionUpgradePayload>(
       ApiEndpoints.billing.upgradeSubscription(workspaceId),
       payload,
     );
@@ -145,7 +145,7 @@ export class PaymentApiService {
     workspaceId: string,
     payload: SubscriptionRenewPayload,
   ): Promise<PaymentSessionResponse> {
-    return this.post<PaymentSessionResponse, SubscriptionRenewPayload>(
+    return this.postPaymentSession<SubscriptionRenewPayload>(
       ApiEndpoints.billing.renewSubscription(workspaceId),
       payload,
     );
@@ -155,10 +155,14 @@ export class PaymentApiService {
     workspaceId: string,
     payload: CreditPurchasePayload,
   ): Promise<PaymentSessionResponse> {
-    return this.post<PaymentSessionResponse, CreditPurchasePayload>(
+    return this.postPaymentSession<CreditPurchasePayload>(
       ApiEndpoints.billing.purchaseCredits(workspaceId),
       payload,
     );
+  }
+
+  getWorkspacePaymentGateways(workspaceId: string): Promise<readonly PaymentProvider[]> {
+    return this.get<readonly PaymentProvider[]>(ApiEndpoints.billing.paymentGateways(workspaceId));
   }
 
   getWorkspacePayments(
@@ -194,6 +198,11 @@ export class PaymentApiService {
     return unwrapApiResponse(response);
   }
 
+  private async postPaymentSession<TBody>(path: string, body: TBody): Promise<PaymentSessionResponse> {
+    const response = await firstValueFrom(this.api.post<Record<string, unknown>, TBody>(path, body));
+    return normalizePaymentSession(unwrapApiResponse(response));
+  }
+
   private async put<T, TBody>(path: string, body: TBody): Promise<T> {
     const response = await firstValueFrom(this.api.put<T, TBody>(path, body));
     return unwrapApiResponse(response);
@@ -226,4 +235,23 @@ export class PaymentApiService {
   private path(value: string): string {
     return encodeURIComponent(value);
   }
+}
+
+function normalizePaymentSession(value: Record<string, unknown>): PaymentSessionResponse {
+  return {
+    paymentTransactionId: String(value['paymentTransactionId'] ?? ''),
+    paymentStatus: String(value['paymentStatus'] ?? value['status'] ?? 'PENDING'),
+    providerName: nullableString(value['providerName'] ?? value['providerCode']),
+    providerSessionId: nullableString(value['providerSessionId']),
+    paymentRedirectUrl: nullableString(value['paymentRedirectUrl'] ?? value['redirectUrl']),
+    expiresAt: nullableString(value['expiresAt']),
+  };
+}
+
+function nullableString(value: unknown): string | null {
+  if (value === null || value === undefined || value === '') {
+    return null;
+  }
+
+  return String(value);
 }

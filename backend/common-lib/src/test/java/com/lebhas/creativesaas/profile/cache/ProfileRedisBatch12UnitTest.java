@@ -95,6 +95,7 @@ class ProfileRedisBatch12UnitTest {
                 "Ariana",
                 "Rahman",
                 "Ariana Rahman",
+                "ariana@example.test",
                 null,
                 null,
                 null,

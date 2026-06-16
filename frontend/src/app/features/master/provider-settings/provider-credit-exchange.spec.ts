@@ -34,11 +34,11 @@ describe('provider credit exchange frontend', () => {
   const source = files.filter((file) => file.endsWith('.ts') || file.endsWith('.html')).map(read).join('\n');
 
   it('routes Master provider credit pages without exposing them to Admin navigation', () => {
-    expect(DASHBOARD_NAVIGATION.some((item) => item.label === 'Provider Settings' && item.roles?.includes('MASTER'))).toBe(true);
+    expect(DASHBOARD_NAVIGATION.some((item) => item.label === 'Provider Management' && item.roles?.includes('MASTER'))).toBe(true);
     expect(DASHBOARD_NAVIGATION.some((item) => item.label === 'Provider Credit Pools' && item.roles?.includes('MASTER'))).toBe(true);
     expect(DASHBOARD_NAVIGATION.some((item) => item.label === 'Exchange Policies' && item.roles?.includes('MASTER'))).toBe(true);
     expect(DASHBOARD_NAVIGATION.some((item) => item.label === 'Credit Overview' && item.roles?.includes('MASTER'))).toBe(true);
-    expect(DASHBOARD_NAVIGATION.filter((item) => item.roles?.includes('ADMIN')).map((item) => item.label)).not.toContain('Provider Settings');
+    expect(DASHBOARD_NAVIGATION.filter((item) => item.roles?.includes('ADMIN')).map((item) => item.label)).not.toContain('Provider Management');
     expect(DASHBOARD_NAVIGATION.filter((item) => item.roles?.includes('ADMIN')).map((item) => item.label)).not.toContain('Provider Credit Pools');
   });
 

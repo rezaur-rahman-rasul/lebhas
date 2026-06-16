@@ -5,6 +5,7 @@ param(
     [ValidateSet(
         "gateway-service",
         "auth-service",
+        "user-service",
         "workspace-service",
         "creative-service",
         "postgres",

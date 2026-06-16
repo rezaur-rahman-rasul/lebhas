@@ -18,6 +18,7 @@ platform:
     read-timeout: ${GATEWAY_READ_TIMEOUT:90s}
     services:
       auth: ${AUTH_SERVICE_BASE_URL:http://localhost:8081}
+      user: ${USER_SERVICE_BASE_URL:http://localhost:8082}
       workspace: ${WORKSPACE_SERVICE_BASE_URL:http://localhost:8083}
       creative: ${CREATIVE_SERVICE_BASE_URL:http://localhost:8084}
       billing: ${BILLING_SERVICE_BASE_URL:http://localhost:8085}

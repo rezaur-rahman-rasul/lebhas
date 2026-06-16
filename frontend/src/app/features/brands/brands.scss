@@ -19,6 +19,45 @@
   vertical-align: -0.12rem;
 }
 
+.brand-logo-upload-field {
+  display: grid;
+  gap: 0.5rem;
+  color: rgb(var(--color-ink));
+  font-size: 0.875rem;
+  font-weight: 700;
+}
+
+.brand-logo-upload-field input {
+  position: absolute;
+  width: 1px !important;
+  height: 1px !important;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
+  clip-path: inset(50%);
+}
+
+.brand-logo-upload-box {
+  display: flex;
+  min-height: 3rem;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  border: 1px dashed rgb(var(--color-border));
+  border-radius: var(--app-radius-input);
+  background: rgb(var(--color-input));
+  padding: 0.78rem;
+  color: rgb(var(--color-muted));
+  cursor: pointer;
+}
+
+.brand-logo-upload-box button {
+  flex: 0 0 auto;
+  color: rgb(var(--color-ink));
+  font-size: 0.78rem;
+  font-weight: 800;
+}
+
 @media (min-width: 1280px) {
   .brands-page-grid {
     grid-template-columns: minmax(0, 1fr) 23.75rem;

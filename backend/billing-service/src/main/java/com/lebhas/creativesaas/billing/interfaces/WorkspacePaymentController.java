@@ -6,6 +6,7 @@ import com.lebhas.creativesaas.payment.application.PaymentWorkspaceApiService;
 import com.lebhas.creativesaas.payment.application.dto.CreditPurchaseOrderView;
 import com.lebhas.creativesaas.payment.application.dto.CreditPurchasePaymentSessionView;
 import com.lebhas.creativesaas.payment.application.dto.InvoiceView;
+import com.lebhas.creativesaas.payment.application.dto.PaymentProviderView;
 import com.lebhas.creativesaas.payment.application.dto.PaymentTransactionView;
 import com.lebhas.creativesaas.payment.application.dto.SubscriptionOrderView;
 import com.lebhas.creativesaas.payment.application.dto.SubscriptionPaymentSessionView;
@@ -107,6 +108,12 @@ public class WorkspacePaymentController {
                 request.creditPackageId(),
                 request.environmentType(),
                 request.preferredProviderCode()));
+    }
+
+    @GetMapping("/payment-gateways")
+    @Operation(summary = "List enabled payment gateways available to a workspace")
+    public ApiResponse<List<PaymentProviderView>> paymentGateways(@PathVariable UUID workspaceId) {
+        return ApiResponse.success(paymentApiQueryService.enabledPaymentGateways(workspaceId));
     }
 
     @GetMapping("/credits/purchase-orders")

@@ -4,6 +4,8 @@ import com.lebhas.creativesaas.common.exception.BusinessException;
 import com.lebhas.creativesaas.common.exception.ErrorCode;
 import com.lebhas.creativesaas.common.security.context.CurrentUser;
 import com.lebhas.creativesaas.common.security.context.CurrentUserContext;
+import com.lebhas.creativesaas.identity.domain.UserEntity;
+import com.lebhas.creativesaas.identity.infrastructure.persistence.UserRepository;
 import com.lebhas.creativesaas.profile.application.dto.UpdateProfileRequest;
 import com.lebhas.creativesaas.profile.application.dto.UserProfileView;
 import com.lebhas.creativesaas.profile.cache.ProfileLockService;
@@ -18,6 +20,7 @@ import com.lebhas.creativesaas.redis.RedisLockService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.web.multipart.MultipartFile;
 
 import java.time.DateTimeException;
 import java.time.ZoneId;
@@ -33,34 +36,40 @@ public class UserProfileService {
     private final CurrentUserContext currentUserContext;
     private final UserProfileQueryService userProfileQueryService;
     private final UserProfileRepository userProfileRepository;
+    private final UserRepository userRepository;
     private final UserProfileMapper userProfileMapper;
     private final UserProfileCacheService userProfileCacheService;
     private final UserAccountSettingsCacheService userAccountSettingsCacheService;
     private final ProfileRateLimitService profileRateLimitService;
     private final ProfileLockService profileLockService;
     private final ProfileEventProducer profileEventProducer;
+    private final ProfileImageService profileImageService;
     private ProfileNotificationActivityAuditIntegration profileIntegration;
 
     public UserProfileService(
             CurrentUserContext currentUserContext,
             UserProfileQueryService userProfileQueryService,
             UserProfileRepository userProfileRepository,
+            UserRepository userRepository,
             UserProfileMapper userProfileMapper,
             UserProfileCacheService userProfileCacheService,
             UserAccountSettingsCacheService userAccountSettingsCacheService,
             ProfileRateLimitService profileRateLimitService,
             ProfileLockService profileLockService,
-            ProfileEventProducer profileEventProducer
+            ProfileEventProducer profileEventProducer,
+            ProfileImageService profileImageService
     ) {
         this.currentUserContext = currentUserContext;
         this.userProfileQueryService = userProfileQueryService;
         this.userProfileRepository = userProfileRepository;
+        this.userRepository = userRepository;
         this.userProfileMapper = userProfileMapper;
         this.userProfileCacheService = userProfileCacheService;
         this.userAccountSettingsCacheService = userAccountSettingsCacheService;
         this.profileRateLimitService = profileRateLimitService;
         this.profileLockService = profileLockService;
         this.profileEventProducer = profileEventProducer;
+        this.profileImageService = profileImageService;
     }
 
     @Autowired(required = false)
@@ -96,11 +105,12 @@ public class UserProfileService {
                     validated.timezone(),
                     validated.locale());
             UserProfile saved = userProfileRepository.save(profile);
+            syncIdentityUser(currentUser.userId(), saved);
             invalidateCaches(currentUser.userId());
             publishProfileUpdated(currentUser, saved);
             integrateProfileUpdated(currentUser, saved.getId(), ipAddress, userAgent);
             UserAccountSettings settings = userProfileQueryService.requireAccountSettings(currentUser.userId());
-            UserProfileView view = userProfileMapper.toView(saved, settings);
+            UserProfileView view = userProfileMapper.toView(saved, settings, currentUser.email());
             userProfileCacheService.cache(currentUser.userId(), view);
             if (view.accountSettings() != null) {
                 userAccountSettingsCacheService.cache(currentUser.userId(), view.accountSettings());
@@ -109,6 +119,20 @@ public class UserProfileService {
         } finally {
             profileLockService.releaseQuietly(lockToken);
         }
+    }
+
+    @Transactional
+    public UserProfileView updateOwnProfile(
+            UpdateProfileRequest request,
+            MultipartFile profileImage,
+            String ipAddress,
+            String userAgent
+    ) {
+        UserProfileView updated = updateOwnProfile(request, ipAddress, userAgent);
+        if (profileImage == null || profileImage.isEmpty()) {
+            return updated;
+        }
+        return profileImageService.uploadDirect(profileImage, ipAddress, userAgent);
     }
 
     private void validateRateLimit(UUID userId) {
@@ -193,6 +217,13 @@ public class UserProfileService {
         if (profileIntegration != null) {
             profileIntegration.profileUpdated(currentUser, profileId, ipAddress, userAgent);
         }
+    }
+
+    private void syncIdentityUser(UUID userId, UserProfile profile) {
+        userRepository.findByIdAndDeletedFalse(userId).ifPresent(user -> {
+            user.updateProfile(profile.getFirstName(), profile.getLastName(), user.getEmail(), profile.getPhoneNumber());
+            userRepository.save(user);
+        });
     }
 
     private record ValidatedProfileUpdate(

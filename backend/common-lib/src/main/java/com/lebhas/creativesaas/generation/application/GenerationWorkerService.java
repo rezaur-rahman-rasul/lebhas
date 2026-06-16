@@ -223,6 +223,7 @@ public class GenerationWorkerService {
                     StorageProvider.R2,
                     file.getBucket(),
                     file.getObjectKey(),
+                    result.fileExtension().equals("mp4") ? AssetFileType.VIDEO : AssetFileType.IMAGE,
                     result.mimeType(),
                     result.fileExtension(),
                     result.content().length,

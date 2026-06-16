@@ -29,7 +29,7 @@ export function safeProfileImageUrl(profile: Pick<UserProfileView, 'profileImage
     return null;
   }
 
-  if (url.startsWith('https://') || url.startsWith('/')) {
+  if (url.startsWith('https://') || url.startsWith('/') || url.startsWith('blob:')) {
     return url;
   }
 
@@ -54,7 +54,7 @@ export function safeProfileAvatarUrl(value: string | null | undefined): string |
     return null;
   }
 
-  return url.startsWith('https://') || url.startsWith('/') ? url : null;
+  return url.startsWith('https://') || url.startsWith('/') || url.startsWith('blob:') ? url : null;
 }
 
 export function getInitialsFromDisplayName(value: string | null | undefined): string {

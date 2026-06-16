@@ -11,14 +11,56 @@
     <article><span>Workspace reserved credits</span><strong>{{ overview.totalWorkspaceReservedCredits | number }}</strong></article>
     <article><span>Workspace used credits</span><strong>{{ overview.totalWorkspaceUsedCredits | number }}</strong></article>
     <article><span>Free credits granted</span><strong>{{ overview.totalFreeCreditsGranted | number }}</strong></article>
-    <article><span>Low-balance providers</span><strong>{{ overview.lowBalanceProviders | number }}</strong></article>
+    <article><span>Low-balance providers</span><strong>{{ lowBalanceProviderCount() | number }}</strong></article>
   </section>
 
   <section class="overview-table"><h2>Provider pools</h2><div><table><thead><tr><th>Provider</th><th>Available equivalent</th><th>Reserved</th><th>Used</th><th>Low threshold</th><th>Status</th></tr></thead><tbody>@for (pool of overview.providerPools; track pool.providerId) {<tr><td>{{ pool.providerName }}</td><td>{{ pool.availableInternalCredits | number }}</td><td>{{ pool.reservedInternalCredits | number }}</td><td>{{ pool.usedInternalCredits | number }}</td><td>{{ pool.lowBalanceThreshold | number }}</td><td>{{ pool.availableInternalCredits < pool.lowBalanceThreshold ? 'Low balance' : 'OK' }}</td></tr>} @empty {<tr><td colspan="6">No credit pool configured for this provider.</td></tr>}</tbody></table></div></section>
 
-  <section class="overview-table"><h2>Workspace credits</h2><div><table><thead><tr><th>Workspace</th><th>Available</th><th>Reserved</th><th>Used</th><th>Free granted</th><th>Last activity</th></tr></thead><tbody>@for (workspace of overview.workspaceCredits ?? []; track workspace.workspaceId) {<tr><td>{{ workspace.workspaceName || workspace.workspaceId }}</td><td>{{ workspace.availableCredits | number }}</td><td>{{ workspace.reservedCredits | number }}</td><td>{{ workspace.usedCredits | number }}</td><td>{{ workspace.freeCreditsGranted ? 'Yes' : 'No' }}</td><td>{{ workspace.lastActivityAt || workspace.updatedAt | date: 'medium' }}</td></tr>} @empty {<tr><td colspan="6">No workspace credit data yet.</td></tr>}</tbody></table></div></section>
+  <section class="overview-table">
+    <h2>Workspace credits</h2>
+    <div>
+      <table>
+        <thead>
+          <tr>
+            <th>Workspace</th>
+            <th>Available</th>
+            <th>Reserved</th>
+            <th>Used</th>
+            <th>Free granted</th>
+            <th>Last activity</th>
+            <th>Action</th>
+          </tr>
+        </thead>
+        <tbody>
+          @for (workspace of overview.workspaceCredits ?? []; track workspace.workspaceId) {
+            <tr>
+              <td>{{ workspace.workspaceName || workspace.workspaceId }}</td>
+              <td>{{ workspace.availableCredits | number }}</td>
+              <td>{{ workspace.reservedCredits | number }}</td>
+              <td>{{ workspace.usedCredits | number }}</td>
+              <td>{{ workspace.freeCreditsGranted ? 'Yes' : 'No' }}</td>
+              <td>{{ workspace.lastActivityAt || workspace.updatedAt | date: 'medium' }}</td>
+              <td>
+                <app-button type="button" variant="secondary" (click)="openAdjustment(workspace)">Adjust</app-button>
+              </td>
+            </tr>
+          } @empty {
+            <tr><td colspan="7">No workspace credit data yet.</td></tr>
+          }
+        </tbody>
+      </table>
+    </div>
+  </section>
 
   <section class="overview-table"><h2>Recent ledger</h2><div><table><thead><tr><th>Type</th><th>Provider / Workspace</th><th>Amount</th><th>Description</th><th>Created</th></tr></thead><tbody>@for (entry of overview.recentCreditLedger; track entry.id) {<tr><td>{{ entry.transactionType }}</td><td>{{ entry.providerId || entry.workspaceId || '--' }}</td><td>{{ entry.creditAmount | number }}</td><td>{{ entry.description || 'Credit update' }}</td><td>{{ entry.createdAt | date: 'medium' }}</td></tr>} @empty {<tr><td colspan="5">No credit activity yet.</td></tr>}</tbody></table></div></section>
 } @else {
   <section class="summary-grid">@for (item of [1,2,3,4,5,6]; track item) {<article class="skeleton"></article>}</section>
 }
+
+<app-workspace-credit-adjustment-dialog
+  [open]="adjustmentOpen()"
+  [workspaceName]="selectedWorkspace()?.workspaceName || selectedWorkspace()?.workspaceId || 'Workspace'"
+  [adjusting]="credits.adjusting()"
+  (submitted)="adjustWorkspace($event)"
+  (closed)="closeAdjustment()"
+/>

@@ -10,7 +10,8 @@ import { CardComponent } from '@app/shared/components/card/card';
 import { EmptyStateComponent } from '@app/shared/components/empty-state/empty-state';
 import { IconComponent } from '@app/shared/components/icon/icon';
 import { SectionHeaderComponent } from '@app/shared/components/section-header/section-header';
-import { PaymentStore } from '../../payments/state/payment.store';
+import { AiProviderView } from '../provider-settings/models/provider-credit-exchange.models';
+import { ProviderSettingsStore } from '../provider-settings/state/providerSettings.store';
 import { CreativePipelineLayerView, CreativePipelineView } from './creative-pipeline.models';
 import { CreativePipelineStore } from './creative-pipeline.store';
 
@@ -79,7 +80,7 @@ export class MasterAiToolsPage {
   private readonly routeData = toSignal(this.route.data, { initialValue: this.route.snapshot.data });
   protected readonly permissions = inject(PermissionStore);
   protected readonly pipelines = inject(CreativePipelineStore);
-  protected readonly payments = inject(PaymentStore);
+  protected readonly providerSettings = inject(ProviderSettingsStore);
 
   protected readonly selectedPipelineId = signal<string | null>(null);
   protected readonly selectedLayerId = signal<string | null>(null);
@@ -113,8 +114,12 @@ export class MasterAiToolsPage {
   protected readonly backendTools = this.pipelines.tools;
   protected readonly backendLayers = this.pipelines.standaloneLayers;
   protected readonly routingPolicies = this.pipelines.routingPolicies;
-  protected readonly providers = this.payments.paymentProviders;
-  protected readonly activeProviders = this.payments.activeProviders;
+  protected readonly providers = computed(() =>
+    this.providerSettings.providers().filter((provider) => this.isAiProvider(provider)),
+  );
+  protected readonly activeProviders = computed(() =>
+    this.providers().filter((provider) => provider.active),
+  );
   protected readonly selectedPipeline = computed<CreativePipelineView | null>(
     () => this.pipelinesList().find((pipeline) => pipeline.id === this.selectedPipelineId()) ?? this.pipelinesList()[0] ?? null,
   );
@@ -149,7 +154,7 @@ export class MasterAiToolsPage {
 
   constructor() {
     void this.pipelines.load();
-    void this.payments.loadPaymentProviders();
+    void this.providerSettings.loadProviders();
 
     effect(() => {
       const pipeline = this.selectedPipeline();
@@ -181,7 +186,11 @@ export class MasterAiToolsPage {
   }
 
   protected providerName(providerId: string | null | undefined): string {
-    return this.providers().find((provider) => provider.id === providerId)?.name ?? 'Provider pending';
+    return this.providerLabel(this.providers().find((provider) => provider.id === providerId) ?? null);
+  }
+
+  protected providerLabel(provider: AiProviderView | null | undefined): string {
+    return provider?.displayName || provider?.providerName || provider?.providerCode || 'Provider pending';
   }
 
   protected layerProvider(layer: CreativePipelineLayerView): string {
@@ -256,10 +265,6 @@ export class MasterAiToolsPage {
     });
   }
 
-  protected disabledActionMessage(action: string): string {
-    return `${action} will be enabled when the Master creative tool management API is available.`;
-  }
-
   protected endpointUnavailableTitle(): string {
     switch (this.mode()) {
       case 'layers':
@@ -280,5 +285,10 @@ export class MasterAiToolsPage {
       default:
         return 'Creative tools could not load';
     }
+  }
+
+  private isAiProvider(provider: AiProviderView): boolean {
+    const category = String(provider.providerCategory ?? provider.category ?? provider.providerType ?? '').toUpperCase();
+    return category === 'AI' || provider.supportsText || provider.supportsImage || provider.supportsVideo || provider.supportsVoice;
   }
 }

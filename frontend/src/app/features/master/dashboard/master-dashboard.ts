@@ -55,6 +55,7 @@ export class MasterDashboardPage {
   protected readonly workspace = inject(WorkspaceStore);
   protected readonly usage = inject(UsageBillingStore);
   protected readonly monitoring = inject(MonitoringStore);
+  private dashboardDataQueued = false;
 
   protected readonly role = this.auth.currentRole;
   protected readonly displayName = this.auth.displayName;
@@ -97,6 +98,7 @@ export class MasterDashboardPage {
       0,
     );
     const alertCount = this.monitoring.unresolvedAlerts().length;
+    const activityCount = this.alerts().length + this.systemHealth().length;
 
     return [
       {
@@ -107,11 +109,11 @@ export class MasterDashboardPage {
         tone: 'brand',
       },
       {
-        label: 'Admin Users',
-        value: '--',
-        trend: 'User directory endpoint not available yet',
-        icon: 'users',
-        tone: 'neutral',
+        label: 'System Activity',
+        value: this.formatNumber(activityCount),
+        trend: activityCount > 0 ? 'Monitoring events loaded' : 'No activity reported yet',
+        icon: 'activity',
+        tone: activityCount > 0 ? 'blue' : 'neutral',
       },
       {
         label: 'Active Plans',
@@ -147,7 +149,7 @@ export class MasterDashboardPage {
   protected readonly quickActions: readonly MasterAction[] = [
     { label: 'Manage Workspaces', route: '/master/workspaces', icon: 'building-2' },
     { label: 'Manage Pricing', route: '/master/pricing-packages', icon: 'package-check' },
-    { label: 'Manage AI Tools', route: '/master/provider-settings', icon: 'wand-sparkles' },
+    { label: 'Provider Management', route: '/master/provider-management', icon: 'settings' },
     { label: 'View System Health', route: '/master/monitoring/system-health', icon: 'gauge' },
     { label: 'View Audit Logs', route: '/master/audit-logs', icon: 'shield-check' },
   ];
@@ -243,13 +245,7 @@ export class MasterDashboardPage {
         return;
       }
 
-      if (this.canViewMasterUsage()) {
-        void this.usage.loadMasterUsageOverview();
-      }
-
-      if (this.canViewMasterMonitoring()) {
-        void this.monitoring.loadMonitoringDashboard();
-      }
+      this.queueDashboardData();
     });
   }
 
@@ -317,5 +313,48 @@ export class MasterDashboardPage {
     return typeof value === 'number'
       ? new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD', maximumFractionDigits: 2 }).format(value)
       : '--';
+  }
+
+  private queueDashboardData(): void {
+    if (this.dashboardDataQueued) {
+      return;
+    }
+
+    this.dashboardDataQueued = true;
+    this.afterFirstPaint(() => this.loadDashboardData());
+  }
+
+  private loadDashboardData(): void {
+    if (this.role() !== 'MASTER') {
+      return;
+    }
+
+    if (this.canViewMasterUsage()) {
+      void this.usage.loadMasterUsageOverview();
+    }
+
+    if (this.canViewMasterMonitoring()) {
+      void this.monitoring.loadMonitoringDashboard();
+    }
+  }
+
+  private afterFirstPaint(callback: () => void): void {
+    if (typeof window === 'undefined') {
+      callback();
+      return;
+    }
+
+    window.requestAnimationFrame(() => {
+      const idleCallback = (window as Window & {
+        requestIdleCallback?: (handler: () => void, options?: { timeout: number }) => number;
+      }).requestIdleCallback;
+
+      if (idleCallback) {
+        idleCallback(callback, { timeout: 700 });
+        return;
+      }
+
+      window.setTimeout(callback, 120);
+    });
   }
 }

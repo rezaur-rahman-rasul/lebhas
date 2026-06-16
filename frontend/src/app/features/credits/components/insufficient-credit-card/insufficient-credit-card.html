@@ -1,1 +1,17 @@
-<article class="insufficient"><p>Credit requirement</p><h2>Not enough credits</h2><span>You need more credits to generate this creative.</span><div><app-button type="button" (click)="buyCredits.emit()">Buy Credits</app-button><app-button type="button" variant="secondary" (click)="reduceVersions.emit()">Reduce generated versions</app-button><app-button type="button" variant="ghost">Contact support / Master</app-button></div></article>
+<article class="insufficient">
+  <p>Credit requirement</p>
+  <h2>Not enough credits</h2>
+  <span>You need more credits to generate this creative.</span>
+
+  <div class="insufficient-actions">
+    <button type="button" class="credit-action credit-action--primary" (click)="buyCredits.emit()">
+      Buy Credits
+    </button>
+    <button type="button" class="credit-action credit-action--secondary" (click)="reduceVersions.emit()">
+      Reduce versions
+    </button>
+    <button type="button" class="credit-support-action">
+      Contact support / Master
+    </button>
+  </div>
+</article>

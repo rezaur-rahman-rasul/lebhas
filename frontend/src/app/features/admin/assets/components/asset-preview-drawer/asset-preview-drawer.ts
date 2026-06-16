@@ -11,6 +11,7 @@ import {
   assetStatusLabel,
   assetStatusTone,
   formatFileSize,
+  isPreviewableAsset,
 } from '../../models/asset.models';
 
 @Component({
@@ -38,9 +39,13 @@ export class AssetPreviewDrawer {
   readonly detailRequested = output<Asset>();
 
   protected readonly previewLoadFailed = signal(false);
+  private readonly failedPreviewUrl = signal<string | null>(null);
+  private previewRefreshRequested = false;
+  private currentAssetId: string | null = null;
+
   protected readonly resolvedPreviewUrl = computed(() => {
     const asset = this.asset();
-    return normalizePreviewUrl(this.previewUrl(), asset);
+    return normalizePreviewUrl(this.previewUrl(), asset, this.failedPreviewUrl());
   });
   protected readonly canRenderPreview = computed(() => Boolean(this.resolvedPreviewUrl()) && !this.previewLoadFailed());
 
@@ -52,13 +57,26 @@ export class AssetPreviewDrawer {
 
   constructor() {
     effect(() => {
-      this.asset()?.id;
-      this.previewUrl();
-      this.previewLoadFailed.set(false);
+      const assetId = this.asset()?.id ?? null;
+      const previewUrl = this.previewUrl();
+
+      if (this.currentAssetId !== assetId) {
+        this.currentAssetId = assetId;
+        this.failedPreviewUrl.set(null);
+        this.previewRefreshRequested = false;
+        this.previewLoadFailed.set(false);
+        return;
+      }
+
+      if (previewUrl && previewUrl !== this.failedPreviewUrl()) {
+        this.previewLoadFailed.set(false);
+      }
     });
   }
 
   protected refreshPreview(asset: Asset): void {
+    this.failedPreviewUrl.set(null);
+    this.previewRefreshRequested = false;
     this.previewLoadFailed.set(false);
     this.previewRequested.emit(asset);
   }
@@ -68,6 +86,19 @@ export class AssetPreviewDrawer {
   }
 
   protected markPreviewFailed(): void {
+    const asset = this.asset();
+    const failedUrl = this.resolvedPreviewUrl();
+    if (failedUrl) {
+      this.failedPreviewUrl.set(failedUrl);
+    }
+
+    if (asset && isPreviewableAsset(asset) && !this.previewRefreshRequested) {
+      this.previewRefreshRequested = true;
+      this.previewLoadFailed.set(false);
+      this.previewRequested.emit(asset);
+      return;
+    }
+
     this.previewLoadFailed.set(true);
   }
 
@@ -91,19 +122,22 @@ export class AssetPreviewDrawer {
   }
 }
 
-function normalizePreviewUrl(inputUrl: string | null, asset: Asset | null): string | null {
-  return (
-    cleanUrl(inputUrl) ||
-    readUrlField(asset, 'signedPreviewUrl') ||
-    cleanUrl(asset?.previewUrl) ||
-    readUrlField(asset, 'publicPreviewUrl') ||
-    cleanUrl(asset?.thumbnailUrl) ||
-    cleanUrl(asset?.publicUrl) ||
-    readUrlField(asset, 'url') ||
-    readUrlField(asset, 'downloadUrl') ||
-    readNestedUrl(asset, 'data', 'previewUrl') ||
-    null
-  );
+function normalizePreviewUrl(
+  inputUrl: string | null,
+  asset: Asset | null,
+  failedUrl: string | null,
+): string | null {
+  return [
+    cleanUrl(inputUrl),
+    readUrlField(asset, 'signedPreviewUrl'),
+    cleanUrl(asset?.previewUrl),
+    readUrlField(asset, 'publicPreviewUrl'),
+    cleanUrl(asset?.thumbnailUrl),
+    cleanUrl(asset?.publicUrl),
+    readUrlField(asset, 'url'),
+    readUrlField(asset, 'downloadUrl'),
+    readNestedUrl(asset, 'data', 'previewUrl'),
+  ].find((url): url is string => Boolean(url && url !== failedUrl)) ?? null;
 }
 
 function cleanUrl(value: unknown): string | null {

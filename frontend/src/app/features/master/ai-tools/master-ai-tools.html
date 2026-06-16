@@ -36,14 +36,14 @@
           <strong>{{ backendTools().length }} backend tools connected</strong>
         </div>
         <div class="ai-master-actions">
-          <button type="button" [disabled]="true" [title]="disabledActionMessage('Create Tool')">
-            <app-icon name="plus" [size]="16" />
-            Create Tool
+          <button type="button" (click)="pipelines.load()">
+            <app-icon name="refresh-cw" [size]="16" />
+            Refresh
           </button>
-          <button type="button" [disabled]="true" [title]="disabledActionMessage('Configure Costs')">
-            <app-icon name="coins" [size]="16" />
-            Configure Costs
-          </button>
+          <a routerLink="/master/provider-routing">
+            <app-icon name="route" [size]="16" />
+            Configure Routing
+          </a>
         </div>
       </section>
 
@@ -79,8 +79,8 @@
                 </dl>
 
                 <div class="ai-tool-actions">
-                  <button type="button" [disabled]="true" [title]="disabledActionMessage('Edit Tool')">Edit Tool</button>
-                  <button type="button" [disabled]="true" [title]="disabledActionMessage('Enable/Disable')">Enable/Disable</button>
+                  <a routerLink="/master/creative-layers">View Layers</a>
+                  <a routerLink="/master/provider-routing">Configure Routing</a>
                 </div>
               </article>
             </app-card>
@@ -89,7 +89,7 @@
       } @else {
         <div class="mt-5">
           <app-empty-state icon="wand-sparkles" title="No creative tools configured yet" description="Creative tools will appear here after the backend tool catalog is seeded or configured.">
-            <button type="button" [disabled]="true" [title]="disabledActionMessage('Add Creative Tool')">Add Creative Tool</button>
+            <button type="button" (click)="pipelines.load()">Refresh catalog</button>
           </app-empty-state>
         </div>
       }
@@ -106,14 +106,14 @@
           </select>
         </label>
         <div class="ai-master-actions">
-          <button type="button" [disabled]="true" title="Layer creation will be enabled after the add-layer workflow is connected.">
-            <app-icon name="plus" [size]="16" />
-            Add Layer
+          <button type="button" (click)="pipelines.load()">
+            <app-icon name="refresh-cw" [size]="16" />
+            Refresh
           </button>
-          <button type="button" [disabled]="true" title="Pipeline ordering will be saved through the backend layer update endpoint.">
-            <app-icon name="save" [size]="16" />
-            Save Pipeline
-          </button>
+          <a routerLink="/master/provider-routing">
+            <app-icon name="route" [size]="16" />
+            Configure Routing
+          </a>
         </div>
       </section>
 
@@ -165,9 +165,8 @@
                   <div><dt>Retry policy</dt><dd>{{ layerRetry(layer) }}</dd></div>
                 </dl>
                 <div class="ai-tool-actions">
-                  <button type="button" (click)="selectLayer(layer.id)">Edit Layer</button>
-                  <button type="button" [disabled]="layer.required" [title]="layer.required ? 'Warning: required layers cannot be disabled from the UI.' : 'Disable layer'">Enable/Disable Layer</button>
-                  <a routerLink="/master/provider-routing">Set Fallback</a>
+                  <button type="button" (click)="selectLayer(layer.id)">Select Layer</button>
+                  <a routerLink="/master/provider-routing">Set Routing</a>
                 </div>
               </article>
             </app-card>
@@ -226,7 +225,7 @@
               <select formControlName="primaryProvider">
                 <option value="">Select provider</option>
                 @for (provider of activeProviders(); track provider.id) {
-                  <option [value]="provider.id">{{ provider.name }}</option>
+                  <option [value]="provider.id">{{ providerLabel(provider) }}</option>
                 }
               </select>
               <small>The first provider used when this layer runs.</small>
@@ -237,7 +236,7 @@
               <select formControlName="fallbackProvider">
                 <option value="">No fallback</option>
                 @for (provider of activeProviders(); track provider.id) {
-                  <option [value]="provider.id">{{ provider.name }}</option>
+                  <option [value]="provider.id">{{ providerLabel(provider) }}</option>
                 }
               </select>
               <small>Used if the primary provider fails or circuit breaker opens.</small>

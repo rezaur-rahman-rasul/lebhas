@@ -57,6 +57,8 @@ export class AssetDetailPage {
   private readonly previewLoadingSignal = signal(false);
   private readonly downloadLoadingSignal = signal(false);
   private readonly deleteDialogOpenSignal = signal(false);
+  private readonly failedPreviewUrlSignal = signal<string | null>(null);
+  private previewRefreshRequested = false;
 
   protected readonly previewUrl = this.previewUrlSignal.asReadonly();
   protected readonly previewLoading = this.previewLoadingSignal.asReadonly();
@@ -64,6 +66,20 @@ export class AssetDetailPage {
   protected readonly deleteDialogOpen = this.deleteDialogOpenSignal.asReadonly();
 
   protected readonly asset = this.store.selectedAsset;
+  protected readonly resolvedPreviewUrl = computed(() => {
+    const asset = this.asset();
+    const failedUrl = this.failedPreviewUrlSignal();
+    if (!asset) {
+      return null;
+    }
+
+    return [
+      cleanUrl(this.previewUrlSignal()),
+      cleanUrl(asset.thumbnailUrl),
+      cleanUrl(asset.previewUrl),
+      cleanUrl(asset.publicUrl),
+    ].find((url): url is string => Boolean(url && url !== failedUrl)) ?? null;
+  });
   protected readonly hasWorkspaceContext = computed(() => Boolean(this.auth.activeWorkspaceId()));
   protected readonly roleLabel = computed(() => this.auth.currentRole() ?? 'ADMIN');
   protected readonly roleTone = computed(() =>
@@ -99,9 +115,29 @@ export class AssetDetailPage {
       const preview = await this.store.getPreviewUrl(asset.id);
       if (preview?.url) {
         this.previewUrlSignal.set(preview.url);
+        if (preview.url !== this.failedPreviewUrlSignal()) {
+          this.failedPreviewUrlSignal.set(null);
+        }
       }
     } finally {
       this.previewLoadingSignal.set(false);
+    }
+  }
+
+  protected markPreviewLoaded(): void {
+    this.failedPreviewUrlSignal.set(null);
+  }
+
+  protected markPreviewFailed(): void {
+    const asset = this.asset();
+    const failedUrl = this.resolvedPreviewUrl();
+    if (failedUrl) {
+      this.failedPreviewUrlSignal.set(failedUrl);
+    }
+
+    if (asset && isPreviewableAsset(asset) && !this.previewRefreshRequested) {
+      this.previewRefreshRequested = true;
+      void this.refreshPreview();
     }
   }
 
@@ -157,9 +193,15 @@ export class AssetDetailPage {
       return;
     }
 
+    this.failedPreviewUrlSignal.set(null);
+    this.previewRefreshRequested = false;
     this.previewUrlSignal.set(asset.thumbnailUrl || asset.previewUrl || asset.publicUrl);
     if (isPreviewableAsset(asset)) {
       await this.refreshPreview();
     }
   }
+}
+
+function cleanUrl(value: string | null | undefined): string | null {
+  return typeof value === 'string' && value.trim() ? value.trim() : null;
 }

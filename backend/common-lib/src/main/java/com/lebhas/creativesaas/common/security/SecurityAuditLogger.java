@@ -24,6 +24,15 @@ public class SecurityAuditLogger {
         log.info("auth_event type=login_success userId={} workspaceId={} deviceId={}", userId, workspaceId, deviceId);
     }
 
+    public void logMasterMobileBypassLogin(UUID userId, String mobileNumber, String clientIp, String deviceId) {
+        log.info(
+                "auth_event type=master_mobile_bypass_login userId={} mobileNumber={} clientIp={} deviceId={}",
+                userId,
+                mobileNumber,
+                clientIp,
+                deviceId);
+    }
+
     public void logLoginFailure(String email, UUID workspaceId, String reason) {
         log.warn("auth_event type=login_failure email={} workspaceId={} reason={}", email, workspaceId, reason);
     }

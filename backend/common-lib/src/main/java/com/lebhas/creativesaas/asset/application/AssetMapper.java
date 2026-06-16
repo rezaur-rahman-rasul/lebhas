@@ -2,7 +2,10 @@ package com.lebhas.creativesaas.asset.application;
 
 import com.lebhas.creativesaas.asset.application.dto.AssetView;
 import com.lebhas.creativesaas.asset.domain.AssetEntity;
+import com.lebhas.creativesaas.asset.domain.AssetFileType;
 import org.springframework.stereotype.Component;
+
+import java.util.Locale;
 
 @Component
 public class AssetMapper {
@@ -27,7 +30,7 @@ public class AssetMapper {
                 asset.getAssetCategory(),
                 asset.getOriginalFileName(),
                 asset.getStoredFileName(),
-                asset.getFileType(),
+                resolveFileType(asset),
                 asset.getMimeType(),
                 asset.getFileExtension(),
                 asset.getFileSize(),
@@ -50,5 +53,37 @@ public class AssetMapper {
                 assetMetadataSerializer.deserialize(asset.getMetadataJson()),
                 asset.getCreatedAt(),
                 asset.getUpdatedAt());
+    }
+
+    private AssetFileType resolveFileType(AssetEntity asset) {
+        if (asset.getFileType() != null) {
+            return asset.getFileType();
+        }
+        String mimeType = normalize(asset.getMimeType());
+        String extension = normalize(asset.getFileExtension());
+        if ("image/svg+xml".equals(mimeType) || "svg".equals(extension)) {
+            return AssetFileType.VECTOR_IMAGE;
+        }
+        if (mimeType.startsWith("video/")
+                || extension.equals("mp4")
+                || extension.equals("mov")
+                || extension.equals("m4v")
+                || extension.equals("webm")) {
+            return AssetFileType.VIDEO;
+        }
+        if (mimeType.startsWith("image/")
+                || extension.equals("jpg")
+                || extension.equals("jpeg")
+                || extension.equals("png")
+                || extension.equals("webp")
+                || extension.equals("gif")
+                || extension.equals("avif")) {
+            return AssetFileType.IMAGE;
+        }
+        return AssetFileType.IMAGE;
+    }
+
+    private String normalize(String value) {
+        return value == null ? "" : value.trim().toLowerCase(Locale.ROOT);
     }
 }

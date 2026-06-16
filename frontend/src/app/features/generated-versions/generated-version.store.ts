@@ -8,7 +8,7 @@ import {
   GeneratedVersionActionResult,
   GeneratedVersionLink,
 } from './generated-version.models';
-import { GeneratedVersionApiService } from './generated-version-api.service';
+import { GeneratedVersionApiService, GeneratedVersionListFilters } from './generated-version-api.service';
 
 @Injectable({ providedIn: 'root' })
 export class GeneratedVersionStore {
@@ -32,6 +32,36 @@ export class GeneratedVersionStore {
 
   clearError(): void {
     this.errorSignal.set(null);
+  }
+
+  async load(filters: GeneratedVersionListFilters = {}): Promise<GeneratedVersionActionResult> {
+    const workspaceId = this.auth.activeWorkspaceId();
+    if (!workspaceId) {
+      return { ok: false, fieldErrors: { workspaceId: 'Select a workspace before loading versions.' } };
+    }
+
+    this.loadingSignal.set(true);
+    this.errorSignal.set(null);
+
+    try {
+      const versions = await this.api.list(workspaceId, filters);
+      this.versionsSignal.set(versions);
+      const selected = this.selectedVersionSignal();
+      this.selectedVersionSignal.set(
+        selected
+          ? versions.find((version) => version.id === selected.id) ?? versions[0] ?? null
+          : versions[0] ?? null,
+      );
+      return { ok: true, fieldErrors: {} };
+    } catch (error) {
+      const normalized = normalizeHttpError(error);
+      this.versionsSignal.set([]);
+      this.errorSignal.set(normalized.message);
+      this.notifications.error('Generated versions', normalized.message);
+      return { ok: false, message: normalized.message, fieldErrors: {} };
+    } finally {
+      this.loadingSignal.set(false);
+    }
   }
 
   async loadByCreativeRequest(creativeRequestId: string): Promise<GeneratedVersionActionResult> {

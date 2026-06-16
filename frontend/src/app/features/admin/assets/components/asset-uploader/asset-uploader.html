@@ -77,7 +77,6 @@
           formControlName="assetCategory"
           data-testid="asset-upload-category"
           class="lb-select"
-          [disabled]="uploading()"
           aria-describedby="assetCategoryHelp"
         >
           @for (option of categoryOptions; track option.value) {
@@ -98,7 +97,6 @@
           id="folderId"
           formControlName="folderId"
           class="lb-select"
-          [disabled]="uploading()"
         >
           <option value="">Uncategorized</option>
           @for (folder of folders(); track folder.id) {
@@ -117,7 +115,6 @@
           data-testid="asset-upload-tags"
           placeholder="summer-campaign, menswear, studio"
           class="lb-input"
-          [disabled]="uploading()"
         />
         <p class="lb-helper">Separate tags with commas.</p>
       </div>

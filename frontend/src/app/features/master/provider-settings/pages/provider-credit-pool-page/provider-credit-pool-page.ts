@@ -1,4 +1,4 @@
-import { ChangeDetectionStrategy, Component, effect, inject, signal } from '@angular/core';
+import { ChangeDetectionStrategy, Component, computed, effect, inject, signal } from '@angular/core';
 import { ActivatedRoute } from '@angular/router';
 import { ButtonComponent } from '@app/shared/components/app-button/app-button';
 import { AppErrorStateComponent } from '@app/shared/components/app-error-state/app-error-state';
@@ -15,6 +15,7 @@ export class ProviderCreditPoolPage {
   protected readonly credits = inject(ProviderCreditsStore);
   private readonly route = inject(ActivatedRoute);
   protected readonly adjustmentOpen = signal(false);
+  protected readonly selectedProviderName = computed(() => this.providers.selectedProvider()?.providerName ?? 'Provider');
 
   constructor() {
     effect(() => void this.providers.loadProviders());

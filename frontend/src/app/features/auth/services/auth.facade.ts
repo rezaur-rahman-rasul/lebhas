@@ -10,7 +10,18 @@ import { NotificationStateService } from '@app/core/state/notification-state.ser
 import { ProfileStore } from '@app/features/profile/state/profile.store';
 import {
   LoginRequest,
+  MobileOtpStartRequest,
+  MobileOtpStartResponse,
+  MobileOtpVerifyRequest,
   RefreshTokenRequest,
+  RegistrationBrandRequest,
+  RegistrationEmailStartRequest,
+  RegistrationEmailVerifyRequest,
+  RegistrationPasswordRequest,
+  RegistrationProductServiceRequest,
+  RegistrationProjectCampaignRequest,
+  RegistrationSessionRequest,
+  RegistrationStepResponse,
   RegisterRequest,
 } from '../models/auth.models';
 import { RememberedProfilesStorage } from './remembered-profiles.storage';
@@ -116,6 +127,78 @@ export class AuthFacade {
     );
   }
 
+  startMobileOtp(payload: MobileOtpStartRequest): Promise<MobileOtpStartResponse> {
+    return this.authService.startMobileOtp(payload);
+  }
+
+  startRegistrationMobile(payload: MobileOtpStartRequest): Promise<RegistrationStepResponse> {
+    return this.authService.startRegistrationMobile(payload);
+  }
+
+  verifyRegistrationMobile(payload: MobileOtpVerifyRequest): Promise<RegistrationStepResponse> {
+    return this.authService.verifyRegistrationMobile(payload);
+  }
+
+  skipRegistrationEmail(payload: RegistrationSessionRequest): Promise<RegistrationStepResponse> {
+    return this.authService.skipRegistrationEmail(payload);
+  }
+
+  startRegistrationEmail(payload: RegistrationEmailStartRequest): Promise<RegistrationStepResponse> {
+    return this.authService.startRegistrationEmail(payload);
+  }
+
+  verifyRegistrationEmail(payload: RegistrationEmailVerifyRequest): Promise<RegistrationStepResponse> {
+    return this.authService.verifyRegistrationEmail(payload);
+  }
+
+  setRegistrationPassword(payload: RegistrationPasswordRequest): Promise<RegistrationStepResponse> {
+    return this.authService.setRegistrationPassword(payload);
+  }
+
+  completeRegistrationBrand(payload: RegistrationBrandRequest): Promise<RegistrationStepResponse> {
+    return this.authService.completeRegistrationBrand(payload);
+  }
+
+  completeRegistrationProductService(payload: RegistrationProductServiceRequest): Promise<RegistrationStepResponse> {
+    return this.authService.completeRegistrationProductService(payload);
+  }
+
+  async completeRegistrationProjectCampaign(
+    payload: RegistrationProjectCampaignRequest,
+    returnUrl?: string,
+  ): Promise<AuthActionResult> {
+    return this.runSessionAction(
+      () => this.authService.completeRegistrationProjectCampaign(payload),
+      async (session) => {
+        this.currentUserStore.setSession(session, { persistent: false });
+        this.initializeProfileState();
+        const defaultUrl = resolvePostLoginRedirect(session.user.role, returnUrl);
+        if (defaultUrl !== '/creative-generator') {
+          await this.router.navigateByUrl(defaultUrl);
+          return;
+        }
+        await this.router.navigate(['/creative-generator'], {
+          queryParams: {
+            brandId: session.brandId ?? undefined,
+            productServiceId: session.productServiceId ?? undefined,
+            projectId: session.projectCampaignId ?? undefined,
+          },
+        });
+      },
+    );
+  }
+
+  async verifyMobileOtp(payload: MobileOtpVerifyRequest, returnUrl?: string): Promise<AuthActionResult> {
+    return this.runSessionAction(
+      () => this.authService.verifyMobileOtp(payload),
+      async (session) => {
+        this.currentUserStore.setSession(session, { persistent: false });
+        this.initializeProfileState();
+        await this.router.navigateByUrl(resolvePostLoginRedirect(session.user.role, returnUrl));
+      },
+    );
+  }
+
   async acceptInvite(payload: RegisterRequest): Promise<AuthActionResult> {
     return this.runSessionAction(
       () => this.authService.register(payload),
@@ -136,7 +219,7 @@ export class AuthFacade {
 
     try {
       if (refreshToken) {
-        await this.authService.logout({ refreshToken });
+        await this.authService.logout({ refreshToken, logoutAllDevices: false });
       }
     } catch {
       // Local session teardown still needs to complete.

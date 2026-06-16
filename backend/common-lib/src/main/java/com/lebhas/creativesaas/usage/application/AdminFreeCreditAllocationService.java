@@ -2,6 +2,9 @@ package com.lebhas.creativesaas.usage.application;
 
 import com.lebhas.ai.credit.application.ProviderCreditExchangePolicyService;
 import com.lebhas.ai.credit.application.ProviderCreditPoolService;
+import com.lebhas.ai.credit.application.CreditValuePolicyService;
+import com.lebhas.ai.credit.domain.CreditValuePolicy;
+import com.lebhas.ai.credit.domain.FreeSignupCreditMode;
 import com.lebhas.ai.credit.domain.ProviderCreditExchangePolicy;
 import com.lebhas.ai.credit.domain.ProviderCreditPool;
 import com.lebhas.ai.domain.AiToolProvider;
@@ -37,6 +40,7 @@ public class AdminFreeCreditAllocationService {
     private final AiToolProviderRepository providerRepository;
     private final ProviderCreditPoolService providerCreditPoolService;
     private final ProviderCreditExchangePolicyService exchangePolicyService;
+    private final CreditValuePolicyService creditValuePolicyService;
     private final CreditBalanceService creditBalanceService;
     private final CreditLedgerService creditLedgerService;
     private final CreditLedgerRepository creditLedgerRepository;
@@ -47,6 +51,7 @@ public class AdminFreeCreditAllocationService {
             AiToolProviderRepository providerRepository,
             ProviderCreditPoolService providerCreditPoolService,
             ProviderCreditExchangePolicyService exchangePolicyService,
+            CreditValuePolicyService creditValuePolicyService,
             CreditBalanceService creditBalanceService,
             CreditLedgerService creditLedgerService,
             CreditLedgerRepository creditLedgerRepository,
@@ -56,6 +61,7 @@ public class AdminFreeCreditAllocationService {
         this.providerRepository = providerRepository;
         this.providerCreditPoolService = providerCreditPoolService;
         this.exchangePolicyService = exchangePolicyService;
+        this.creditValuePolicyService = creditValuePolicyService;
         this.creditBalanceService = creditBalanceService;
         this.creditLedgerService = creditLedgerService;
         this.creditLedgerRepository = creditLedgerRepository;
@@ -73,10 +79,10 @@ public class AdminFreeCreditAllocationService {
                 return;
             }
             creditBalanceService.initializeWallet(workspaceId);
+            CreditValuePolicy creditValuePolicy = creditValuePolicyService.requireActivePolicy();
             Optional<GrantContext> grantContext = resolveGrantContext();
-            BigDecimal amount = grantContext
-                    .map(context -> context.policy().calculateFreeSignupCredits(context.pool().availableInternalCredits()))
-                    .orElse(zero());
+            BigDecimal providerAvailableCredits = grantContext.map(context -> context.pool().availableInternalCredits()).orElse(zero());
+            BigDecimal amount = creditValuePolicy.calculateFreeSignupCredits(providerAvailableCredits);
             if (amount.signum() > 0) {
                 CreditBalanceService.BalanceMovement movement = creditBalanceService.purchase(workspaceId, amount);
                 creditLedgerService.append(
@@ -92,13 +98,15 @@ public class AdminFreeCreditAllocationService {
                         workspaceId,
                         "One-time admin signup free credit",
                         userId);
-                GrantContext context = grantContext.orElseThrow();
-                providerCreditPoolService.allocateFreeSignupCredit(
-                        context.provider().getId(),
-                        amount,
-                        FREE_SIGNUP_REFERENCE_TYPE,
-                        workspaceId,
-                        userId);
+                if (creditValuePolicy.getFreeSignupMode() == FreeSignupCreditMode.PERCENTAGE_OF_PROVIDER_POOL && grantContext.isPresent()) {
+                    GrantContext context = grantContext.orElseThrow();
+                    providerCreditPoolService.allocateFreeSignupCredit(
+                            context.provider().getId(),
+                            amount,
+                            FREE_SIGNUP_REFERENCE_TYPE,
+                            workspaceId,
+                            userId);
+                }
             } else {
                 creditLedgerService.append(
                         workspaceId,

@@ -1,49 +1,41 @@
 import { DatePipe } from '@angular/common';
-import { HttpContext } from '@angular/common/http';
 import {
   ChangeDetectionStrategy,
   Component,
   computed,
+  effect,
   inject,
   signal,
 } from '@angular/core';
 import { FormControl, FormGroup, ReactiveFormsModule } from '@angular/forms';
 import { Router } from '@angular/router';
-import { firstValueFrom } from 'rxjs';
 
-import { SKIP_ERROR_TOAST } from '@app/core/auth/auth-request-context';
 import { CurrentUserStore } from '@app/core/auth/current-user.store';
 import { NotificationStateService } from '@app/core/state/notification-state.service';
 import { WorkspaceStore } from '@app/core/workspace/workspace.store';
+import { PLATFORM_OPTIONS, PromptPlatform, promptPlatformLabel } from '@app/features/admin/prompts/models/prompt.models';
+import { GeneratedVersion, generatedVersionMetadataValue } from '@app/features/generated-versions/generated-version.models';
+import { GeneratedVersionStore } from '@app/features/generated-versions/generated-version.store';
 import { BadgeComponent } from '@app/shared/components/badge/badge';
 import { ButtonComponent } from '@app/shared/components/button/button';
 import { EmptyStateComponent } from '@app/shared/components/empty-state/empty-state';
 import { IconComponent } from '@app/shared/components/icon/icon';
 import { PageHeaderComponent } from '@app/shared/components/page-header/page-header';
 import {
-  PLATFORM_OPTIONS,
-  PromptPlatform,
-  promptPlatformLabel,
-} from '@app/features/admin/prompts/models/prompt.models';
-import {
   CREATIVE_TYPE_OPTIONS,
-  CreativeGenerationRequest,
-  CreativeGenerationStatus,
-  CreativeOutput,
   CreativeType,
   creativeTypeLabel,
 } from '../../models/creative-generation.models';
-import { CreativeGenerationService } from '../../services/creative-generation.service';
-import { CreativeGenerationStore } from '../../state/creative-generation.store';
 
-type ReviewStatus = 'ALL' | 'APPROVED' | 'PENDING_REVIEW' | 'CHANGES_REQUESTED' | 'REJECTED' | 'DRAFT';
+type ReviewStatus = 'ALL' | 'READY' | 'COMPLETED' | 'PROCESSING' | 'PENDING_REVIEW' | 'APPROVED' | 'FAILED';
 
 interface VersionCard {
-  readonly request: CreativeGenerationRequest;
-  readonly output: CreativeOutput | null;
+  readonly version: GeneratedVersion;
   readonly versionNumber: string;
   readonly title: string;
   readonly status: ReviewStatus;
+  readonly previewUrl: string | null;
+  readonly downloadUrl: string | null;
   readonly qualityScore: number;
 }
 
@@ -64,8 +56,7 @@ interface VersionCard {
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class GenerationHistoryPage {
-  protected readonly store = inject(CreativeGenerationStore);
-  private readonly service = inject(CreativeGenerationService);
+  protected readonly versionStore = inject(GeneratedVersionStore);
   private readonly auth = inject(CurrentUserStore);
   private readonly workspace = inject(WorkspaceStore);
   private readonly notifications = inject(NotificationStateService);
@@ -80,18 +71,18 @@ export class GenerationHistoryPage {
 
   protected readonly statusOptions: readonly { readonly value: ReviewStatus; readonly label: string }[] = [
     { value: 'ALL', label: 'All Status' },
-    { value: 'APPROVED', label: 'Approved' },
+    { value: 'READY', label: 'Ready' },
+    { value: 'COMPLETED', label: 'Completed' },
+    { value: 'PROCESSING', label: 'Processing' },
     { value: 'PENDING_REVIEW', label: 'Pending Review' },
-    { value: 'CHANGES_REQUESTED', label: 'Changes Requested' },
-    { value: 'REJECTED', label: 'Rejected' },
-    { value: 'DRAFT', label: 'Draft' },
+    { value: 'APPROVED', label: 'Approved' },
+    { value: 'FAILED', label: 'Failed' },
   ];
   protected readonly creativeTypeOptions = CREATIVE_TYPE_OPTIONS;
   protected readonly platformOptions = PLATFORM_OPTIONS;
-  protected readonly previewByRequestId = signal<Readonly<Record<string, CreativeOutput | null>>>({});
   protected readonly searchTerm = signal('');
-  protected readonly selectedRequestId = signal<string | null>(null);
-  protected readonly downloadingOutputId = signal<string | null>(null);
+  protected readonly selectedVersionId = signal<string | null>(null);
+  protected readonly downloadingVersionId = signal<string | null>(null);
 
   protected readonly workspaceLabel = computed(
     () => this.auth.currentUser()?.workspaceName ?? this.auth.activeWorkspaceId() ?? 'Workspace',
@@ -100,22 +91,18 @@ export class GenerationHistoryPage {
   protected readonly roleTone = computed(() =>
     this.auth.currentRole() === 'MASTER' ? 'red' : this.auth.currentRole() === 'CREW' ? 'blue' : 'brand',
   );
-  protected readonly selectedOutput = computed(() => this.store.creativeOutputs()[0] ?? null);
+  protected readonly hasWorkspaceContext = computed(() => Boolean(this.auth.activeWorkspaceId()));
+  protected readonly canViewVersions = computed(() => this.auth.hasPermission('WORKSPACE_VIEW'));
   protected readonly versionCards = computed<readonly VersionCard[]>(() =>
-    this.store.generationRequests().map((request, index) => {
-      const output = this.selectedRequestId() === request.id
-        ? this.selectedOutput()
-        : this.previewByRequestId()[request.id] ?? null;
-
-      return {
-        request,
-        output,
-        versionNumber: String(index + 1).padStart(2, '0'),
-        title: output?.headline || this.titleFromRequest(request),
-        status: this.reviewStatus(request.status),
-        qualityScore: this.qualityScore(request, index),
-      };
-    }),
+    this.versionStore.versions().map((version, index) => ({
+      version,
+      versionNumber: String(version.versionNumber ?? index + 1).padStart(2, '0'),
+      title: this.titleFromVersion(version),
+      status: this.reviewStatus(version),
+      previewUrl: previewUrl(version),
+      downloadUrl: downloadUrl(version),
+      qualityScore: this.qualityScore(version, index),
+    })),
   );
   protected readonly filteredCards = computed(() => {
     const value = this.filterForm.getRawValue();
@@ -123,21 +110,22 @@ export class GenerationHistoryPage {
 
     return this.versionCards().filter((card) => {
       const matchesStatus = value.status === 'ALL' || card.status === value.status;
-      const matchesType = !value.creativeType || card.request.creativeType === value.creativeType;
-      const matchesPlatform = !value.platform || card.request.platform === value.platform;
+      const matchesType = !value.creativeType || card.version.creativeType === value.creativeType;
+      const matchesPlatform = !value.platform || card.version.platform === value.platform;
       const haystack = [
         card.title,
-        card.output?.caption ?? '',
-        card.request.sourcePrompt ?? '',
-        card.request.enhancedPrompt ?? '',
-        card.request.id,
+        card.version.id,
+        card.version.creativeRequestId,
+        card.version.versionName ?? '',
+        card.version.platform ?? '',
+        card.version.creativeType ?? '',
       ].join(' ').toLowerCase();
 
       return matchesStatus && matchesType && matchesPlatform && (!search || haystack.includes(search));
     });
   });
   protected readonly selectedCard = computed(() =>
-    this.filteredCards().find((card) => card.request.id === this.selectedRequestId()) ??
+    this.filteredCards().find((card) => card.version.id === this.selectedVersionId()) ??
     this.filteredCards()[0] ??
     null,
   );
@@ -145,7 +133,7 @@ export class GenerationHistoryPage {
     const cards = this.versionCards();
     const total = cards.length;
     const approved = cards.filter((card) => card.status === 'APPROVED').length;
-    const pending = cards.filter((card) => card.status === 'PENDING_REVIEW').length;
+    const pending = cards.filter((card) => card.status === 'PENDING_REVIEW' || card.status === 'PROCESSING').length;
     const score = total
       ? Math.round(cards.reduce((sum, card) => sum + card.qualityScore, 0) / total)
       : 0;
@@ -157,33 +145,44 @@ export class GenerationHistoryPage {
     if (policy?.shareAvailable === false || !this.workspace.isFeatureEnabled('sharing')) {
       return 'Sharing is not available in the current workspace package.';
     }
-    return 'Share links for generated creative outputs are not connected by this backend yet.';
+    return 'Use the generated version detail page to manage share links.';
   });
   protected readonly approvalDisabledReason = computed(() => {
     const policy = this.workspace.featurePolicy();
     if (policy?.approvalAvailable === false || !this.workspace.isFeatureEnabled('approvals')) {
       return 'Approval workflow is not available in the current workspace package.';
     }
-    return 'Approval submission for generated outputs is not connected by this backend yet.';
+    return 'Use the generated version detail page to manage approval workflow.';
   });
 
   constructor() {
     void this.load();
-    this.filterForm.controls.search.valueChanges.subscribe((value) => this.searchTerm.set(value));
+    this.filterForm.valueChanges.subscribe(() => {
+      const value = this.filterForm.getRawValue();
+      this.searchTerm.set(value.search);
+      void this.load({
+        status: value.status === 'ALL' ? null : value.status,
+        creativeType: value.creativeType || null,
+        platform: value.platform || null,
+        search: value.search || null,
+      });
+    });
+    effect(() => {
+      const selected = this.selectedCard();
+      this.versionStore.selectVersion(selected?.version ?? null);
+    });
   }
 
-  protected async load(): Promise<void> {
-    await this.store.loadGenerationRequests();
-    await this.hydratePreviewOutputs();
-    const first = this.store.generationRequests()[0];
-    if (first) {
-      await this.selectVersion(first);
+  protected async load(filters = this.currentFilters()): Promise<void> {
+    await this.versionStore.load(filters);
+    if (!this.selectedVersionId() && this.versionStore.versions().length > 0) {
+      this.selectedVersionId.set(this.versionStore.versions()[0].id);
     }
   }
 
-  protected async selectVersion(request: CreativeGenerationRequest): Promise<void> {
-    this.selectedRequestId.set(request.id);
-    await this.store.loadRequestDetail(request.id);
+  protected selectVersion(version: GeneratedVersion): void {
+    this.selectedVersionId.set(version.id);
+    this.versionStore.selectVersion(version);
   }
 
   protected resetFilters(): void {
@@ -194,25 +193,24 @@ export class GenerationHistoryPage {
   }
 
   protected async previewSelected(): Promise<void> {
-    const output = this.selectedOutput();
-    if (!output) {
+    const card = this.selectedCard();
+    if (card?.previewUrl) {
+      window.open(card.previewUrl, '_blank', 'noopener,noreferrer');
       return;
     }
-    const url = await this.store.openPreviewUrl(output);
-    if (url) {
-      window.open(url, '_blank', 'noopener,noreferrer');
-    }
+    this.notifications.info('Preview preparing', 'The generated version exists, but the preview asset is still being prepared.');
   }
 
   protected async downloadSelected(): Promise<void> {
-    const output = this.selectedOutput();
-    if (!output || !this.store.canDownloadOutputs()) {
+    const card = this.selectedCard();
+    if (!card || !this.canDownload(card.version)) {
       return;
     }
 
-    this.downloadingOutputId.set(output.id);
-    const url = await this.store.openDownloadUrl(output);
-    this.downloadingOutputId.set(null);
+    this.downloadingVersionId.set(card.version.id);
+    const link = await this.versionStore.getDownloadUrl(card.version.id);
+    this.downloadingVersionId.set(null);
+    const url = link?.url ?? card.downloadUrl;
     if (url) {
       window.open(url, '_blank', 'noopener,noreferrer');
     }
@@ -223,10 +221,10 @@ export class GenerationHistoryPage {
     this.notifications.success('Version ID copied', 'Ready to paste into your workflow.');
   }
 
-  protected copyPrompt(request: CreativeGenerationRequest): void {
-    const text = request.enhancedPrompt || request.sourcePrompt || request.id;
+  protected copyPrompt(version: GeneratedVersion): void {
+    const text = version.versionName || version.id;
     void navigator.clipboard?.writeText(text);
-    this.notifications.success('Creative copied', 'The creative details are ready to paste.');
+    this.notifications.success('Version copied', 'The generated version details are ready to paste.');
   }
 
   protected shareUnavailable(): void {
@@ -238,7 +236,7 @@ export class GenerationHistoryPage {
   }
 
   protected compareUnavailable(): void {
-    this.notifications.info('Compare unavailable', 'Select a request with two or more generated outputs to compare versions.');
+    this.notifications.info('Compare unavailable', 'Select a request with two or more generated versions to compare.');
   }
 
   protected archiveUnavailable(): void {
@@ -255,96 +253,144 @@ export class GenerationHistoryPage {
 
   protected statusTone(status: ReviewStatus): 'brand' | 'blue' | 'red' | 'neutral' {
     switch (status) {
+      case 'READY':
+      case 'COMPLETED':
       case 'APPROVED':
         return 'brand';
       case 'PENDING_REVIEW':
-      case 'CHANGES_REQUESTED':
+      case 'PROCESSING':
         return 'blue';
-      case 'REJECTED':
+      case 'FAILED':
         return 'red';
       default:
         return 'neutral';
     }
   }
 
-  protected platformLabel(value: PromptPlatform | null): string {
-    return promptPlatformLabel(value);
+  protected platformLabel(value: string | null | undefined): string {
+    return promptPlatformLabel((value ?? null) as PromptPlatform | null);
   }
 
-  protected creativeTypeLabel(value: CreativeType): string {
-    return creativeTypeLabel(value);
+  protected creativeTypeLabel(value: string | null | undefined): string {
+    return creativeTypeLabel((value ?? null) as CreativeType | null);
   }
 
-  protected metadataValue(output: CreativeOutput | null, key: string): string {
-    const value = output?.metadata[key];
-    return typeof value === 'string' || typeof value === 'number' ? String(value) : 'Not provided';
+  protected metadataValue(version: GeneratedVersion | null, key: string): string {
+    if (!version) {
+      return 'Not provided';
+    }
+    const value = generatedVersionMetadataValue(version, key);
+    return value === null ? 'Not provided' : String(value);
   }
 
   protected detailNotes(card: VersionCard | null): string {
     if (!card) {
       return 'Select a generated version to review details.';
     }
-    return card.output?.caption || card.request.enhancedPrompt || card.request.sourcePrompt || 'No notes were provided for this version.';
+    if (!card.previewUrl) {
+      return 'Preview preparing. The generated version is stored and will show the image as soon as the asset URL is ready.';
+    }
+    return card.version.versionName || 'Generated creative version.';
   }
 
-  private async hydratePreviewOutputs(): Promise<void> {
-    const workspaceId = this.auth.activeWorkspaceId();
-    if (!workspaceId) {
-      return;
+  protected canDownload(version: GeneratedVersion): boolean {
+    return Boolean(downloadUrl(version) || version.capabilities?.canDownload === true);
+  }
+
+  private currentFilters() {
+    const value = this.filterForm.getRawValue();
+    return {
+      status: value.status === 'ALL' ? null : value.status,
+      creativeType: value.creativeType || null,
+      platform: value.platform || null,
+      search: value.search || null,
+    };
+  }
+
+  private reviewStatus(version: GeneratedVersion): ReviewStatus {
+    const approvalStatus = normalizeStatus(version.approvalStatus);
+    if (approvalStatus === 'APPROVED') {
+      return 'APPROVED';
+    }
+    if (approvalStatus === 'SUBMITTED' || approvalStatus === 'IN_REVIEW' || approvalStatus === 'RESUBMITTED') {
+      return 'PENDING_REVIEW';
     }
 
-    const entries = await Promise.all(
-      this.store.generationRequests().slice(0, 24).map(async (request) => {
-        try {
-          const outputs = await firstValueFrom(
-            this.service.listOutputs(workspaceId, request.id, this.requestContext()),
-          );
-          return [request.id, outputs[0] ?? null] as const;
-        } catch {
-          return [request.id, null] as const;
-        }
-      }),
-    );
-
-    this.previewByRequestId.set(Object.fromEntries(entries));
-  }
-
-  private reviewStatus(status: CreativeGenerationStatus): ReviewStatus {
-    switch (status) {
-      case 'COMPLETED':
-        return 'APPROVED';
-      case 'FAILED':
-      case 'CANCELLED':
-        return 'REJECTED';
-      case 'DRAFT':
-        return 'DRAFT';
-      case 'PROCESSING':
-        return 'CHANGES_REQUESTED';
-      case 'QUEUED':
-      default:
-        return 'PENDING_REVIEW';
+    const generationStatus = normalizeStatus(version.generationStatus ?? version.status);
+    if (generationStatus === 'READY') {
+      return 'READY';
     }
-  }
-
-  private titleFromRequest(request: CreativeGenerationRequest): string {
-    const prompt = request.enhancedPrompt || request.sourcePrompt;
-    if (prompt) {
-      return prompt.length > 56 ? `${prompt.slice(0, 56)}...` : prompt;
+    if (generationStatus === 'COMPLETED') {
+      return 'COMPLETED';
     }
-    return creativeTypeLabel(request.creativeType);
+    if (generationStatus === 'FAILED') {
+      return 'FAILED';
+    }
+    return 'PROCESSING';
   }
 
-  private qualityScore(request: CreativeGenerationRequest, index: number): number {
-    if (request.status === 'COMPLETED') {
+  private titleFromVersion(version: GeneratedVersion): string {
+    if (version.versionName) {
+      return version.versionName;
+    }
+    const type = this.creativeTypeLabel(version.creativeType);
+    const platform = this.platformLabel(version.platform);
+    return [platform, type, version.versionNumber ? `v${version.versionNumber}` : 'Version']
+      .filter(Boolean)
+      .join(' - ');
+  }
+
+  private qualityScore(version: GeneratedVersion, index: number): number {
+    const status = this.reviewStatus(version);
+    if (status === 'READY' || status === 'COMPLETED' || status === 'APPROVED') {
       return Math.max(82, 96 - (index % 7));
     }
-    if (request.status === 'FAILED' || request.status === 'CANCELLED') {
+    if (status === 'FAILED') {
       return 42;
     }
     return 70 + (index % 12);
   }
+}
 
-  private requestContext(): HttpContext {
-    return new HttpContext().set(SKIP_ERROR_TOAST, true);
+function previewUrl(version: GeneratedVersion): string | null {
+  return firstString(
+    version.previewUrl,
+    version.signedPreviewUrl,
+    version.thumbnailUrl,
+    nestedString(version.asset, 'previewUrl'),
+    nestedString(version.generatedAsset, 'previewUrl'),
+    nestedString(version.urls, 'preview'),
+    nestedString(version.urls, 'previewUrl'),
+    nestedString(version.urls, 'signedPreviewUrl'),
+  );
+}
+
+function downloadUrl(version: GeneratedVersion): string | null {
+  return firstString(
+    version.downloadUrl,
+    version.signedDownloadUrl,
+    nestedString(version.asset, 'downloadUrl'),
+    nestedString(version.generatedAsset, 'downloadUrl'),
+    nestedString(version.urls, 'download'),
+    nestedString(version.urls, 'downloadUrl'),
+    nestedString(version.urls, 'signedDownloadUrl'),
+  );
+}
+
+function firstString(...values: readonly unknown[]): string | null {
+  for (const value of values) {
+    if (typeof value === 'string' && value.trim()) {
+      return value;
+    }
   }
+  return null;
+}
+
+function nestedString(record: Readonly<Record<string, unknown>> | null | undefined, key: string): string | null {
+  const value = record?.[key];
+  return typeof value === 'string' && value.trim() ? value : null;
+}
+
+function normalizeStatus(status: string | null | undefined): string {
+  return (status ?? '').trim().toUpperCase().replace(/[\s-]+/g, '_');
 }

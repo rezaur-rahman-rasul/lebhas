@@ -14,6 +14,7 @@ import com.lebhas.ai.creative.enums.OutputFormat;
 import com.lebhas.ai.creative.service.AiCreativeService;
 import com.lebhas.ai.creative.service.CreativeCreditAvailabilityService;
 import com.lebhas.creativesaas.common.api.ApiResponse;
+import com.lebhas.creativesaas.common.security.context.CurrentUserContext;
 import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
@@ -42,15 +43,18 @@ public class AiCreativeController {
     private final AiCreativeService service;
     private final CreativeCreditAvailabilityService creditAvailabilityService;
     private final ObjectMapper objectMapper;
+    private final CurrentUserContext currentUserContext;
 
     public AiCreativeController(
             AiCreativeService service,
             CreativeCreditAvailabilityService creditAvailabilityService,
-            ObjectMapper objectMapper
+            ObjectMapper objectMapper,
+            CurrentUserContext currentUserContext
     ) {
         this.service = service;
         this.creditAvailabilityService = creditAvailabilityService;
         this.objectMapper = objectMapper;
+        this.currentUserContext = currentUserContext;
     }
 
     @PostMapping("/api/v1/ai/creatives/credit-preview")
@@ -83,8 +87,12 @@ public class AiCreativeController {
                 request.campaignObjective(),
                 request.targetAudience(),
                 request.productDescription(),
+                request.includeCta(),
+                request.includeLogo(),
+                request.includeTypography(),
                 request.versions(),
                 request.existingAssetId(),
+                request.logoAssetId(),
                 request.noHumanModel(),
                 request.size(),
                 request.quality(),
@@ -129,8 +137,12 @@ public class AiCreativeController {
                 value(form, "campaignObjective", null),
                 value(form, "targetAudience", null),
                 value(form, "productDescription", null),
+                booleanValue(form, "includeCta", true),
+                booleanValue(form, "includeLogo", true),
+                booleanValue(form, "includeTypography", true),
                 intValue(form, "versions"),
                 optionalUuid(form, "existingAssetId"),
+                optionalUuid(form, "logoAssetId"),
                 booleanValue(form, "noHumanModel", true),
                 value(form, "size", null),
                 enumValue(form, "quality", CreativeQuality.class, null),
@@ -169,7 +181,7 @@ public class AiCreativeController {
             @RequestPart("productImage") MultipartFile productImage
     ) {
         return ApiResponse.success(generateInternal(workspaceId, brandId, productServiceId, campaignId, platform, language, creativeType, outputFormat,
-                tone, modelQuality, null, headline, null, null, cta, null, null, null, null, null, true, size, quality, background, null,
+                tone, modelQuality, null, headline, null, null, cta, null, null, null, true, true, true, null, null, null, true, size, quality, background, null,
                 productImage, null, null, null));
     }
 
@@ -193,7 +205,7 @@ public class AiCreativeController {
             @RequestPart(value = "referenceImage", required = false) MultipartFile referenceImage
     ) {
         return ApiResponse.success(generateInternal(workspaceId, brandId, productServiceId, campaignId, platform, language, creativeType, outputFormat,
-                tone, modelQuality, null, headline, null, null, cta, null, null, null, null, null, true, null, null, "opaque", null,
+                tone, modelQuality, null, headline, null, null, cta, null, null, null, true, true, true, null, null, null, true, null, null, "opaque", null,
                 productImage, logoImage, referenceImage, null));
     }
 
@@ -215,7 +227,7 @@ public class AiCreativeController {
             @RequestPart("maskImage") MultipartFile maskImage
     ) {
         return ApiResponse.success(generateInternal(workspaceId, brandId, null, campaignId, platform, language, creativeType, outputFormat,
-                tone, ModelQuality.PREMIUM, null, headline, null, null, cta, null, null, null, null, null, true, null, CreativeQuality.high, "opaque", backgroundPrompt,
+                tone, ModelQuality.PREMIUM, null, headline, null, null, cta, null, null, null, true, true, true, null, null, null, true, null, CreativeQuality.high, "opaque", backgroundPrompt,
                 originalImage, null, null, maskImage));
     }
 
@@ -232,7 +244,7 @@ public class AiCreativeController {
             @RequestPart(value = "productImage", required = false) MultipartFile productImage
     ) {
         return ApiResponse.success(generateInternal(workspaceId, brandId, null, campaignId, platform, language, creativeType, outputFormat,
-                CreativeTone.PREMIUM, ModelQuality.PREMIUM, null, null, null, null, null, null, null, null, null, null, true, null, CreativeQuality.high, "transparent", null,
+                CreativeTone.PREMIUM, ModelQuality.PREMIUM, null, null, null, null, null, null, null, null, false, true, false, null, null, null, true, null, CreativeQuality.high, "transparent", null,
                 productImage, null, null, null));
     }
 
@@ -261,8 +273,12 @@ public class AiCreativeController {
             String campaignObjective,
             String targetAudience,
             String productDescription,
+            Boolean includeCta,
+            Boolean includeLogo,
+            Boolean includeTypography,
             Integer versions,
             UUID existingAssetId,
+            UUID logoAssetId,
             Boolean noHumanModel,
             String size,
             CreativeQuality quality,
@@ -292,14 +308,19 @@ public class AiCreativeController {
                 campaignObjective,
                 targetAudience,
                 productDescription,
+                includeCta,
+                includeLogo,
+                includeTypography,
                 versions,
                 existingAssetId,
+                logoAssetId,
                 noHumanModel,
                 size,
                 quality,
                 background,
                 null,
-                null), productImage, logoImage, referenceImage, maskImage, backgroundPrompt);
+                null,
+                currentUserContext.requireCurrentUser().userId()), productImage, logoImage, referenceImage, maskImage, backgroundPrompt);
     }
 
     private String value(MultipartHttpServletRequest form, String name, String defaultValue) {

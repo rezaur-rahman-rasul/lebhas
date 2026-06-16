@@ -30,6 +30,7 @@ import java.nio.charset.StandardCharsets;
 import java.net.http.HttpTimeoutException;
 import java.time.Duration;
 import java.time.Instant;
+import java.util.Comparator;
 import java.util.Enumeration;
 import java.util.List;
 import java.util.Map;
@@ -48,8 +49,17 @@ public class GatewayProxyController {
             HttpHeaders.CONNECTION.toLowerCase(),
             HttpHeaders.CONTENT_TYPE.toLowerCase(),
             HttpHeaders.EXPECT.toLowerCase(),
+            HttpHeaders.ACCESS_CONTROL_REQUEST_HEADERS.toLowerCase(),
+            HttpHeaders.ACCESS_CONTROL_REQUEST_METHOD.toLowerCase(),
+            HttpHeaders.ORIGIN.toLowerCase(),
             HttpHeaders.UPGRADE.toLowerCase());
     private static final Set<String> EXCLUDED_RESPONSE_HEADERS = Set.of(
+            HttpHeaders.ACCESS_CONTROL_ALLOW_CREDENTIALS.toLowerCase(),
+            HttpHeaders.ACCESS_CONTROL_ALLOW_HEADERS.toLowerCase(),
+            HttpHeaders.ACCESS_CONTROL_ALLOW_METHODS.toLowerCase(),
+            HttpHeaders.ACCESS_CONTROL_ALLOW_ORIGIN.toLowerCase(),
+            HttpHeaders.ACCESS_CONTROL_EXPOSE_HEADERS.toLowerCase(),
+            HttpHeaders.ACCESS_CONTROL_MAX_AGE.toLowerCase(),
             HttpHeaders.CONNECTION.toLowerCase(),
             HttpHeaders.TRANSFER_ENCODING.toLowerCase(),
             "keep-alive");
@@ -125,18 +135,32 @@ public class GatewayProxyController {
     private Optional<GatewayRoute> resolveRoute(String requestUri) {
         List<GatewayRoute> routes = List.of(
                 new GatewayRoute("creative-assets", properties.getServices().getCreative(), List.of(
+                        "/api/v1/workspaces/*/assets",
                         "/api/v1/workspaces/*/assets/**",
+                        "/api/v1/workspaces/*/asset-folders",
                         "/api/v1/workspaces/*/asset-folders/**",
                         "/api/v1/workspaces/*/projects",
                         "/api/v1/workspaces/*/projects/**",
+                        "/api/v1/workspaces/*/projects/*/assets",
+                        "/api/v1/workspaces/*/projects/*/assets/**",
                         "/api/v1/workspaces/*/product-services/*/projects",
                         "/api/v1/workspaces/*/product-services/*/projects/**",
                         "/api/v1/workspaces/*/storage-files/**",
+                        "/api/v1/workspaces/*/creative-generations",
                         "/api/v1/workspaces/*/creative-generations/**",
                         "/api/v1/workspaces/*/creative-outputs/**",
                         "/api/v1/workspaces/*/creative-approvals/**",
+                        "/api/v1/workspaces/*/approvals/generated-versions",
+                        "/api/v1/workspaces/*/creative-requests/*/generated-versions",
+                        "/api/v1/workspaces/*/generated-versions/**",
+                        "/api/v1/workspaces/*/prompt-history/**",
+                        "/api/v1/workspaces/*/prompt-history",
+                        "/api/v1/workspaces/*/projects/*/prompts/history",
+                        "/api/v1/workspaces/*/projects/*/text-tools/**",
+                        "/api/v1/workspaces/*/text-tools/**",
                         "/api/v1/workspaces/*/projects/*/image-creatives/**",
                         "/api/v1/ai/creatives/**",
+                        "/api/v1/master/monetization/**",
                         "/api/v1/master/providers/**",
                         "/api/v1/master/providers",
                         "/internal/storage/local/assets/**")),
@@ -170,8 +194,21 @@ public class GatewayProxyController {
                 new GatewayRoute("workspace", properties.getServices().getWorkspace(), List.of("/api/v1/workspaces/**")));
 
         return routes.stream()
-                .filter(route -> route.pathPatterns().stream().anyMatch(pattern -> PATH_MATCHER.match(pattern, requestUri)))
-                .findFirst();
+                .flatMap(route -> route.pathPatterns().stream()
+                        .filter(pattern -> PATH_MATCHER.match(pattern, requestUri))
+                        .map(pattern -> new GatewayRouteMatch(route, pattern)))
+                .max(Comparator.comparingInt(GatewayProxyController::routeSpecificity))
+                .map(GatewayRouteMatch::route);
+    }
+
+    private static int routeSpecificity(GatewayRouteMatch match) {
+        String pattern = match.pattern();
+        int wildcardCount = (int) pattern.chars().filter(character -> character == '*').count();
+        int concreteLength = pattern.replace("*", "").length();
+        int segmentCount = (int) java.util.Arrays.stream(pattern.split("/"))
+                .filter(segment -> !segment.isBlank())
+                .count();
+        return concreteLength * 100 + segmentCount * 10 - wildcardCount;
     }
 
     private HttpRequest buildOutboundRequest(HttpServletRequest request, GatewayRoute route, String correlationId) throws IOException {
@@ -330,6 +367,9 @@ public class GatewayProxyController {
     }
 
     private record GatewayRoute(String id, URI baseUrl, List<String> pathPatterns) {
+    }
+
+    private record GatewayRouteMatch(GatewayRoute route, String pattern) {
     }
 
     private record BodyPayload(HttpRequest.BodyPublisher publisher, String contentType) {

@@ -315,7 +315,6 @@
                     <th>Success rate</th>
                     <th>Last checked</th>
                     <th>Fallback used</th>
-                    <th>Actions</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -328,7 +327,6 @@
                       <td>{{ successRate(row.metric) }}</td>
                       <td>{{ row.health.lastCheckedAt | date: 'medium' }}</td>
                       <td>{{ row.health.fallbackAvailable ? 'Available' : 'Not reported' }}</td>
-                      <td><button type="button" disabled title="Provider inspection endpoint is not available yet.">Inspect</button></td>
                     </tr>
                   }
                 </tbody>
@@ -442,10 +440,10 @@
         <section class="ai-table-card">
           <div class="ai-ops-table-wrap">
             <table>
-              <thead><tr><th>Failed job</th><th>Provider</th><th>Layer</th><th>Workspace</th><th>Reason</th><th>Retry count</th><th>Time</th><th>Action</th></tr></thead>
+              <thead><tr><th>Failed job</th><th>Provider</th><th>Layer</th><th>Workspace</th><th>Reason</th><th>Retry count</th><th>Time</th></tr></thead>
               <tbody>
                 @for (failure of filteredFailures(); track failure.id) {
-                  <tr><td><strong>{{ failure.creativeRequestId }}</strong><small>{{ failure.modelName }}</small></td><td>{{ failure.providerName }}</td><td>{{ failure.layerName }}</td><td>{{ failure.creativeRequestId }}</td><td>{{ failureReason(failure) }}</td><td>{{ failure.retryAttempt | number }}</td><td>{{ failure.createdAt | date: 'medium' }}</td><td><button type="button" disabled title="Retry and inspect endpoints are not available yet.">Retry / Inspect</button></td></tr>
+                  <tr><td><strong>{{ failure.creativeRequestId }}</strong><small>{{ failure.modelName }}</small></td><td>{{ failure.providerName }}</td><td>{{ failure.layerName }}</td><td>{{ failure.creativeRequestId }}</td><td>{{ failureReason(failure) }}</td><td>{{ failure.retryAttempt | number }}</td><td>{{ failure.createdAt | date: 'medium' }}</td></tr>
                 }
               </tbody>
             </table>

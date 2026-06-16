@@ -12,16 +12,29 @@ public final class PromptHistorySpecifications {
     }
 
     public static Specification<PromptHistoryEntity> forList(PromptHistoryFilter filter) {
-        return notDeleted()
-                .and(hasWorkspace(filter.workspaceId()))
-                .and(hasProject(filter))
-                .and(hasUser(filter))
-                .and(hasSuggestionType(filter))
-                .and(hasPlatform(filter))
-                .and(hasCampaignObjective(filter))
-                .and(hasStatus(filter))
-                .and(createdFrom(filter))
-                .and(createdTo(filter));
+        return andAll(
+                notDeleted(),
+                hasWorkspace(filter.workspaceId()),
+                hasProject(filter),
+                hasUser(filter),
+                hasSuggestionType(filter),
+                hasPlatform(filter),
+                hasCampaignObjective(filter),
+                hasStatus(filter),
+                createdFrom(filter),
+                createdTo(filter));
+    }
+
+    @SafeVarargs
+    private static Specification<PromptHistoryEntity> andAll(Specification<PromptHistoryEntity>... specifications) {
+        Specification<PromptHistoryEntity> combined = null;
+        for (Specification<PromptHistoryEntity> specification : specifications) {
+            if (specification == null) {
+                continue;
+            }
+            combined = combined == null ? specification : combined.and(specification);
+        }
+        return combined;
     }
 
     private static Specification<PromptHistoryEntity> notDeleted() {

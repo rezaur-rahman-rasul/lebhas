@@ -22,6 +22,7 @@ import { filter, map, startWith } from 'rxjs';
 import { NavigationItem } from '@app/shared/layouts/navigation.models';
 import { IconComponent } from '@app/shared/components/icon/icon';
 import { BillingModalService } from '@app/features/payments/services/billing-modal.service';
+import {NgOptimizedImage} from '@angular/common';
 
 interface NavigationGroup {
   readonly label: string;
@@ -31,7 +32,7 @@ interface NavigationGroup {
 @Component({
   selector: 'app-sidebar',
   standalone: true,
-  imports: [RouterLink, RouterLinkActive, IconComponent],
+  imports: [RouterLink, RouterLinkActive, IconComponent, NgOptimizedImage],
   templateUrl: './app-sidebar.html',
   styleUrl: './app-sidebar.scss',
   changeDetection: ChangeDetectionStrategy.OnPush,

@@ -1,5 +1,6 @@
 import { DatePipe } from '@angular/common';
-import { ChangeDetectionStrategy, Component, computed, effect, inject, signal } from '@angular/core';
+import { ChangeDetectionStrategy, Component, DestroyRef, computed, effect, inject, signal } from '@angular/core';
+import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
 import { Router } from '@angular/router';
 
@@ -16,6 +17,7 @@ import { ProfileAvatarComponent } from '../components/profile-avatar/profile-ava
 import { ProfileEmptyStateComponent } from '../components/profile-empty-state/profile-empty-state';
 import { ProfileImageUploaderComponent } from '../components/profile-image-uploader/profile-image-uploader';
 import { ProfileLoadingStateComponent } from '../components/profile-loading-state/profile-loading-state';
+import { ProfileApiService } from '../services/profile-api.service';
 import { ProfileStore } from '../state/profile.store';
 
 @Component({
@@ -46,18 +48,31 @@ export class ProfilePage {
   protected readonly store = inject(ProfileStore);
   protected readonly workspace = inject(WorkspaceStore);
   protected readonly auth = inject(CurrentUserStore);
+  private readonly profileApi = inject(ProfileApiService);
+  private readonly destroyRef = inject(DestroyRef);
 
   protected readonly submitted = signal(false);
   protected readonly successMessage = signal<string | null>(null);
   protected readonly photoMessage = signal<string | null>(null);
-  protected readonly removingPhoto = signal(false);
+  protected readonly selectedProfileImageFile = signal<File | null>(null);
+  protected readonly previewResetKey = signal(0);
+  protected readonly rewardStatus = signal<Readonly<Record<string, boolean>>>({});
+  protected readonly rewardEmail = signal('');
+  protected readonly facebookUrl = signal('');
+  protected readonly instagramUrl = signal('');
+  protected readonly rewardMessage = signal<string | null>(null);
 
   protected readonly accessDenied = computed(() => !this.permissions.canViewOwnProfile());
   protected readonly profile = this.store.profile;
   protected readonly canEdit = this.permissions.canEditOwnProfile;
-  protected readonly canManageImage = this.permissions.canManageProfileImage;
   protected readonly role = computed(() => friendlyRole(this.auth.currentRole()));
   protected readonly workspaceName = this.workspace.workspaceLabel;
+  protected readonly savedProfileImageUrl = this.store.savedProfileImageUrl;
+  protected readonly imageDirty = computed(() => Boolean(this.selectedProfileImageFile()));
+  protected readonly formDirty = signal(false);
+  protected readonly profileDirty = computed(() => this.formDirty() || this.imageDirty());
+  protected readonly profileEmail = computed(() => this.profile()?.email?.trim() || this.auth.currentUser()?.email?.trim() || '');
+  protected readonly hasAccountEmail = computed(() => Boolean(this.profileEmail()));
 
   protected readonly form = this.fb.nonNullable.group({
     firstName: ['', [Validators.required, Validators.maxLength(80)]],
@@ -71,6 +86,10 @@ export class ProfilePage {
   });
 
   constructor() {
+    this.form.valueChanges
+      .pipe(takeUntilDestroyed(this.destroyRef))
+      .subscribe(() => this.formDirty.set(this.form.dirty));
+
     effect(() => {
       if (this.accessDenied()) {
         return;
@@ -78,6 +97,7 @@ export class ProfilePage {
 
       void this.store.loadMyProfile();
       void this.workspace.initialize();
+      void this.loadRewardStatus();
     });
 
     effect(() => {
@@ -86,21 +106,27 @@ export class ProfilePage {
         return;
       }
 
-      this.form.reset({
-        firstName: profile.firstName ?? '',
-        lastName: profile.lastName ?? '',
-        displayName: profile.displayName ?? '',
-        phoneNumber: profile.phoneNumber ?? '',
-        timezone: profile.timezone ?? '',
-        locale: profile.locale ?? '',
-        jobTitle: profile.jobTitle ?? '',
-        bio: 'Bio will appear here when backend support is available.',
-      });
+      this.form.reset(
+        {
+          firstName: profile.firstName ?? '',
+          lastName: profile.lastName ?? '',
+          displayName: profile.displayName ?? '',
+          phoneNumber: profile.phoneNumber ?? '',
+          timezone: profile.timezone ?? '',
+          locale: profile.locale ?? '',
+          jobTitle: profile.jobTitle ?? '',
+          bio: 'Bio will appear here when backend support is available.',
+        },
+        { emitEvent: false },
+      );
+      this.formDirty.set(false);
+      this.rewardEmail.set(profile.email?.trim() || this.auth.currentUser()?.email?.trim() || '');
     });
   }
 
   protected retry(): void {
     this.store.clearError();
+    this.clearSelectedPhoto();
     void this.store.loadMyProfile();
   }
 
@@ -122,33 +148,72 @@ export class ProfilePage {
     }
 
     const value = this.form.getRawValue();
-    const result = await this.store.updateMyProfile({
-      firstName: value.firstName.trim(),
-      lastName: value.lastName.trim(),
-      displayName: value.displayName.trim(),
-      phoneNumber: value.phoneNumber.trim() || null,
-      jobTitle: value.jobTitle.trim() || null,
-      timezone: value.timezone.trim() || null,
-      locale: value.locale.trim() || null,
-    });
+    const result = await this.store.updateMyProfile(
+      {
+        firstName: value.firstName.trim(),
+        lastName: value.lastName.trim(),
+        displayName: value.displayName.trim(),
+        phoneNumber: value.phoneNumber.trim() || null,
+        jobTitle: value.jobTitle.trim() || null,
+        timezone: value.timezone.trim() || null,
+        locale: value.locale.trim() || null,
+      },
+      this.selectedProfileImageFile(),
+    );
 
     if (result.ok) {
       this.submitted.set(false);
+      this.clearSelectedPhoto(false);
+      this.form.markAsPristine();
+      this.formDirty.set(false);
       this.successMessage.set('Profile changes saved.');
     }
   }
 
-  protected async requestPhotoUpload(file: File): Promise<void> {
+  protected requestPhotoUpload(file: File): void {
     this.photoMessage.set(null);
-    const result = await this.store.uploadProfileImage(file);
-    this.photoMessage.set(result.ok ? 'Profile photo updated.' : result.message ?? 'Profile photo could not be updated.');
+    this.successMessage.set(null);
+    this.selectedProfileImageFile.set(file);
+    this.form.markAsDirty();
+    this.photoMessage.set('Profile photo selected. Click Save changes to upload it.');
   }
 
-  protected async removeProfileImage(): Promise<void> {
-    this.removingPhoto.set(true);
-    const result = await this.store.removeProfileImage();
-    this.photoMessage.set(result.ok ? 'Profile photo removed.' : result.message ?? 'Profile photo could not be removed.');
-    this.removingPhoto.set(false);
+  protected async claimEmailReward(): Promise<void> {
+    const result = await this.profileApi.updateRewardEmail(this.rewardEmail());
+    this.rewardMessage.set(result.granted ? `Email reward claimed: +${result.creditsGranted} credits.` : 'Email reward already claimed.');
+    await this.loadRewardStatus();
+  }
+
+  protected async claimFacebookReward(): Promise<void> {
+    const result = await this.profileApi.connectFacebook(this.facebookUrl());
+    this.rewardMessage.set(result.granted ? `Facebook reward claimed: +${result.creditsGranted} credits.` : 'Facebook reward already claimed.');
+    await this.loadRewardStatus();
+  }
+
+  protected async claimInstagramReward(): Promise<void> {
+    const result = await this.profileApi.connectInstagram(this.instagramUrl());
+    this.rewardMessage.set(result.granted ? `Instagram reward claimed: +${result.creditsGranted} credits.` : 'Instagram reward already claimed.');
+    await this.loadRewardStatus();
+  }
+
+  private async loadRewardStatus(): Promise<void> {
+    try {
+      this.rewardStatus.set(await this.profileApi.getRewardStatus());
+    } catch {
+      this.rewardStatus.set({});
+    }
+  }
+
+  private clearSelectedPhoto(discardStorePreview = true): void {
+    this.selectedProfileImageFile.set(null);
+    if (discardStorePreview) {
+      this.store.discardStagedProfileImagePreview();
+    }
+    this.resetUploaderPreview();
+  }
+
+  private resetUploaderPreview(): void {
+    this.previewResetKey.update((value) => value + 1);
   }
 }
 

@@ -1,25 +1,28 @@
-<section class="rounded-2xl border border-white/10 bg-slate-950/70 p-4 shadow-2xl shadow-black/20">
+<section class="rounded-2xl border border-border bg-panel p-4 shadow-sm dark:border-white/10 dark:bg-slate-950/70 dark:shadow-2xl dark:shadow-black/20">
   <div class="flex flex-col gap-4 xl:flex-row xl:items-start xl:justify-between">
     <div class="min-w-0">
       <div class="flex flex-wrap items-center gap-2">
-        <h2 class="text-base font-semibold text-white">Search and filters</h2>
-        <span class="rounded-full border border-white/10 bg-white/[0.06] px-3 py-1 text-xs font-medium text-slate-300">
+        <h2 class="text-base font-semibold text-ink dark:text-white">Search and filters</h2>
+        <span class="rounded-full border border-border bg-surface px-3 py-1 text-xs font-medium text-muted dark:border-white/10 dark:bg-white/[0.06] dark:text-slate-300">
           {{ selectedFolderName() }}
         </span>
       </div>
-      <p class="mt-1 text-sm text-slate-400">
+      <p class="mt-1 text-sm text-muted dark:text-slate-400">
         Narrow the library by file type, category, tag, and status.
       </p>
     </div>
 
-    <div class="flex items-center gap-2 self-start rounded-full border border-white/10 bg-black/20 p-1">
+    <div class="flex items-center gap-2 self-start rounded-full border border-border bg-surface p-1 dark:border-white/10 dark:bg-black/20">
       <button
         type="button"
         class="inline-flex items-center gap-2 rounded-full px-3 py-2 text-sm font-medium transition"
-        [class.bg-white]="viewMode() === 'grid'"
-        [class.text-slate-950]="viewMode() === 'grid'"
+        [class.bg-panel]="viewMode() === 'grid'"
+        [class.text-ink]="viewMode() === 'grid'"
         [class.shadow-sm]="viewMode() === 'grid'"
-        [class.text-slate-400]="viewMode() !== 'grid'"
+        [class.dark:bg-white]="viewMode() === 'grid'"
+        [class.dark:text-slate-950]="viewMode() === 'grid'"
+        [class.text-muted]="viewMode() !== 'grid'"
+        [class.dark:text-slate-400]="viewMode() !== 'grid'"
         (click)="viewModeChanged.emit('grid')"
       >
         <app-icon name="grid-2x2" [size]="16" />
@@ -29,10 +32,13 @@
       <button
         type="button"
         class="inline-flex items-center gap-2 rounded-full px-3 py-2 text-sm font-medium transition"
-        [class.bg-white]="viewMode() === 'list'"
-        [class.text-slate-950]="viewMode() === 'list'"
+        [class.bg-panel]="viewMode() === 'list'"
+        [class.text-ink]="viewMode() === 'list'"
         [class.shadow-sm]="viewMode() === 'list'"
-        [class.text-slate-400]="viewMode() !== 'list'"
+        [class.dark:bg-white]="viewMode() === 'list'"
+        [class.dark:text-slate-950]="viewMode() === 'list'"
+        [class.text-muted]="viewMode() !== 'list'"
+        [class.dark:text-slate-400]="viewMode() !== 'list'"
         (click)="viewModeChanged.emit('list')"
       >
         <app-icon name="list" [size]="16" />
@@ -43,11 +49,11 @@
 
   <form class="mt-4 grid gap-3 lg:grid-cols-2 xl:grid-cols-5" [formGroup]="filterForm" (ngSubmit)="apply()">
     <label class="block xl:col-span-2">
-      <span class="mb-2 block text-sm font-medium text-slate-200">Search</span>
+      <span class="mb-2 block text-sm font-medium text-ink dark:text-slate-200">Search</span>
       <span class="relative block">
         <app-icon
           name="search"
-          className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-slate-500"
+          className="pointer-events-none absolute left-4 top-1/2 -translate-y-1/2 text-muted dark:text-slate-500"
           [size]="16"
         />
         <input
@@ -55,17 +61,17 @@
           formControlName="search"
           data-testid="asset-search"
           placeholder="File name, storage key, tag"
-          class="h-11 w-full rounded-lg border border-white/10 bg-slate-900/80 pl-10 pr-3 text-sm text-white outline-none transition placeholder:text-slate-500 focus:border-brand-400 focus:ring-2 focus:ring-brand-400/20"
+          class="h-11 w-full rounded-lg border border-border bg-white pl-12 pr-3 text-sm font-medium text-ink outline-none transition placeholder:text-muted focus:border-brand-500 focus:ring-2 focus:ring-brand-100 dark:border-white/10 dark:bg-slate-900/80 dark:text-white dark:placeholder:text-slate-500 dark:focus:border-brand-400 dark:focus:ring-brand-400/20"
         />
       </span>
     </label>
 
     <label class="block">
-      <span class="mb-2 block text-sm font-medium text-slate-200">Category</span>
+      <span class="mb-2 block text-sm font-medium text-ink dark:text-slate-200">Category</span>
       <select
         formControlName="assetCategory"
         data-testid="asset-category-filter"
-        class="h-11 w-full rounded-lg border border-white/10 bg-slate-900/80 px-3 text-sm text-white outline-none transition focus:border-brand-400 focus:ring-2 focus:ring-brand-400/20"
+        class="h-11 w-full rounded-lg border border-border bg-white px-3 text-sm font-medium text-ink outline-none transition focus:border-brand-500 focus:ring-2 focus:ring-brand-100 dark:border-white/10 dark:bg-slate-900/80 dark:text-white dark:focus:border-brand-400 dark:focus:ring-brand-400/20"
       >
         <option value="">All categories</option>
         @for (option of categoryOptions; track option.value) {
@@ -75,10 +81,10 @@
     </label>
 
     <label class="block">
-      <span class="mb-2 block text-sm font-medium text-slate-200">File type</span>
+      <span class="mb-2 block text-sm font-medium text-ink dark:text-slate-200">File type</span>
       <select
         formControlName="fileType"
-        class="h-11 w-full rounded-lg border border-white/10 bg-slate-900/80 px-3 text-sm text-white outline-none transition focus:border-brand-400 focus:ring-2 focus:ring-brand-400/20"
+        class="h-11 w-full rounded-lg border border-border bg-white px-3 text-sm font-medium text-ink outline-none transition focus:border-brand-500 focus:ring-2 focus:ring-brand-100 dark:border-white/10 dark:bg-slate-900/80 dark:text-white dark:focus:border-brand-400 dark:focus:ring-brand-400/20"
       >
         <option value="">All file types</option>
         @for (option of fileTypeOptions; track option.value) {
@@ -88,10 +94,10 @@
     </label>
 
     <label class="block">
-      <span class="mb-2 block text-sm font-medium text-slate-200">Status</span>
+      <span class="mb-2 block text-sm font-medium text-ink dark:text-slate-200">Status</span>
       <select
         formControlName="status"
-        class="h-11 w-full rounded-lg border border-white/10 bg-slate-900/80 px-3 text-sm text-white outline-none transition focus:border-brand-400 focus:ring-2 focus:ring-brand-400/20"
+        class="h-11 w-full rounded-lg border border-border bg-white px-3 text-sm font-medium text-ink outline-none transition focus:border-brand-500 focus:ring-2 focus:ring-brand-100 dark:border-white/10 dark:bg-slate-900/80 dark:text-white dark:focus:border-brand-400 dark:focus:ring-brand-400/20"
       >
         <option value="">All statuses</option>
         @for (option of statusOptions; track option.value) {
@@ -101,19 +107,19 @@
     </label>
 
     <label class="block xl:col-span-2">
-      <span class="mb-2 block text-sm font-medium text-slate-200">Tag</span>
+      <span class="mb-2 block text-sm font-medium text-ink dark:text-slate-200">Tag</span>
       <input
         type="text"
         formControlName="tag"
         placeholder="Tag name"
-        class="h-11 w-full rounded-lg border border-white/10 bg-slate-900/80 px-3 text-sm text-white outline-none transition placeholder:text-slate-500 focus:border-brand-400 focus:ring-2 focus:ring-brand-400/20"
+        class="h-11 w-full rounded-lg border border-border bg-white px-3 text-sm font-medium text-ink outline-none transition placeholder:text-muted focus:border-brand-500 focus:ring-2 focus:ring-brand-100 dark:border-white/10 dark:bg-slate-900/80 dark:text-white dark:placeholder:text-slate-500 dark:focus:border-brand-400 dark:focus:ring-brand-400/20"
       />
     </label>
 
     <div class="flex flex-wrap items-end gap-3 xl:col-span-3 xl:justify-end">
       <app-button
         type="button"
-        variant="ghost"
+        variant="secondary"
         icon="filter"
         [disabled]="disabled()"
         (click)="reset()"

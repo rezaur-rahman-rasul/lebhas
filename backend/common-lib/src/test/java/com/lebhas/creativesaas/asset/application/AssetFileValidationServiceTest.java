@@ -41,6 +41,17 @@ class AssetFileValidationServiceTest {
     }
 
     @Test
+    void shouldAcceptJpgBrandLogoUpload() {
+        AssetFileValidationService.ValidatedAssetFile validated = service.validate(
+                new MockMultipartFile("file", "brand-logo.jpg", "image/jpeg", jpgBytes()),
+                AssetCategory.BRAND_LOGO);
+
+        assertThat(validated.extension()).isEqualTo("jpg");
+        assertThat(validated.mimeType()).isEqualTo("image/jpeg");
+        assertThat(validated.fileType()).isEqualTo(AssetFileType.IMAGE);
+    }
+
+    @Test
     void shouldAcceptMp4Upload() {
         AssetFileValidationService.ValidatedAssetFile validated = service.validate(
                 new MockMultipartFile("file", "clip.mp4", "video/mp4", mp4Bytes()),

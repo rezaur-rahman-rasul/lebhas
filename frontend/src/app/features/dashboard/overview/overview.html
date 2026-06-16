@@ -1,7 +1,13 @@
 <app-section-header eyebrow="WORKSPACE OVERVIEW" title="Workspace Dashboard" [description]="description()">
   @if (workspaceId()) {
-    <a [routerLink]="primaryAction().route" class="dashboard-primary-action">
-      <app-icon [name]="primaryAction().icon" [size]="16" />
+    <a
+      [routerLink]="primaryAction().route"
+      class="dashboard-primary-action"
+      [attr.aria-label]="primaryAction().label"
+    >
+      <span class="dashboard-primary-action__icon">
+        <app-icon [name]="primaryAction().icon" [size]="15" />
+      </span>
       <span>{{ primaryAction().label }}</span>
     </a>
   }
@@ -225,7 +231,9 @@
         <strong>No generated creatives yet</strong>
         <span>Create a brand, product, project, and asset to start generating campaign creatives.</span>
         <a [routerLink]="primaryAction().route" class="dashboard-primary-action dashboard-primary-action--compact">
-          <app-icon [name]="primaryAction().icon" [size]="15" />
+          <span class="dashboard-primary-action__icon">
+            <app-icon [name]="primaryAction().icon" [size]="14" />
+          </span>
           <span>{{ primaryAction().label }}</span>
         </a>
       </div>

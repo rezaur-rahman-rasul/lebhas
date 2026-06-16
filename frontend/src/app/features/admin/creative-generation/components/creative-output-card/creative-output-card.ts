@@ -44,4 +44,22 @@ export class CreativeOutputCard {
   protected fileSizeLabel(size: number | null): string {
     return size ? formatFileSize(size) : 'Size pending';
   }
+
+  protected isOutputReady(): boolean {
+    return (this.output().status === 'READY' || this.output().status === 'COMPLETED') && Boolean(this.output().previewUrl);
+  }
+
+  protected finalizingLabel(): string {
+    const current = this.output();
+    if (!current.generatedAssetId) {
+      return 'Uploading creative...';
+    }
+    if (!current.previewUrl) {
+      return 'Finalizing preview...';
+    }
+    if (!current.downloadUrl) {
+      return 'Preparing download...';
+    }
+    return 'Finalizing creative...';
+  }
 }
